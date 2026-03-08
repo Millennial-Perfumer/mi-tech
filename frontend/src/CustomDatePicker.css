@@ -1,0 +1,152 @@
+/* Container for entire component */
+.custom-datepicker-wrapper {
+  position: relative;
+  font-family: inherit;
+}
+
+/* The trigger button style */
+.datepicker-trigger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  min-width: 250px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.datepicker-trigger-btn:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.datepicker-display-range {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* Dropdown popover container */
+.datepicker-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background-color: var(--surface-color);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 750px; /* Make wide enough for sidebar + 2 calendars */
+}
+
+/* Split content area */
+.datepicker-content {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Sidebar Presets */
+.datepicker-sidebar {
+  width: 200px;
+  border-right: 1px solid var(--border-color);
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #fafafa;
+}
+
+.preset-btn {
+  text-align: left;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: transparent;
+  transition: background-color 0.15s;
+}
+
+.preset-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.preset-btn.active {
+  background-color: #e0f2fe;
+  color: var(--accent-color);
+  font-weight: 500;
+  border-left: 3px solid var(--accent-color);
+  padding-left: calc(1.5rem - 3px);
+}
+
+/* Right side content */
+.datepicker-calendar-section {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Date Text Inputs View */
+.datepicker-inputs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.date-display-input {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  width: 140px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.date-display-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+}
+
+/* Override react-date-range default colors to match theme */
+.rdrDateDisplayWrapper {
+  display: none !important; /* We built our own input display above */
+}
+
+.rdrMonthAndYearWrapper {
+  padding-top: 0;
+}
+
+.rdrNextPrevButton {
+  background: #f3f4f6;
+}
+
+.rdrDayToday .rdrDayNumber span:after {
+  background: var(--accent-color);
+}
+
+.rdrSelected, .rdrInRange, .rdrStartEdge, .rdrEndEdge {
+  background: var(--accent-color) !important;
+}
+
+.rdrInRange {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Footer Action Bar */
+.datepicker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--surface-color);
+}

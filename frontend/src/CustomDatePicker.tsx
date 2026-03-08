@@ -1,0 +1,184 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { DateRangePicker } from 'react-date-range';
+import type { RangeKeyDict } from 'react-date-range';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  subDays,
+  startOfToday,
+  endOfToday,
+  isBefore,
+  parseISO
+} from 'date-fns';
+import 'react-date-range/dist/styles.css'; // main style file
+import 'react-date-range/dist/theme/default.css'; // theme css file
+import './CustomDatePicker.css'; // Custom Shopify-like styling
+
+interface CustomDatePickerProps {
+  startDate: string;
+  endDate: string;
+  onDateChange: (start: string, end: string) => void;
+  minDate?: string;
+}
+
+const PRESETS = [
+  { label: 'Today', getValue: () => [startOfToday(), endOfToday()] },
+  { label: 'Yesterday', getValue: () => [subDays(startOfToday(), 1), subDays(endOfToday(), 1)] },
+  { label: 'Last 7 days', getValue: () => [subDays(startOfToday(), 6), endOfToday()] },
+  { label: 'Last 30 days', getValue: () => [subDays(startOfToday(), 29), endOfToday()] },
+  { label: 'Last 90 days', getValue: () => [subDays(startOfToday(), 89), endOfToday()] },
+  { label: 'Month to date', getValue: () => [startOfMonth(startOfToday()), endOfToday()] },
+  { label: 'Last month', getValue: () => [startOfMonth(subMonths(startOfToday(), 1)), endOfMonth(subMonths(startOfToday(), 1))] },
+  { label: 'Last 12 months', getValue: () => [subMonths(startOfToday(), 12), endOfToday()] },
+];
+
+export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
+  startDate,
+  endDate,
+  onDateChange,
+  minDate = '2026-03-01'
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Parse initial dates safely
+  const parsedStart = startDate ? parseISO(startDate) : startOfMonth(startOfToday());
+  const parsedEnd = endDate ? parseISO(endDate) : endOfToday();
+  const parsedMinDate = parseISO(minDate);
+
+  const [localSelection, setLocalSelection] = useState({
+    startDate: parsedStart,
+    endDate: parsedEnd,
+    key: 'selection',
+  });
+
+  const [activePreset, setActivePreset] = useState<string>('Month to date'); // default
+
+  // Sync if props change
+  useEffect(() => {
+    setLocalSelection({
+      startDate: startDate ? parseISO(startDate) : startOfMonth(startOfToday()),
+      endDate: endDate ? parseISO(endDate) : endOfToday(),
+      key: 'selection'
+    });
+  }, [startDate, endDate]);
+
+  // Click outside listener
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleApply = () => {
+    onDateChange(
+      format(localSelection.startDate, 'yyyy-MM-dd'),
+      format(localSelection.endDate || localSelection.startDate, 'yyyy-MM-dd')
+    );
+    setIsOpen(false);
+  };
+
+  const handleCancel = () => {
+    setLocalSelection({
+      startDate: parsedStart,
+      endDate: parsedEnd,
+      key: 'selection'
+    });
+    setIsOpen(false);
+  };
+
+  const handlePresetClick = (preset: typeof PRESETS[0]) => {
+    let [start, end] = preset.getValue();
+    
+    // Enforce min constraint
+    if (isBefore(start, parsedMinDate)) {
+      start = parsedMinDate;
+    }
+    
+    setLocalSelection({ startDate: start, endDate: end, key: 'selection' });
+    setActivePreset(preset.label);
+  };
+
+  const handleCalendarChange = (ranges: RangeKeyDict) => {
+    const s = ranges.selection.startDate || new Date();
+    const e = ranges.selection.endDate || new Date();
+    setLocalSelection({ startDate: s, endDate: e, key: 'selection' });
+    setActivePreset('Custom'); // Unselect preset on manual selection
+  };
+
+  // Display text for the closed button
+  const displayRange = format(parsedStart, 'MMM d, yyyy') + (parsedStart.getTime() !== parsedEnd.getTime() ? ` → ${format(parsedEnd, 'MMM d, yyyy')}` : '');
+
+  return (
+    <div className="custom-datepicker-wrapper" ref={dropdownRef}>
+      {/* Trigger Button */}
+      <button 
+        className="datepicker-trigger-btn"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          {activePreset !== 'Custom' ? <span style={{fontWeight: 500}}>{activePreset}</span> : <span>Custom</span>}
+          {activePreset !== 'Today' && <span className="datepicker-display-range">{displayRange}</span>}
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+
+      {/* Popover Dropdown */}
+      {isOpen && (
+        <div className="datepicker-popover">
+          <div className="datepicker-content">
+            
+            {/* Left Presets Sidebar */}
+            <div className="datepicker-sidebar">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  className={`preset-btn ${activePreset === preset.label ? 'active' : ''}`}
+                  onClick={() => handlePresetClick(preset)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Right Calendar Section */}
+            <div className="datepicker-calendar-section">
+              <div className="datepicker-inputs-row">
+                <input type="text" value={format(localSelection.startDate, 'MMM d, yyyy')} readOnly className="date-display-input" />
+                <span style={{color: 'var(--text-secondary)'}}>→</span>
+                <input type="text" value={format(localSelection.endDate || localSelection.startDate, 'MMM d, yyyy')} readOnly className="date-display-input" />
+              </div>
+
+              <div className="calendar-wrapper">
+                <DateRangePicker
+                  ranges={[localSelection]}
+                  onChange={handleCalendarChange}
+                  months={2}
+                  direction="horizontal"
+                  minDate={parsedMinDate} // Strict constraint
+                  moveRangeOnFirstSelection={false}
+                  showMonthAndYearPickers={false} // Shopify style usually hides year drop downs
+                  showPreview={false} // clean look
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Action Bar */}
+          <div className="datepicker-footer">
+            <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
+            <button className="btn-primary" onClick={handleApply}>Apply</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
