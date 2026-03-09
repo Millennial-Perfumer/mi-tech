@@ -8,10 +8,16 @@ import (
 )
 
 type Config struct {
-	Port               string
-	DBDSN              string
-	ShopifyStoreURL    string
-	ShopifyAccessToken string
+	Port                  string
+	DBDSN                 string
+	ShopifyStoreURL       string
+	ShopifyAccessToken    string
+	ShopifyWebhookSecret  string
+	WhatsAppPhoneNumberID string
+	WhatsAppAccessToken   string
+	WhatsAppAppID         string
+	WhatsAppAppSecret     string
+	WhatsAppWABAID        string
 }
 
 func Load() *Config {
@@ -31,9 +37,15 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port:               port,
-		DBDSN:              dbDSN,
-		ShopifyStoreURL:    os.Getenv("SHOPIFY_STORE_URL"),
-		ShopifyAccessToken: os.Getenv("SHOPIFY_ACCESS_TOKEN"),
+		Port:                  port,
+		DBDSN:                 dbDSN,
+		ShopifyStoreURL:       os.Getenv("SHOPIFY_STORE_URL"),
+		ShopifyAccessToken:    os.Getenv("SHOPIFY_ACCESS_TOKEN"),
+		ShopifyWebhookSecret:  os.Getenv("SHOPIFY_WEBHOOK_SECRET"),
+		WhatsAppPhoneNumberID: os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
+		WhatsAppAccessToken:   os.Getenv("WHATSAPP_ACCESS_TOKEN"),
+		WhatsAppAppID:         os.Getenv("WHATSAPP_APP_ID"),
+		WhatsAppAppSecret:     os.Getenv("WHATSAPP_APP_SECRET"),
+		WhatsAppWABAID:        os.Getenv("WHATSAPP_WABA_ID"),
 	}
 }

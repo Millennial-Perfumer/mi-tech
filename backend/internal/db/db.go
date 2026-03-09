@@ -29,6 +29,55 @@ func InitDB(cfg *config.Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("error running migrations: %w", err)
 	}
 
+	// Automation Engine Tables
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS automation_templates (
+			id SERIAL PRIMARY KEY,
+			store_id TEXT NOT NULL,
+			template_name TEXT NOT NULL,
+			language TEXT NOT NULL,
+			category TEXT NOT NULL,
+			body TEXT NOT NULL,
+			header JSONB,
+			footer TEXT,
+			buttons JSONB,
+			status TEXT DEFAULT 'pending',
+			meta_template_id TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+		ALTER TABLE automation_templates ADD COLUMN IF NOT EXISTS header JSONB;
+		ALTER TABLE automation_templates ADD COLUMN IF NOT EXISTS footer TEXT;
+		ALTER TABLE automation_templates ADD COLUMN IF NOT EXISTS buttons JSONB;
+
+		CREATE TABLE IF NOT EXISTS automation_triggers (
+			id SERIAL PRIMARY KEY,
+			store_id TEXT NOT NULL,
+			webhook_topic TEXT NOT NULL,
+			template_id INTEGER REFERENCES automation_templates(id),
+			enabled BOOLEAN DEFAULT true,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS automation_messages (
+			id SERIAL PRIMARY KEY,
+			store_id TEXT NOT NULL,
+			template_id INTEGER REFERENCES automation_templates(id),
+			order_id TEXT NOT NULL,
+			phone_number TEXT NOT NULL,
+			message_id TEXT UNIQUE,
+			status TEXT DEFAULT 'sent',
+			sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			delivered_at TIMESTAMP,
+			read_at TIMESTAMP,
+			error_message TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+	`)
+	if err != nil {
+		log.Fatal("Failed to create automation tables:", err)
+	}
+
 	return db, nil
 }
 
@@ -64,6 +113,13 @@ func migrate(db *sql.DB) error {
 		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(50);
 		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS subtotal_price DECIMAL(12, 2);
 		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS total_tax DECIMAL(12, 2);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS store_id VARCHAR(255);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS shopify_order_id VARCHAR(255);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS currency VARCHAR(10);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS financial_status VARCHAR(50);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS fulfillment_status VARCHAR(50);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to update shopify_orders table schema: %w", err)
@@ -78,12 +134,38 @@ func migrate(db *sql.DB) error {
 			hs_code VARCHAR(50),
 			quantity INTEGER,
 			price DECIMAL(10, 2),
-			discount DECIMAL(10, 2) DEFAULT 0
+			discount DECIMAL(10, 2) DEFAULT 0,
+			product_id VARCHAR(255),
+			variant_id VARCHAR(255)
 		);
 		ALTER TABLE shopify_order_line_items ADD COLUMN IF NOT EXISTS discount DECIMAL(10, 2) DEFAULT 0;
+		ALTER TABLE shopify_order_line_items ADD COLUMN IF NOT EXISTS product_id VARCHAR(255);
+		ALTER TABLE shopify_order_line_items ADD COLUMN IF NOT EXISTS variant_id VARCHAR(255);
+	`)
+	// Create automation_whatsapp_settings table
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS automation_whatsapp_settings (
+			id SERIAL PRIMARY KEY,
+			store_id VARCHAR(255) UNIQUE NOT NULL,
+			enabled BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS webhook_status (
+			id SERIAL PRIMARY KEY,
+			topic VARCHAR(255),
+			status VARCHAR(50),
+			last_received TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);
+		
+		-- Insert a default row if not exists
+		INSERT INTO webhook_status (id, topic, status, last_received)
+		SELECT 1, 'none', 'inactive', NOW()
+		WHERE NOT EXISTS (SELECT 1 FROM webhook_status WHERE id = 1);
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to create shopify_order_line_items table: %w", err)
+		return fmt.Errorf("failed to create settings tables: %w", err)
 	}
 
 	log.Println("Database auto-migration completed successfully")

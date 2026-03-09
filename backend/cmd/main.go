@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 
+	"shopify-gst-app/internal/automation/whatsapp"
 	"shopify-gst-app/internal/config"
 	"shopify-gst-app/internal/db"
 	"shopify-gst-app/internal/handlers"
+	"shopify-gst-app/internal/orders"
 	"shopify-gst-app/internal/shopify"
 )
 
@@ -40,13 +42,28 @@ func main() {
 
 	port := ":" + cfg.Port
 
-	// Initialize Services & Handlers
+	// 1. Initialize Orders Module
+	ordersRepo := orders.NewRepository(database)
+	ordersService := orders.NewService(ordersRepo)
+
+	// 2. Initialize WhatsApp Automation Module
+	templatesRepo := whatsapp.NewTemplatesRepository(database)
+	messagesRepo := whatsapp.NewMessagesRepository(database)
+
+	templatesService := whatsapp.NewTemplatesService(templatesRepo, cfg)
+	messagesService := whatsapp.NewMessagesService(messagesRepo, cfg)
+	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService)
+	automationHandler := whatsapp.NewAutomationHandler(templatesService, messagesService)
+
+	// 3. Initialize Shopify Services & Handlers
 	shopifyClient := shopify.NewClient(cfg)
 	syncService := shopify.NewSyncService(shopifyClient, database)
 	ordersHandler := handlers.NewOrdersHandler(database, syncService)
 	metricsHandler := handlers.NewMetricsHandler(database)
-
 	reportsHandler := handlers.NewReportsHandler(database)
+
+	// 4. Initialize Webhook Handler
+	webhooksHandler := handlers.NewWebhooksHandler(ordersService, mappingService, cfg.ShopifyWebhookSecret, database)
 
 	// Register API Routes with CORS
 	http.Handle("/api/health", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
@@ -66,8 +83,41 @@ func main() {
 	http.HandleFunc("/api/reports/hsn-wise", corsMiddleware(reportsHandler.GetHSNSummary))
 	http.HandleFunc("/api/reports/documents-issued", corsMiddleware(reportsHandler.GetDocumentsIssued))
 
-	// Webhook Routes (Temporary for PII Verification)
-	http.HandleFunc("/webhooks/shopify/test-order", handlers.ShopifyWebhookTestHandler)
+	// Webhook Status Route
+	http.HandleFunc("/api/webhook/status", corsMiddleware(webhooksHandler.GetWebhookStatus))
+
+	// WhatsApp Automation Engine Routes
+	http.HandleFunc("/api/automation/whatsapp/metrics", corsMiddleware(automationHandler.GetAutomationMetrics))
+	http.HandleFunc("/api/automation/whatsapp/templates", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			automationHandler.CreateTemplate(w, r)
+		case http.MethodPut:
+			automationHandler.UpdateTemplate(w, r)
+		case http.MethodDelete:
+			automationHandler.DeleteTemplate(w, r)
+		default:
+			automationHandler.GetTemplates(w, r)
+		}
+	}))
+	http.HandleFunc("/api/automation/whatsapp/triggers", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			automationHandler.CreateTrigger(w, r)
+		case http.MethodPut:
+			automationHandler.UpdateTrigger(w, r)
+		case http.MethodDelete:
+			automationHandler.DeleteTrigger(w, r)
+		default:
+			automationHandler.GetTriggers(w, r)
+		}
+	}))
+	http.HandleFunc("/api/automation/whatsapp/messages", corsMiddleware(automationHandler.GetMessages))
+	http.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
+	http.HandleFunc("/api/automation/whatsapp/debug/templates", corsMiddleware(automationHandler.DebugGetTemplates))
+
+	// Main Webhook Route
+	http.HandleFunc("/webhooks/shopify", webhooksHandler.ShopifyWebhookHandler)
 
 	fmt.Printf("Starting backend server on port %s...\n", port)
 	if err := http.ListenAndServe(port, nil); err != nil {

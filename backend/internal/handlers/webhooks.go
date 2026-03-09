@@ -1,14 +1,53 @@
 package handlers
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
+	"shopify-gst-app/internal/automation/whatsapp"
+	"shopify-gst-app/internal/orders"
+	"strconv"
 )
 
-// ShopifyWebhookTestHandler handles incoming webhooks from Shopify for testing PII fields.
-func ShopifyWebhookTestHandler(w http.ResponseWriter, r *http.Request) {
+type WebhooksHandler struct {
+	ordersService  *orders.Service
+	mappingService *whatsapp.WebhookMappingService
+	webhookSecret  string
+	db             *sql.DB
+}
+
+func NewWebhooksHandler(orders *orders.Service, mapping *whatsapp.WebhookMappingService, secret string, db *sql.DB) *WebhooksHandler {
+	return &WebhooksHandler{
+		ordersService:  orders,
+		mappingService: mapping,
+		webhookSecret:  secret,
+		db:             db,
+	}
+}
+
+func (h *WebhooksHandler) VerifyWebhook(r *http.Request, body []byte) bool {
+	if h.webhookSecret == "" {
+		return true // Skip validation if secret is not configured
+	}
+
+	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")
+	if hmacHeader == "" {
+		return false
+	}
+
+	hash := hmac.New(sha256.New, []byte(h.webhookSecret))
+	hash.Write(body)
+	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
+	return hmacHeader == expectedHmac
+}
+
+func (h *WebhooksHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Webhook Error: Failed to read body: %v", err)
@@ -16,33 +55,56 @@ func ShopifyWebhookTestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("--- NEW SHOPIFY WEBHOOK PAYLOAD ---")
-	log.Println(string(body))
-
-	// Attempt to parse some key fields for quick logging
-	var payload map[string]interface{}
-	if err := json.Unmarshal(body, &payload); err == nil {
-		log.Printf("Order ID: %v", payload["id"])
-		log.Printf("Order Number: %v", payload["order_number"])
-		log.Printf("Email: %v", payload["email"])
-
-		if cust, ok := payload["customer"].(map[string]interface{}); ok {
-			log.Printf("Customer First Name: %v", cust["first_name"])
-			log.Printf("Customer Last Name: %v", cust["last_name"])
-		}
-
-		if ship, ok := payload["shipping_address"].(map[string]interface{}); ok {
-			log.Printf("Shipping Address Name: %v", ship["name"])
-			log.Printf("Shipping Address 1: %v", ship["address1"])
-			log.Printf("Shipping Address City: %v", ship["city"])
-			log.Printf("Shipping Address Province: %v", ship["province"])
-			log.Printf("Shipping Address Country: %v", ship["country"])
-		}
-	} else {
-		log.Printf("Webhook Warning: Failed to parse JSON for field extraction: %v", err)
+	// 1. Validate Secret
+	if !h.VerifyWebhook(r, body) {
+		log.Printf("Webhook Error: Invalid HMAC signature")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
-	log.Println("--- END WEBHOOK PAYLOAD ---")
+	topic := r.Header.Get("X-Shopify-Topic")
+	log.Printf("Received Webhook: %s", topic)
 
+	// Record activity
+	_, _ = h.db.Exec(`
+		UPDATE webhook_status 
+		SET topic = $1, status = 'active', last_received = CURRENT_TIMESTAMP 
+		WHERE id = 1
+	`, topic)
+
+	// Return 200 immediately
 	w.WriteHeader(http.StatusOK)
+
+	// Process asynchronously
+	go func() {
+		var payload orders.ShopifyWebhookOrder
+		if err := json.Unmarshal(body, &payload); err != nil {
+			log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+			return
+		}
+
+		// Execute Automation Mapping for all order topics
+		order, _ := h.ordersService.GetOrder(strconv.FormatInt(payload.ID, 10))
+		if order.ID != "" {
+			if err := h.mappingService.ExecuteMapping("1", topic, order); err != nil {
+				log.Printf("Automation Error: Failed to execute mapping for topic %s: %v", topic, err)
+			}
+		}
+	}()
+}
+
+func (h *WebhooksHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request) {
+	var topic, status, lastReceived string
+	err := h.db.QueryRow("SELECT topic, status, last_received FROM webhook_status WHERE id = 1").Scan(&topic, &status, &lastReceived)
+	if err != nil {
+		http.Error(w, "Failed to get webhook status", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"topic":         topic,
+		"status":        status,
+		"last_received": lastReceived,
+	})
 }

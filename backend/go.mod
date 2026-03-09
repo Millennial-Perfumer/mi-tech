@@ -7,5 +7,3 @@ require (
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/lib/pq v1.11.2
 )
-
-require golang.org/x/text v0.34.0 // indirect
