@@ -117,7 +117,7 @@ func main() {
 	http.HandleFunc("/api/automation/whatsapp/debug/templates", corsMiddleware(automationHandler.DebugGetTemplates))
 
 	// Main Webhook Route
-	http.HandleFunc("/webhooks/shopify", webhooksHandler.ShopifyWebhookHandler)
+	http.HandleFunc("/api/webhooks/shopify", webhooksHandler.ShopifyWebhookHandler)
 
 	fmt.Printf("Starting backend server on port %s...\n", port)
 	if err := http.ListenAndServe(port, nil); err != nil {

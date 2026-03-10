@@ -1,6 +1,7 @@
 package orders
 
 import (
+	"encoding/json"
 	"shopify-gst-app/internal/models"
 	"strconv"
 )
@@ -34,11 +35,16 @@ type ShopifyCustomer struct {
 }
 
 type ShopifyAddress struct {
-	Name     string `json:"name"`
-	Phone    string `json:"phone"`
-	City     string `json:"city"`
-	Province string `json:"province"`
-	Country  string `json:"country"`
+	Name      string `json:"name"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	Address1  string `json:"address1"`
+	Address2  string `json:"address2"`
+	City      string `json:"city"`
+	Province  string `json:"province"`
+	Country   string `json:"country"`
+	Zip       string `json:"zip"`
 }
 
 type ShopifyLineItem struct {
@@ -57,26 +63,65 @@ type ShopifyLineItem struct {
 	TotalDiscount string `json:"total_discount"`
 }
 
-func MapWebhookToOrder(payload ShopifyWebhookOrder) models.Order {
+func MapWebhookToOrder(payload ShopifyWebhookOrder, rawPayload *json.RawMessage) models.Order {
+	// Prioritize Billing Address for GST/Invoicing names and locations
 	customerName := ""
+	firstName, lastName := "", ""
+
 	if payload.Customer != nil {
-		customerName = payload.Customer.FirstName + " " + payload.Customer.LastName
-	} else if payload.ShippingAddress != nil {
-		customerName = payload.ShippingAddress.Name
+		firstName = payload.Customer.FirstName
+		lastName = payload.Customer.LastName
 	}
 
-	city, state, country := "", "", ""
-	if payload.ShippingAddress != nil {
-		city = payload.ShippingAddress.City
-		state = payload.ShippingAddress.Province
-		country = payload.ShippingAddress.Country
+	if payload.BillingAddress != nil && payload.BillingAddress.Name != "" {
+		customerName = payload.BillingAddress.Name
+		if firstName == "" {
+			firstName = payload.BillingAddress.FirstName
+		}
+		if lastName == "" {
+			lastName = payload.BillingAddress.LastName
+		}
+	} else if payload.ShippingAddress != nil && payload.ShippingAddress.Name != "" {
+		customerName = payload.ShippingAddress.Name
+		if firstName == "" {
+			firstName = payload.ShippingAddress.FirstName
+		}
+		if lastName == "" {
+			lastName = payload.ShippingAddress.LastName
+		}
+	}
+
+	if customerName == "" && (firstName != "" || lastName != "") {
+		customerName = (firstName + " " + lastName)
+	}
+
+	city, state, country, addr1, addr2, zip := "", "", "", "", "", ""
+	addr := payload.BillingAddress
+	if addr == nil {
+		addr = payload.ShippingAddress
+	}
+
+	if addr != nil {
+		city = addr.City
+		state = addr.Province
+		country = addr.Country
+		addr1 = addr.Address1
+		addr2 = addr.Address2
+		zip = addr.Zip
 	}
 
 	phone := ""
-	if payload.ShippingAddress != nil && payload.ShippingAddress.Phone != "" {
+	if payload.BillingAddress != nil && payload.BillingAddress.Phone != "" {
+		phone = payload.BillingAddress.Phone
+	} else if payload.ShippingAddress != nil && payload.ShippingAddress.Phone != "" {
 		phone = payload.ShippingAddress.Phone
 	} else if payload.Customer != nil {
 		phone = payload.Customer.Phone
+	}
+
+	email := payload.Email
+	if email == "" && payload.Customer != nil {
+		email = payload.Customer.Email
 	}
 
 	order := models.Order{
@@ -95,14 +140,28 @@ func MapWebhookToOrder(payload ShopifyWebhookOrder) models.Order {
 		CancelledAt:       payload.CancelledAt,
 		CancelReason:      payload.CancelReason,
 		CustomerName:      customerName,
-		CustomerEmail:     payload.Email,
+		CustomerFirstName: firstName,
+		CustomerLastName:  lastName,
+		CustomerEmail:     email,
 		CustomerPhone:     phone,
 		CustomerCity:      city,
 		CustomerState:     state,
 		CustomerCountry:   country,
+		CustomerAddress1:  addr1,
+		CustomerAddress2:  addr2,
+		CustomerZip:       zip,
+		RawPayload:        rawPayload,
 	}
 
 	for _, li := range payload.LineItems {
+		price := li.Price
+		if price == "" {
+			price = "0.00"
+		}
+		discount := li.TotalDiscount
+		if discount == "" {
+			discount = "0.00"
+		}
 		item := models.LineItem{
 			ID:        strconv.FormatInt(li.ID, 10),
 			ProductID: strconv.FormatInt(li.ProductID, 10),
@@ -110,8 +169,8 @@ func MapWebhookToOrder(payload ShopifyWebhookOrder) models.Order {
 			Title:     li.Title,
 			SKU:       li.SKU,
 			Quantity:  li.Quantity,
-			Price:     li.Price,
-			Discount:  li.TotalDiscount,
+			Price:     price,
+			Discount:  discount,
 		}
 
 		// Attempt to extract HS code if title contains hints or use a default

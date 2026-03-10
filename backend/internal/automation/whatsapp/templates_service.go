@@ -2,7 +2,6 @@ package whatsapp
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -84,7 +83,7 @@ func (s *TemplatesService) CreateTemplate(storeID string, req CreateTemplateRequ
 		Category:       req.Category,
 		Body:           req.Body,
 		Header:         &headerPtr,
-		Footer:         sql.NullString{String: req.Footer, Valid: req.Footer != ""},
+		Footer:         &req.Footer,
 		Buttons:        &buttonsPtr,
 		Status:         "PENDING",
 		MetaTemplateID: metaID,
@@ -263,7 +262,7 @@ func (s *TemplatesService) UpdateTemplate(storeID string, id int, req CreateTemp
 
 	t.Body = req.Body
 	t.Header = &headerPtr
-	t.Footer = sql.NullString{String: req.Footer, Valid: req.Footer != ""}
+	t.Footer = &req.Footer
 	t.Buttons = &buttonsPtr
 	t.Status = "PENDING"
 	return s.repo.UpdateTemplate(*t)

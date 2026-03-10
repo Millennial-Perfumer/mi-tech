@@ -15,7 +15,7 @@ type AutomationTemplate struct {
 	Category       string           `json:"category"`
 	Body           string           `json:"body"`
 	Header         *json.RawMessage `json:"header,omitempty"`
-	Footer         sql.NullString   `json:"footer,omitempty"`
+	Footer         *string          `json:"footer,omitempty"`
 	Buttons        *json.RawMessage `json:"buttons,omitempty"`
 	Status         string           `json:"status"`
 	MetaTemplateID string           `json:"meta_template_id"`

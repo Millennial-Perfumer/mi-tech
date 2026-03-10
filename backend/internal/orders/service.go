@@ -1,6 +1,7 @@
 package orders
 
 import (
+	"encoding/json"
 	"log"
 	"shopify-gst-app/internal/models"
 )
@@ -13,14 +14,14 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateOrderFromWebhook(payload ShopifyWebhookOrder) error {
-	order := MapWebhookToOrder(payload)
+func (s *Service) CreateOrderFromWebhook(payload ShopifyWebhookOrder, raw *json.RawMessage) error {
+	order := MapWebhookToOrder(payload, raw)
 	log.Printf("Processing orders/create for Order ID: %s", order.ID)
 	return s.repo.UpsertOrder(order)
 }
 
-func (s *Service) UpdateOrderFromWebhook(payload ShopifyWebhookOrder) error {
-	order := MapWebhookToOrder(payload)
+func (s *Service) UpdateOrderFromWebhook(payload ShopifyWebhookOrder, raw *json.RawMessage) error {
+	order := MapWebhookToOrder(payload, raw)
 	log.Printf("Processing orders/updated for Order ID: %s", order.ID)
 	return s.repo.UpsertOrder(order)
 }

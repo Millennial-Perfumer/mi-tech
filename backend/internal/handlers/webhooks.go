@@ -64,6 +64,7 @@ func (h *WebhooksHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.R
 
 	topic := r.Header.Get("X-Shopify-Topic")
 	log.Printf("Received Webhook: %s", topic)
+	log.Printf("Webhook Payload: %s", string(body))
 
 	// Record activity
 	_, _ = h.db.Exec(`
@@ -76,15 +77,45 @@ func (h *WebhooksHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.R
 	w.WriteHeader(http.StatusOK)
 
 	// Process asynchronously
+	// Process asynchronously
 	go func() {
+		raw := json.RawMessage(body)
 		var payload orders.ShopifyWebhookOrder
 		if err := json.Unmarshal(body, &payload); err != nil {
 			log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
 			return
 		}
 
-		// Execute Automation Mapping for all order topics
-		order, _ := h.ordersService.GetOrder(strconv.FormatInt(payload.ID, 10))
+		log.Printf("Processing %s for Order ID: %d", topic, payload.ID)
+
+		var err error
+		switch topic {
+		case "orders/create":
+			err = h.ordersService.CreateOrderFromWebhook(payload, &raw)
+		case "orders/updated":
+			err = h.ordersService.UpdateOrderFromWebhook(payload, &raw)
+		case "orders/paid":
+			err = h.ordersService.UpdatePaymentStatus(strconv.FormatInt(payload.ID, 10), "PAID")
+		case "orders/fulfilled":
+			err = h.ordersService.UpdateFulfillmentStatus(strconv.FormatInt(payload.ID, 10), "FULFILLED")
+		case "orders/cancelled":
+			err = h.ordersService.CancelOrder(strconv.FormatInt(payload.ID, 10), payload.CancelledAt, payload.CancelReason)
+		default:
+			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
+		}
+
+		if err != nil {
+			log.Printf("Webhook Error: Failed to process %s: %v", topic, err)
+			return
+		}
+
+		// Execute Automation Mapping
+		order, err := h.ordersService.GetOrder(strconv.FormatInt(payload.ID, 10))
+		if err != nil {
+			log.Printf("Automation Error: Failed to fetch order %d for mapping: %v", payload.ID, err)
+			return
+		}
+
 		if order.ID != "" {
 			if err := h.mappingService.ExecuteMapping("1", topic, order); err != nil {
 				log.Printf("Automation Error: Failed to execute mapping for topic %s: %v", topic, err)

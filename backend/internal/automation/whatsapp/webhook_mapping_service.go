@@ -44,7 +44,8 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order mode
 			map[string]interface{}{
 				"type": "body",
 				"parameters": []map[string]string{
-					{"type": "text", "text": order.CustomerName},
+					{"type": "text", "text": order.CustomerFirstName},
+					{"type": "text", "text": order.CustomerLastName},
 					{"type": "text", "text": order.OrderNumber},
 				},
 			},

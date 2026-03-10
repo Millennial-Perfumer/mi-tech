@@ -96,10 +96,13 @@ func (r *MessagesRepository) GetMessages(storeID string) ([]AutomationMessage, e
 	var messages []AutomationMessage
 	for rows.Next() {
 		var m AutomationMessage
-		err := rows.Scan(&m.ID, &m.StoreID, &m.TemplateID, &m.TemplateName, &m.OrderID, &m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, &m.DeliveredAt, &m.ReadAt, &m.ErrorMessage)
+		var templateName, errorMsg sql.NullString
+		err := rows.Scan(&m.ID, &m.StoreID, &m.TemplateID, &templateName, &m.OrderID, &m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, &m.DeliveredAt, &m.ReadAt, &errorMsg)
 		if err != nil {
 			return nil, err
 		}
+		m.TemplateName = templateName.String
+		m.ErrorMessage = errorMsg.String
 		messages = append(messages, m)
 	}
 	return messages, nil

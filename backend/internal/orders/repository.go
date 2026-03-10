@@ -27,8 +27,10 @@ func (r *Repository) UpsertOrder(order models.Order) error {
 			id, shopify_order_id, order_number, total_price, subtotal_price, total_tax, 
 			currency, financial_status, fulfillment_status, status, created_at, updated_at, 
 			cancelled_at, cancel_reason, customer_name, customer_email, customer_phone, 
-			customer_city, customer_state, customer_country
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+			customer_city, customer_state, customer_country, raw_payload,
+			customer_address1, customer_address2, customer_zip,
+			customer_first_name, customer_last_name
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 		ON CONFLICT (id) DO UPDATE SET
 			financial_status = EXCLUDED.financial_status,
 			fulfillment_status = EXCLUDED.fulfillment_status,
@@ -38,13 +40,20 @@ func (r *Repository) UpsertOrder(order models.Order) error {
 			cancel_reason = EXCLUDED.cancel_reason,
 			total_price = EXCLUDED.total_price,
 			subtotal_price = EXCLUDED.subtotal_price,
-			total_tax = EXCLUDED.total_tax
+			total_tax = EXCLUDED.total_tax,
+			customer_address1 = EXCLUDED.customer_address1,
+			customer_address2 = EXCLUDED.customer_address2,
+			customer_zip = EXCLUDED.customer_zip,
+			customer_first_name = EXCLUDED.customer_first_name,
+			customer_last_name = EXCLUDED.customer_last_name
 	`
 	_, err = tx.Exec(query,
 		order.ID, order.ShopifyOrderID, order.OrderNumber, order.TotalPrice, order.SubtotalPrice, order.TotalTax,
 		order.Currency, order.FinancialStatus, order.FulfillmentStatus, order.Status, order.CreatedAt, order.UpdatedAt,
 		order.CancelledAt, order.CancelReason, order.CustomerName, order.CustomerEmail, order.CustomerPhone,
-		order.CustomerCity, order.CustomerState, order.CustomerCountry,
+		order.CustomerCity, order.CustomerState, order.CustomerCountry, order.RawPayload,
+		order.CustomerAddress1, order.CustomerAddress2, order.CustomerZip,
+		order.CustomerFirstName, order.CustomerLastName,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to upsert order: %w", err)
@@ -98,10 +107,14 @@ func (r *Repository) GetOrder(id string) (models.Order, error) {
 	err := r.db.QueryRow(`
 		SELECT id, order_number, total_price, subtotal_price, total_tax, created_at, 
 		       customer_name, customer_email, customer_phone, 
-		       customer_city, customer_state, customer_country, status
+		       customer_city, customer_state, customer_country, status, raw_payload,
+		       customer_address1, customer_address2, customer_zip,
+		       customer_first_name, customer_last_name
 		FROM shopify_orders WHERE id = $1 OR shopify_order_id = $1
 	`, id).Scan(&o.ID, &o.OrderNumber, &o.TotalPrice, &o.SubtotalPrice, &o.TotalTax, &o.CreatedAt,
 		&o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
-		&o.CustomerCity, &o.CustomerState, &o.CustomerCountry, &o.Status)
+		&o.CustomerCity, &o.CustomerState, &o.CustomerCountry, &o.Status, &o.RawPayload,
+		&o.CustomerAddress1, &o.CustomerAddress2, &o.CustomerZip,
+		&o.CustomerFirstName, &o.CustomerLastName)
 	return o, err
 }

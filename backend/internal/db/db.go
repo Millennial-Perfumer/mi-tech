@@ -120,6 +120,12 @@ func migrate(db *sql.DB) error {
 		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS fulfillment_status VARCHAR(50);
 		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
 		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS raw_payload JSONB;
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS customer_address1 TEXT;
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS customer_address2 TEXT;
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS customer_zip VARCHAR(20);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS customer_first_name VARCHAR(255);
+		ALTER TABLE shopify_orders ADD COLUMN IF NOT EXISTS customer_last_name VARCHAR(255);
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to update shopify_orders table schema: %w", err)

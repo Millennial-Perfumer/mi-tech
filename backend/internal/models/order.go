@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 // GraphQLOrderResponse represents the top-level JSON from the GraphQL endpoint
 type GraphQLOrderResponse struct {
 	Data struct {
@@ -86,28 +88,34 @@ type GraphQLAddress struct {
 
 // Order represents our internal schema matching the PostgreSQL database
 type Order struct {
-	ID                string     `json:"id"`
-	StoreID           string     `json:"store_id"`
-	ShopifyOrderID    string     `json:"shopify_order_id"`
-	OrderNumber       string     `json:"order_number"`
-	TotalPrice        string     `json:"total_price"`
-	SubtotalPrice     string     `json:"subtotal_price"`
-	TotalTax          string     `json:"total_tax"`
-	Currency          string     `json:"currency"`
-	FinancialStatus   string     `json:"financial_status"`
-	FulfillmentStatus string     `json:"fulfillment_status"`
-	Status            string     `json:"status"`
-	CreatedAt         string     `json:"created_at"`
-	UpdatedAt         string     `json:"updated_at"`
-	CancelledAt       *string    `json:"cancelled_at"`
-	CancelReason      string     `json:"cancel_reason"`
-	CustomerName      string     `json:"customer_name"`
-	CustomerEmail     string     `json:"customer_email"`
-	CustomerPhone     string     `json:"customer_phone"`
-	CustomerCity      string     `json:"customer_city"`
-	CustomerState     string     `json:"customer_state"`
-	CustomerCountry   string     `json:"customer_country"`
-	LineItems         []LineItem `json:"line_items,omitempty"`
+	ID                string           `json:"id"`
+	StoreID           string           `json:"store_id"`
+	ShopifyOrderID    string           `json:"shopify_order_id"`
+	OrderNumber       string           `json:"order_number"`
+	TotalPrice        string           `json:"total_price"`
+	SubtotalPrice     string           `json:"subtotal_price"`
+	TotalTax          string           `json:"total_tax"`
+	Currency          string           `json:"currency"`
+	FinancialStatus   string           `json:"financial_status"`
+	FulfillmentStatus string           `json:"fulfillment_status"`
+	Status            string           `json:"status"`
+	CreatedAt         string           `json:"created_at"`
+	UpdatedAt         string           `json:"updated_at"`
+	CancelledAt       *string          `json:"cancelled_at"`
+	CancelReason      string           `json:"cancel_reason"`
+	CustomerName      string           `json:"customer_name"`
+	CustomerFirstName string           `json:"customer_first_name"`
+	CustomerLastName  string           `json:"customer_last_name"`
+	CustomerEmail     string           `json:"customer_email"`
+	CustomerPhone     string           `json:"customer_phone"`
+	CustomerCity      string           `json:"customer_city"`
+	CustomerState     string           `json:"customer_state"`
+	CustomerCountry   string           `json:"customer_country"`
+	CustomerAddress1  string           `json:"customer_address1"`
+	CustomerAddress2  string           `json:"customer_address2"`
+	CustomerZip       string           `json:"customer_zip"`
+	LineItems         []LineItem       `json:"line_items,omitempty"`
+	RawPayload        *json.RawMessage `json:"raw_payload,omitempty"`
 }
 
 type LineItem struct {
