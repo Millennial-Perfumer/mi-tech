@@ -98,6 +98,7 @@ func migrate(db *sql.DB) error {
 		ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_address1 TEXT;
 		ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_address2 TEXT;
 		ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_zip VARCHAR(20);
+		ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_first_name VARCHAR(255);
 		ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_last_name VARCHAR(255);
 		ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50);
 		ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100);
