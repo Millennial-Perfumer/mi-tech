@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"shopify-gst-app/internal/automation/whatsapp"
+	"shopify-gst-app/internal/models"
 	"shopify-gst-app/internal/orders"
 	"strconv"
 )
@@ -63,7 +64,8 @@ func (h *WebhooksHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.R
 	}
 
 	topic := r.Header.Get("X-Shopify-Topic")
-	log.Printf("Received Webhook: %s", topic)
+	webhookDeliveryID := r.Header.Get("X-Shopify-Webhook-Id")
+	log.Printf("Received Webhook: %s (Delivery ID: %s)", topic, webhookDeliveryID)
 	log.Printf("Webhook Payload: %s", string(body))
 
 	// Record activity
@@ -79,6 +81,17 @@ func (h *WebhooksHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.R
 	// Process asynchronously
 	// Process asynchronously
 	go func() {
+		// Duplicate Protection Log Check
+		processed, err := h.ordersService.IsWebhookProcessed(webhookDeliveryID)
+		if err != nil {
+			log.Printf("Webhook Error: Failed to check duplicate status: %v", err)
+			return
+		}
+		if processed {
+			log.Printf("Webhook Info: Webhook %s already processed. Ignoring.", webhookDeliveryID)
+			return
+		}
+
 		raw := json.RawMessage(body)
 		var payload orders.ShopifyWebhookOrder
 		if err := json.Unmarshal(body, &payload); err != nil {
@@ -86,37 +99,54 @@ func (h *WebhooksHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.R
 			return
 		}
 
-		log.Printf("Processing %s for Order ID: %d", topic, payload.ID)
+		externalID := strconv.FormatInt(payload.ID, 10)
+		log.Printf("Processing %s for Order ID: %s", topic, externalID)
 
-		var err error
+		// Record Webhook Event Initially
+		event := &models.WebhookEvent{
+			SourceID:          "shopify",
+			Topic:             topic,
+			ExternalID:        externalID,
+			WebhookDeliveryID: webhookDeliveryID,
+			Payload:           &raw,
+		}
+		if err := h.ordersService.SaveWebhookEvent(event); err != nil {
+			log.Printf("Webhook Error: Failed to save webhook event log: %v", err)
+			// Proceeding anyway but logging
+		}
+
+		var processErr error
 		switch topic {
 		case "orders/create":
-			err = h.ordersService.CreateOrderFromWebhook(payload, &raw)
+			processErr = h.ordersService.CreateOrderFromWebhook(payload, &raw)
 		case "orders/updated":
-			err = h.ordersService.UpdateOrderFromWebhook(payload, &raw)
+			processErr = h.ordersService.UpdateOrderFromWebhook(payload, &raw)
 		case "orders/paid":
-			err = h.ordersService.UpdatePaymentStatus(strconv.FormatInt(payload.ID, 10), "PAID")
+			processErr = h.ordersService.UpdatePaymentStatus(externalID, "PAID")
 		case "orders/fulfilled":
-			err = h.ordersService.UpdateFulfillmentStatus(strconv.FormatInt(payload.ID, 10), "FULFILLED")
+			processErr = h.ordersService.UpdateFulfillmentStatus(externalID, "FULFILLED")
 		case "orders/cancelled":
-			err = h.ordersService.CancelOrder(strconv.FormatInt(payload.ID, 10), payload.CancelledAt, payload.CancelReason)
+			processErr = h.ordersService.CancelOrder(externalID, payload.CancelledAt, payload.CancelReason)
 		default:
 			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
 		}
 
-		if err != nil {
-			log.Printf("Webhook Error: Failed to process %s: %v", topic, err)
+		if processErr != nil {
+			log.Printf("Webhook Error: Failed to process %s: %v", topic, processErr)
 			return
 		}
 
-		// Execute Automation Mapping
-		order, err := h.ordersService.GetOrder(strconv.FormatInt(payload.ID, 10))
+		// Post-processing order linkage for events and automation mapped
+		order, err := h.ordersService.GetOrder(externalID)
 		if err != nil {
-			log.Printf("Automation Error: Failed to fetch order %d for mapping: %v", payload.ID, err)
+			log.Printf("Automation Error: Failed to fetch order %s for mapping: %v", externalID, err)
 			return
 		}
 
 		if order.ID != "" {
+			// Link the processed event to the found/created internal Order
+			_ = h.ordersService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
+
 			if err := h.mappingService.ExecuteMapping("1", topic, order); err != nil {
 				log.Printf("Automation Error: Failed to execute mapping for topic %s: %v", topic, err)
 			}

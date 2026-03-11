@@ -58,7 +58,7 @@ func (h *MetricsHandler) GetDashboardMetrics(w http.ResponseWriter, r *http.Requ
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'fulfilled') as fulfilled_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'unfulfilled') as unfulfilled_orders
-		FROM shopify_orders 
+		FROM orders 
 		WHERE created_at >= $1 AND created_at <= $2
 	`
 

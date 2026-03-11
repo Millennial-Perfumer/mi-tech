@@ -15,6 +15,7 @@
     0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
   --radius-md: 12px;
   --radius-lg: 16px;
+  --bg-card: #ffffff;
 }
 
 * {
@@ -288,6 +289,71 @@ tr:hover td {
 .badge-error {
   background-color: #fee2e2;
   color: #991b1b;
+}
+
+/* Badge Pill Design */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  gap: 0.375rem;
+  border: 1px solid transparent;
+}
+
+.badge-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.badge-pill-success {
+  background-color: #f0fdf4;
+  color: #166534;
+  border-color: #dcfce7;
+}
+.badge-pill-success .dot {
+  background-color: #10b981;
+}
+
+.badge-pill-warning {
+  background-color: #fffbeb;
+  color: #92400e;
+  border-color: #fef3c7;
+}
+.badge-pill-warning .dot {
+  background-color: #f59e0b;
+}
+
+.badge-pill-gray {
+  background-color: #f8fafc;
+  color: #475569;
+  border-color: #f1f5f9;
+}
+.badge-pill-gray .dot {
+  background-color: #94a3b8;
+}
+
+.badge-pill-yellow {
+  background-color: #fffbeb;
+  color: #b45309;
+  border-color: #fef3c7;
+}
+.badge-pill-yellow .dot {
+  background-color: #fbbf24;
+  border: 1px solid #d97706;
+}
+
+.badge-pill-info {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border-color: #e0f2fe;
+}
+.badge-pill-info .dot {
+  background-color: #0ea5e9;
 }
 .toolbar-btn {
   background: none;

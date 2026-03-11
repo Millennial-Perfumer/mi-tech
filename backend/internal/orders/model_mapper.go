@@ -126,7 +126,8 @@ func MapWebhookToOrder(payload ShopifyWebhookOrder, rawPayload *json.RawMessage)
 
 	order := models.Order{
 		ID:                strconv.FormatInt(payload.ID, 10),
-		ShopifyOrderID:    strconv.FormatInt(payload.ID, 10),
+		ExternalOrderID:   strconv.FormatInt(payload.ID, 10),
+		SourceID:          "shopify",
 		OrderNumber:       strconv.FormatInt(payload.OrderNumber, 10),
 		TotalPrice:        payload.TotalPrice,
 		SubtotalPrice:     payload.SubtotalPrice,
@@ -134,6 +135,7 @@ func MapWebhookToOrder(payload ShopifyWebhookOrder, rawPayload *json.RawMessage)
 		Currency:          payload.Currency,
 		FinancialStatus:   payload.FinancialStatus,
 		FulfillmentStatus: payload.FulfillmentStatus,
+		DeliveryStatus:    "pending",
 		Status:            payload.FulfillmentStatus, // Fallback for existing status field
 		CreatedAt:         payload.CreatedAt,
 		UpdatedAt:         payload.UpdatedAt,

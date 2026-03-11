@@ -21,21 +21,24 @@ type GraphQLOrderEdge struct {
 }
 
 type GraphQLOrderNode struct {
-	ID                       string           `json:"id"`
-	Name                     string           `json:"name"`
-	Email                    string           `json:"email"`
-	CurrentTotalPriceSet     TotalPriceSet    `json:"currentTotalPriceSet"`
-	CurrentSubtotalPriceSet  TotalPriceSet    `json:"currentSubtotalPriceSet"`
-	CurrentTotalTaxSet       TotalPriceSet    `json:"currentTotalTaxSet"`
-	TotalPriceSet            TotalPriceSet    `json:"totalPriceSet"`
-	CreatedAt                string           `json:"createdAt"`
-	UpdatedAt                string           `json:"updatedAt"`
-	DisplayFinancialStatus   string           `json:"displayFinancialStatus"`
-	DisplayFulfillmentStatus string           `json:"displayFulfillmentStatus"`
-	Customer                 *GraphQLCustomer `json:"customer"`
-	BillingAddress           *GraphQLAddress  `json:"billingAddress"`
-	ShippingAddress          *GraphQLAddress  `json:"shippingAddress"`
-	LineItems                GraphQLWrapLine  `json:"lineItems"`
+	ID                       string               `json:"id"`
+	Name                     string               `json:"name"`
+	Email                    string               `json:"email"`
+	CurrentTotalPriceSet     TotalPriceSet        `json:"currentTotalPriceSet"`
+	CurrentSubtotalPriceSet  TotalPriceSet        `json:"currentSubtotalPriceSet"`
+	CurrentTotalTaxSet       TotalPriceSet        `json:"currentTotalTaxSet"`
+	TotalPriceSet            TotalPriceSet        `json:"totalPriceSet"`
+	SourceName               string               `json:"sourceName"`
+	ProcessedAt              string               `json:"processedAt"`
+	CreatedAt                string               `json:"createdAt"`
+	UpdatedAt                string               `json:"updatedAt"`
+	DisplayFinancialStatus   string               `json:"displayFinancialStatus"`
+	DisplayFulfillmentStatus string               `json:"displayFulfillmentStatus"`
+	Customer                 *GraphQLCustomer     `json:"customer"`
+	BillingAddress           *GraphQLAddress      `json:"billingAddress"`
+	ShippingAddress          *GraphQLAddress      `json:"shippingAddress"`
+	Fulfillments             []GraphQLFulfillment `json:"fulfillments"`
+	LineItems                GraphQLWrapLine      `json:"lineItems"`
 }
 
 type GraphQLWrapLine struct {
@@ -51,6 +54,8 @@ type GraphQLLineNode struct {
 	Title                string              `json:"title"`
 	SKU                  string              `json:"sku"`
 	Quantity             int                 `json:"quantity"`
+	Vendor               string              `json:"vendor"`
+	OriginalTotalSet     TotalPriceSet       `json:"originalTotalSet"`
 	TotalDiscountSet     TotalPriceSet       `json:"totalDiscountSet"`
 	OriginalUnitPriceSet TotalPriceSet       `json:"originalUnitPriceSet"`
 	Variant              *GraphQLLineVariant `json:"variant"`
@@ -86,11 +91,25 @@ type GraphQLAddress struct {
 	Country   string `json:"country"`
 }
 
+type GraphQLFulfillment struct {
+	Status        string                `json:"status"`
+	DisplayStatus string                `json:"displayStatus"`
+	CreatedAt     string                `json:"createdAt"`
+	TrackingInfo  []GraphQLTrackingInfo `json:"trackingInfo"`
+}
+
+type GraphQLTrackingInfo struct {
+	Number  string `json:"number"`
+	Company string `json:"company"`
+	Url     string `json:"url"`
+}
+
 // Order represents our internal schema matching the PostgreSQL database
 type Order struct {
 	ID                string           `json:"id"`
 	StoreID           string           `json:"store_id"`
-	ShopifyOrderID    string           `json:"shopify_order_id"`
+	ExternalOrderID   string           `json:"external_order_id"`
+	SourceID          string           `json:"source_id"`
 	OrderNumber       string           `json:"order_number"`
 	TotalPrice        string           `json:"total_price"`
 	SubtotalPrice     string           `json:"subtotal_price"`
@@ -98,6 +117,10 @@ type Order struct {
 	Currency          string           `json:"currency"`
 	FinancialStatus   string           `json:"financial_status"`
 	FulfillmentStatus string           `json:"fulfillment_status"`
+	DeliveryStatus    string           `json:"delivery_status"`
+	TrackingNumber    string           `json:"tracking_number"`
+	ShippingCompany   string           `json:"shipping_company"`
+	TrackingUrl       string           `json:"tracking_url"`
 	Status            string           `json:"status"`
 	CreatedAt         string           `json:"created_at"`
 	UpdatedAt         string           `json:"updated_at"`

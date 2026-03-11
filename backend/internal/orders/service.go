@@ -46,3 +46,15 @@ func (s *Service) CancelOrder(shopifyOrderID string, cancelledAt *string, reason
 func (s *Service) GetOrder(id string) (models.Order, error) {
 	return s.repo.GetOrder(id)
 }
+
+func (s *Service) SaveWebhookEvent(event *models.WebhookEvent) error {
+	return s.repo.SaveWebhookEvent(event)
+}
+
+func (s *Service) IsWebhookProcessed(deliveryID string) (bool, error) {
+	return s.repo.IsWebhookProcessed(deliveryID)
+}
+
+func (s *Service) LinkWebhookToOrder(deliveryID string, orderID string) error {
+	return s.repo.LinkWebhookToOrder(deliveryID, orderID)
+}

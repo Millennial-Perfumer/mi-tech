@@ -34,7 +34,7 @@ func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error)
 	}
 
 	var allOrders []models.GraphQLOrderNode
-	apiURL := fmt.Sprintf("https://%s/admin/api/2024-01/graphql.json", c.config.ShopifyStoreURL)
+	apiURL := fmt.Sprintf("https://%s/admin/api/2025-07/graphql.json", c.config.ShopifyStoreURL)
 
 	// Build the search query dynamically.
 	// We enforce that the order MUST have been created on or after March 1st, 2026,
@@ -53,6 +53,7 @@ func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error)
 					id
 					name
 					email
+					processedAt
 					createdAt
 					updatedAt
 					displayFinancialStatus
@@ -77,24 +78,26 @@ func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error)
 							amount
 						}
 					}
-					customer {
-						firstName
-						lastName
-						displayName
-					}
+					sourceName
 					billingAddress {
-						name
-						firstName
-						lastName
-					}
-					shippingAddress {
-						name
-						firstName
-						lastName
-						phone
 						city
 						province
 						country
+					}
+					shippingAddress {
+						city
+						province
+						country
+					}
+					fulfillments {
+						status
+						displayStatus
+						createdAt
+						trackingInfo {
+							number
+							company
+							url
+						}
 					}
 					lineItems(first: 50) {
 						edges {
@@ -104,6 +107,11 @@ func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error)
 								sku
 								quantity
 								totalDiscountSet {
+									shopMoney {
+										amount
+									}
+								}
+								originalTotalSet {
 									shopMoney {
 										amount
 									}
@@ -118,13 +126,15 @@ func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error)
 										harmonizedSystemCode
 									}
 								}
+								vendor
 							}
 						}
 					}
 				}
 			}
 		}
-	}`
+	}
+	`
 
 	var cursor *string
 

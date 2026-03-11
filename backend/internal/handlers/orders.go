@@ -92,7 +92,7 @@ func (h *OrdersHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	// 1. Get total count for the given filters
-	countQuery := "SELECT COUNT(*) FROM shopify_orders WHERE 1=1"
+	countQuery := "SELECT COUNT(*) FROM orders WHERE 1=1"
 	countArgs := []interface{}{}
 	countArgIndex := 1
 
@@ -116,8 +116,11 @@ func (h *OrdersHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Get paginated orders
 	query := `
-		SELECT id, order_number, total_price, created_at, customer_name, customer_city, customer_state, customer_country, status 
-		FROM shopify_orders 
+		SELECT id, order_number, total_price, created_at, customer_name, customer_city, customer_state, customer_country, status,
+		       COALESCE(financial_status, ''), COALESCE(fulfillment_status, ''), COALESCE(delivery_status, ''), 
+		       COALESCE(tracking_number, ''), COALESCE(shipping_company, ''), COALESCE(tracking_url, ''),
+		       source_id
+		FROM orders 
 		WHERE 1=1
 	`
 	args := []interface{}{}
@@ -146,7 +149,8 @@ func (h *OrdersHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	var orders []models.Order
 	for rows.Next() {
 		var o models.Order
-		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.TotalPrice, &o.CreatedAt, &o.CustomerName, &o.CustomerCity, &o.CustomerState, &o.CustomerCountry, &o.Status); err != nil {
+		if err := rows.Scan(&o.ID, &o.OrderNumber, &o.TotalPrice, &o.CreatedAt, &o.CustomerName, &o.CustomerCity, &o.CustomerState, &o.CustomerCountry, &o.Status,
+			&o.FinancialStatus, &o.FulfillmentStatus, &o.DeliveryStatus, &o.TrackingNumber, &o.ShippingCompany, &o.TrackingUrl, &o.SourceID); err != nil {
 			http.Error(w, "Failed to parse database rows", http.StatusInternalServerError)
 			return
 		}
@@ -188,7 +192,7 @@ func (h *OrdersHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	res, err := h.db.Exec(`UPDATE shopify_orders SET status = $1 WHERE id = $2`, reqBody.Status, id)
+	res, err := h.db.Exec(`UPDATE orders SET status = $1 WHERE id = $2`, reqBody.Status, id)
 	if err != nil {
 		http.Error(w, "Failed to update database", http.StatusInternalServerError)
 		return
@@ -226,7 +230,7 @@ func (h *OrdersHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) 
 		SELECT order_number, total_price, subtotal_price, total_tax, created_at, 
 		       customer_name, customer_email, customer_phone, 
 		       customer_city, customer_state, customer_country
-		FROM shopify_orders WHERE id = $1
+		FROM orders WHERE id = $1
 	`, id).Scan(&o.OrderNumber, &o.TotalPrice, &o.SubtotalPrice, &o.TotalTax, &o.CreatedAt,
 		&o.CustomerName, &o.CustomerEmail, &o.CustomerPhone,
 		&o.CustomerCity, &o.CustomerState, &o.CustomerCountry)
@@ -243,7 +247,7 @@ func (h *OrdersHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) 
 	// 2. Fetch Line Items
 	rows, err := h.db.Query(`
 		SELECT id, title, sku, hs_code, quantity, price, discount
-		FROM shopify_order_line_items WHERE order_id = $1
+		FROM order_line_items WHERE order_id = $1
 	`, id)
 	if err != nil {
 		http.Error(w, "Database error fetching items", http.StatusInternalServerError)

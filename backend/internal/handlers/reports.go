@@ -54,7 +54,7 @@ func (h *ReportsHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 			COALESCE(SUM(total_price) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as total_revenue,
 			COALESCE(SUM(subtotal_price) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as total_taxable,
 			COALESCE(SUM(total_tax) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as total_tax
-		FROM shopify_orders 
+		FROM orders 
 		WHERE created_at >= $1 AND created_at <= $2
 	`
 
@@ -75,7 +75,7 @@ func (h *ReportsHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 		SELECT 
 			customer_state,
 			SUM(total_tax) as sum_tax
-		FROM shopify_orders
+		FROM orders
 		WHERE created_at >= $1 AND created_at <= $2 AND LOWER(status) != 'cancelled'
 		GROUP BY customer_state
 	`
@@ -118,7 +118,7 @@ func (h *ReportsHandler) GetStateSummary(w http.ResponseWriter, r *http.Request)
 			COALESCE(SUM(subtotal_price), 0) as taxable,
 			COALESCE(SUM(total_tax), 0) as gst,
 			COALESCE(SUM(total_price), 0) as revenue
-		FROM shopify_orders
+		FROM orders
 		WHERE created_at >= $1 AND created_at <= $2 AND LOWER(status) != 'cancelled'
 		GROUP BY customer_state
 		ORDER BY revenue DESC
@@ -174,8 +174,8 @@ func (h *ReportsHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
 			SUM((li.price * li.quantity - li.discount) - (li.price * li.quantity - li.discount) / 1.18) as gst,
 			SUM(li.price * li.quantity - li.discount) as revenue,
 			o.customer_state
-		FROM shopify_order_line_items li
-		JOIN shopify_orders o ON li.order_id = o.id
+		FROM order_line_items li
+		JOIN orders o ON li.order_id = o.id
 		WHERE o.created_at >= $1 AND o.created_at <= $2 AND LOWER(o.status) != 'cancelled'
 		GROUP BY li.hs_code, o.customer_state
 	`
@@ -235,7 +235,7 @@ func (h *ReportsHandler) GetDocumentsIssued(w http.ResponseWriter, r *http.Reque
 			MAX(NULLIF(regexp_replace(order_number, '[^0-9]', '', 'g'), '')::bigint) as max_val,
 			COUNT(id) as total,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled
-		FROM shopify_orders
+		FROM orders
 		WHERE created_at >= $1 AND created_at <= $2
 	`
 
