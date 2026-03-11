@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/db"
+	"shopify-gst-app/internal/database"
 )
 
 // SyncService orchestrates fetching orders and saving them to the DB
@@ -259,7 +259,7 @@ func (s *SyncService) Sync() (int, error) {
 
 // ResetAndSync wipes all orders locally and performs a full synchronization
 func (s *SyncService) ResetAndSync() (int, error) {
-	err := db.TruncateOrders(s.db)
+	err := database.TruncateOrders(s.db)
 	if err != nil {
 		return 0, err
 	}
