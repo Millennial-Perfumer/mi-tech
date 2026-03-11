@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 
 	"shopify-gst-app/internal/entity"
 )
@@ -19,28 +20,54 @@ func NewOrderRepository(db *sql.DB) OrderRepository {
 }
 
 func (r *pgOrderRepository) List(filter OrderFilter) ([]entity.Order, int, error) {
-	// 1. Count total matching orders
-	countQuery := "SELECT COUNT(*) FROM orders WHERE 1=1"
-	countArgs := []interface{}{}
+	// 1. Build where clause
+	whereClause := " WHERE 1=1"
+	args := []interface{}{}
 	argIdx := 1
 
 	if filter.StartDate != "" {
-		countQuery += fmt.Sprintf(" AND created_at >= $%d", argIdx)
-		countArgs = append(countArgs, filter.StartDate)
+		whereClause += fmt.Sprintf(" AND created_at >= $%d", argIdx)
+		args = append(args, filter.StartDate)
 		argIdx++
 	}
 	if filter.EndDate != "" {
-		countQuery += fmt.Sprintf(" AND created_at <= $%d", argIdx)
-		countArgs = append(countArgs, filter.EndDate)
+		whereClause += fmt.Sprintf(" AND created_at <= $%d", argIdx)
+		args = append(args, filter.EndDate)
+		argIdx++
+	}
+	if filter.Search != "" {
+		whereClause += fmt.Sprintf(" AND (order_number ILIKE $%d OR customer_name ILIKE $%d)", argIdx, argIdx)
+		args = append(args, "%"+filter.Search+"%")
+		argIdx++
+	}
+	if filter.Source != "" {
+		whereClause += fmt.Sprintf(" AND source_id = $%d", argIdx)
+		args = append(args, filter.Source)
+		argIdx++
+	}
+	if filter.FinancialStatus != "" {
+		if strings.ToLower(filter.FinancialStatus) == "unpaid" {
+			whereClause += " AND financial_status != 'paid'"
+		} else {
+			whereClause += fmt.Sprintf(" AND financial_status = $%d", argIdx)
+			args = append(args, filter.FinancialStatus)
+			argIdx++
+		}
+	}
+	if filter.FulfillmentStatus != "" {
+		whereClause += fmt.Sprintf(" AND fulfillment_status = $%d", argIdx)
+		args = append(args, filter.FulfillmentStatus)
 		argIdx++
 	}
 
+	// 2. Count total matching orders
+	countQuery := "SELECT COUNT(*) FROM orders" + whereClause
 	var totalCount int
-	if err := r.db.QueryRow(countQuery, countArgs...).Scan(&totalCount); err != nil {
+	if err := r.db.QueryRow(countQuery, args...).Scan(&totalCount); err != nil {
 		return nil, 0, fmt.Errorf("failed to count orders: %w", err)
 	}
 
-	// 2. Fetch paginated orders
+	// 3. Fetch paginated orders
 	page := filter.Page
 	limit := filter.Limit
 	if page < 1 {
@@ -51,7 +78,28 @@ func (r *pgOrderRepository) List(filter OrderFilter) ([]entity.Order, int, error
 	}
 	offset := (page - 1) * limit
 
-	selectQuery := `
+	// Determine sorting
+	sortBy := "created_at"
+	sortOrder := "DESC"
+	
+	allowedSortCols := map[string]string{
+		"order_number":       "order_number",
+		"customer_name":     "customer_name",
+		"created_at":        "created_at",
+		"total_price":       "total_price",
+		"financial_status":   "financial_status",
+		"fulfillment_status": "fulfillment_status",
+		"source_id":          "source_id",
+	}
+	
+	if col, ok := allowedSortCols[filter.SortBy]; ok {
+		sortBy = col
+	}
+	if strings.ToUpper(filter.SortOrder) == "ASC" {
+		sortOrder = "ASC"
+	}
+
+	selectQuery := fmt.Sprintf(`
 		SELECT id, order_number, total_price, created_at, 
 		       COALESCE(customer_name, ''), COALESCE(customer_city, ''), COALESCE(customer_state, ''), COALESCE(customer_country, ''), 
 		       COALESCE(status, ''),
@@ -59,25 +107,12 @@ func (r *pgOrderRepository) List(filter OrderFilter) ([]entity.Order, int, error
 		       COALESCE(tracking_number, ''), COALESCE(shipping_company, ''), COALESCE(tracking_url, ''),
 		       source_id
 		FROM orders 
-		WHERE 1=1
-	`
-	selectArgs := []interface{}{}
-	selectIdx := 1
+		%s
+		ORDER BY %s %s 
+		LIMIT %d OFFSET %d
+	`, whereClause, sortBy, sortOrder, limit, offset)
 
-	if filter.StartDate != "" {
-		selectQuery += fmt.Sprintf(" AND created_at >= $%d", selectIdx)
-		selectArgs = append(selectArgs, filter.StartDate)
-		selectIdx++
-	}
-	if filter.EndDate != "" {
-		selectQuery += fmt.Sprintf(" AND created_at <= $%d", selectIdx)
-		selectArgs = append(selectArgs, filter.EndDate)
-		selectIdx++
-	}
-
-	selectQuery += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d OFFSET %d", limit, offset)
-
-	rows, err := r.db.Query(selectQuery, selectArgs...)
+	rows, err := r.db.Query(selectQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query orders: %w", err)
 	}
@@ -269,7 +304,22 @@ func (r *pgOrderRepository) UpdateStatus(externalOrderID string, financialStatus
 }
 
 func (r *pgOrderRepository) UpdateOrderStatus(id string, status string) (int64, error) {
-	res, err := r.db.Exec(`UPDATE orders SET status = $1 WHERE id = $2`, status, id)
+	status = strings.ToUpper(status)
+	var query string
+	var args []interface{}
+
+	if status == "CANCELLED" {
+		query = `UPDATE orders SET status = $1, fulfillment_status = 'restocked', cancelled_at = COALESCE(cancelled_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+		args = []interface{}{status, id}
+	} else if status == "FULFILLED" || status == "UNFULFILLED" {
+		query = `UPDATE orders SET status = $1, fulfillment_status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`
+		args = []interface{}{status, strings.ToLower(status), id}
+	} else {
+		query = `UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+		args = []interface{}{status, id}
+	}
+
+	res, err := r.db.Exec(query, args...)
 	if err != nil {
 		return 0, err
 	}

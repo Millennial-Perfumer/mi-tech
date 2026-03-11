@@ -22,12 +22,18 @@ func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo reposito
 }
 
 // ListOrders retrieves a paginated list of orders and converts them to DTOs.
-func (s *OrderService) ListOrders(startDate, endDate string, page, limit int) ([]dto.OrderResponse, int, error) {
+func (s *OrderService) ListOrders(startDate, endDate string, page, limit int, search, source, finStatus, fulStatus, sortBy, sortOrder string) ([]dto.OrderResponse, int, error) {
 	filter := repository.OrderFilter{
-		StartDate: startDate,
-		EndDate:   endDate,
-		Page:      page,
-		Limit:     limit,
+		StartDate:         startDate,
+		EndDate:           endDate,
+		Page:              page,
+		Limit:             limit,
+		Search:            search,
+		Source:            source,
+		FinancialStatus:   finStatus,
+		FulfillmentStatus: fulStatus,
+		SortBy:            sortBy,
+		SortOrder:         sortOrder,
 	}
 
 	entities, totalCount, err := s.orderRepo.List(filter)

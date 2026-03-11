@@ -16,12 +16,15 @@ func NewMetricsRepository(db *sql.DB) MetricsRepository {
 	return &pgMetricsRepository{db: db}
 }
 
-func (r *pgMetricsRepository) GetDashboardMetrics(startDate, endDate string) (totalRevenue float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error) {
+func (r *pgMetricsRepository) GetDashboardMetrics(startDate, endDate string) (totalRevenue, cgst, sgst, igst float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
 		SELECT 
 			COALESCE(SUM(total_price), 0) as total_revenue,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) = 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as cgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) = 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as sgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) != 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END), 0) as igst,
 			COUNT(id) as total_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'fulfilled') as fulfilled_orders,
@@ -30,7 +33,7 @@ func (r *pgMetricsRepository) GetDashboardMetrics(startDate, endDate string) (to
 		WHERE created_at >= $1 AND created_at <= $2
 	`
 	err = r.db.QueryRow(query, start, end).Scan(
-		&totalRevenue, &totalOrders, &cancelledOrders, &fulfilledOrders, &unfulfilledOrders,
+		&totalRevenue, &cgst, &sgst, &igst, &totalOrders, &cancelledOrders, &fulfilledOrders, &unfulfilledOrders,
 	)
 	return
 }
@@ -50,14 +53,14 @@ func (r *pgReportRepository) GetGSTSummary(startDate, endDate string) (totalOrde
 
 	query := `
 		SELECT 
-			COUNT(id) as total_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'fulfilled') as fulfilled_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'unfulfilled') as unfulfilled_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'paid') as paid_orders,
-			COALESCE(SUM(total_price) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as total_revenue,
-			COALESCE(SUM(subtotal_price) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as total_taxable,
-			COALESCE(SUM(total_tax) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as total_tax
+			COUNT(id),
+			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled'),
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled'),
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND LOWER(status) != 'cancelled'),
+			COUNT(id) FILTER (WHERE LOWER(financial_status) = 'paid'),
+			COALESCE(SUM(total_price) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as revenue,
+			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as taxable,
+			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as tax
 		FROM orders 
 		WHERE created_at >= $1 AND created_at <= $2
 	`
@@ -73,10 +76,10 @@ func (r *pgReportRepository) GetStateSummary(startDate, endDate string) ([]State
 
 	query := `
 		SELECT 
-			customer_state,
+			COALESCE(customer_state, 'N/A'),
 			COUNT(id) as orders,
-			COALESCE(SUM(subtotal_price), 0) as taxable,
-			COALESCE(SUM(total_tax), 0) as gst,
+			COALESCE(SUM(ROUND(total_price / 1.18, 2)), 0) as taxable,
+			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as gst,
 			COALESCE(SUM(total_price), 0) as revenue
 		FROM orders
 		WHERE created_at >= $1 AND created_at <= $2 AND LOWER(status) != 'cancelled'
@@ -104,18 +107,36 @@ func (r *pgReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSumm
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
+		WITH OrderSubtotals AS (
+			SELECT order_id, SUM(price * quantity - discount) as line_sum
+			FROM order_line_items
+			GROUP BY order_id
+		),
+		LineItemShares AS (
+			SELECT 
+				li.order_id,
+				COALESCE(li.hs_code, '33029019') as hs_code,
+				li.quantity,
+				(li.price * li.quantity - li.discount) as line_val,
+				os.line_sum,
+				o.total_price,
+				COALESCE(o.customer_state, 'N/A') as state
+			FROM order_line_items li
+			JOIN orders o ON li.order_id = o.id
+			JOIN OrderSubtotals os ON li.order_id = os.order_id
+			WHERE o.created_at >= $1 AND o.created_at <= $2 AND LOWER(o.status) != 'cancelled' AND os.line_sum > 0
+		)
 		SELECT 
-			li.hs_code,
-			COUNT(DISTINCT li.id) as product_count,
-			SUM(li.quantity) as qty,
-			SUM((li.price * li.quantity - li.discount) / 1.18) as taxable,
-			SUM((li.price * li.quantity - li.discount) - (li.price * li.quantity - li.discount) / 1.18) as gst,
-			SUM(li.price * li.quantity - li.discount) as revenue,
-			o.customer_state
-		FROM order_line_items li
-		JOIN orders o ON li.order_id = o.id
-		WHERE o.created_at >= $1 AND o.created_at <= $2 AND LOWER(o.status) != 'cancelled'
-		GROUP BY li.hs_code, o.customer_state
+			hs_code,
+			COUNT(DISTINCT order_id) as prod_count, -- Approximate count
+			SUM(quantity) as qty,
+			SUM(ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as taxable,
+			SUM(ROUND((line_val / line_sum) * total_price, 2) - ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as gst,
+			SUM(ROUND((line_val / line_sum) * total_price, 2)) as revenue,
+			state
+		FROM LineItemShares
+		GROUP BY hs_code, state
+		ORDER BY revenue DESC
 	`
 	rows, err := r.db.Query(query, start, end)
 	if err != nil {
@@ -165,8 +186,8 @@ func (r *pgReportRepository) GetTaxByState(startDate, endDate string) ([]StateTa
 
 	query := `
 		SELECT 
-			customer_state,
-			SUM(total_tax) as sum_tax
+			COALESCE(customer_state, 'N/A'),
+			SUM(total_price - (total_price / 1.18)) as sum_tax
 		FROM orders
 		WHERE created_at >= $1 AND created_at <= $2 AND LOWER(status) != 'cancelled'
 		GROUP BY customer_state
@@ -191,8 +212,9 @@ func (r *pgReportRepository) GetTaxByState(startDate, endDate string) ([]StateTa
 // --- Shared helper ---
 
 func parseDateRange(startDate, endDate string) (time.Time, time.Time) {
-	start, _ := time.Parse(time.RFC3339, startDate)
-	end, _ := time.Parse(time.RFC3339, endDate)
+	start := parseISO(startDate)
+	end := parseISO(endDate)
+
 	if start.IsZero() {
 		now := time.Now()
 		start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
@@ -201,4 +223,21 @@ func parseDateRange(startDate, endDate string) (time.Time, time.Time) {
 		end = time.Now()
 	}
 	return start, end
+}
+
+func parseISO(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	// Try RFC3339 first
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t
+	}
+	// Try with milliseconds (common in ISO strings from JS)
+	t, err = time.Parse("2006-01-02T15:04:05.000Z", s)
+	if err == nil {
+		return t
+	}
+	return time.Time{}
 }

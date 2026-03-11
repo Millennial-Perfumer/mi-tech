@@ -38,7 +38,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   startDate,
   endDate,
   onDateChange,
-  minDate = '2026-03-01'
+  minDate = '2026-01-01'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

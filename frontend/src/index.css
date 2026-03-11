@@ -511,3 +511,58 @@ textarea {
   font-size: 0.875rem;
   margin-bottom: 1rem;
 }
+.badge-pill-danger {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-color: #fee2e2;
+}
+.badge-pill-danger .dot {
+  background-color: #ef4444;
+}
+
+/* Status Update Popover */
+.status-popover {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  transform: translateY(-50%);
+  z-index: 50;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 0.5rem;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.status-popover-header {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.25rem;
+}
+
+.status-option {
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.status-option:hover {
+  background-color: #f8fafc;
+}
+
+.status-option .badge-pill {
+  width: 100%;
+  justify-content: flex-start;
+}

@@ -6,10 +6,16 @@ import (
 
 // OrderFilter holds query parameters for listing orders.
 type OrderFilter struct {
-	StartDate string
-	EndDate   string
-	Page      int
-	Limit     int
+	StartDate         string
+	EndDate           string
+	Page              int
+	Limit             int
+	Search            string
+	Source            string
+	FinancialStatus   string
+	FulfillmentStatus string
+	SortBy            string
+	SortOrder         string
 }
 
 // OrderRepository defines all data access operations for the orders table.
@@ -77,8 +83,8 @@ type WebhookStatusRepository interface {
 
 // MetricsRepository defines data access for dashboard metric queries.
 type MetricsRepository interface {
-	// GetDashboardMetrics returns aggregated order metrics for a date range.
-	GetDashboardMetrics(startDate, endDate string) (totalRevenue float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error)
+	// GetDashboardMetrics returns aggregated order metrics for a date range including GST components.
+	GetDashboardMetrics(startDate, endDate string) (totalRevenue, cgst, sgst, igst float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error)
 }
 
 // ReportRepository defines data access for GST report queries.

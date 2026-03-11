@@ -66,6 +66,42 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) =>
   const [opSummary, setOpSummary] = useState<OperationalSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Sorting State
+  const [sortField, setSortField] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+  };
+
+  const getSortedData = <T extends Record<string, any>>(data: T[]): T[] => {
+    if (!sortField) return data;
+    return [...data].sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortOrder === 'asc' 
+          ? aVal.localeCompare(bVal) 
+          : bVal.localeCompare(aVal);
+      }
+      
+      return sortOrder === 'asc' 
+        ? (aVal as number) - (bVal as number) 
+        : (bVal as number) - (aVal as number);
+    });
+  };
+
+  const renderSortArrow = (field: string) => {
+    if (sortField !== field) return <span style={{ opacity: 0.2, marginLeft: '4px' }}>↕</span>;
+    return <span style={{ marginLeft: '4px', color: 'var(--accent-color)' }}>{sortOrder === 'asc' ? '↑' : '↓'}</span>;
+  };
+
   useEffect(() => {
     const fetchReports = async () => {
       setLoading(true);
@@ -232,14 +268,14 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) =>
             <table>
               <thead>
                 <tr>
-                  <th>State</th>
-                  <th>Orders</th>
-                  <th>Taxable Value</th>
-                  <th>IGST</th>
-                  <th>CGST</th>
-                  <th>SGST</th>
-                  <th>Total GST</th>
-                  <th>Revenue</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('state')}>State {renderSortArrow('state')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('orders')}>Orders {renderSortArrow('orders')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('taxable_value')}>Taxable Value {renderSortArrow('taxable_value')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('igst')}>IGST {renderSortArrow('igst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('cgst')}>CGST {renderSortArrow('cgst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('sgst')}>SGST {renderSortArrow('sgst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('total_gst')}>Total GST {renderSortArrow('total_gst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('revenue')}>Revenue {renderSortArrow('revenue')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -248,7 +284,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) =>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>No state-wise data for this period.</td>
                   </tr>
                 ) : (
-                  stateData.map((row, idx) => (
+                  getSortedData(stateData).map((row, idx) => (
                     <tr key={idx}>
                       <td>{row.state || 'N/A'}</td>
                       <td>{row.orders}</td>
@@ -277,13 +313,13 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) =>
             <table>
               <thead>
                 <tr>
-                  <th>HSN Code</th>
-                  <th>Qty</th>
-                  <th>Taxable</th>
-                  <th>IGST</th>
-                  <th>CGST</th>
-                  <th>SGST</th>
-                  <th>Total GST</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('hsn_code')}>HSN Code {renderSortArrow('hsn_code')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('qty_sold')}>Qty {renderSortArrow('qty_sold')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('taxable_value')}>Taxable {renderSortArrow('taxable_value')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('igst')}>IGST {renderSortArrow('igst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('cgst')}>CGST {renderSortArrow('cgst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('sgst')}>SGST {renderSortArrow('sgst')}</th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('total_gst')}>Total GST {renderSortArrow('total_gst')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,7 +328,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) =>
                     <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>No HSN data for this period.</td>
                   </tr>
                 ) : (
-                  hsnData.map((row, idx) => (
+                  getSortedData(hsnData).map((row, idx) => (
                     <tr key={idx}>
                       <td>{row.hsn_code}</td>
                       <td>{row.qty_sold}</td>

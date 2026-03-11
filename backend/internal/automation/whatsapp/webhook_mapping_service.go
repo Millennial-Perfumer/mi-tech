@@ -3,7 +3,7 @@ package whatsapp
 import (
 	"fmt"
 	"log"
-	"shopify-gst-app/internal/models"
+	"shopify-gst-app/internal/entity"
 )
 
 type WebhookMappingService struct {
@@ -18,7 +18,7 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 	}
 }
 
-func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order models.Order) error {
+func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
 	// 1. Find matching trigger
 	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
 	if err != nil {
@@ -44,8 +44,8 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order mode
 			map[string]interface{}{
 				"type": "body",
 				"parameters": []map[string]string{
-					{"type": "text", "text": order.CustomerFirstName},
-					{"type": "text", "text": order.CustomerLastName},
+					{"type": "text", "text": order.CustomerFirstName.String},
+					{"type": "text", "text": order.CustomerLastName.String},
 					{"type": "text", "text": order.OrderNumber},
 				},
 			},
@@ -53,7 +53,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order mode
 	}
 
 	// 4. Send message
-	if order.CustomerPhone == "" {
+	if !order.CustomerPhone.Valid || order.CustomerPhone.String == "" {
 		log.Printf("Skip automation: no phone number for order %s", order.OrderNumber)
 		return nil
 	}
@@ -62,7 +62,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order mode
 		storeID,
 		template.ID,
 		order.ID,
-		order.CustomerPhone,
+		order.CustomerPhone.String,
 		template.TemplateName,
 		template.Language,
 		components,

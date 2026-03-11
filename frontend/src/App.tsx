@@ -74,6 +74,16 @@ function App() {
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
   const limit = 25;
   const [openTrackingId, setOpenTrackingId] = useState<string | null>(null);
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Sorting and Filtering State
+  const [search, setSearch] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
+  const [fulfillmentFilter, setFulfillmentFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   // Column Selector State
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
@@ -92,20 +102,54 @@ function App() {
     localStorage.setItem('shopifyAppVisibleColumns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
 
-  // Default to Month-to-Date (MTD)
-  const defaultStartDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  // Default to Year-to-Date (YTD) or January 1st as requested
+  const defaultStartDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
   const defaultEndDate = new Date().toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
 
-  // Close tracking popover when clicking elsewhere
+  // Close tracking/status popover when clicking elsewhere
   useEffect(() => {
     const handleOutsideClick = () => {
       if (openTrackingId) setOpenTrackingId(null);
+      if (editingStatusId) setEditingStatusId(null);
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
-  }, [openTrackingId]);
+  }, [openTrackingId, editingStatusId]);
+
+  // Debounced search effect
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+    setIsUpdatingStatus(true);
+    try {
+      const response = await fetch(`http://localhost:8080/api/orders/status?id=${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Refresh data
+        fetchDashboardData();
+        setEditingStatusId(null);
+      } else {
+        alert(data.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Network error updating status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -130,7 +174,7 @@ function App() {
         setMetrics(metricsData.metrics);
       }
 
-      const ordersRes = await fetch(`http://localhost:8080/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}`);
+      const ordersRes = await fetch(`http://localhost:8080/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
       const ordersData = await ordersRes.json();
       if (ordersData.success) {
         setOrders(ordersData.orders);
@@ -169,7 +213,7 @@ function App() {
   };
 
   const resetShopify = async () => {
-    if (!window.confirm("Are you sure you want to delete all historical synced data and force a full re-sync from March 2026? This cannot be undone.")) {
+    if (!window.confirm("Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.")) {
       return;
     }
     setIsResetting(true);
@@ -195,7 +239,7 @@ function App() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [startDate, endDate, page]);
+  }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
   return (
     <div className="app-container">
@@ -349,28 +393,112 @@ function App() {
               </div>
             </div>
 
-            <div className="table-header">
-              <h3 style={{fontSize: '1rem'}}>Stored Orders</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <ColumnSelector columns={AVAILABLE_COLUMNS} visibleColumns={visibleColumns} onChange={setVisibleColumns} />
+            <div className="table-header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '1rem', margin: 0 }}>Stored Orders</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <ColumnSelector columns={AVAILABLE_COLUMNS} visibleColumns={visibleColumns} onChange={setVisibleColumns} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'white', padding: '0.5rem', borderRadius: '8px' }}>
+                <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                  <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input 
+                    type="text" 
+                    placeholder="Search orders or customers..." 
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    style={{ paddingLeft: '2.5rem', fontSize: '0.875rem' }}
+                  />
+                </div>
+                
+                <select 
+                  value={sourceFilter} 
+                  onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
+                  style={{ width: 'auto', fontSize: '0.875rem', padding: '0.5rem 2rem 0.5rem 1rem' }}
+                >
+                  <option value="">All Sources</option>
+                  <option value="shopify">Shopify</option>
+                  <option value="amazon">Amazon</option>
+                  <option value="pos">POS</option>
+                </select>
+
+                <select 
+                  value={paymentFilter} 
+                  onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
+                  style={{ width: 'auto', fontSize: '0.875rem', padding: '0.5rem 2rem 0.5rem 1rem' }}
+                >
+                  <option value="">Payment: All</option>
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                </select>
+
+                <select 
+                  value={fulfillmentFilter} 
+                  onChange={(e) => { setFulfillmentFilter(e.target.value); setPage(1); }}
+                  style={{ width: 'auto', fontSize: '0.875rem', padding: '0.5rem 2rem 0.5rem 1rem' }}
+                >
+                  <option value="">Fulfillment: All</option>
+                  <option value="fulfilled">Fulfilled</option>
+                  <option value="unfulfilled">Unfulfilled</option>
+                </select>
+
+                {(search || sourceFilter || paymentFilter || fulfillmentFilter) && (
+                  <button 
+                    className="btn-secondary" 
+                    onClick={() => { setSearch(''); setSourceFilter(''); setPaymentFilter(''); setFulfillmentFilter(''); setPage(1); }}
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', color: '#64748b' }}
+                  >
+                    Clear Filters
+                  </button>
+                )}
               </div>
             </div>
             <div style={{overflowX: 'auto'}}>
             <table>
               <thead>
                 <tr>
-                  {visibleColumns.includes('order_id') && <th>Order ID</th>}
-                  {visibleColumns.includes('customer_name') && <th>Customer</th>}
+                  {visibleColumns.includes('order_id') && (
+                    <th onClick={() => { setSortBy('order_number'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Order ID {sortBy === 'order_number' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
+                  {visibleColumns.includes('customer_name') && (
+                    <th onClick={() => { setSortBy('customer_name'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Customer {sortBy === 'customer_name' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
                   {visibleColumns.includes('city') && <th>City</th>}
                   {visibleColumns.includes('state') && <th>State</th>}
                   {visibleColumns.includes('country') && <th>Country</th>}
-                  {visibleColumns.includes('date') && <th>Date</th>}
+                  {visibleColumns.includes('date') && (
+                    <th onClick={() => { setSortBy('created_at'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Date {sortBy === 'created_at' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
                   {visibleColumns.includes('time') && <th>Time</th>}
-                  {visibleColumns.includes('amount') && <th>Amount</th>}
-                  {visibleColumns.includes('financial_status') && <th>Payment</th>}
-                  {visibleColumns.includes('fulfillment_status') && <th>Fulfillment</th>}
+                  {visibleColumns.includes('amount') && (
+                    <th onClick={() => { setSortBy('total_price'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Amount {sortBy === 'total_price' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
+                  {visibleColumns.includes('financial_status') && (
+                    <th onClick={() => { setSortBy('financial_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Payment {sortBy === 'financial_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
+                  {visibleColumns.includes('fulfillment_status') && (
+                    <th onClick={() => { setSortBy('fulfillment_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Fulfillment {sortBy === 'fulfillment_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
                   {visibleColumns.includes('delivery_status') && <th>Delivery Status</th>}
-                  {visibleColumns.includes('source') && <th>Source</th>}
+                  {visibleColumns.includes('source') && (
+                    <th onClick={() => { setSortBy('source_id'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                      Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                    </th>
+                  )}
                   {visibleColumns.includes('gst_invoice') && <th>GST Invoice</th>}
                 </tr>
               </thead>
@@ -402,10 +530,42 @@ function App() {
                         </td>
                       )}
                       {visibleColumns.includes('fulfillment_status') && (
-                        <td>
-                          <span className={`badge-pill badge-pill-${order.fulfillment_status === 'fulfilled' ? 'gray' : 'yellow'}`}>
-                             <span className="dot"></span> {order.fulfillment_status?.charAt(0).toUpperCase() + order.fulfillment_status?.slice(1) || 'Unfulfilled'}
+                        <td style={{ position: 'relative' }}>
+                          <span 
+                            className={`badge-pill badge-pill-${order.fulfillment_status === 'fulfilled' ? 'gray' : (order.fulfillment_status === 'cancelled' || order.status === 'CANCELLED' ? 'danger' : 'yellow')}`}
+                            style={{ cursor: isUpdatingStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 }}
+                            onClick={(e) => {
+                              if (isUpdatingStatus) return;
+                              e.stopPropagation();
+                              setEditingStatusId(editingStatusId === order.id ? null : order.id);
+                            }}
+                          >
+                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.fulfillment_status?.charAt(0).toUpperCase() + order.fulfillment_status?.slice(1) || 'Unfulfilled')}
                           </span>
+
+                          {editingStatusId === order.id && (
+                            <div className="status-popover" onClick={e => e.stopPropagation()}>
+                              <div className="status-popover-header">Update Status</div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handleStatusUpdate(order.id, 'fulfilled')}
+                              >
+                                <span className="badge-pill badge-pill-gray"><span className="dot"></span> Fulfilled</span>
+                              </div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handleStatusUpdate(order.id, 'unfulfilled')}
+                              >
+                                <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Unfulfilled</span>
+                              </div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handleStatusUpdate(order.id, 'cancelled')}
+                              >
+                                <span className="badge-pill badge-pill-danger"><span className="dot"></span> Cancelled</span>
+                              </div>
+                            </div>
+                          )}
                         </td>
                       )}
                       {visibleColumns.includes('delivery_status') && (

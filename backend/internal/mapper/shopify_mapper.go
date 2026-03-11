@@ -8,6 +8,7 @@ import (
 
 	"shopify-gst-app/internal/dto"
 	"shopify-gst-app/internal/entity"
+	"time"
 )
 
 // GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.
@@ -86,14 +87,27 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	idStr := strings.TrimPrefix(so.ID, "gid://shopify/Order/")
 
+	createdAt := parseTime(so.ProcessedAt)
+	if createdAt.IsZero() {
+		createdAt = parseTime(so.CreatedAt)
+	}
+	updatedAt := parseTime(so.UpdatedAt)
+
+	totalPrice := parseFloat(so.CurrentTotalPriceSet.ShopMoney.Amount)
+	taxableValue := totalPrice / 1.18
+	totalTax := totalPrice - taxableValue
+
 	return entity.Order{
 		ID:                idStr,
-		SourceID:          sourceID,
 		ExternalOrderID:   idStr,
+		SourceID:          sourceID,
 		OrderNumber:       so.Name,
-		TotalPrice:        parseFloat(so.CurrentTotalPriceSet.ShopMoney.Amount),
-		SubtotalPrice:     toNullFloat64(so.CurrentSubtotalPriceSet.ShopMoney.Amount),
-		TotalTax:          toNullFloat64(so.CurrentTotalTaxSet.ShopMoney.Amount),
+		TotalPrice:        totalPrice,
+		SubtotalPrice:     sql.NullFloat64{Float64: taxableValue, Valid: true},
+		TotalTax:          sql.NullFloat64{Float64: totalTax, Valid: true},
+		Currency:          toNullString("INR"), // Default to INR for GraphQL as CurrencyCode wasn't fetched
+		CreatedAt:         createdAt,
+		UpdatedAt:         updatedAt,
 		FinancialStatus:   toNullString(financialStatus),
 		FulfillmentStatus: toNullString(fulfillmentStatus),
 		DeliveryStatus:    toNullString(deliveryStatus),
@@ -204,15 +218,19 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		sourceID = "pos"
 	}
 
+	totalPrice := parseFloat(payload.TotalPrice)
+	taxableValue := totalPrice / 1.18
+	totalTax := totalPrice - taxableValue
+
 	idStr := strconv.FormatInt(payload.ID, 10)
 	order := entity.Order{
 		ID:                idStr,
 		ExternalOrderID:   idStr,
 		SourceID:          sourceID,
 		OrderNumber:       strconv.FormatInt(payload.OrderNumber, 10),
-		TotalPrice:        parseFloat(payload.TotalPrice),
-		SubtotalPrice:     toNullFloat64(payload.SubtotalPrice),
-		TotalTax:          toNullFloat64(payload.TotalTax),
+		TotalPrice:        totalPrice,
+		SubtotalPrice:     sql.NullFloat64{Float64: taxableValue, Valid: true},
+		TotalTax:          sql.NullFloat64{Float64: totalTax, Valid: true},
 		Currency:          toNullString(payload.Currency),
 		FinancialStatus:   toNullString(payload.FinancialStatus),
 		FulfillmentStatus: toNullString(payload.FulfillmentStatus),
@@ -229,6 +247,8 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		CustomerAddress1:  toNullString(addr1),
 		CustomerAddress2:  toNullString(addr2),
 		CustomerZip:       toNullString(zip),
+		CreatedAt:         parseTime(payload.CreatedAt),
+		UpdatedAt:         parseTime(payload.UpdatedAt),
 		RawPayload:        rawPayload,
 	}
 
@@ -286,4 +306,21 @@ func toNullFloat64(s string) sql.NullFloat64 {
 func parseFloat(s string) float64 {
 	v, _ := strconv.ParseFloat(s, 64)
 	return v
+}
+
+func parseTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	// Try RFC3339 first
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t
+	}
+	// Try with milliseconds (common in ISO strings from JS)
+	t, err = time.Parse("2006-01-02T15:04:05.000Z", s)
+	if err == nil {
+		return t
+	}
+	return time.Time{}
 }

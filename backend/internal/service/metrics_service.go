@@ -17,22 +17,16 @@ func NewMetricsService(metricsRepo repository.MetricsRepository) *MetricsService
 
 // GetDashboardMetrics calculates and returns all dashboard metrics including GST splits.
 func (s *MetricsService) GetDashboardMetrics(startDate, endDate string) (dto.DashboardMetrics, error) {
-	totalRevenue, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, err :=
+	totalRevenue, cgst, sgst, igst, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, err :=
 		s.metricsRepo.GetDashboardMetrics(startDate, endDate)
 	if err != nil {
 		return dto.DashboardMetrics{}, err
 	}
 
-	// GST Calculation (18% inclusive)
-	totalGST := totalRevenue - (totalRevenue / 1.18)
-	igst := totalGST * 0.40
-	cgst := totalGST * 0.30
-	sgst := totalGST * 0.30
-
 	return dto.DashboardMetrics{
 		TotalRevenue:      totalRevenue,
 		TotalInvoices:     totalOrders,
-		TotalGSTCollected: totalGST,
+		TotalGSTCollected: cgst + sgst + igst,
 		CGSTCollected:     cgst,
 		SGSTCollected:     sgst,
 		IGSTCollected:     igst,

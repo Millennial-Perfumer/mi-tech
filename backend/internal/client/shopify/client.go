@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"shopify-gst-app/internal/config"
-	"shopify-gst-app/internal/models"
+	"shopify-gst-app/internal/dto"
 )
 
 type Client struct {
@@ -28,18 +28,18 @@ func NewClient(cfg *config.Config) *Client {
 }
 
 // FetchOrders fetches orders from Shopify using the GraphQL Admin API, extracting specific location vectors.
-func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error) {
+func (c *Client) FetchOrders(since time.Time) ([]dto.GraphQLOrderNode, error) {
 	if c.config.ShopifyStoreURL == "" || c.config.ShopifyAccessToken == "" {
 		return nil, fmt.Errorf("shopify credentials are not configured")
 	}
 
-	var allOrders []models.GraphQLOrderNode
+	var allOrders []dto.GraphQLOrderNode
 	apiURL := fmt.Sprintf("https://%s/admin/api/2025-07/graphql.json", c.config.ShopifyStoreURL)
 
 	// Build the search query dynamically.
-	// We enforce that the order MUST have been created on or after March 1st, 2026,
+	// We enforce that the order MUST have been created on or after January 1st, 2026,
 	// AND it was updated after the given 'since' threshold.
-	searchQuery := fmt.Sprintf("created_at:>='2026-03-01T00:00:00Z' AND updated_at:>'%s'", since.Format(time.RFC3339))
+	searchQuery := fmt.Sprintf("created_at:>='2026-01-01T00:00:00Z' AND updated_at:>'%s'", since.Format(time.RFC3339))
 
 	queryTemplate := `
 	query getOrders($cursor: String, $query: String!) {
@@ -173,7 +173,7 @@ func (c *Client) FetchOrders(since time.Time) ([]models.GraphQLOrderNode, error)
 			return nil, fmt.Errorf("shopify graphql api error: %s - %s", resp.Status, string(body))
 		}
 
-		var result models.GraphQLOrderResponse
+		var result dto.GraphQLOrderResponse
 		if err := json.Unmarshal(body, &result); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal graphql response: %w", err)
 		}

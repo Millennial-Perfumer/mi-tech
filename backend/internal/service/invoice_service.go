@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"math"
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
@@ -110,10 +109,10 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.Ln(4.8)
 
 	// -- Items Table --
-	s.renderItemsTable(pdf, items)
+	calcTaxable, calcTax := s.renderItemsTable(pdf, items)
 
 	// -- Totals --
-	s.renderTotals(pdf, order)
+	s.renderTotals(pdf, order, calcTaxable, calcTax)
 
 	// -- Footer Terms --
 	s.renderFooter(pdf)
@@ -121,7 +120,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	return pdf.Output(w)
 }
 
-func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem) {
+func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem) (float64, float64) {
 	pdf.SetFillColor(245, 245, 245)
 	pdf.SetFont("Montserrat", "I", 7.5)
 
@@ -148,6 +147,9 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 
 	pdf.SetFont("Montserrat", "", 6.75)
 
+	totalTaxable := 0.0
+	totalTax := 0.0
+
 	for _, item := range items {
 		rawPrice := item.Price
 		itemDiscount := item.Discount
@@ -164,6 +166,9 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 
 		lineTaxable := lineTotal / 1.18
 		lineTax := lineTotal - lineTaxable
+		
+		totalTaxable += lineTaxable
+		totalTax += lineTax
 
 		hsCode := ns(item.HSCode)
 		if hsCode == "" {
@@ -175,9 +180,9 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		curX := pdf.GetX()
 		curY := pdf.GetY()
 
-		avgCharWidth := 1.35
-		charsPerLine := (wName - 6.4) / avgCharWidth
-		numLines := math.Ceil(float64(len(title)) / charsPerLine)
+		// Calculate height for wrapping text
+		textLines := pdf.SplitLines([]byte(title), wName-4.0)
+		numLines := float64(len(textLines))
 		if numLines < 1 {
 			numLines = 1
 		}
@@ -186,8 +191,8 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 			h = 8.5
 		}
 
-		pdf.MultiCell(wName, 4.5, title, "1", "L", false)
-		pdf.SetXY(curX+wName, curY)
+		// Draw background/borders for the whole row height h
+		pdf.CellFormat(wName, h, "", "1", 0, "L", false, 0, "")
 		pdf.CellFormat(wSKU, h, sku, "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wHSN, h, hsCode, "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wQty, h, fmt.Sprintf("%d", item.Quantity), "1", 0, "C", false, 0, "")
@@ -196,18 +201,16 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		pdf.CellFormat(wTaxable, h, fmt.Sprintf("%.2f", lineTaxable), "1", 0, "R", false, 0, "")
 		pdf.CellFormat(wGSTPct, h, "18%", "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wGSTAmt, h, fmt.Sprintf("%.2f", lineTax), "1", 1, "R", false, 0, "")
+
+		// Reposition to write MultiCell text in the first column
+		pdf.SetXY(curX+2, curY+(h-(numLines*4.5))/2)
+		pdf.MultiCell(wName-4, 4.5, title, "0", "L", false)
+		pdf.SetXY(curX, curY+h)
 	}
+	return totalTaxable, totalTax
 }
 
-func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order) {
-	oSubtotal := 0.0
-	if order.SubtotalPrice.Valid {
-		oSubtotal = order.SubtotalPrice.Float64
-	}
-	oTax := 0.0
-	if order.TotalTax.Valid {
-		oTax = order.TotalTax.Float64
-	}
+func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, calcTaxable, calcTax float64) {
 	oGrandTotal := order.TotalPrice
 
 	isInterState := true
@@ -221,7 +224,7 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order) {
 	pdf.SetFont("Montserrat", "B", 8.25)
 	pdf.CellFormat(40, 5, "Total Taxable:", "0", 0, "R", false, 0, "")
 	pdf.SetFont("Montserrat", "", 8.25)
-	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", oSubtotal), "0", 1, "R", false, 0, "")
+	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTaxable), "0", 1, "R", false, 0, "")
 	pdf.Ln(1)
 
 	if !isInterState {
@@ -229,19 +232,19 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order) {
 		pdf.SetFont("Montserrat", "B", 8.25)
 		pdf.CellFormat(40, 5, "CGST (9%):", "0", 0, "R", false, 0, "")
 		pdf.SetFont("Montserrat", "", 8.25)
-		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", oTax/2), "0", 1, "R", false, 0, "")
+		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTax/2), "0", 1, "R", false, 0, "")
 		pdf.Ln(1)
 		pdf.SetX(120)
 		pdf.SetFont("Montserrat", "B", 8.25)
 		pdf.CellFormat(40, 5, "SGST (9%):", "0", 0, "R", false, 0, "")
 		pdf.SetFont("Montserrat", "", 8.25)
-		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", oTax/2), "0", 1, "R", false, 0, "")
+		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTax/2), "0", 1, "R", false, 0, "")
 	} else {
 		pdf.SetX(120)
 		pdf.SetFont("Montserrat", "B", 8.25)
 		pdf.CellFormat(40, 5, "IGST (18%):", "0", 0, "R", false, 0, "")
 		pdf.SetFont("Montserrat", "", 8.25)
-		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", oTax), "0", 1, "R", false, 0, "")
+		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTax), "0", 1, "R", false, 0, "")
 	}
 
 	pdf.Ln(2.6)

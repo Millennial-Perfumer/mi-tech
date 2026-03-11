@@ -17,7 +17,7 @@ import (
 	"shopify-gst-app/internal/handler"
 	"shopify-gst-app/internal/repository"
 	"shopify-gst-app/internal/service"
-	"shopify-gst-app/internal/shopify"
+	"shopify-gst-app/internal/client/shopify"
 )
 
 // Server holds all dependencies and the HTTP server.

@@ -35,8 +35,14 @@ func (h *OrderHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	endDate := r.URL.Query().Get("end_date")
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	search := r.URL.Query().Get("search")
+	source := r.URL.Query().Get("source")
+	finStatus := r.URL.Query().Get("financial_status")
+	fulStatus := r.URL.Query().Get("fulfillment_status")
+	sortBy := r.URL.Query().Get("sort_by")
+	sortOrder := r.URL.Query().Get("sort_order")
 
-	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit)
+	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, sortBy, sortOrder)
 	if err != nil {
 		http.Error(w, "Failed to retrieve orders", http.StatusInternalServerError)
 		return
