@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,12 +17,14 @@ import (
 	"shopify-gst-app/internal/repository"
 	"shopify-gst-app/internal/service"
 	"shopify-gst-app/internal/client/shopify"
+
+	"gorm.io/gorm"
 )
 
 // Server holds all dependencies and the HTTP server.
 type Server struct {
 	cfg      *config.Config
-	database *sql.DB
+	database *gorm.DB
 	httpSrv  *http.Server
 }
 
@@ -33,18 +34,19 @@ func New() (*Server, error) {
 	cfg := config.Load()
 
 	// 2. Database
-	database, err := database.InitDB(cfg)
+	db, err := database.InitDB(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
 	// 3. Repositories
-	orderRepo := repository.NewOrderRepository(database)
-	lineItemRepo := repository.NewLineItemRepository(database)
-	webhookEventRepo := repository.NewWebhookEventRepository(database)
-	webhookStatusRepo := repository.NewWebhookStatusRepository(database)
-	metricsRepo := repository.NewMetricsRepository(database)
-	reportRepo := repository.NewReportRepository(database)
+	orderRepo := repository.NewOrderRepository(db)
+	lineItemRepo := repository.NewLineItemRepository(db)
+	webhookEventRepo := repository.NewWebhookEventRepository(db)
+	webhookStatusRepo := repository.NewWebhookStatusRepository(db)
+	metricsRepo := repository.NewMetricsRepository(db)
+	reportRepo := repository.NewReportRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 
 	// 4. External Clients
 	shopifyClient := shopify.NewClient(cfg)
@@ -57,9 +59,10 @@ func New() (*Server, error) {
 	reportService := service.NewReportService(reportRepo)
 	webhookService := service.NewWebhookService(orderService, webhookEventRepo, webhookStatusRepo)
 
-	// 6. WhatsApp Automation Module (uses old patterns until Phase 7)
-	templatesRepo := whatsapp.NewTemplatesRepository(database)
-	messagesRepo := whatsapp.NewMessagesRepository(database)
+	// 6. WhatsApp Automation Module
+	sqlDB, _ := db.DB()
+	templatesRepo := whatsapp.NewTemplatesRepository(sqlDB)
+	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
 	templatesService := whatsapp.NewTemplatesService(templatesRepo, cfg)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, cfg)
 	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService)
@@ -71,14 +74,15 @@ func New() (*Server, error) {
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	reportHandler := handler.NewReportHandler(reportService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, cfg.ShopifyWebhookSecret)
+	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 
 	// 8. Router
 	mux := http.NewServeMux()
-	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler)
+	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler)
 
 	// 9. HTTP Server with timeouts
 	httpSrv := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         ":8080",
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -87,20 +91,16 @@ func New() (*Server, error) {
 
 	return &Server{
 		cfg:      cfg,
-		database: database,
+		database: db,
 		httpSrv:  httpSrv,
 	}, nil
 }
 
-// Run starts the HTTP server and handles graceful shutdown on OS signals.
+// Run starts the HTTP server and handles graceful shutdown.
 func (s *Server) Run() error {
-	defer s.database.Close()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	// Channel to listen for OS signals
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	// Start server in a goroutine
 	go func() {
 		log.Printf("Starting backend server on %s...", s.httpSrv.Addr)
 		if err := s.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -108,11 +108,9 @@ func (s *Server) Run() error {
 		}
 	}()
 
-	// Block until we receive a signal
-	sig := <-quit
-	log.Printf("Received signal %s. Shutting down gracefully...", sig)
+	<-stop
+	log.Println("Received signal interrupt. Shutting down gracefully...")
 
-	// Give active connections 10 seconds to finish
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -120,6 +118,8 @@ func (s *Server) Run() error {
 		return fmt.Errorf("server forced to shutdown: %w", err)
 	}
 
+	sqlDB, _ := s.database.DB()
+	sqlDB.Close()
 	log.Println("Server stopped cleanly.")
 	return nil
 }

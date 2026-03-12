@@ -1,7 +1,6 @@
 package mapper
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -15,35 +14,35 @@ func OrderEntityToResponse(e entity.Order) dto.OrderResponse {
 		ID:                e.ID,
 		OrderNumber:       e.OrderNumber,
 		TotalPrice:        fmt.Sprintf("%.2f", e.TotalPrice),
-		SubtotalPrice:     nullFloat64ToStr(e.SubtotalPrice),
-		TotalTax:          nullFloat64ToStr(e.TotalTax),
-		Currency:          nullStr(e.Currency),
-		FinancialStatus:   nullStr(e.FinancialStatus),
-		FulfillmentStatus: nullStr(e.FulfillmentStatus),
-		DeliveryStatus:    nullStr(e.DeliveryStatus),
-		TrackingNumber:    nullStr(e.TrackingNumber),
-		ShippingCompany:   nullStr(e.ShippingCompany),
-		TrackingUrl:       nullStr(e.TrackingUrl),
+		SubtotalPrice:     ptrFloat64ToStr(e.SubtotalPrice),
+		TotalTax:          ptrFloat64ToStr(e.TotalTax),
+		Currency:          deref(e.Currency),
+		FinancialStatus:   deref(e.FinancialStatus),
+		FulfillmentStatus: deref(e.FulfillmentStatus),
+		DeliveryStatus:    deref(e.DeliveryStatus),
+		TrackingNumber:    deref(e.TrackingNumber),
+		ShippingCompany:   deref(e.ShippingCompany),
+		TrackingUrl:       deref(e.TrackingUrl),
 		SourceID:          e.SourceID,
-		Status:            nullStr(e.Status),
+		Status:            deref(e.Status),
 		CreatedAt:         e.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         e.UpdatedAt.Format(time.RFC3339),
-		CancelReason:      nullStr(e.CancelReason),
-		CustomerName:      nullStr(e.CustomerName),
-		CustomerFirstName: nullStr(e.CustomerFirstName),
-		CustomerLastName:  nullStr(e.CustomerLastName),
-		CustomerEmail:     nullStr(e.CustomerEmail),
-		CustomerPhone:     nullStr(e.CustomerPhone),
-		CustomerCity:      nullStr(e.CustomerCity),
-		CustomerState:     nullStr(e.CustomerState),
-		CustomerCountry:   nullStr(e.CustomerCountry),
-		CustomerAddress1:  nullStr(e.CustomerAddress1),
-		CustomerAddress2:  nullStr(e.CustomerAddress2),
-		CustomerZip:       nullStr(e.CustomerZip),
+		CancelReason:      deref(e.CancelReason),
+		CustomerName:      deref(e.CustomerName),
+		CustomerFirstName: deref(e.CustomerFirstName),
+		CustomerLastName:  deref(e.CustomerLastName),
+		CustomerEmail:     deref(e.CustomerEmail),
+		CustomerPhone:     deref(e.CustomerPhone),
+		CustomerCity:      deref(e.CustomerCity),
+		CustomerState:     deref(e.CustomerState),
+		CustomerCountry:   deref(e.CustomerCountry),
+		CustomerAddress1:  deref(e.CustomerAddress1),
+		CustomerAddress2:  deref(e.CustomerAddress2),
+		CustomerZip:       deref(e.CustomerZip),
 	}
 
-	if e.CancelledAt.Valid {
-		resp.CancelledAt = e.CancelledAt.Time.Format(time.RFC3339)
+	if e.CancelledAt != nil {
+		resp.CancelledAt = e.CancelledAt.Format(time.RFC3339)
 	}
 
 	for _, li := range e.LineItems {
@@ -66,29 +65,29 @@ func OrderEntitiesToResponses(entities []entity.Order) []dto.OrderResponse {
 func LineItemEntityToResponse(e entity.LineItem) dto.LineItemResponse {
 	return dto.LineItemResponse{
 		ID:        e.ID,
-		ProductID: nullStr(e.ProductID),
-		VariantID: nullStr(e.VariantID),
-		Title:     nullStr(e.Title),
-		SKU:       nullStr(e.SKU),
-		HSCode:    nullStr(e.HSCode),
+		ProductID: deref(e.ProductID),
+		VariantID: deref(e.VariantID),
+		Title:     deref(e.Title),
+		SKU:       deref(e.SKU),
+		HSCode:    deref(e.HSCode),
 		Quantity:  e.Quantity,
 		Price:     fmt.Sprintf("%.2f", e.Price),
 		Discount:  fmt.Sprintf("%.2f", e.Discount),
 	}
 }
 
-// --- Helper functions for sql.Null* to plain string conversions ---
+// --- Helper functions for pointer to plain string conversions ---
 
-func nullStr(ns sql.NullString) string {
-	if ns.Valid {
-		return ns.String
+func deref(s *string) string {
+	if s == nil {
+		return ""
 	}
-	return ""
+	return *s
 }
 
-func nullFloat64ToStr(nf sql.NullFloat64) string {
-	if nf.Valid {
-		return fmt.Sprintf("%.2f", nf.Float64)
+func ptrFloat64ToStr(f *float64) string {
+	if f == nil {
+		return "0.00"
 	}
-	return "0.00"
+	return fmt.Sprintf("%.2f", *f)
 }

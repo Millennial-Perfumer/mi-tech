@@ -44,8 +44,8 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 			map[string]interface{}{
 				"type": "body",
 				"parameters": []map[string]string{
-					{"type": "text", "text": order.CustomerFirstName.String},
-					{"type": "text", "text": order.CustomerLastName.String},
+					{"type": "text", "text": entity.DerefStr(order.CustomerFirstName)},
+					{"type": "text", "text": entity.DerefStr(order.CustomerLastName)},
 					{"type": "text", "text": order.OrderNumber},
 				},
 			},
@@ -53,7 +53,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	}
 
 	// 4. Send message
-	if !order.CustomerPhone.Valid || order.CustomerPhone.String == "" {
+	if order.CustomerPhone == nil || *order.CustomerPhone == "" {
 		log.Printf("Skip automation: no phone number for order %s", order.OrderNumber)
 		return nil
 	}
@@ -62,7 +62,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 		storeID,
 		template.ID,
 		order.ID,
-		order.CustomerPhone.String,
+		*order.CustomerPhone,
 		template.TemplateName,
 		template.Language,
 		components,

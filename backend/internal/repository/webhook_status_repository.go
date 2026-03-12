@@ -1,30 +1,36 @@
 package repository
 
 import (
-	"database/sql"
+	"gorm.io/gorm"
 )
 
-// pgWebhookStatusRepository is the PostgreSQL implementation of WebhookStatusRepository.
-type pgWebhookStatusRepository struct {
-	db *sql.DB
+// gormWebhookStatusRepository is the GORM implementation of WebhookStatusRepository.
+type gormWebhookStatusRepository struct {
+	db *gorm.DB
 }
 
-// NewWebhookStatusRepository creates a new PostgreSQL-backed WebhookStatusRepository.
-func NewWebhookStatusRepository(db *sql.DB) WebhookStatusRepository {
-	return &pgWebhookStatusRepository{db: db}
+// NewWebhookStatusRepository creates a new GORM-backed WebhookStatusRepository.
+func NewWebhookStatusRepository(db *gorm.DB) WebhookStatusRepository {
+	return &gormWebhookStatusRepository{db: db}
 }
 
-func (r *pgWebhookStatusRepository) Get() (topic string, status string, lastReceived string, err error) {
-	err = r.db.QueryRow("SELECT topic, status, last_received FROM webhook_status WHERE id = 1").
-		Scan(&topic, &status, &lastReceived)
-	return
+type webhookStatusRow struct {
+	Topic        string
+	Status       string
+	LastReceived string `gorm:"column:last_received"`
 }
 
-func (r *pgWebhookStatusRepository) UpdateActivity(topic string) error {
-	_, err := r.db.Exec(`
-		UPDATE webhook_status 
-		SET topic = $1, status = 'active', last_received = CURRENT_TIMESTAMP 
-		WHERE id = 1
-	`, topic)
-	return err
+func (webhookStatusRow) TableName() string { return "webhook_status" }
+
+func (r *gormWebhookStatusRepository) Get() (topic string, status string, lastReceived string, err error) {
+	var row webhookStatusRow
+	err = r.db.Where("id = ?", 1).First(&row).Error
+	return row.Topic, row.Status, row.LastReceived, err
+}
+
+func (r *gormWebhookStatusRepository) UpdateActivity(topic string) error {
+	return r.db.Exec(
+		"UPDATE webhook_status SET topic = ?, status = 'active', last_received = CURRENT_TIMESTAMP WHERE id = 1",
+		topic,
+	).Error
 }

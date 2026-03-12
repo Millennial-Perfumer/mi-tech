@@ -1,19 +1,16 @@
 package mapper
 
 import (
-	"database/sql"
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 
 	"shopify-gst-app/internal/dto"
 	"shopify-gst-app/internal/entity"
-	"time"
 )
 
 // GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.
-// It handles customer name resolution, address fallback, fulfillment/tracking extraction,
-// and source_id mapping.
 func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 	var custName, custEmail, custPhone, custCity, custState, custCountry string
 
@@ -97,36 +94,38 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 	taxableValue := totalPrice / 1.18
 	totalTax := totalPrice - taxableValue
 
+	inr := "INR"
 	return entity.Order{
 		ID:                idStr,
 		ExternalOrderID:   idStr,
 		SourceID:          sourceID,
 		OrderNumber:       so.Name,
 		TotalPrice:        totalPrice,
-		SubtotalPrice:     sql.NullFloat64{Float64: taxableValue, Valid: true},
-		TotalTax:          sql.NullFloat64{Float64: totalTax, Valid: true},
-		Currency:          toNullString("INR"), // Default to INR for GraphQL as CurrencyCode wasn't fetched
+		SubtotalPrice:     &taxableValue,
+		TotalTax:          &totalTax,
+		Currency:          &inr,
 		CreatedAt:         createdAt,
 		UpdatedAt:         updatedAt,
-		FinancialStatus:   toNullString(financialStatus),
-		FulfillmentStatus: toNullString(fulfillmentStatus),
-		DeliveryStatus:    toNullString(deliveryStatus),
-		TrackingNumber:    toNullString(trackingNumber),
-		ShippingCompany:   toNullString(shippingCompany),
-		TrackingUrl:       toNullString(trackingUrl),
-		Status:            toNullString(status),
-		CustomerName:      toNullString(custName),
-		CustomerEmail:     toNullString(custEmail),
-		CustomerPhone:     toNullString(custPhone),
-		CustomerCity:      toNullString(custCity),
-		CustomerState:     toNullString(custState),
-		CustomerCountry:   toNullString(custCountry),
+		FinancialStatus:   strPtr(financialStatus),
+		FulfillmentStatus: strPtr(fulfillmentStatus),
+		DeliveryStatus:    strPtr(deliveryStatus),
+		TrackingNumber:    strPtr(trackingNumber),
+		ShippingCompany:   strPtr(shippingCompany),
+		TrackingUrl:       strPtr(trackingUrl),
+		Status:            strPtr(status),
+		CustomerName:      strPtr(custName),
+		CustomerEmail:     strPtr(custEmail),
+		CustomerPhone:     strPtr(custPhone),
+		CustomerCity:      strPtr(custCity),
+		CustomerState:     strPtr(custState),
+		CustomerCountry:   strPtr(custCountry),
 	}
 }
 
 // GraphQLLineItemsToEntities converts GraphQL line items into DB entities.
 func GraphQLLineItemsToEntities(orderID string, items dto.GraphQLLineItemWrap) []entity.LineItem {
 	var result []entity.LineItem
+	defaultHSN := "33029019"
 	for _, edge := range items.Edges {
 		li := edge.Node
 		hsCode := ""
@@ -138,9 +137,9 @@ func GraphQLLineItemsToEntities(orderID string, items dto.GraphQLLineItemWrap) [
 		result = append(result, entity.LineItem{
 			ID:       itemID,
 			OrderID:  orderID,
-			Title:    toNullString(li.Title),
-			SKU:      toNullString(li.SKU),
-			HSCode:   toNullString(hsCode),
+			Title:    strPtr(li.Title),
+			SKU:      strPtr(li.SKU),
+			HSCode:   strPtrOr(hsCode, defaultHSN),
 			Quantity: li.Quantity,
 			Price:    parseFloat(li.OriginalTotalSet.ShopMoney.Amount),
 			Discount: parseFloat(li.TotalDiscountSet.ShopMoney.Amount),
@@ -223,38 +222,40 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 	totalTax := totalPrice - taxableValue
 
 	idStr := strconv.FormatInt(payload.ID, 10)
+	pending := "pending"
+	defaultHSN := "33029019"
+
 	order := entity.Order{
 		ID:                idStr,
 		ExternalOrderID:   idStr,
 		SourceID:          sourceID,
 		OrderNumber:       strconv.FormatInt(payload.OrderNumber, 10),
 		TotalPrice:        totalPrice,
-		SubtotalPrice:     sql.NullFloat64{Float64: taxableValue, Valid: true},
-		TotalTax:          sql.NullFloat64{Float64: totalTax, Valid: true},
-		Currency:          toNullString(payload.Currency),
-		FinancialStatus:   toNullString(payload.FinancialStatus),
-		FulfillmentStatus: toNullString(payload.FulfillmentStatus),
-		DeliveryStatus:    toNullString("pending"),
-		Status:            toNullString(payload.FulfillmentStatus),
-		CustomerName:      toNullString(customerName),
-		CustomerFirstName: toNullString(firstName),
-		CustomerLastName:  toNullString(lastName),
-		CustomerEmail:     toNullString(email),
-		CustomerPhone:     toNullString(phone),
-		CustomerCity:      toNullString(city),
-		CustomerState:     toNullString(state),
-		CustomerCountry:   toNullString(country),
-		CustomerAddress1:  toNullString(addr1),
-		CustomerAddress2:  toNullString(addr2),
-		CustomerZip:       toNullString(zip),
+		SubtotalPrice:     &taxableValue,
+		TotalTax:          &totalTax,
+		Currency:          strPtr(payload.Currency),
+		FinancialStatus:   strPtr(payload.FinancialStatus),
+		FulfillmentStatus: strPtr(payload.FulfillmentStatus),
+		DeliveryStatus:    &pending,
+		Status:            strPtr(payload.FulfillmentStatus),
+		CustomerName:      strPtr(customerName),
+		CustomerFirstName: strPtr(firstName),
+		CustomerLastName:  strPtr(lastName),
+		CustomerEmail:     strPtr(email),
+		CustomerPhone:     strPtr(phone),
+		CustomerCity:      strPtr(city),
+		CustomerState:     strPtr(state),
+		CustomerCountry:   strPtr(country),
+		CustomerAddress1:  strPtr(addr1),
+		CustomerAddress2:  strPtr(addr2),
+		CustomerZip:       strPtr(zip),
 		CreatedAt:         parseTime(payload.CreatedAt),
 		UpdatedAt:         parseTime(payload.UpdatedAt),
 		RawPayload:        rawPayload,
 	}
 
 	if payload.CancelledAt != nil {
-		order.CancelledAt = sql.NullTime{Valid: false} // Will be parsed by service if needed
-		order.CancelReason = toNullString(payload.CancelReason)
+		order.CancelReason = strPtr(payload.CancelReason)
 	}
 
 	for _, li := range payload.LineItems {
@@ -269,11 +270,11 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		order.LineItems = append(order.LineItems, entity.LineItem{
 			ID:        strconv.FormatInt(li.ID, 10),
 			OrderID:   idStr,
-			ProductID: toNullString(strconv.FormatInt(li.ProductID, 10)),
-			VariantID: toNullString(strconv.FormatInt(li.VariantID, 10)),
-			Title:     toNullString(li.Title),
-			SKU:       toNullString(li.SKU),
-			HSCode:    toNullString("33029019"), // Default HSN
+			ProductID: strPtr(strconv.FormatInt(li.ProductID, 10)),
+			VariantID: strPtr(strconv.FormatInt(li.VariantID, 10)),
+			Title:     strPtr(li.Title),
+			SKU:       strPtr(li.SKU),
+			HSCode:    &defaultHSN,
 			Quantity:  li.Quantity,
 			Price:     parseFloat(price),
 			Discount:  parseFloat(discount),
@@ -285,22 +286,20 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 
 // --- Helpers ---
 
-func toNullString(s string) sql.NullString {
+// strPtr returns a pointer to the string, or nil if empty.
+func strPtr(s string) *string {
 	if s == "" {
-		return sql.NullString{Valid: false}
+		return nil
 	}
-	return sql.NullString{String: s, Valid: true}
+	return &s
 }
 
-func toNullFloat64(s string) sql.NullFloat64 {
+// strPtrOr returns a pointer to the string, or a pointer to the fallback if empty.
+func strPtrOr(s string, fallback string) *string {
 	if s == "" {
-		return sql.NullFloat64{Valid: false}
+		return &fallback
 	}
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return sql.NullFloat64{Valid: false}
-	}
-	return sql.NullFloat64{Float64: v, Valid: true}
+	return &s
 }
 
 func parseFloat(s string) float64 {
@@ -312,12 +311,10 @@ func parseTime(s string) time.Time {
 	if s == "" {
 		return time.Time{}
 	}
-	// Try RFC3339 first
 	t, err := time.Parse(time.RFC3339, s)
 	if err == nil {
 		return t
 	}
-	// Try with milliseconds (common in ISO strings from JS)
 	t, err = time.Parse("2006-01-02T15:04:05.000Z", s)
 	if err == nil {
 		return t

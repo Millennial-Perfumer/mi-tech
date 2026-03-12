@@ -108,6 +108,19 @@ function App() {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
 
+  // Load saved date range from backend on startup
+  useEffect(() => {
+    fetch('http://localhost:8080/api/settings/date-range')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.start_date && data.end_date) {
+          setStartDate(data.start_date);
+          setEndDate(data.end_date);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Close tracking/status popover when clicking elsewhere
   useEffect(() => {
     const handleOutsideClick = () => {
@@ -317,6 +330,12 @@ function App() {
                 setPage(1);
                 setStartDate(start);
                 setEndDate(end);
+                // Persist date range to backend
+                fetch('http://localhost:8080/api/settings/date-range', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ start_date: start, end_date: end }),
+                }).catch(console.error);
               }} 
             />
           </div>

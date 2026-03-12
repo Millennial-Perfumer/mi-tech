@@ -1,45 +1,45 @@
 package repository
 
 import (
-	"database/sql"
 	"fmt"
 
 	"shopify-gst-app/internal/entity"
+
+	"gorm.io/gorm"
 )
 
-// pgWebhookEventRepository is the PostgreSQL implementation of WebhookEventRepository.
-type pgWebhookEventRepository struct {
-	db *sql.DB
+// gormWebhookEventRepository is the GORM implementation of WebhookEventRepository.
+type gormWebhookEventRepository struct {
+	db *gorm.DB
 }
 
-// NewWebhookEventRepository creates a new PostgreSQL-backed WebhookEventRepository.
-func NewWebhookEventRepository(db *sql.DB) WebhookEventRepository {
-	return &pgWebhookEventRepository{db: db}
+// NewWebhookEventRepository creates a new GORM-backed WebhookEventRepository.
+func NewWebhookEventRepository(db *gorm.DB) WebhookEventRepository {
+	return &gormWebhookEventRepository{db: db}
 }
 
-func (r *pgWebhookEventRepository) Save(event *entity.WebhookEvent) error {
-	query := `
-		INSERT INTO webhook_events (source_id, topic, external_id, webhook_delivery_id, payload)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at
-	`
-	return r.db.QueryRow(query,
-		event.SourceID, event.Topic, event.ExternalID, event.WebhookDeliveryID, event.Payload,
-	).Scan(&event.ID, &event.CreatedAt)
+func (r *gormWebhookEventRepository) Save(event *entity.WebhookEvent) error {
+	if err := r.db.Create(event).Error; err != nil {
+		return fmt.Errorf("failed to save webhook event: %w", err)
+	}
+	return nil
 }
 
-func (r *pgWebhookEventRepository) IsProcessed(deliveryID string) (bool, error) {
-	var exists bool
-	query := `SELECT EXISTS(SELECT 1 FROM webhook_events WHERE webhook_delivery_id = $1)`
-	err := r.db.QueryRow(query, deliveryID).Scan(&exists)
-	return exists, err
+func (r *gormWebhookEventRepository) IsProcessed(deliveryID string) (bool, error) {
+	var count int64
+	err := r.db.Model(&entity.WebhookEvent{}).Where("webhook_delivery_id = ?", deliveryID).Count(&count).Error
+	return count > 0, err
 }
 
-func (r *pgWebhookEventRepository) LinkToOrder(deliveryID string, orderID string) error {
-	query := `UPDATE webhook_events SET order_id = $1, processed = true WHERE webhook_delivery_id = $2`
-	_, err := r.db.Exec(query, orderID, deliveryID)
-	if err != nil {
-		return fmt.Errorf("failed to link webhook to order: %w", err)
+func (r *gormWebhookEventRepository) LinkToOrder(deliveryID string, orderID string) error {
+	result := r.db.Model(&entity.WebhookEvent{}).
+		Where("webhook_delivery_id = ?", deliveryID).
+		Updates(map[string]interface{}{
+			"order_id":  orderID,
+			"processed": true,
+		})
+	if result.Error != nil {
+		return fmt.Errorf("failed to link webhook to order: %w", result.Error)
 	}
 	return nil
 }

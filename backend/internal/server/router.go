@@ -17,6 +17,7 @@ func RegisterRoutes(
 	reportHandler *handler.ReportHandler,
 	webhookHandler *handler.WebhookHandler,
 	automationHandler *whatsapp.AutomationHandler,
+	settingsHandler *handler.SettingsHandler,
 ) {
 	cors := CORSMiddleware
 
@@ -51,6 +52,16 @@ func RegisterRoutes(
 	// --- Webhook Routes ---
 	mux.HandleFunc("/api/webhooks/shopify", webhookHandler.ShopifyWebhookHandler)
 	mux.HandleFunc("/api/webhook/status", cors(webhookHandler.GetWebhookStatus))
+
+	// --- Settings Routes ---
+	mux.HandleFunc("/api/settings/date-range", cors(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			settingsHandler.SetDateRange(w, r)
+		default:
+			settingsHandler.GetDateRange(w, r)
+		}
+	}))
 
 	// --- WhatsApp Automation Routes ---
 	mux.HandleFunc("/api/automation/whatsapp/metrics", cors(automationHandler.GetAutomationMetrics))

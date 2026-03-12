@@ -1,7 +1,6 @@
 package service
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"strings"
@@ -277,10 +276,10 @@ func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf) {
 	pdf.MultiCell(0, 3.5, "All branding and product names are trademarks of Parfum Traders and may not be reproduced without permission.", "0", "L", false)
 }
 
-// ns extracts the string value from a sql.NullString, returning "" if not valid.
-func ns(v sql.NullString) string {
-	if v.Valid {
-		return v.String
+// ns extracts the string value from a *string pointer, returning "" if nil.
+func ns(v *string) string {
+	if v == nil {
+		return ""
 	}
-	return ""
+	return *v
 }

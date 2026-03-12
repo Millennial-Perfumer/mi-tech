@@ -4,19 +4,21 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"gorm.io/gorm"
 )
 
-// pgMetricsRepository is the PostgreSQL implementation of MetricsRepository.
-type pgMetricsRepository struct {
-	db *sql.DB
+// gormMetricsRepository is the GORM implementation of MetricsRepository.
+type gormMetricsRepository struct {
+	db *gorm.DB
 }
 
-// NewMetricsRepository creates a new PostgreSQL-backed MetricsRepository.
-func NewMetricsRepository(db *sql.DB) MetricsRepository {
-	return &pgMetricsRepository{db: db}
+// NewMetricsRepository creates a new GORM-backed MetricsRepository.
+func NewMetricsRepository(db *gorm.DB) MetricsRepository {
+	return &gormMetricsRepository{db: db}
 }
 
-func (r *pgMetricsRepository) GetDashboardMetrics(startDate, endDate string) (totalRevenue, cgst, sgst, igst float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error) {
+func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string) (totalRevenue, cgst, sgst, igst float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -27,28 +29,44 @@ func (r *pgMetricsRepository) GetDashboardMetrics(startDate, endDate string) (to
 			COALESCE(SUM(CASE WHEN LOWER(customer_state) != 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END), 0) as igst,
 			COUNT(id) as total_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'fulfilled') as fulfilled_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'unfulfilled') as unfulfilled_orders
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled') as fulfilled_orders,
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND LOWER(status) != 'cancelled') as unfulfilled_orders
 		FROM orders 
-		WHERE created_at >= $1 AND created_at <= $2
+		WHERE created_at >= ? AND created_at <= ?
 	`
-	err = r.db.QueryRow(query, start, end).Scan(
-		&totalRevenue, &cgst, &sgst, &igst, &totalOrders, &cancelledOrders, &fulfilledOrders, &unfulfilledOrders,
-	)
-	return
+
+	type metricsResult struct {
+		TotalRevenue      float64
+		CGST              float64
+		SGST              float64
+		IGST              float64
+		TotalOrders       int
+		CancelledOrders   int
+		FulfilledOrders   int
+		UnfulfilledOrders int
+	}
+
+	var result metricsResult
+	err = r.db.Raw(query, start, end).Scan(&result).Error
+	if err != nil {
+		return
+	}
+
+	return result.TotalRevenue, result.CGST, result.SGST, result.IGST,
+		result.TotalOrders, result.CancelledOrders, result.FulfilledOrders, result.UnfulfilledOrders, nil
 }
 
-// pgReportRepository is the PostgreSQL implementation of ReportRepository.
-type pgReportRepository struct {
-	db *sql.DB
+// gormReportRepository is the GORM implementation of ReportRepository.
+type gormReportRepository struct {
+	db *gorm.DB
 }
 
-// NewReportRepository creates a new PostgreSQL-backed ReportRepository.
-func NewReportRepository(db *sql.DB) ReportRepository {
-	return &pgReportRepository{db: db}
+// NewReportRepository creates a new GORM-backed ReportRepository.
+func NewReportRepository(db *gorm.DB) ReportRepository {
+	return &gormReportRepository{db: db}
 }
 
-func (r *pgReportRepository) GetGSTSummary(startDate, endDate string) (totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, paidOrders int, totalRevenue, totalTaxable, totalTax float64, err error) {
+func (r *gormReportRepository) GetGSTSummary(startDate, endDate string) (totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, paidOrders int, totalRevenue, totalTaxable, totalTax float64, err error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -62,48 +80,60 @@ func (r *pgReportRepository) GetGSTSummary(startDate, endDate string) (totalOrde
 			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as taxable,
 			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as tax
 		FROM orders 
-		WHERE created_at >= $1 AND created_at <= $2
+		WHERE created_at >= ? AND created_at <= ?
 	`
-	err = r.db.QueryRow(query, start, end).Scan(
-		&totalOrders, &cancelledOrders, &fulfilledOrders, &unfulfilledOrders, &paidOrders,
-		&totalRevenue, &totalTaxable, &totalTax,
+
+	type summaryResult struct {
+		TotalOrders       int
+		CancelledOrders   int
+		FulfilledOrders   int
+		UnfulfilledOrders int
+		PaidOrders        int
+		Revenue           float64
+		Taxable           float64
+		Tax               float64
+	}
+
+	var result summaryResult
+	row := r.db.Raw(query, start, end).Row()
+	err = row.Scan(
+		&result.TotalOrders, &result.CancelledOrders, &result.FulfilledOrders,
+		&result.UnfulfilledOrders, &result.PaidOrders,
+		&result.Revenue, &result.Taxable, &result.Tax,
 	)
-	return
+	if err != nil {
+		return
+	}
+
+	return result.TotalOrders, result.CancelledOrders, result.FulfilledOrders,
+		result.UnfulfilledOrders, result.PaidOrders,
+		result.Revenue, result.Taxable, result.Tax, nil
 }
 
-func (r *pgReportRepository) GetStateSummary(startDate, endDate string) ([]StateSummaryResult, error) {
+func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]StateSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
 		SELECT 
-			COALESCE(customer_state, 'N/A'),
+			COALESCE(customer_state, 'N/A') as state,
 			COUNT(id) as orders,
-			COALESCE(SUM(ROUND(total_price / 1.18, 2)), 0) as taxable,
-			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as gst,
+			COALESCE(SUM(ROUND(total_price / 1.18, 2)), 0) as taxable_value,
+			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as total_gst,
 			COALESCE(SUM(total_price), 0) as revenue
 		FROM orders
-		WHERE created_at >= $1 AND created_at <= $2 AND LOWER(status) != 'cancelled'
+		WHERE created_at >= ? AND created_at <= ? AND LOWER(status) != 'cancelled'
 		GROUP BY customer_state
 		ORDER BY revenue DESC
 	`
-	rows, err := r.db.Query(query, start, end)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query state summary: %w", err)
-	}
-	defer rows.Close()
 
 	var results []StateSummaryResult
-	for rows.Next() {
-		var s StateSummaryResult
-		if err := rows.Scan(&s.State, &s.Orders, &s.TaxableValue, &s.TotalGST, &s.Revenue); err != nil {
-			return nil, err
-		}
-		results = append(results, s)
+	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to query state summary: %w", err)
 	}
 	return results, nil
 }
 
-func (r *pgReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
+func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -124,38 +154,29 @@ func (r *pgReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSumm
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
 			JOIN OrderSubtotals os ON li.order_id = os.order_id
-			WHERE o.created_at >= $1 AND o.created_at <= $2 AND LOWER(o.status) != 'cancelled' AND os.line_sum > 0
+			WHERE o.created_at >= ? AND o.created_at <= ? AND LOWER(o.status) != 'cancelled' AND os.line_sum > 0
 		)
 		SELECT 
-			hs_code,
-			COUNT(DISTINCT order_id) as prod_count, -- Approximate count
-			SUM(quantity) as qty,
-			SUM(ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as taxable,
-			SUM(ROUND((line_val / line_sum) * total_price, 2) - ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as gst,
+			hs_code as hsn_code,
+			COUNT(DISTINCT order_id) as product_count,
+			SUM(quantity) as qty_sold,
+			SUM(ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as taxable_value,
+			SUM(ROUND((line_val / line_sum) * total_price, 2) - ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as total_gst,
 			SUM(ROUND((line_val / line_sum) * total_price, 2)) as revenue,
 			state
 		FROM LineItemShares
 		GROUP BY hs_code, state
 		ORDER BY revenue DESC
 	`
-	rows, err := r.db.Query(query, start, end)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query HSN summary: %w", err)
-	}
-	defer rows.Close()
 
 	var results []HSNSummaryResult
-	for rows.Next() {
-		var h HSNSummaryResult
-		if err := rows.Scan(&h.HSNCode, &h.ProductCount, &h.QtySold, &h.TaxableValue, &h.TotalGST, &h.Revenue, &h.State); err != nil {
-			return nil, err
-		}
-		results = append(results, h)
+	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to query HSN summary: %w", err)
 	}
 	return results, nil
 }
 
-func (r *pgReportRepository) GetDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+func (r *gormReportRepository) GetDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -165,10 +186,12 @@ func (r *pgReportRepository) GetDocumentsIssued(startDate, endDate string) (minO
 			COUNT(id) as total,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled
 		FROM orders
-		WHERE created_at >= $1 AND created_at <= $2
+		WHERE created_at >= ? AND created_at <= ?
 	`
+
 	var minV, maxV sql.NullInt64
-	err = r.db.QueryRow(query, start, end).Scan(&minV, &maxV, &total, &cancelled)
+	row := r.db.Raw(query, start, end).Row()
+	err = row.Scan(&minV, &maxV, &total, &cancelled)
 	if err != nil {
 		return
 	}
@@ -181,30 +204,21 @@ func (r *pgReportRepository) GetDocumentsIssued(startDate, endDate string) (minO
 	return
 }
 
-func (r *pgReportRepository) GetTaxByState(startDate, endDate string) ([]StateTaxResult, error) {
+func (r *gormReportRepository) GetTaxByState(startDate, endDate string) ([]StateTaxResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
 		SELECT 
-			COALESCE(customer_state, 'N/A'),
-			SUM(total_price - (total_price / 1.18)) as sum_tax
+			COALESCE(customer_state, 'N/A') as state,
+			SUM(total_price - (total_price / 1.18)) as tax
 		FROM orders
-		WHERE created_at >= $1 AND created_at <= $2 AND LOWER(status) != 'cancelled'
+		WHERE created_at >= ? AND created_at <= ? AND LOWER(status) != 'cancelled'
 		GROUP BY customer_state
 	`
-	rows, err := r.db.Query(query, start, end)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query tax by state: %w", err)
-	}
-	defer rows.Close()
 
 	var results []StateTaxResult
-	for rows.Next() {
-		var s StateTaxResult
-		if err := rows.Scan(&s.State, &s.Tax); err != nil {
-			return nil, err
-		}
-		results = append(results, s)
+	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to query tax by state: %w", err)
 	}
 	return results, nil
 }
@@ -229,12 +243,10 @@ func parseISO(s string) time.Time {
 	if s == "" {
 		return time.Time{}
 	}
-	// Try RFC3339 first
 	t, err := time.Parse(time.RFC3339, s)
 	if err == nil {
 		return t
 	}
-	// Try with milliseconds (common in ISO strings from JS)
 	t, err = time.Parse("2006-01-02T15:04:05.000Z", s)
 	if err == nil {
 		return t
