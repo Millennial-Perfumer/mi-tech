@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"database/sql"
+	"shopify-gst-app/internal/entity"
 	"time"
 )
 
@@ -36,6 +37,12 @@ func (r *MessagesRepository) SaveMessage(m AutomationMessage) (int, error) {
 	var id int
 	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.Status).Scan(&id)
 	return id, err
+}
+
+func (r *MessagesRepository) HasSentTemplate(orderID string, templateID int) (bool, error) {
+	var count int
+	err := r.db.QueryRow("SELECT COUNT(*) FROM automation_messages WHERE order_id = $1 AND template_id = $2 AND status != 'failed'", orderID, templateID).Scan(&count)
+	return count > 0, err
 }
 
 func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error {
@@ -141,4 +148,23 @@ func (r *MessagesRepository) GetAutomationMetrics(storeID string) (map[string]in
 	metrics["read_rate"] = readRate
 
 	return metrics, nil
+}
+func (r *MessagesRepository) GetOrderLineItems(orderID string) ([]entity.LineItem, error) {
+	query := `SELECT id, order_id, product_id, variant_id, title, sku, hs_code, quantity, price, discount FROM order_line_items WHERE order_id = $1`
+	rows, err := r.db.Query(query, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []entity.LineItem
+	for rows.Next() {
+		var li entity.LineItem
+		err := rows.Scan(&li.ID, &li.OrderID, &li.ProductID, &li.VariantID, &li.Title, &li.SKU, &li.HSCode, &li.Quantity, &li.Price, &li.Discount)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, li)
+	}
+	return items, nil
 }

@@ -18,6 +18,7 @@ func RegisterRoutes(
 	webhookHandler *handler.WebhookHandler,
 	automationHandler *whatsapp.AutomationHandler,
 	settingsHandler *handler.SettingsHandler,
+	redirectHandler *handler.RedirectHandler,
 ) {
 	cors := CORSMiddleware
 
@@ -65,6 +66,7 @@ func RegisterRoutes(
 
 	// --- WhatsApp Automation Routes ---
 	mux.HandleFunc("/api/automation/whatsapp/metrics", cors(automationHandler.GetAutomationMetrics))
+	mux.HandleFunc("/api/automation/whatsapp/templates/upload", cors(automationHandler.UploadTemplateMedia))
 	mux.HandleFunc("/api/automation/whatsapp/templates", cors(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
@@ -92,4 +94,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/automation/whatsapp/messages", cors(automationHandler.GetMessages))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
 	mux.HandleFunc("/api/automation/whatsapp/debug/templates", cors(automationHandler.DebugGetTemplates))
+
+	// --- Redirect Tracking ---
+	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
 }

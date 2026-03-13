@@ -20,6 +20,29 @@ type ShopifyWebhookOrder struct {
 	BillingAddress    *ShopifyAddress        `json:"billing_address"`
 	ShippingAddress   *ShopifyAddress        `json:"shipping_address"`
 	LineItems         []ShopifyLineItem      `json:"line_items"`
+	Fulfillments      []ShopifyFulfillment   `json:"fulfillments"`
+}
+
+// ShopifyWebhookFulfillment represents the payload from Shopify fulfillment webhooks.
+type ShopifyWebhookFulfillment struct {
+	ID              int64   `json:"id"`
+	OrderID         int64   `json:"order_id"`
+	Status          string  `json:"status"`
+	ShipmentStatus  *string `json:"shipment_status"`
+	TrackingCompany string  `json:"tracking_company"`
+	TrackingNumber  string `json:"tracking_number"`
+	TrackingUrl     string `json:"tracking_url"`
+}
+
+// ShopifyFulfillment represents fulfillment data nested within an order webhook.
+type ShopifyFulfillment struct {
+	ID              int64   `json:"id"`
+	Status          string  `json:"status"`
+	DisplayStatus   string  `json:"display_status"`
+	ShipmentStatus  *string `json:"shipment_status"`
+	TrackingNumber  string  `json:"tracking_number"`
+	TrackingCompany string                 `json:"tracking_company"`
+	TrackingUrl     string                 `json:"tracking_url"`
 }
 
 // ShopifyCustomer represents customer data from a Shopify webhook payload.

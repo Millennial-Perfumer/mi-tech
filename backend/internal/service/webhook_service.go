@@ -2,8 +2,11 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"strconv"
 
+	"shopify-gst-app/internal/client/shopify"
 	"shopify-gst-app/internal/dto"
 	"shopify-gst-app/internal/entity"
 	"shopify-gst-app/internal/mapper"
@@ -13,14 +16,16 @@ import (
 // WebhookService handles the business logic for processing Shopify webhooks.
 type WebhookService struct {
 	orderService      *OrderService
+	shopifyClient     *shopify.Client
 	webhookEventRepo  repository.WebhookEventRepository
 	webhookStatusRepo repository.WebhookStatusRepository
 }
 
 // NewWebhookService creates a new WebhookService.
-func NewWebhookService(orderService *OrderService, webhookEventRepo repository.WebhookEventRepository, webhookStatusRepo repository.WebhookStatusRepository) *WebhookService {
+func NewWebhookService(orderService *OrderService, shopifyClient *shopify.Client, webhookEventRepo repository.WebhookEventRepository, webhookStatusRepo repository.WebhookStatusRepository) *WebhookService {
 	return &WebhookService{
 		orderService:      orderService,
+		shopifyClient:     shopifyClient,
 		webhookEventRepo:  webhookEventRepo,
 		webhookStatusRepo: webhookStatusRepo,
 	}
@@ -73,6 +78,65 @@ func (s *WebhookService) ProcessOrderFulfilled(externalOrderID string) error {
 func (s *WebhookService) ProcessOrderCancelled(externalOrderID string, cancelledAt *string, reason string) error {
 	log.Printf("Processing orders/cancelled for Order ID: %s", externalOrderID)
 	return s.orderService.CancelOrder(externalOrderID, cancelledAt, reason)
+}
+
+// ProcessFulfillmentCreate handles fulfillments/create webhook.
+func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillment) error {
+	extOrderID := strconv.FormatInt(f.OrderID, 10)
+	log.Printf("Processing fulfillments/create for Order ID: %s", extOrderID)
+	
+	// 1. Update tracking info on the order immediately from payload
+	_ = s.orderService.orderRepo.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, entity.DerefStr(f.ShipmentStatus))
+	
+	// 2. Refresh full order from Shopify ONLY if critical status is missing (shipment_status == null)
+	// This helps avoid API latency and protects PII on basic plans.
+	if f.ShipmentStatus == nil {
+		err := s.RefreshOrder(extOrderID)
+		if err != nil {
+			log.Printf("Webhook Warning: Could not refresh order %s from Shopify: %v. Proceeding with local data.", extOrderID, err)
+		}
+	} else {
+		log.Printf("Webhook Info: Shipment status present in payload for order %s. Skipping Shopify API refresh.", extOrderID)
+	}
+	
+	return nil
+}
+
+// ProcessFulfillmentUpdate handles fulfillments/update webhook.
+func (s *WebhookService) ProcessFulfillmentUpdate(f dto.ShopifyWebhookFulfillment) error {
+	extOrderID := strconv.FormatInt(f.OrderID, 10)
+	log.Printf("Processing fulfillments/update for Order ID: %s (Status: %s)", extOrderID, entity.DerefStr(f.ShipmentStatus))
+	
+	// 1. Update shipment status on the order
+	_ = s.orderService.orderRepo.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, entity.DerefStr(f.ShipmentStatus))
+	
+	// 2. Refresh full order from Shopify ONLY if critical status is missing
+	if f.ShipmentStatus == nil {
+		err := s.RefreshOrder(extOrderID)
+		if err != nil {
+			log.Printf("Webhook Warning: Could not refresh order %s from Shopify: %v. Proceeding with local data.", extOrderID, err)
+		}
+	} else {
+		log.Printf("Webhook Info: Shipment status present in payload for order %s. Skipping Shopify API refresh.", extOrderID)
+	}
+	
+	return nil
+}
+
+func (s *WebhookService) RefreshOrder(externalOrderID string) error {
+	log.Printf("Refreshing order %s from Shopify API...", externalOrderID)
+	so, err := s.shopifyClient.FetchOrderByID(externalOrderID)
+	if err != nil {
+		return err
+	}
+	if so == nil {
+		return fmt.Errorf("order %s not found in Shopify", externalOrderID)
+	}
+
+	order := mapper.GraphQLOrderToEntity(*so)
+	order.LineItems = mapper.GraphQLLineItemsToEntities(order.ID, so.LineItems)
+	
+	return s.orderService.UpsertOrder(order)
 }
 
 // GetOrder retrieves an order by external ID (used for post-processing webhook linkage).

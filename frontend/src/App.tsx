@@ -63,7 +63,13 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return localStorage.getItem('gstAppActiveTab') || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gstAppActiveTab', activeTab);
+  }, [activeTab]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -164,8 +170,8 @@ function App() {
     }
   };
 
-  const fetchDashboardData = async () => {
-    setIsLoading(true);
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       let startObj = '';
       let endObj = '';
@@ -252,6 +258,16 @@ function App() {
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Auto-refresh main data every 60 seconds
+    const interval = setInterval(() => {
+      // Only refresh if tab is active (browser might throttle intervals anyway, but good to be explicit)
+      if (document.visibilityState === 'visible') {
+        fetchDashboardData(true);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
   return (

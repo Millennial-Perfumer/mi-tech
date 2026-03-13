@@ -30,6 +30,7 @@ type OrderRepository interface {
 	UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error
 	UpdateOrderStatus(id string, status string) (int64, error)
 	CancelOrder(externalOrderID string, cancelledAt *string, reason string) error
+	UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error
 	TruncateAll() error
 }
 

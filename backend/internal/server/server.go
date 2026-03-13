@@ -13,10 +13,10 @@ import (
 	"shopify-gst-app/internal/automation/whatsapp"
 	"shopify-gst-app/internal/config"
 	"shopify-gst-app/internal/database"
+	"shopify-gst-app/internal/client/shopify"
 	"shopify-gst-app/internal/handler"
 	"shopify-gst-app/internal/repository"
 	"shopify-gst-app/internal/service"
-	"shopify-gst-app/internal/client/shopify"
 
 	"gorm.io/gorm"
 )
@@ -57,7 +57,7 @@ func New() (*Server, error) {
 	invoiceService := service.NewInvoiceService()
 	metricsService := service.NewMetricsService(metricsRepo)
 	reportService := service.NewReportService(reportRepo)
-	webhookService := service.NewWebhookService(orderService, webhookEventRepo, webhookStatusRepo)
+	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 
 	// 6. WhatsApp Automation Module
 	sqlDB, _ := db.DB()
@@ -65,7 +65,7 @@ func New() (*Server, error) {
 	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
 	templatesService := whatsapp.NewTemplatesService(templatesRepo, cfg)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, cfg)
-	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService)
+	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService, invoiceService)
 	automationHandler := whatsapp.NewAutomationHandler(templatesService, messagesService)
 
 	// 7. Handlers
@@ -75,10 +75,11 @@ func New() (*Server, error) {
 	reportHandler := handler.NewReportHandler(reportService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, cfg.ShopifyWebhookSecret)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
+	redirectHandler := handler.NewRedirectHandler(orderRepo)
 
 	// 8. Router
 	mux := http.NewServeMux()
-	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler)
+	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler, redirectHandler)
 
 	// 9. HTTP Server with timeouts
 	httpSrv := &http.Server{

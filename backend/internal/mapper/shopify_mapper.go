@@ -222,8 +222,30 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 	totalTax := totalPrice - taxableValue
 
 	idStr := strconv.FormatInt(payload.ID, 10)
-	pending := "pending"
 	defaultHSN := "33029019"
+
+	financialStatus := strings.ToLower(payload.FinancialStatus)
+	fulfillmentStatus := strings.ToLower(payload.FulfillmentStatus)
+	deliveryStatus := "pending"
+	trackingNumber := ""
+	shippingCompany := ""
+	trackingUrl := ""
+
+	if len(payload.Fulfillments) > 0 {
+		f := payload.Fulfillments[0]
+		// Determine delivery status from shipment_status or display_status
+		if f.ShipmentStatus != nil && *f.ShipmentStatus != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(*f.ShipmentStatus, "_", " "))
+		} else if f.DisplayStatus != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
+		} else if f.Status != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
+		}
+		
+		trackingNumber = f.TrackingNumber
+		shippingCompany = f.TrackingCompany
+		trackingUrl = f.TrackingUrl
+	}
 
 	order := entity.Order{
 		ID:                idStr,
@@ -234,10 +256,13 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		SubtotalPrice:     &taxableValue,
 		TotalTax:          &totalTax,
 		Currency:          strPtr(payload.Currency),
-		FinancialStatus:   strPtr(payload.FinancialStatus),
-		FulfillmentStatus: strPtr(payload.FulfillmentStatus),
-		DeliveryStatus:    &pending,
-		Status:            strPtr(payload.FulfillmentStatus),
+		FinancialStatus:   strPtr(financialStatus),
+		FulfillmentStatus: strPtr(fulfillmentStatus),
+		DeliveryStatus:    strPtr(deliveryStatus),
+		TrackingNumber:    strPtr(trackingNumber),
+		ShippingCompany:   strPtr(shippingCompany),
+		TrackingUrl:       strPtr(trackingUrl),
+		Status:            strPtr(fulfillmentStatus),
 		CustomerName:      strPtr(customerName),
 		CustomerFirstName: strPtr(firstName),
 		CustomerLastName:  strPtr(lastName),
@@ -255,7 +280,9 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 	}
 
 	if payload.CancelledAt != nil {
+		order.CancelledAt = parseTimePtr(payload.CancelledAt)
 		order.CancelReason = strPtr(payload.CancelReason)
+		order.Status = strPtr("CANCELLED")
 	}
 
 	for _, li := range payload.LineItems {
@@ -320,4 +347,15 @@ func parseTime(s string) time.Time {
 		return t
 	}
 	return time.Time{}
+}
+
+func parseTimePtr(s *string) *time.Time {
+	if s == nil || *s == "" {
+		return nil
+	}
+	t := parseTime(*s)
+	if t.IsZero() {
+		return nil
+	}
+	return &t
 }

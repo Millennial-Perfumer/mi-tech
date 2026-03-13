@@ -37,6 +37,9 @@ export function AutomationTemplates() {
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [headerFileBlob, setHeaderFileBlob] = useState<string | null>(null);
+  const [headerFileName, setHeaderFileName] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const [formData, setFormData] = useState({
@@ -60,8 +63,8 @@ export function AutomationTemplates() {
     return { normalized, count };
   };
 
-  const fetchTemplates = async () => {
-    setIsLoading(true);
+  const fetchTemplates = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const resp = await fetch('http://localhost:8080/api/automation/whatsapp/templates');
       const data = await resp.json();
@@ -104,7 +107,14 @@ export function AutomationTemplates() {
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+    const interval = setInterval(() => {
+      // Only auto-refresh if not currently editing/creating
+      if (!showForm) {
+        fetchTemplates(true);
+      }
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, [showForm]);
 
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     let value = e.target.value;
@@ -152,6 +162,56 @@ export function AutomationTemplates() {
       const newCursorPos = selectedText ? start + insertion.length : start + prefix.length;
       el.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
+  };
+
+  const handleHeaderFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Create local blob URL for immediate preview
+    setHeaderFileName(file.name);
+    if (file.type.startsWith('image/')) {
+      const blobUrl = URL.createObjectURL(file);
+      setHeaderFileBlob(blobUrl);
+    } else {
+      setHeaderFileBlob(null);
+    }
+
+    setIsSubmitting(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const resp = await fetch('http://localhost:8080/api/automation/whatsapp/templates/upload', {
+        method: 'POST',
+        body: form,
+      });
+
+      if (!resp.ok) {
+        throw new Error(await resp.text());
+      }
+
+      const data = await resp.json();
+      setFormData({
+        ...formData,
+        header: { ...formData.header, sample: data.handle }
+      });
+    } catch (err) {
+      console.error('Failed to upload file:', err);
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    if (headerFileBlob) URL.revokeObjectURL(headerFileBlob);
+    setHeaderFileBlob(null);
+    setHeaderFileName(null);
+    setFormData({
+      ...formData,
+      header: { ...formData.header, sample: '' }
+    });
   };
 
   const insertEmoji = (emoji: string) => {
@@ -248,6 +308,11 @@ export function AutomationTemplates() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingTemplate(null);
+    if (headerFileBlob) {
+      URL.revokeObjectURL(headerFileBlob);
+      setHeaderFileBlob(null);
+    }
+    setHeaderFileName(null);
     setFormData({ 
       name: '', 
       category: 'MARKETING', 
@@ -313,7 +378,7 @@ export function AutomationTemplates() {
                   <label>Header Media (Optional)</label>
                   <select 
                     value={formData.header.type} 
-                    onChange={e => setFormData({...formData, header: {...formData.header, type: e.target.value as TemplateHeader['type']}})}
+                    onChange={e => setFormData({...formData, header: {...formData.header, type: e.target.value as TemplateHeader['type'], sample: ''}})}
                   >
                     <option value="none">None</option>
                     <option value="IMAGE">Image</option>
@@ -324,13 +389,58 @@ export function AutomationTemplates() {
                   
                   {formData.header.type !== 'none' && formData.header.type !== 'LOCATION' && (
                     <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                      <label>Sample URL ({formData.header.type})</label>
-                      <input 
-                        type="text" 
-                        placeholder={`https://example.com/file.${formData.header.type === 'IMAGE' ? 'jpg' : formData.header.type === 'VIDEO' ? 'mp4' : 'pdf'}`}
-                        value={formData.header.sample}
-                        onChange={e => setFormData({...formData, header: {...formData.header, sample: e.target.value}})}
-                      />
+                      <label>Sample File ({formData.header.type})</label>
+                      
+                      {!formData.header.sample ? (
+                        <div 
+                          className={`upload-zone ${isDragging ? 'dragging' : ''}`}
+                          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                          onDragLeave={() => setIsDragging(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsDragging(false);
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) {
+                              const event = { target: { files: [file] } } as any;
+                              handleHeaderFileChange(event);
+                            }
+                          }}
+                          onClick={() => document.getElementById('header-file-input')?.click()}
+                        >
+                          <div className="upload-zone-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          </div>
+                          <div className="upload-zone-text">Click to upload or drag and drop</div>
+                          <div className="upload-zone-subtext">{formData.header.type === 'IMAGE' ? 'PNG, JPG or GIF' : formData.header.type === 'VIDEO' ? 'MP4 or MOV' : 'PDF, DOC or DOCX'}</div>
+                          <input 
+                            id="header-file-input"
+                            type="file" 
+                            accept={formData.header.type === 'IMAGE' ? 'image/*' : formData.header.type === 'VIDEO' ? 'video/*' : '.pdf,.doc,.docx'}
+                            onChange={handleHeaderFileChange}
+                            style={{ display: 'none' }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="file-preview-card">
+                          <div className="upload-zone-icon" style={{ width: '32px', height: '32px', backgroundColor: '#e0f2fe', color: '#0ea5e9' }}>
+                            {formData.header.type === 'IMAGE' ? (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            ) : (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            )}
+                          </div>
+                          <div className="file-info">
+                            <span className="file-name">{headerFileName || 'Uploaded file'}</span>
+                            <span className="file-status">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                              Ready to submit
+                            </span>
+                          </div>
+                          <div className="remove-file" onClick={handleRemoveFile} title="Remove file">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -509,27 +619,12 @@ export function AutomationTemplates() {
                 <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <label style={{ fontSize: '1rem', fontWeight: 600 }}>Buttons (Optional)</label>
-                    {formData.buttons.length < 10 && (
-                      <div className="dropdown" style={{ position: 'relative' }}>
-                        <select 
-                          className="btn-secondary" 
-                          style={{ padding: '0.4rem 2rem 0.4rem 1rem', width: 'auto' }}
-                          onChange={e => {
-                            if (e.target.value) {
-                              addButton(e.target.value as TemplateButton['type']);
-                              e.target.value = '';
-                            }
-                          }}
-                        >
-                          <option value="">+ Add Button</option>
-                          <option value="custom">Custom (Quick Reply)</option>
-                          <option value="visit_website">Visit Website</option>
-                          <option value="call_phone">Call Phone</option>
-                          <option value="flow">Flow</option>
-                          <option value="copy_code">Copy Offer Code</option>
-                        </select>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <button type="button" className="btn-secondary" onClick={() => addButton('custom')} style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}>+ Quick Reply</button>
+                      <button type="button" className="btn-secondary" onClick={() => addButton('visit_website')} style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}>+ Website URL</button>
+                      <button type="button" className="btn-secondary" onClick={() => addButton('call_phone')} style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}>+ Phone Call</button>
+                      <button type="button" className="btn-secondary" onClick={() => addButton('flow')} style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}>+ Flow</button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -542,7 +637,13 @@ export function AutomationTemplates() {
                         <div className="form-row">
                           <div className="form-group"><label>Button Text</label><input type="text" value={btn.text} onChange={e => updateButton(idx, { text: e.target.value })} required /></div>
                           {btn.type === 'custom' && <div className="form-group"><label>Payload</label><input type="text" value={btn.payload} onChange={e => updateButton(idx, { payload: e.target.value })} /></div>}
-                          {btn.type === 'visit_website' && <div className="form-group"><label>Website URL</label><input type="text" value={btn.url} onChange={e => updateButton(idx, { url: e.target.value })} required /></div>}
+                          {btn.type === 'visit_website' && (
+                            <div className="form-group">
+                              <label>Website URL</label>
+                              <input type="text" value={btn.url} onChange={e => updateButton(idx, { url: e.target.value })} placeholder="https://millennialperfumer.com/tracking/{{1}}" required />
+                              <small style={{ color: '#64748b', fontSize: '0.7rem', display: 'block', marginTop: '4px' }}><b>Note:</b> Meta requires a valid base domain. Example: <i>https://millennialperfumer.com/tracking/{`{{1}}`}</i></small>
+                            </div>
+                          )}
                           {btn.type === 'call_phone' && <div className="form-group"><label>Phone Number</label><input type="text" value={btn.phoneNumber} onChange={e => updateButton(idx, { phoneNumber: e.target.value })} required /></div>}
                           {btn.type === 'flow' && <div className="form-group"><label>Flow ID</label><input type="text" value={btn.flowID} onChange={e => updateButton(idx, { flowID: e.target.value })} required /></div>}
                           {btn.type === 'copy_code' && <div className="form-group"><label>Offer Code</label><input type="text" value={btn.offerCode} onChange={e => updateButton(idx, { offerCode: e.target.value })} required /></div>}
@@ -568,11 +669,23 @@ export function AutomationTemplates() {
                 <div style={{ backgroundColor: 'white', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', maxWidth: '280px', position: 'relative' }}>
                   {formData.header.type !== 'none' && (
                     <div style={{ backgroundColor: '#f0f2f5', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      {formData.header.type === 'IMAGE' && formData.header.sample ? <img src={formData.header.sample} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 
-                       formData.header.type === 'VIDEO' ? <div style={{ textAlign: 'center' }}><svg width="32" height="32" viewBox="0 0 24 24" fill="#64748b"><path d="M10 8l6 4-6 4V8z"/></svg></div> :
-                       formData.header.type === 'DOCUMENT' ? <div style={{ textAlign: 'center' }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div> :
-                       formData.header.type === 'LOCATION' ? <div style={{ fontSize: '0.6rem', textAlign: 'center' }}>Map View PIN</div> :
-                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/></svg>}
+                      {formData.header.type === 'IMAGE' ? (
+                        headerFileBlob ? (
+                          <img src={headerFileBlob} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : formData.header.sample && !formData.header.sample.startsWith('4::') ? (
+                          <img src={formData.header.sample} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ textAlign: 'center' }}><svg width="32" height="32" viewBox="0 0 24 24" fill="#64748b"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div>
+                        )
+                      ) : formData.header.type === 'VIDEO' ? (
+                        <div style={{ textAlign: 'center' }}><svg width="32" height="32" viewBox="0 0 24 24" fill="#64748b"><path d="M10 8l6 4-6 4V8z"/></svg></div>
+                      ) : formData.header.type === 'DOCUMENT' ? (
+                        <div style={{ textAlign: 'center' }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                      ) : formData.header.type === 'LOCATION' ? (
+                        <div style={{ fontSize: '0.6rem', textAlign: 'center' }}>Map View PIN</div>
+                      ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/></svg>
+                      )}
                     </div>
                   )}
                   <div style={{ padding: '8px 12px' }}>

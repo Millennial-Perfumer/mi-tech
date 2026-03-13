@@ -1,7 +1,6 @@
 package whatsapp
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -54,7 +53,10 @@ func NewTemplatesService(repo *TemplatesRepository, cfg *config.Config) *Templat
 
 func (s *TemplatesService) CreateTemplate(storeID string, req CreateTemplateRequest) (int, error) {
 	// 1. Map to Meta Components
-	components := s.mapToMetaComponents(req)
+	components, err := s.mapToMetaComponents(req)
+	if err != nil {
+		return 0, fmt.Errorf("failed to map components: %w", err)
+	}
 
 	// 2. Send to Meta
 	metaReq := TemplateRequest{
@@ -92,7 +94,15 @@ func (s *TemplatesService) CreateTemplate(storeID string, req CreateTemplateRequ
 	return s.repo.SaveTemplate(template)
 }
 
-func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) []map[string]interface{} {
+func (s *TemplatesService) UploadMediaBytes(body []byte, mimeType string) (string, error) {
+	appID := s.cfg.WhatsAppAppID
+	if appID == "" {
+		return "", fmt.Errorf("WHATSAPP_APP_ID is required to upload media")
+	}
+	return s.metaClient.UploadMediaFromBytes(appID, body, mimeType)
+}
+
+func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map[string]interface{}, error) {
 	bodyComponent := map[string]interface{}{
 		"type": "BODY",
 		"text": req.Body,
@@ -116,23 +126,61 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) []map[
 	if req.Header != nil && req.Header.Type != "none" {
 		header := map[string]interface{}{
 			"type":   "HEADER",
-			"format": req.Header.Type, // IMAGE, VIDEO, DOCUMENT, LOCATION
+			"format": strings.ToUpper(req.Header.Type), // IMAGE, VIDEO, DOCUMENT, LOCATION
 		}
 		if len(req.Header.Sample) > 0 && string(req.Header.Sample) != "null" {
-			// Location is special
+			var sampleStr string
+			if err := json.Unmarshal(req.Header.Sample, &sampleStr); err != nil {
+				// Fallback to old behavior if not a quoted JSON string
+				sampleStr = strings.Trim(string(req.Header.Sample), "\"")
+			}
+			
+			// Sanitization: Ensure no newlines or spaces in handle
+			sampleStr = strings.TrimSpace(sampleStr)
+			if idx := strings.IndexAny(sampleStr, "\n\r"); idx != -1 {
+				// If concatenated, take only the first one
+				sampleStr = strings.TrimSpace(sampleStr[:idx])
+			}
+
+			// Auto-convert Google Drive share links to direct download links
+			if strings.Contains(sampleStr, "drive.google.com") {
+				if strings.Contains(sampleStr, "/file/d/") {
+					parts := strings.Split(sampleStr, "/file/d/")
+					if len(parts) > 1 {
+						id := strings.Split(parts[1], "/")[0]
+						id = strings.Split(id, "?")[0]
+						sampleStr = fmt.Sprintf("https://drive.google.com/uc?export=download&id=%s", id)
+					}
+				}
+			}
+
 			if req.Header.Type == "LOCATION" {
 				var locData map[string]interface{}
-				// Check if location is in Sample or dedicated field
 				json.Unmarshal(req.Header.Sample, &locData)
 				if locData == nil {
 					json.Unmarshal(req.Header.Location, &locData)
 				}
 				header["location"] = locData
 			} else {
-				// Media samples
-				header["example"] = map[string]interface{}{
-					"header_handle": []string{string(bytes.ReplaceAll(req.Header.Sample, []byte("\""), []byte("")))},
+				// Media samples - check if it's a URL or a handle
+				example := map[string]interface{}{}
+				if strings.HasPrefix(sampleStr, "http") {
+					// We must provide a header_handle for template creation.
+					// Upload the URL to Meta first using the Resumable Upload API.
+					appID := s.cfg.WhatsAppAppID
+					if appID == "" {
+						return nil, fmt.Errorf("WHATSAPP_APP_ID is required to upload media examples")
+					}
+					log.Printf("Meta Automation: Uploading media sample to Meta. AppID: %s, URL: %s", appID, sampleStr)
+					handle, err := s.metaClient.UploadMediaFromURL(appID, sampleStr)
+					if err != nil {
+						return nil, fmt.Errorf("failed to upload media sample to Meta: %w", err)
+					}
+					example["header_handle"] = []string{handle}
+				} else {
+					example["header_handle"] = []string{sampleStr}
 				}
+				header["example"] = example
 			}
 		}
 		components = append(components, header)
@@ -161,7 +209,14 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) []map[
 				}
 			case "visit_website":
 				btn["type"] = "URL"
-				btn["url"] = b.URL
+				url := b.URL
+				if url != "" && !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+					url = "https://" + url
+				}
+				btn["url"] = url
+				if strings.Contains(url, "{{1}}") {
+					btn["example"] = []string{"https://www.delhivery.com/track/package/123456"}
+				}
 			case "call_phone":
 				btn["type"] = "PHONE_NUMBER"
 				btn["phone_number"] = b.PhoneNumber
@@ -182,7 +237,7 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) []map[
 		})
 	}
 
-	return components
+	return components, nil
 }
 
 func (s *TemplatesService) GetTriggers(storeID string) ([]Trigger, error) {
@@ -235,7 +290,10 @@ func (s *TemplatesService) UpdateTemplate(storeID string, id int, req CreateTemp
 	}
 
 	// 2. Map to Meta Components
-	components := s.mapToMetaComponents(req)
+	components, err := s.mapToMetaComponents(req)
+	if err != nil {
+		return fmt.Errorf("failed to map components: %w", err)
+	}
 
 	// 3. Resubmit to Meta
 	if t.MetaTemplateID != "" {

@@ -3,6 +3,7 @@ package shopify
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -201,4 +202,122 @@ func (c *Client) FetchOrders(since time.Time) ([]dto.GraphQLOrderNode, error) {
 	}
 
 	return allOrders, nil
+}
+
+// FetchOrderByID fetches a single order from Shopify using GraphQL.
+func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
+	if c.config.ShopifyStoreURL == "" || c.config.ShopifyAccessToken == "" {
+		return nil, fmt.Errorf("shopify credentials are not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/2025-07/graphql.json", c.config.ShopifyStoreURL)
+
+	// Ensure the ID is in the correct GID format
+	gid := id
+	if !strings.HasPrefix(gid, "gid://shopify/Order/") {
+		gid = "gid://shopify/Order/" + id
+	}
+
+	query := `
+	query getOrder($id: ID!) {
+		order(id: $id) {
+			id
+			name
+			processedAt
+			createdAt
+			updatedAt
+			displayFinancialStatus
+			displayFulfillmentStatus
+			currentTotalPriceSet { shopMoney { amount } }
+			currentSubtotalPriceSet { shopMoney { amount } }
+			currentTotalTaxSet { shopMoney { amount } }
+			sourceName
+			billingAddress {
+				city
+				province
+				country
+			}
+			shippingAddress {
+				city
+				province
+				country
+			}
+			fulfillments {
+				id
+				status
+				displayStatus
+				createdAt
+				trackingInfo {
+					number
+					company
+					url
+				}
+			}
+			lineItems(first: 50) {
+				edges {
+					node {
+						id
+						title
+						sku
+						quantity
+						totalDiscountSet { shopMoney { amount } }
+						originalTotalSet { shopMoney { amount } }
+						variant {
+							inventoryItem {
+								harmonizedSystemCode
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	`
+
+	payload := map[string]interface{}{
+		"query": query,
+		"variables": map[string]interface{}{
+			"id": gid,
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(payloadBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("X-Shopify-Access-Token", c.config.ShopifyAccessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("shopify graphql api error: %s - %s", resp.Status, string(body))
+	}
+
+	var result struct {
+		Data struct {
+			Order *dto.GraphQLOrderNode `json:"order"`
+		} `json:"data"`
+		Errors []interface{} `json:"errors"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal graphql response: %w", err)
+	}
+
+	if len(result.Errors) > 0 {
+		return nil, fmt.Errorf("shopify graphql error: %v", result.Errors)
+	}
+
+	return result.Data.Order, nil
 }

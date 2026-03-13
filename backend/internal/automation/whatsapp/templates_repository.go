@@ -56,7 +56,7 @@ func (r *TemplatesRepository) SaveTemplate(t AutomationTemplate) (int, error) {
 }
 
 func (r *TemplatesRepository) GetTemplates(storeID string) ([]AutomationTemplate, error) {
-	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, meta_template_id, created_at, updated_at 
+	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, ''), created_at, updated_at 
 	          FROM automation_templates WHERE store_id = $1`
 	rows, err := r.db.Query(query, storeID)
 	if err != nil {
@@ -125,7 +125,7 @@ func (r *TemplatesRepository) GetTriggers(storeID string) ([]Trigger, error) {
 }
 
 func (r *TemplatesRepository) GetTemplateByID(id int) (*AutomationTemplate, error) {
-	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, meta_template_id FROM automation_templates WHERE id = $1`
+	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, '') FROM automation_templates WHERE id = $1`
 	var t AutomationTemplate
 	err := r.db.QueryRow(query, id).Scan(&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, &t.MetaTemplateID)
 	if err == sql.ErrNoRows {

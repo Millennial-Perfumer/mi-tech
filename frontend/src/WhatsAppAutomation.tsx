@@ -1,11 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AutomationDashboard } from './AutomationDashboard';
 import { AutomationTemplates } from './AutomationTemplates';
 import { AutomationTriggers } from './AutomationTriggers';
 import { AutomationMessages } from './AutomationMessages';
 
 export function WhatsAppAutomation() {
-  const [activeSubTab, setActiveSubTab] = useState('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<string>(() => {
+    return localStorage.getItem('gstAppActiveSubTab') || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gstAppActiveSubTab', activeSubTab);
+  }, [activeSubTab]);
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard' },

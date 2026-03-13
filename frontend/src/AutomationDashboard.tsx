@@ -24,7 +24,8 @@ export function AutomationDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (silent = false) => {
+      if (!silent) setIsLoading(true);
       try {
         const [metricsResp, messagesResp] = await Promise.all([
           fetch('http://localhost:8080/api/automation/whatsapp/metrics'),
@@ -44,6 +45,12 @@ export function AutomationDashboard() {
     };
 
     fetchData();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    }, 15000); // 15 seconds for dashboard metrics
+    return () => clearInterval(interval);
   }, []);
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading dashboard...</div>;

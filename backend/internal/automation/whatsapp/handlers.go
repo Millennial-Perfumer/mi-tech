@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -72,6 +73,9 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 
 	// 2. Handle status updates
 	if r.Method == http.MethodPost {
+		body, _ := io.ReadAll(r.Body)
+		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
+		
 		var payload struct {
 			Entry []struct {
 				Changes []struct {
@@ -220,4 +224,44 @@ func (h *AutomationHandler) DebugGetTemplates(w http.ResponseWriter, r *http.Req
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(templates)
+}
+func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := r.ParseMultipartForm(10 << 20) // 10 MB limit
+	if err != nil {
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Read entire file content
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	mimeType := header.Header.Get("Content-Type")
+
+	// Call service to forward to Meta
+	handle, err := h.templatesService.UploadMediaBytes(fileBytes, mimeType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to upload to Meta: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"handle": handle,
+	})
 }

@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"shopify-gst-app/internal/automation/whatsapp"
 	"shopify-gst-app/internal/dto"
@@ -73,14 +75,69 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 		}
 
 		raw := json.RawMessage(body)
-		var payload dto.ShopifyWebhookOrder
-		if err := json.Unmarshal(body, &payload); err != nil {
-			log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+		var externalID string
+		var automationTopic string
+		var processErr error
+
+		// Process by topic using appropriate payload type
+		if strings.HasPrefix(topic, "orders/") {
+			var payload dto.ShopifyWebhookOrder
+			if err := json.Unmarshal(body, &payload); err != nil {
+				log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+				return
+			}
+			externalID = strconv.FormatInt(payload.ID, 10)
+			automationTopic = topic
+
+			switch topic {
+			case "orders/create":
+				processErr = h.webhookService.ProcessOrderCreate(payload, &raw)
+			case "orders/updated":
+				processErr = h.webhookService.ProcessOrderUpdate(payload, &raw)
+			case "orders/paid":
+				processErr = h.webhookService.ProcessOrderPaid(externalID)
+			case "orders/fulfilled":
+				processErr = h.webhookService.ProcessOrderFulfilled(externalID)
+			case "orders/cancelled":
+				processErr = h.webhookService.ProcessOrderUpdate(payload, &raw)
+			}
+		} else if strings.HasPrefix(topic, "fulfillments/") {
+			var payload dto.ShopifyWebhookFulfillment
+			if err := json.Unmarshal(body, &payload); err != nil {
+				log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+				return
+			}
+			externalID = strconv.FormatInt(payload.OrderID, 10)
+			
+			// Map fulfillment state to virtual automation topics
+			shipmentStatus := strings.ToLower(entity.DerefStr(payload.ShipmentStatus))
+			switch topic {
+			case "fulfillments/create":
+				automationTopic = "orders/assigned"
+				processErr = h.webhookService.ProcessFulfillmentCreate(payload)
+			case "fulfillments/update":
+				processErr = h.webhookService.ProcessFulfillmentUpdate(payload)
+				// Determine granular topic based on shipment status
+				if shipmentStatus == "delivered" {
+					automationTopic = "orders/delivered"
+				} else if shipmentStatus == "out_for_delivery" {
+					automationTopic = "orders/out_for_delivery"
+				} else if shipmentStatus == "in_transit" || shipmentStatus == "picked_up" {
+					automationTopic = "orders/fulfilled" // order_dispatched
+				} else {
+					// Fallback if status doesn't match a virtual topic
+					automationTopic = topic
+				}
+			}
+		} else {
+			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
 			return
 		}
 
-		externalID := strconv.FormatInt(payload.ID, 10)
-		log.Printf("Processing %s for Order ID: %s", topic, externalID)
+		if processErr != nil {
+			log.Printf("Webhook Error: Failed to process %s: %v", topic, processErr)
+			return
+		}
 
 		// Save webhook event log
 		event := &entity.WebhookEvent{
@@ -94,43 +151,56 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			log.Printf("Webhook Error: Failed to save webhook event log: %v", err)
 		}
 
-		// Process by topic
-		var processErr error
-		switch topic {
-		case "orders/create":
-			processErr = h.webhookService.ProcessOrderCreate(payload, &raw)
-		case "orders/updated":
-			processErr = h.webhookService.ProcessOrderUpdate(payload, &raw)
-		case "orders/paid":
-			processErr = h.webhookService.ProcessOrderPaid(externalID)
-		case "orders/fulfilled":
-			processErr = h.webhookService.ProcessOrderFulfilled(externalID)
-		case "orders/cancelled":
-			processErr = h.webhookService.ProcessOrderCancelled(externalID, payload.CancelledAt, payload.CancelReason)
-		default:
-			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
-		}
-
-		if processErr != nil {
-			log.Printf("Webhook Error: Failed to process %s: %v", topic, processErr)
-			return
-		}
-
 		// Post-processing: link webhook to order and trigger automation
 		order, err := h.webhookService.GetOrder(externalID)
 		if err != nil {
-			log.Printf("Automation Error: Failed to fetch order %s for mapping: %v", externalID, err)
+			log.Printf("Automation Error: Failed to fetch order %s from DB for mapping: %v", externalID, err)
 			return
 		}
 
-		if order.ID != "" {
-			_ = h.webhookService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
+		if order.ID == "" {
+			log.Printf("Automation Warning: Order %s not found in DB after ingestion. Skipping automation.", externalID)
+			return
+		}
 
-			// Bridge entity.Order to models.Order for whatsapp automation (temporary)
-			// The automation module still uses models.Order until Phase 7
-			if h.mappingService != nil {
-				// We skip automation mapping here until whatsapp module is migrated
-				log.Printf("Webhook processed successfully for order %s", order.ID)
+		_ = h.webhookService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
+
+		if h.mappingService != nil && automationTopic != "" {
+			log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %s", automationTopic, order.ID)
+			// Re-verify granular status if it's an orders/updated hook (backup logic)
+			if topic == "orders/updated" {
+				deliveryStatus := ""
+				if order.DeliveryStatus != nil {
+					deliveryStatus = strings.ToLower(*order.DeliveryStatus)
+				}
+
+				if deliveryStatus == "delivered" {
+					automationTopic = "orders/delivered"
+				} else if deliveryStatus == "out for delivery" || deliveryStatus == "out_for_delivery" {
+					automationTopic = "orders/out_for_delivery"
+				} else if deliveryStatus == "picked up" || deliveryStatus == "in transit" || deliveryStatus == "in_transit" {
+					automationTopic = "orders/fulfilled"
+				}
+			}
+
+			// Guard 1: Skip ghost updates following order creation (30s window)
+			if automationTopic == "orders/updated" && time.Since(order.CreatedAt).Seconds() < 30 {
+				log.Printf("Automation Skip: Topic %s ignored for order %s (Created %v ago). Filtering ghost update.", automationTopic, order.ID, time.Since(order.CreatedAt))
+				return
+			}
+
+			// Guard 2: Skip generic updates following a specific status change/fulfillment (15s window)
+			// Shopify sends redundant generic 'orders/updated' right after more specific ones.
+			if automationTopic == "orders/updated" && time.Since(order.UpdatedAt).Seconds() < 15 {
+				log.Printf("Automation Skip: Topic %s ignored for order %s (Updated %v ago). Filtering side-effect update.", automationTopic, order.ID, time.Since(order.UpdatedAt))
+				return
+			}
+
+			err = h.mappingService.ExecuteMapping("1", automationTopic, order)
+			if err != nil {
+				log.Printf("Automation Error: Failed to execute mapping for order %s, topic %s: %v", order.ID, automationTopic, err)
+			} else {
+				log.Printf("Automation Success: Triggered %s for order %s", automationTopic, order.ID)
 			}
 		}
 	}()

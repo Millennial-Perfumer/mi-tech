@@ -105,21 +105,45 @@ func (r *gormOrderRepository) GetByExternalID(externalID string) (entity.Order, 
 
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		// Upsert the order
+		// 1. Check if the order already exists to preserve PII (Basic Plan Shopify API returns NULL for PII)
+		var existing entity.Order
+		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
+			Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
+				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+			First(&existing).Error
+
+		if err == nil {
+			// Merge PII fields: only use existing values if the new ones are nil
+			if order.CustomerName == nil { order.CustomerName = existing.CustomerName }
+			if order.CustomerFirstName == nil { order.CustomerFirstName = existing.CustomerFirstName }
+			if order.CustomerLastName == nil { order.CustomerLastName = existing.CustomerLastName }
+			if order.CustomerEmail == nil { order.CustomerEmail = existing.CustomerEmail }
+			if order.CustomerPhone == nil { order.CustomerPhone = existing.CustomerPhone }
+			if order.CustomerCity == nil { order.CustomerCity = existing.CustomerCity }
+			if order.CustomerState == nil { order.CustomerState = existing.CustomerState }
+			if order.CustomerCountry == nil { order.CustomerCountry = existing.CustomerCountry }
+			if order.CustomerAddress1 == nil { order.CustomerAddress1 = existing.CustomerAddress1 }
+			if order.CustomerAddress2 == nil { order.CustomerAddress2 = existing.CustomerAddress2 }
+			if order.CustomerZip == nil { order.CustomerZip = existing.CustomerZip }
+		}
+
+		// 2. Upsert the order
 		if err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "status", "updated_at",
 				"cancelled_at", "cancel_reason", "total_price", "subtotal_price",
-				"total_tax", "customer_address1", "customer_address2", "customer_zip",
-				"customer_first_name", "customer_last_name",
+				"total_tax", "customer_name", "customer_email", "customer_phone",
+				"customer_city", "customer_state", "customer_country",
+				"customer_address1", "customer_address2", "customer_zip",
+				"customer_first_name", "customer_last_name", "raw_payload",
 			}),
 		}).Create(&order).Error; err != nil {
 			return fmt.Errorf("failed to upsert order: %w", err)
 		}
 
-		// Clear old line items and insert new ones
+		// 3. Clear old line items and insert new ones
 		if err := tx.Where("order_id = ?", order.ID).Delete(&entity.LineItem{}).Error; err != nil {
 			return fmt.Errorf("failed to clean old line items: %w", err)
 		}
@@ -205,6 +229,28 @@ func (r *gormOrderRepository) CancelOrder(externalOrderID string, cancelledAt *s
 	}
 	if cancelledAt != nil {
 		updates["cancelled_at"] = *cancelledAt
+	}
+
+	return r.db.Model(&entity.Order{}).
+		Where("external_order_id = ?", externalOrderID).
+		Updates(updates).Error
+}
+
+func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
+	updates := map[string]interface{}{
+		"updated_at": time.Now(),
+	}
+	if trackingNumber != "" {
+		updates["tracking_number"] = trackingNumber
+	}
+	if shippingCompany != "" {
+		updates["shipping_company"] = shippingCompany
+	}
+	if trackingUrl != "" {
+		updates["tracking_url"] = trackingUrl
+	}
+	if deliveryStatus != "" {
+		updates["delivery_status"] = deliveryStatus
 	}
 
 	return r.db.Model(&entity.Order{}).
