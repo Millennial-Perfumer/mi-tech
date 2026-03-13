@@ -296,9 +296,25 @@ func (s *TemplatesService) UpdateTemplate(storeID string, id int, req CreateTemp
 	}
 
 	// 3. Resubmit to Meta
+	if t.MetaTemplateID == "" {
+		log.Printf("Service: MetaTemplateID missing locally for %s. Attempting to resolve from Meta...", t.TemplateName)
+		remote, err := s.metaClient.GetRemoteTemplateByName(t.TemplateName)
+		if err != nil {
+			return fmt.Errorf("failed to resolve template from meta: %w", err)
+		}
+		if remote != nil {
+			log.Printf("Service: Resolved MetaTemplateID for %s: %s", t.TemplateName, remote.ID)
+			t.MetaTemplateID = remote.ID
+			// Update locally immediately so we don't have to fetch again
+			_ = s.repo.UpdateTemplate(*t)
+		}
+	}
+
 	if t.MetaTemplateID != "" {
+		log.Printf("Service: Updating existing Meta template %s (ID: %s)", t.TemplateName, t.MetaTemplateID)
 		err = s.metaClient.UpdateTemplate(t.MetaTemplateID, components)
 	} else {
+		log.Printf("Service: Template %s not found on Meta. Creating new one.", t.TemplateName)
 		metaReq := TemplateRequest{
 			Name:       t.TemplateName,
 			Category:   t.Category,

@@ -66,7 +66,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	// 2a. Deduplication Check: Don't send the same template twice to the same order
 	// Special Case: Lifecycle events (assigned, fulfilled, delivery) can be re-sent if intentional (e.g. re-assignment).
 	// The 15s/30s guards in WebhookHandler already prevent automated double-pings.
-	allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/out_for_delivery" || topic == "orders/updated"
+	allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/updated"
 
 	sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
 	if err != nil {
@@ -96,15 +96,32 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	// Dynamic Parameter Mapping: Match the exact number of placeholders in the template body
 	requiredCount := s.countRequiredParams(template.Body)
 
-	// Add carrier/tracking details only if the template actually has placeholders for them
-	if requiredCount >= 3 {
-		bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
-	}
-	if requiredCount >= 4 {
-		bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingNumber)})
-	}
-	if requiredCount >= 5 {
-		bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
+	// Template-specific mapping logic
+	if template.TemplateName == "order_dispatched_v3" || template.TemplateName == "out_for_delivery_v3" {
+		if requiredCount >= 3 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
+		}
+	} else if template.TemplateName == "order_assigned_v3" {
+		if requiredCount >= 3 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
+		}
+		if requiredCount >= 4 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingNumber)})
+		}
+		if requiredCount >= 5 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
+		}
+	} else {
+		// Generic fallback
+		if requiredCount >= 3 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
+		}
+		if requiredCount >= 4 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingNumber)})
+		}
+		if requiredCount >= 5 {
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
+		}
 	}
 
 	// Trim bodyParams if for some reason we have more than required (safety)

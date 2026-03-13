@@ -108,26 +108,14 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				return
 			}
 			externalID = strconv.FormatInt(payload.OrderID, 10)
-			
-			// Map fulfillment state to virtual automation topics
-			shipmentStatus := strings.ToLower(entity.DerefStr(payload.ShipmentStatus))
+
 			switch topic {
 			case "fulfillments/create":
 				automationTopic = "orders/assigned"
 				processErr = h.webhookService.ProcessFulfillmentCreate(payload)
 			case "fulfillments/update":
+				automationTopic = "fulfillments/update"
 				processErr = h.webhookService.ProcessFulfillmentUpdate(payload)
-				// Determine granular topic based on shipment status
-				if shipmentStatus == "delivered" {
-					automationTopic = "orders/delivered"
-				} else if shipmentStatus == "out_for_delivery" {
-					automationTopic = "orders/out_for_delivery"
-				} else if shipmentStatus == "in_transit" || shipmentStatus == "picked_up" {
-					automationTopic = "orders/fulfilled" // order_dispatched
-				} else {
-					// Fallback if status doesn't match a virtual topic
-					automationTopic = topic
-				}
 			}
 		} else {
 			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
@@ -166,20 +154,26 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 		_ = h.webhookService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
 
 		if h.mappingService != nil && automationTopic != "" {
+
 			log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %s", automationTopic, order.ID)
-			// Re-verify granular status if it's an orders/updated hook (backup logic)
-			if topic == "orders/updated" {
+			// Re-verify granular status ONLY for fulfillment updates.
+			// Generic orders/updated will retain its topic to allow manual edit notifications (invoices).
+			if topic == "fulfillments/update" {
 				deliveryStatus := ""
 				if order.DeliveryStatus != nil {
 					deliveryStatus = strings.ToLower(*order.DeliveryStatus)
 				}
 
-				if deliveryStatus == "delivered" {
+				switch deliveryStatus {
+				case "delivered":
 					automationTopic = "orders/delivered"
-				} else if deliveryStatus == "out for delivery" || deliveryStatus == "out_for_delivery" {
+				case "out for delivery", "out_for_delivery":
 					automationTopic = "orders/out_for_delivery"
-				} else if deliveryStatus == "picked up" || deliveryStatus == "in transit" || deliveryStatus == "in_transit" {
+				case "picked up", "in transit", "in_transit", "picked_up":
 					automationTopic = "orders/fulfilled"
+				case "confirmed":
+					log.Printf("Automation Info: Fulfillment status is 'confirmed' (Order %s). Skipping as assignment is handled by fulfillments/create.", order.ID)
+					return
 				}
 			}
 

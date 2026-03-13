@@ -74,7 +74,24 @@ type GraphQLFulfillment struct {
 	Status        string                `json:"status"`
 	DisplayStatus string                `json:"displayStatus"`
 	CreatedAt     string                `json:"createdAt"`
-	TrackingInfo  []GraphQLTrackingInfo `json:"trackingInfo"`
+	TrackingInfo  []GraphQLTrackingInfo     `json:"trackingInfo"`
+	Events        GraphQLFulfillmentEvents `json:"events"`
+}
+
+// GraphQLFulfillmentEvents wraps the edges array for fulfillment events.
+type GraphQLFulfillmentEvents struct {
+	Edges []GraphQLFulfillmentEventEdge `json:"edges"`
+}
+
+// GraphQLFulfillmentEventEdge wraps a single fulfillment event node.
+type GraphQLFulfillmentEventEdge struct {
+	Node GraphQLFulfillmentEventNode `json:"node"`
+}
+
+// GraphQLFulfillmentEventNode represents a single fulfillment event from the Shopify GraphQL response.
+type GraphQLFulfillmentEventNode struct {
+	Status     string `json:"status"`
+	HappenedAt string `json:"happenedAt"`
 }
 
 // GraphQLTrackingInfo holds a single tracking entry.

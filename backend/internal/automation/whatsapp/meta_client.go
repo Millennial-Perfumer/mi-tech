@@ -252,8 +252,8 @@ func (c *MetaClient) UpdateTemplate(metaTemplateID string, components []map[stri
 
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(resp.Body)
-		log.Printf("Meta API Error (UpdateTemplate): %s", string(respBody))
-		return fmt.Errorf("meta api error: status %d", resp.StatusCode)
+		log.Printf("Meta API Error (UpdateTemplate): status %d, body: %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("meta api error: status %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
 	return nil
@@ -320,6 +320,47 @@ func (c *MetaClient) GetTemplateStatus(templateName string) (string, error) {
 	}
 
 	return result.Data[0].Status, nil
+}
+
+type RemoteTemplate struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTemplate, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?name=%s", c.apiVersion, c.wabaID, url.QueryEscape(templateName))
+
+	httpReq, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+c.accessToken)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("meta api error: status %d, body: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Data []RemoteTemplate `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, err
+	}
+
+	if len(result.Data) == 0 {
+		return nil, nil // Not found
+	}
+
+	return &result.Data[0], nil
 }
 
 func (c *MetaClient) SendTemplateMessage(phoneNumber, templateName, languageCode string, components []interface{}) (string, error) {

@@ -99,6 +99,14 @@ func (c *Client) FetchOrders(since time.Time) ([]dto.GraphQLOrderNode, error) {
 							company
 							url
 						}
+						events(first: 10) {
+							edges {
+								node {
+									status
+									happenedAt
+								}
+							}
+						}
 					}
 					lineItems(first: 50) {
 						edges {
@@ -251,6 +259,14 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 					number
 					company
 					url
+				}
+				events(first: 10) {
+					edges {
+						node {
+							status
+							happenedAt
+						}
+					}
 				}
 			}
 			lineItems(first: 50) {
