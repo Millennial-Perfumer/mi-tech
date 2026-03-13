@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"shopify-gst-app/internal/entity"
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/service"
 	"strconv"
 	"strings"
 )

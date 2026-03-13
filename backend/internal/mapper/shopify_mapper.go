@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
 )
 
 // GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.

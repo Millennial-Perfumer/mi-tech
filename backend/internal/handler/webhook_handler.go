@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/automation/whatsapp"
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/service"
 )
 
 // WebhookHandler is a thin HTTP adapter for Shopify webhook endpoints.

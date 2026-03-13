@@ -1,10 +1,10 @@
 package service
 
 import (
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
-	"shopify-gst-app/internal/mapper"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/mapper"
+	"mi-tech/internal/repository"
 )
 
 // OrderService handles order CRUD business logic.

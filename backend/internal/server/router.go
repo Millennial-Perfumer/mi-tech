@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shopify-gst-app/internal/automation/whatsapp"
-	"shopify-gst-app/internal/handler"
+	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/handler"
 )
 
 // RegisterRoutes sets up all API routes in one place.
@@ -28,7 +28,7 @@ func RegisterRoutes(
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "ok",
-			"message": "GST Invoice Manager API is running",
+			"message": "mi-tech API is running",
 		})
 	}))
 

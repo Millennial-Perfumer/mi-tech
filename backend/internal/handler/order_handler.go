@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/service"
 )
 
 // OrderHandler is a thin HTTP adapter for order operations.

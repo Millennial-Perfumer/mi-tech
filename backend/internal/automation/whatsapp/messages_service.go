@@ -1,7 +1,7 @@
 package whatsapp
 
 import (
-	"shopify-gst-app/internal/config"
+	"mi-tech/internal/config"
 	"time"
 )
 

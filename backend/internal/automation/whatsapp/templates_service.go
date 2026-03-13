@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"shopify-gst-app/internal/config"
+	"mi-tech/internal/config"
 	"strings"
 )
 

@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"shopify-gst-app/internal/server"
+	"mi-tech/internal/server"
 )
 
 func main() {

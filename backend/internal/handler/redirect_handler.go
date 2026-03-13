@@ -2,7 +2,7 @@ package handler
 
 import (
 	"net/http"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/repository"
 	"strings"
 )
 

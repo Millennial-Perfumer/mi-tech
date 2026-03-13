@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/service"
 )
 
 // SyncHandler is a thin HTTP adapter for Shopify sync operations.

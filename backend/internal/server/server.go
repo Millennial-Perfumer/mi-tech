@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"shopify-gst-app/internal/automation/whatsapp"
-	"shopify-gst-app/internal/config"
-	"shopify-gst-app/internal/database"
-	"shopify-gst-app/internal/client/shopify"
-	"shopify-gst-app/internal/handler"
-	"shopify-gst-app/internal/repository"
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/config"
+	"mi-tech/internal/database"
+	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/handler"
+	"mi-tech/internal/repository"
+	"mi-tech/internal/service"
 
 	"gorm.io/gorm"
 )

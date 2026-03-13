@@ -6,11 +6,11 @@ import (
 	"log"
 	"strconv"
 
-	"shopify-gst-app/internal/client/shopify"
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
-	"shopify-gst-app/internal/mapper"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/mapper"
+	"mi-tech/internal/repository"
 )
 
 // WebhookService handles the business logic for processing Shopify webhooks.

@@ -4,6 +4,8 @@ import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
 import { GSTReports } from './GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
+import halfLogo from './assets/half_logo.png';
+import fullLogo from './assets/full_logo.png';
 import './App.css';
 
 interface Order {
@@ -273,11 +275,8 @@ function App() {
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--accent-color)'}}>
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-          </svg>
-          GST Invoice
+        <div className="sidebar-brand" style={{ justifyContent: 'flex-start', paddingLeft: '1rem', marginBottom: '2rem' }}>
+          <img src={fullLogo} alt="Mi Tech" style={{ width: '140px', height: 'auto', objectFit: 'contain' }} />
         </div>
         
         <nav className="sidebar-nav">
@@ -358,7 +357,11 @@ function App() {
         )}
 
         {activeTab === 'dashboard' && (
-          <section className="dashboard-grid">
+          <>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+              <img src={fullLogo} alt="Mi Tech Full Logo" style={{ maxWidth: '160px', height: 'auto' }} />
+            </div>
+            <section className="dashboard-grid">
               <div className="card">
                 <h3 className="card-title">Total Revenue</h3>
                 <div className="card-value">₹{metrics?.total_revenue?.toLocaleString('en-IN') || '0'}</div>
@@ -403,7 +406,8 @@ function App() {
                 <h3 className="card-title" style={{ color: '#854d0e' }}>Unfulfilled Orders</h3>
                 <div className="card-value" style={{ color: '#854d0e' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-          </section>
+            </section>
+          </>
         )}
 
         {activeTab === 'shopify' && (

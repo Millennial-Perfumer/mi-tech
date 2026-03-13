@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/config"
-	"shopify-gst-app/internal/dto"
+	"mi-tech/internal/config"
+	"mi-tech/internal/dto"
 )
 
 type Client struct {
