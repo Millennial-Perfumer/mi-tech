@@ -73,8 +73,9 @@ type ShopifyLineItem struct {
 	ProductID int64  `json:"product_id"`
 	VariantID int64  `json:"variant_id"`
 	Title     string `json:"title"`
-	Quantity  int    `json:"quantity"`
-	Price     string `json:"price"`
+	Quantity        int    `json:"quantity"`
+	CurrentQuantity *int   `json:"current_quantity"`
+	Price           string `json:"price"`
 	SKU       string `json:"sku"`
 	TaxLines  []struct {
 		Title string  `json:"title"`

@@ -139,11 +139,12 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 				"customer_address1", "customer_address2", "customer_zip",
 				"customer_first_name", "customer_last_name", "raw_payload",
 			}),
-		}).Create(&order).Error; err != nil {
+		}).Omit("LineItems").Create(&order).Error; err != nil {
 			return fmt.Errorf("failed to upsert order: %w", err)
 		}
 
-		// 3. Clear old line items and insert new ones
+		// 3. Explicitly synchronize line items
+		// We delete all and re-create to ensure quantities and titles are fresh.
 		if err := tx.Where("order_id = ?", order.ID).Delete(&entity.LineItem{}).Error; err != nil {
 			return fmt.Errorf("failed to clean old line items: %w", err)
 		}

@@ -134,13 +134,22 @@ func GraphQLLineItemsToEntities(orderID string, items dto.GraphQLLineItemWrap) [
 		}
 
 		itemID := strings.TrimPrefix(li.ID, "gid://shopify/LineItem/")
+		qty := li.Quantity
+		if li.CurrentQuantity != nil {
+			qty = *li.CurrentQuantity
+		}
+
+		if qty <= 0 {
+			continue
+		}
+
 		result = append(result, entity.LineItem{
 			ID:       itemID,
 			OrderID:  orderID,
 			Title:    strPtr(li.Title),
 			SKU:      strPtr(li.SKU),
 			HSCode:   strPtrOr(hsCode, defaultHSN),
-			Quantity: li.Quantity,
+			Quantity: qty,
 			Price:    parseFloat(li.OriginalTotalSet.ShopMoney.Amount),
 			Discount: parseFloat(li.TotalDiscountSet.ShopMoney.Amount),
 		})
@@ -294,6 +303,15 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		if discount == "" {
 			discount = "0.00"
 		}
+		qty := li.Quantity
+		if li.CurrentQuantity != nil {
+			qty = *li.CurrentQuantity
+		}
+
+		if qty <= 0 {
+			continue
+		}
+
 		order.LineItems = append(order.LineItems, entity.LineItem{
 			ID:        strconv.FormatInt(li.ID, 10),
 			OrderID:   idStr,
@@ -302,7 +320,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 			Title:     strPtr(li.Title),
 			SKU:       strPtr(li.SKU),
 			HSCode:    &defaultHSN,
-			Quantity:  li.Quantity,
+			Quantity:  qty,
 			Price:     parseFloat(price),
 			Discount:  parseFloat(discount),
 		})

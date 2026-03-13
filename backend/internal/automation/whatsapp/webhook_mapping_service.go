@@ -40,7 +40,7 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
 	log.Printf("Automation Start: Executing mapping for Order %s (%s), Topic: %s", order.ID, order.OrderNumber, topic)
-	
+
 	// 1. Find matching trigger
 	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
 	if err != nil {
@@ -62,11 +62,11 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	}
 
 	log.Printf("Automation Progress: Found trigger %s -> Template: %s (ID: %d)", topic, template.TemplateName, template.ID)
-	
+
 	// 2a. Deduplication Check: Don't send the same template twice to the same order
 	// Special Case: Lifecycle events (assigned, fulfilled, delivery) can be re-sent if intentional (e.g. re-assignment).
 	// The 15s/30s guards in WebhookHandler already prevent automated double-pings.
-	allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/out_for_delivery"
+	allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/out_for_delivery" || topic == "orders/updated"
 
 	sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
 	if err != nil {
@@ -76,10 +76,9 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 		return nil
 	}
 
-
 	// 3. Extract parameters based on template name or topic
 	var components []interface{}
-	
+
 	// Create body parameters based on common patterns
 	custName := entity.DerefStr(order.CustomerFirstName)
 	if custName == "" {
@@ -96,7 +95,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 
 	// Dynamic Parameter Mapping: Match the exact number of placeholders in the template body
 	requiredCount := s.countRequiredParams(template.Body)
-	
+
 	// Add carrier/tracking details only if the template actually has placeholders for them
 	if requiredCount >= 3 {
 		bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
@@ -129,9 +128,9 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 				if btn["type"] == "visit_website" {
 					url, _ := btn["url"].(string)
 					trackingURL := entity.DerefStr(order.TrackingUrl)
-					
+
 					if strings.Contains(url, "{{1}}") {
-						// For our branded redirector (https://example.com/t/{{1}}), 
+						// For our branded redirector (https://example.com/t/{{1}}),
 						// we pass the internal Order ID as the parameter.
 						buttonParam := order.ID
 
@@ -162,11 +161,11 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 			Type string `json:"type"`
 		}
 		json.Unmarshal(*template.Header, &hData)
-		
+
 		if strings.ToUpper(hData.Type) == "DOCUMENT" {
 			// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
 			log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
-			
+
 			// 1. Fetch line items (required for invoice generation)
 			items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
 			if err != nil {
@@ -185,7 +184,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 						return fmt.Errorf("failed to upload invoice: %w", err)
 					}
 					log.Printf("Automation Success: Uploaded invoice, Media ID: %s", id)
-					
+
 					// Meta Cloud API often expects the ID as a numeric value in JSON
 					var idVal interface{} = id
 					if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
