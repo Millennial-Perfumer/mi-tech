@@ -8,34 +8,6 @@ import (
 	"strings"
 )
 
-type TemplateHeader struct {
-	Type     string          `json:"type"` // image, video, document, location, none
-	Sample   json.RawMessage `json:"sample,omitempty"`
-	Location json.RawMessage `json:"location,omitempty"`
-}
-
-type TemplateButton struct {
-	Type        string `json:"type"` // custom, visit_website, call_whatsapp, call_phone, flow, copy_code
-	Text        string `json:"text"`
-	Payload     string `json:"payload,omitempty"`
-	URL         string `json:"url,omitempty"`
-	PhoneNumber string `json:"phoneNumber,omitempty"` // Frontend camelCase
-	FlowID      string `json:"flowID,omitempty"`      // Frontend camelCase
-	FlowName    string `json:"flowName,omitempty"`    // Frontend camelCase
-	OfferCode   string `json:"offerCode,omitempty"`   // Frontend camelCase
-}
-
-type CreateTemplateRequest struct {
-	Name     string           `json:"name"`
-	Language string           `json:"language"`
-	Category string           `json:"category"`
-	Header   *TemplateHeader  `json:"header,omitempty"`
-	Body     string           `json:"body"`
-	Footer   string           `json:"footer,omitempty"`
-	Buttons  []TemplateButton `json:"buttons,omitempty"`
-	Examples string           `json:"examples,omitempty"`
-}
-
 type TemplatesService struct {
 	repo       *TemplatesRepository
 	metaClient *MetaClient
@@ -251,13 +223,13 @@ func (s *TemplatesService) SyncStatus(storeID string) error {
 	}
 
 	for _, t := range templates {
-		status, err := s.metaClient.GetTemplateStatus(t.TemplateName)
-		if err != nil {
+		remote, err := s.metaClient.GetRemoteTemplateByName(t.TemplateName)
+		if err != nil || remote == nil {
 			continue // Skip failed syncs
 		}
 
-		if status != t.Status {
-			s.repo.UpdateStatus(t.TemplateName, status)
+		if remote.Status != t.Status {
+			s.repo.UpdateStatus(t.TemplateName, remote.Status)
 		}
 	}
 

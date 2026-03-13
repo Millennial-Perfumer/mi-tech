@@ -93,7 +93,6 @@ func RegisterRoutes(
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", cors(automationHandler.GetMessages))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
-	mux.HandleFunc("/api/automation/whatsapp/debug/templates", cors(automationHandler.DebugGetTemplates))
 
 	// --- Redirect Tracking ---
 	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
