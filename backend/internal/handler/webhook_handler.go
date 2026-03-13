@@ -191,9 +191,9 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 			// Guard 2: Skip generic updates following a specific status change/fulfillment (15s window)
 			// Shopify sends redundant generic 'orders/updated' right after more specific ones.
-			if automationTopic == "orders/updated" && time.Since(order.UpdatedAt).Seconds() < 15 {
-				log.Printf("Automation Skip: Topic %s ignored for order %s (Updated %v ago). Filtering side-effect update.", automationTopic, order.ID, time.Since(order.UpdatedAt))
-				return
+			// We check the delivery status to see if it was RECENTLY changed by a specific hook.
+			if automationTopic == "orders/updated" && order.DeliveryStatus != nil && time.Since(order.UpdatedAt).Seconds() < 5 {
+				log.Printf("Automation Info: Topic %s detected for order %s. This might be a side-effect, but we will allow it if it is a manual edit.", automationTopic, order.ID)
 			}
 
 			err = h.mappingService.ExecuteMapping("1", automationTopic, order)

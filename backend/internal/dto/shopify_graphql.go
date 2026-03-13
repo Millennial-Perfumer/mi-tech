@@ -100,6 +100,7 @@ type GraphQLLineItemNode struct {
 	Title                string                `json:"title"`
 	SKU                  string                `json:"sku"`
 	Quantity             int                   `json:"quantity"`
+	CurrentQuantity      *int                  `json:"currentQuantity"`
 	Vendor               string                `json:"vendor"`
 	OriginalTotalSet     MoneySet              `json:"originalTotalSet"`
 	TotalDiscountSet     MoneySet              `json:"totalDiscountSet"`
