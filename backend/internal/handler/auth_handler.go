@@ -3,15 +3,17 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-
-	"mi-tech/internal/service"
 )
 
-type AuthHandler struct {
-	authService *service.AuthService
+type AuthService interface {
+	Login(username, password string) (string, error)
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+type AuthHandler struct {
+	authService AuthService
+}
+
+func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
