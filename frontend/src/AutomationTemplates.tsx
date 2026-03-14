@@ -30,7 +30,11 @@ interface Template {
   created_at: string;
 }
 
-export function AutomationTemplates() {
+interface AutomationTemplatesProps {
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
+
+export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +70,7 @@ export function AutomationTemplates() {
   const fetchTemplates = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const resp = await fetch('http://localhost:8080/api/automation/whatsapp/templates');
+      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates');
       const data = await resp.json();
       setTemplates(data || []);
     } catch (err) {
@@ -182,7 +186,7 @@ export function AutomationTemplates() {
       const form = new FormData();
       form.append('file', file);
 
-      const resp = await fetch('http://localhost:8080/api/automation/whatsapp/templates/upload', {
+      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates/upload', {
         method: 'POST',
         body: form,
       });
@@ -253,7 +257,7 @@ export function AutomationTemplates() {
       };
 
       const method = editingTemplate ? 'PUT' : 'POST';
-      const resp = await fetch('http://localhost:8080/api/automation/whatsapp/templates', {
+      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -277,7 +281,7 @@ export function AutomationTemplates() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this template? This will remove it from WhatsApp and the automation system.')) return;
     try {
-      const resp = await fetch(`http://localhost:8080/api/automation/whatsapp/templates?id=${id}`, { method: 'DELETE' });
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates?id=${id}`, { method: 'DELETE' });
       if (resp.ok) {
         fetchTemplates();
       } else {

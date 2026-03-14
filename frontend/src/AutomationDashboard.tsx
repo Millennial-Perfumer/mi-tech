@@ -18,7 +18,11 @@ interface Activity {
   order_id: string;
 }
 
-export function AutomationDashboard() {
+interface AutomationDashboardProps {
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
+
+export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,8 +32,8 @@ export function AutomationDashboard() {
       if (!silent) setIsLoading(true);
       try {
         const [metricsResp, messagesResp] = await Promise.all([
-          fetch('http://localhost:8080/api/automation/whatsapp/metrics'),
-          fetch('http://localhost:8080/api/automation/whatsapp/messages')
+          fetchWithAuth('http://localhost:8080/api/automation/whatsapp/metrics'),
+          fetchWithAuth('http://localhost:8080/api/automation/whatsapp/messages')
         ]);
         
         const mData = await metricsResp.json();

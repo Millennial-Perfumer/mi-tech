@@ -6,6 +6,7 @@ import (
 
 	"mi-tech/internal/automation/whatsapp"
 	"mi-tech/internal/handler"
+	"mi-tech/internal/service"
 )
 
 // RegisterRoutes sets up all API routes in one place.
@@ -19,8 +20,16 @@ func RegisterRoutes(
 	automationHandler *whatsapp.AutomationHandler,
 	settingsHandler *handler.SettingsHandler,
 	redirectHandler *handler.RedirectHandler,
+	authHandler *handler.AuthHandler,
+	authService *service.AuthService,
 ) {
 	cors := CORSMiddleware
+	auth := AuthMiddleware(authService)
+
+	// Helper to wrap handlers with both CORS and Auth
+	protected := func(h http.HandlerFunc) http.HandlerFunc {
+		return auth(cors(h)).ServeHTTP
+	}
 
 	// Health check
 	mux.HandleFunc("/api/health", cors(func(w http.ResponseWriter, r *http.Request) {
@@ -32,30 +41,33 @@ func RegisterRoutes(
 		})
 	}))
 
+	// --- Auth Routes ---
+	mux.HandleFunc("/api/auth/login", cors(authHandler.Login))
+
 	// --- Order Routes ---
-	mux.HandleFunc("/api/orders", cors(orderHandler.GetOrders))
-	mux.HandleFunc("/api/orders/status", cors(orderHandler.UpdateOrderStatus))
-	mux.HandleFunc("/api/orders/invoice", cors(orderHandler.GenerateInvoice))
+	mux.HandleFunc("/api/orders", protected(orderHandler.GetOrders))
+	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
+	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
 
 	// --- Sync Routes ---
-	mux.HandleFunc("/api/shopify/sync", cors(syncHandler.SyncOrders))
-	mux.HandleFunc("/api/shopify/reset", cors(syncHandler.ResetOrders))
+	mux.HandleFunc("/api/shopify/sync", protected(syncHandler.SyncOrders))
+	mux.HandleFunc("/api/shopify/reset", protected(syncHandler.ResetOrders))
 
 	// --- Dashboard Metrics ---
-	mux.HandleFunc("/api/dashboard/metrics", cors(metricsHandler.GetDashboardMetrics))
+	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))
 
 	// --- Report Routes ---
-	mux.HandleFunc("/api/reports/summary", cors(reportHandler.GetGSTSummary))
-	mux.HandleFunc("/api/reports/state-wise", cors(reportHandler.GetStateSummary))
-	mux.HandleFunc("/api/reports/hsn-wise", cors(reportHandler.GetHSNSummary))
-	mux.HandleFunc("/api/reports/documents-issued", cors(reportHandler.GetDocumentsIssued))
+	mux.HandleFunc("/api/reports/summary", protected(reportHandler.GetGSTSummary))
+	mux.HandleFunc("/api/reports/state-wise", protected(reportHandler.GetStateSummary))
+	mux.HandleFunc("/api/reports/hsn-wise", protected(reportHandler.GetHSNSummary))
+	mux.HandleFunc("/api/reports/documents-issued", protected(reportHandler.GetDocumentsIssued))
 
 	// --- Webhook Routes ---
 	mux.HandleFunc("/api/webhooks/shopify", webhookHandler.ShopifyWebhookHandler)
-	mux.HandleFunc("/api/webhook/status", cors(webhookHandler.GetWebhookStatus))
+	mux.HandleFunc("/api/webhook/status", protected(webhookHandler.GetWebhookStatus))
 
 	// --- Settings Routes ---
-	mux.HandleFunc("/api/settings/date-range", cors(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/settings/date-range", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
 			settingsHandler.SetDateRange(w, r)
@@ -65,9 +77,9 @@ func RegisterRoutes(
 	}))
 
 	// --- WhatsApp Automation Routes ---
-	mux.HandleFunc("/api/automation/whatsapp/metrics", cors(automationHandler.GetAutomationMetrics))
-	mux.HandleFunc("/api/automation/whatsapp/templates/upload", cors(automationHandler.UploadTemplateMedia))
-	mux.HandleFunc("/api/automation/whatsapp/templates", cors(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/automation/whatsapp/metrics", protected(automationHandler.GetAutomationMetrics))
+	mux.HandleFunc("/api/automation/whatsapp/templates/upload", protected(automationHandler.UploadTemplateMedia))
+	mux.HandleFunc("/api/automation/whatsapp/templates", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			automationHandler.CreateTemplate(w, r)
@@ -79,7 +91,7 @@ func RegisterRoutes(
 			automationHandler.GetTemplates(w, r)
 		}
 	}))
-	mux.HandleFunc("/api/automation/whatsapp/triggers", cors(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/automation/whatsapp/triggers", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			automationHandler.CreateTrigger(w, r)
@@ -91,7 +103,7 @@ func RegisterRoutes(
 			automationHandler.GetTriggers(w, r)
 		}
 	}))
-	mux.HandleFunc("/api/automation/whatsapp/messages", cors(automationHandler.GetMessages))
+	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
 
 	// --- Redirect Tracking ---

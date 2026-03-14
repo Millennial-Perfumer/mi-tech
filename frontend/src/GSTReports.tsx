@@ -55,9 +55,10 @@ interface OperationalSummary {
 interface GSTReportsProps {
   startDate: string;
   endDate: string;
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
-export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) => {
+export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth }) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents'>('summary');
   const [summary, setSummary] = useState<GSTSummary | null>(null);
   const [stateData, setStateData] = useState<StateReport[]>([]);
@@ -120,10 +121,10 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate }) =>
         }
 
         const [sumRes, stateRes, hsnRes, docsRes] = await Promise.all([
-          fetch(`http://localhost:8080/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
-          fetch(`http://localhost:8080/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetch(`http://localhost:8080/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetch(`http://localhost:8080/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
+          fetchWithAuth(`http://localhost:8080/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
+          fetchWithAuth(`http://localhost:8080/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
+          fetchWithAuth(`http://localhost:8080/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
+          fetchWithAuth(`http://localhost:8080/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
         ]);
 
         const sumData = await sumRes.json();

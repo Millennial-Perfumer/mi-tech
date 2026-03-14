@@ -58,6 +58,7 @@ func New() (*Server, error) {
 	metricsService := service.NewMetricsService(metricsRepo)
 	reportService := service.NewReportService(reportRepo)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
+	authService := service.NewAuthService(db, cfg.JWTSecret)
 
 	// 6. WhatsApp Automation Module
 	sqlDB, _ := db.DB()
@@ -76,10 +77,11 @@ func New() (*Server, error) {
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, cfg.ShopifyWebhookSecret)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
+	authHandler := handler.NewAuthHandler(authService)
 
 	// 8. Router
 	mux := http.NewServeMux()
-	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler, redirectHandler)
+	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler, redirectHandler, authHandler, authService)
 
 	// 9. HTTP Server with timeouts
 	httpSrv := &http.Server{

@@ -12,14 +12,18 @@ interface Message {
   error_message: string;
 }
 
-export function AutomationMessages() {
+interface AutomationMessagesProps {
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
+
+export function AutomationMessages({ fetchWithAuth }: AutomationMessagesProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchMessages = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const resp = await fetch('http://localhost:8080/api/automation/whatsapp/messages');
+      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/messages');
       const data = await resp.json();
       setMessages(data || []);
     } catch (err) {

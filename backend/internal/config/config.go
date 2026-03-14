@@ -18,6 +18,7 @@ type Config struct {
 	WhatsAppAppID         string
 	WhatsAppAppSecret     string
 	WhatsAppWABAID        string
+	JWTSecret             string
 }
 
 func Load() *Config {
@@ -47,5 +48,6 @@ func Load() *Config {
 		WhatsAppAppID:         os.Getenv("WHATSAPP_APP_ID"),
 		WhatsAppAppSecret:     os.Getenv("WHATSAPP_APP_SECRET"),
 		WhatsAppWABAID:        os.Getenv("WHATSAPP_WABA_ID"),
+		JWTSecret:             os.Getenv("JWT_SECRET"),
 	}
 }
