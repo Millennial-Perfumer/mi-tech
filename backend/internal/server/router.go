@@ -28,7 +28,7 @@ func RegisterRoutes(
 
 	// Helper to wrap handlers with both CORS and Auth
 	protected := func(h http.HandlerFunc) http.HandlerFunc {
-		return auth(cors(h)).ServeHTTP
+		return cors(auth(h).ServeHTTP)
 	}
 
 	// Health check
@@ -67,6 +67,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/webhook/status", protected(webhookHandler.GetWebhookStatus))
 
 	// --- Settings Routes ---
+	mux.HandleFunc("/api/settings", protected(settingsHandler.GetAllSettings))
 	mux.HandleFunc("/api/settings/date-range", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:

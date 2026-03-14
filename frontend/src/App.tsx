@@ -103,6 +103,7 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
+  const [appSettings, setAppSettings] = useState<Record<string, string>>({});
   const limit = 25;
   const [openTrackingId, setOpenTrackingId] = useState<string | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
@@ -196,9 +197,24 @@ function App() {
     }
   };
 
+  const fetchAppSettings = async () => {
+    if (!token) return;
+    try {
+      const res = await fetchWithAuth('http://localhost:8080/api/settings');
+      const data = await res.json();
+      if (data.success) {
+        setAppSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
   const fetchDashboardData = async (silent = false) => {
     if (!token) return;
     if (!silent) setIsLoading(true);
+    // Fetch settings alongside data
+    fetchAppSettings();
     try {
       let startObj = '';
       let endObj = '';
@@ -347,14 +363,16 @@ function App() {
           {activeTab !== 'automation' && (
             <div style={{display: 'flex', gap: '1rem'}}>
               <button className="btn-secondary">Export Data</button>
-              <button 
-                className="btn-secondary" 
-                style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isResetting ? 0.7 : 1, backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444'}}
-                onClick={resetShopify}
-                disabled={isResetting || isSyncing}
-              >
-                {isResetting ? 'Resetting...' : 'Reset & Resync'}
-              </button>
+              {appSettings?.show_reset_button === 'true' && (
+                <button 
+                  className="btn-secondary" 
+                  style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isResetting ? 0.7 : 1, backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444'}}
+                  onClick={resetShopify}
+                  disabled={isResetting || isSyncing}
+                >
+                  {isResetting ? 'Resetting...' : 'Reset & Resync'}
+                </button>
+              )}
               <button 
                 className="btn-primary" 
                 title="Manually fetch orders from Shopify in case webhook delivery fails."

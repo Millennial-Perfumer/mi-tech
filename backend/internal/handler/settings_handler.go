@@ -60,3 +60,23 @@ func (h *SettingsHandler) SetDateRange(w http.ResponseWriter, r *http.Request) {
 		"message": "Date range saved",
 	})
 }
+
+// GetAllSettings returns all key-value pairs from app_settings.
+func (h *SettingsHandler) GetAllSettings(w http.ResponseWriter, r *http.Request) {
+	var settings []repository.AppSetting
+	if err := h.settingsRepo.GetAll(&settings); err != nil {
+		http.Error(w, "Failed to get settings", http.StatusInternalServerError)
+		return
+	}
+
+	res := make(map[string]string)
+	for _, s := range settings {
+		res[s.Key] = s.Value
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"settings": res,
+	})
+}
