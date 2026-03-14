@@ -29,16 +29,22 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 
 	// Try to get dates from query params
 	if s := r.URL.Query().Get("start_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			startTime = &t
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			http.Error(w, "Invalid start_date format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
 		}
+		startTime = &t
 	}
 	if e := r.URL.Query().Get("end_date"); e != "" {
-		if t, err := time.Parse("2006-01-02", e); err == nil {
-			// Set end of day for end_date
-			et := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-			endTime = &et
+		t, err := time.Parse("2006-01-02", e)
+		if err != nil {
+			http.Error(w, "Invalid end_date format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
 		}
+		// Set end of day for end_date: increment by 1 day and subtract 1 nanosecond
+		et := t.AddDate(0, 0, 1).Add(-time.Nanosecond)
+		endTime = &et
 	}
 
 	// Also check body for JSON (preferred for POST)
@@ -48,15 +54,21 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
 		if body.StartDate != "" {
-			if t, err := time.Parse("2006-01-02", body.StartDate); err == nil {
-				startTime = &t
+			t, err := time.Parse("2006-01-02", body.StartDate)
+			if err != nil {
+				http.Error(w, "Invalid start_date format in body. Use YYYY-MM-DD", http.StatusBadRequest)
+				return
 			}
+			startTime = &t
 		}
 		if body.EndDate != "" {
-			if t, err := time.Parse("2006-01-02", body.EndDate); err == nil {
-				et := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-				endTime = &et
+			t, err := time.Parse("2006-01-02", body.EndDate)
+			if err != nil {
+				http.Error(w, "Invalid end_date format in body. Use YYYY-MM-DD", http.StatusBadRequest)
+				return
 			}
+			et := t.AddDate(0, 0, 1).Add(-time.Nanosecond)
+			endTime = &et
 		}
 	}
 

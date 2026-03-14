@@ -191,7 +191,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 
 		var existingOrders []entity.Order
 		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
-			Select("external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
+			Select("source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
 				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
 			Find(&existingOrders).Error
 		
@@ -199,15 +199,18 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			return fmt.Errorf("failed to fetch existing orders for merge: %w", err)
 		}
 
-		// Create a map for O(1) lookup: key = external_order_id (since we assume source_id is consistent in this batch)
+		// Create a map for O(1) lookup: key = source_id:external_order_id
+		// This protects against map collisions if multiple sources use same external IDs
 		existingMap := make(map[string]entity.Order)
 		for _, e := range existingOrders {
-			existingMap[e.ExternalOrderID] = e
+			key := fmt.Sprintf("%s:%s", e.SourceID, e.ExternalOrderID)
+			existingMap[key] = e
 		}
 
 		for _, o := range orders {
+			key := fmt.Sprintf("%s:%s", o.SourceID, o.ExternalOrderID)
 			// Merge PII if existing order found
-			if existing, found := existingMap[o.ExternalOrderID]; found {
+			if existing, found := existingMap[key]; found {
 				r.mergePII(&existing, &o)
 			}
 
