@@ -36,18 +36,25 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 			}
 
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, "authorization header missing", http.StatusUnauthorized)
+			tokenString := ""
+
+			if authHeader != "" {
+				parts := strings.Split(authHeader, " ")
+				if len(parts) == 2 && parts[0] == "Bearer" {
+					tokenString = parts[1]
+				}
+			}
+
+			// Fallback to query parameter for browser downloads
+			if tokenString == "" {
+				tokenString = r.URL.Query().Get("token")
+			}
+
+			if tokenString == "" {
+				http.Error(w, "authorization token missing", http.StatusUnauthorized)
 				return
 			}
 
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "invalid authorization header format", http.StatusUnauthorized)
-				return
-			}
-
-			tokenString := parts[1]
 			token, err := authService.ValidateToken(tokenString)
 			if err != nil || !token.Valid {
 				http.Error(w, "invalid or expired token", http.StatusUnauthorized)

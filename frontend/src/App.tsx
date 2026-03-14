@@ -748,7 +748,7 @@ function App() {
                       {visibleColumns.includes('gst_invoice') && (
                         <td>
                           <a 
-                            href={`http://localhost:8080/api/orders/invoice?id=${order.id}`} 
+                            href={`http://localhost:8080/api/orders/invoice?id=${order.id}&token=${token}`} 
                             target="_blank" 
                             rel="noreferrer" 
                             download={`invoice-${order.order_number}.pdf`}
