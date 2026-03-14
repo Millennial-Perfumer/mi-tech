@@ -364,44 +364,77 @@ function App() {
     <div className="app-container">
       {showSyncModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '400px'}}>
-            <h2 className="modal-title">{syncStep === 'date' ? 'Manual Shopify Sync' : 'Confirm Sync'}</h2>
+          <div className="premium-modal">
+            <div className="modal-header-icon">
+              {syncStep === 'date' ? (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              ) : (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><polyline points="12 6 12 12 16 14"></polyline></svg>
+              )}
+            </div>
+            
+            <h2>{syncStep === 'date' ? 'Manual Sync' : 'Ready to Sync?'}</h2>
             
             {syncStep === 'date' ? (
-              <div className="modal-body" style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                <p>Select the date range you wish to synchronize from Shopify.</p>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                  <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Sync From</label>
-                  <input 
-                    type="date" 
-                    className="form-control" 
-                    min={minSyncDate}
-                    max={new Date().toISOString().split('T')[0]}
-                    value={syncStartDate}
-                    onChange={(e) => setSyncStartDate(e.target.value)}
-                  />
+              <div className="step-content">
+                <p>Select the date range you wish to synchronize from Shopify. Existing orders will be updated.</p>
+                
+                <div className="sync-form-group">
+                  <label>Sync From</label>
+                  <div className="sync-input-wrapper">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <input 
+                      type="date" 
+                      className="premium-date-input" 
+                      min={minSyncDate}
+                      max={new Date().toISOString().split('T')[0]}
+                      value={syncStartDate}
+                      onChange={(e) => setSyncStartDate(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                  <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Sync To</label>
-                  <input 
-                    type="date" 
-                    className="form-control" 
-                    min={syncStartDate}
-                    max={new Date().toISOString().split('T')[0]}
-                    value={syncEndDate}
-                    onChange={(e) => setSyncEndDate(e.target.value)}
-                  />
+
+                <div className="sync-form-group">
+                  <label>Sync To</label>
+                  <div className="sync-input-wrapper">
+                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <input 
+                      type="date" 
+                      className="premium-date-input" 
+                      min={syncStartDate}
+                      max={new Date().toISOString().split('T')[0]}
+                      value={syncEndDate}
+                      onChange={(e) => setSyncEndDate(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="modal-actions" style={{marginTop: '1rem'}}>
+
+                <div className="modal-actions">
                   <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
                   <button className="btn-primary" onClick={() => setSyncStep('confirm')}>Next</button>
                 </div>
               </div>
             ) : (
-              <div className="modal-body" style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                <p>You are about to sync orders between <strong>{syncStartDate}</strong> and <strong>{syncEndDate}</strong>.</p>
-                <p style={{fontSize: '0.85rem', color: '#666'}}>Existing data will be updated. Customer PII data will be preserved if previously fetched via webhook.</p>
-                <div className="modal-actions" style={{marginTop: '1rem'}}>
+              <div className="step-content">
+                <p>Please review your sync settings before proceeding.</p>
+                
+                <div className="confirm-box">
+                  <div className="confirm-row">
+                    <span className="confirm-label">Start Date</span>
+                    <span className="confirm-value">{syncStartDate}</span>
+                  </div>
+                  <div className="confirm-row" style={{borderTop: '1px solid rgba(0,0,0,0.05)', marginTop: '4px', paddingTop: '4px'}}>
+                    <span className="confirm-label">End Date</span>
+                    <span className="confirm-value">{syncEndDate}</span>
+                  </div>
+                </div>
+
+                <div className="info-banner">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                  <span>Your existing PII data (Customer Names, Emails, Phones) is safe and will be preserved automatically.</span>
+                </div>
+
+                <div className="modal-actions" style={{marginTop: '2rem'}}>
                   <button className="btn-secondary" onClick={() => setSyncStep('date')}>Back</button>
                   <button className="btn-primary" onClick={syncShopify}>Start Sync</button>
                 </div>

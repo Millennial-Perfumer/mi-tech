@@ -103,18 +103,24 @@ func (r *gormOrderRepository) GetByExternalID(externalID string) (entity.Order, 
 	return order, err
 }
 
+func (r *gormOrderRepository) isWeak(s *string) bool {
+	if s == nil { return true }
+	val := strings.TrimSpace(*s)
+	return val == "" || val == "Valued Customer" || val == "pending"
+}
+
 func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.Order) {
-	if incoming.CustomerName == nil { incoming.CustomerName = existing.CustomerName }
-	if incoming.CustomerFirstName == nil { incoming.CustomerFirstName = existing.CustomerFirstName }
-	if incoming.CustomerLastName == nil { incoming.CustomerLastName = existing.CustomerLastName }
-	if incoming.CustomerEmail == nil { incoming.CustomerEmail = existing.CustomerEmail }
-	if incoming.CustomerPhone == nil { incoming.CustomerPhone = existing.CustomerPhone }
-	if incoming.CustomerCity == nil { incoming.CustomerCity = existing.CustomerCity }
-	if incoming.CustomerState == nil { incoming.CustomerState = existing.CustomerState }
-	if incoming.CustomerCountry == nil { incoming.CustomerCountry = existing.CustomerCountry }
-	if incoming.CustomerAddress1 == nil { incoming.CustomerAddress1 = existing.CustomerAddress1 }
-	if incoming.CustomerAddress2 == nil { incoming.CustomerAddress2 = existing.CustomerAddress2 }
-	if incoming.CustomerZip == nil { incoming.CustomerZip = existing.CustomerZip }
+	if r.isWeak(incoming.CustomerName) && !r.isWeak(existing.CustomerName) { incoming.CustomerName = existing.CustomerName }
+	if r.isWeak(incoming.CustomerFirstName) && !r.isWeak(existing.CustomerFirstName) { incoming.CustomerFirstName = existing.CustomerFirstName }
+	if r.isWeak(incoming.CustomerLastName) && !r.isWeak(existing.CustomerLastName) { incoming.CustomerLastName = existing.CustomerLastName }
+	if r.isWeak(incoming.CustomerEmail) && !r.isWeak(existing.CustomerEmail) { incoming.CustomerEmail = existing.CustomerEmail }
+	if r.isWeak(incoming.CustomerPhone) && !r.isWeak(existing.CustomerPhone) { incoming.CustomerPhone = existing.CustomerPhone }
+	if r.isWeak(incoming.CustomerCity) && !r.isWeak(existing.CustomerCity) { incoming.CustomerCity = existing.CustomerCity }
+	if r.isWeak(incoming.CustomerState) && !r.isWeak(existing.CustomerState) { incoming.CustomerState = existing.CustomerState }
+	if r.isWeak(incoming.CustomerCountry) && !r.isWeak(existing.CustomerCountry) { incoming.CustomerCountry = existing.CustomerCountry }
+	if r.isWeak(incoming.CustomerAddress1) && !r.isWeak(existing.CustomerAddress1) { incoming.CustomerAddress1 = existing.CustomerAddress1 }
+	if r.isWeak(incoming.CustomerAddress2) && !r.isWeak(existing.CustomerAddress2) { incoming.CustomerAddress2 = existing.CustomerAddress2 }
+	if r.isWeak(incoming.CustomerZip) && !r.isWeak(existing.CustomerZip) { incoming.CustomerZip = existing.CustomerZip }
 }
 
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
@@ -164,16 +170,44 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 }
 
 func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
+	if len(orders) == 0 {
+		return nil
+	}
+
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Fetch existing orders in one batch to preserve PII
+		externalIDs := make([]string, len(orders))
+		sourceIDs := make(map[string]bool)
+		for i, o := range orders {
+			externalIDs[i] = o.ExternalOrderID
+			sourceIDs[o.SourceID] = true
+		}
+
+		// Collect unique source IDs (usually just one, but let's be safe)
+		var uniqueSources []string
+		for s := range sourceIDs {
+			uniqueSources = append(uniqueSources, s)
+		}
+
+		var existingOrders []entity.Order
+		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
+			Select("external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
+				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+			Find(&existingOrders).Error
+		
+		if err != nil {
+			return fmt.Errorf("failed to fetch existing orders for merge: %w", err)
+		}
+
+		// Create a map for O(1) lookup: key = external_order_id (since we assume source_id is consistent in this batch)
+		existingMap := make(map[string]entity.Order)
+		for _, e := range existingOrders {
+			existingMap[e.ExternalOrderID] = e
+		}
+
 		for _, o := range orders {
-			// Preserve PII during batch upsert
-			var existing entity.Order
-			err := tx.Where("source_id = ? AND external_order_id = ?", o.SourceID, o.ExternalOrderID).
-				Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
-					   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
-				First(&existing).Error
-			
-			if err == nil {
+			// Merge PII if existing order found
+			if existing, found := existingMap[o.ExternalOrderID]; found {
 				r.mergePII(&existing, &o)
 			}
 
