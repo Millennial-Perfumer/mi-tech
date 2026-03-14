@@ -8,6 +8,8 @@ import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
 import './App.css';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
 interface Order {
   id: string;
   order_number: string;
@@ -200,10 +202,11 @@ function App() {
   const fetchAppSettings = async () => {
     if (!token) return;
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
       const response = await fetchWithAuth(`${API_BASE}/api/settings`);
       const data = await response.json();
-      setAppSettings(data);
+      if (data.success) {
+        setAppSettings(data.settings);
+      }
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -219,7 +222,6 @@ function App() {
   const fetchDashboardData = async (silent = false) => {
     if (!token) return;
     if (!silent) setIsLoading(true);
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
     try {
       let startObj = '';
       let endObj = '';
@@ -261,7 +263,6 @@ function App() {
   const syncShopify = async () => {
     setIsSyncing(true);
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
       const response = await fetchWithAuth(`${API_BASE}/api/shopify/sync`, {
         method: 'POST',
       });
@@ -321,7 +322,6 @@ function App() {
 
   const handleDownloadInvoice = async (orderId: string, orderNumber: string) => {
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
       const response = await fetchWithAuth(`${API_BASE}/api/orders/invoice?id=${orderId}`);
       if (!response.ok) {
         throw new Error('Failed to download invoice');

@@ -30,6 +30,14 @@ func NewInvoiceService(settingsRepo *repository.SettingsRepository) *InvoiceServ
 	return &InvoiceService{settingsRepo: settingsRepo}
 }
 
+func (s *InvoiceService) getSetting(key, defaultValue string) string {
+	val, _ := s.settingsRepo.Get(key)
+	if val == "" {
+		return defaultValue
+	}
+	return val
+}
+
 // GeneratePDF creates a professional GST invoice PDF and writes it to the provided writer.
 func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem, w io.Writer) error {
 	pdf := gofpdf.New("P", "mm", "A4", "")
@@ -42,20 +50,11 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.AddPage()
 
 	// -- Header --
-	bizName, _ := s.settingsRepo.Get("business_name")
-	if bizName == "" { bizName = DefaultBusinessName }
-	
-	gstin, _ := s.settingsRepo.Get("business_gstin")
-	if gstin == "" { gstin = DefaultBusinessGSTIN }
-	
-	addr1, _ := s.settingsRepo.Get("business_address_line1")
-	if addr1 == "" { addr1 = DefaultAddressLine1 }
-	
-	addr2, _ := s.settingsRepo.Get("business_address_line2")
-	if addr2 == "" { addr2 = DefaultAddressLine2 }
-	
-	phone, _ := s.settingsRepo.Get("business_phone")
-	if phone == "" { phone = DefaultBusinessPhone }
+	bizName := s.getSetting("business_name", DefaultBusinessName)
+	gstin := s.getSetting("business_gstin", DefaultBusinessGSTIN)
+	addr1 := s.getSetting("business_address_line1", DefaultAddressLine1)
+	addr2 := s.getSetting("business_address_line2", DefaultAddressLine2)
+	phone := s.getSetting("business_phone", DefaultBusinessPhone)
 
 	pdf.SetFont("Montserrat", "B", 13.5)
 	pdf.CellFormat(100, 10, bizName, "0", 0, "L", false, 0, "")
@@ -300,8 +299,7 @@ func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf) {
 	pdf.SetFont("Montserrat", "B", footerSize)
 	pdf.CellFormat(0, 4, "Intellectual Property:", "0", 1, "L", false, 0, "")
 	pdf.SetFont("Montserrat", "", footerSize)
-	bizName, _ := s.settingsRepo.Get("business_name")
-	if bizName == "" { bizName = DefaultFooterBusiness }
+	bizName := s.getSetting("business_name", DefaultFooterBusiness)
 	pdf.MultiCell(0, 3.5, fmt.Sprintf("All branding and product names are trademarks of %s and may not be reproduced without permission.", bizName), "0", "L", false)
 }
 
