@@ -18,6 +18,7 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-backend:latest
     restart: always
     environment:
+      DB_DSN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-wisegst}?sslmode=disable
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
