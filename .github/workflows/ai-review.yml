@@ -46,14 +46,15 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          RESPONSE=$(curl -s https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent \
+          # Use jq to safely construct the JSON payload
+          JSON_PAYLOAD=$(jq -n --arg msg "$(cat prompt.txt)" '{contents: [{parts: [{text: $msg}]}]}')
+          
+          curl -f -s https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent \
             -H "Content-Type: application/json" \
             -H "x-goog-api-key: $GEMINI_API_KEY" \
-            -d "{
-              \"contents\": [{
-                \"parts\": [{\"text\": \"$(cat prompt.txt | sed 's/"/\\"/g')\"}]
-              }]
-            }")
+            -d "$JSON_PAYLOAD" > review.json
+          
+          cat review.json
 
           echo "$RESPONSE" > review.json
           cat review.json
@@ -63,16 +64,14 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          RESPONSE=$(curl -s https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro:generateContent \
+          # Use jq to safely construct the JSON payload
+          JSON_PAYLOAD=$(jq -n --arg msg "$(cat prompt.txt)" '{contents: [{parts: [{text: $msg}]}]}')
+          
+          curl -f -s https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro:generateContent \
             -H "Content-Type: application/json" \
             -H "x-goog-api-key: $GEMINI_API_KEY" \
-            -d "{
-              \"contents\": [{
-                \"parts\": [{\"text\": \"$(cat prompt.txt | sed 's/"/\\"/g')\"}]
-              }]
-            }")
-
-          echo "$RESPONSE" > review.json
+            -d "$JSON_PAYLOAD" > review.json
+          
           cat review.json
 
       - name: Extract AI review text
