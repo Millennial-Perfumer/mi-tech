@@ -313,6 +313,28 @@ function App() {
     return () => clearInterval(interval);
   }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
+  const handleDownloadInvoice = async (orderId: string, orderNumber: string) => {
+    try {
+      const response = await fetchWithAuth(`http://localhost:8080/api/orders/invoice?id=${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice. Please try again.');
+    }
+  };
+
   if (!token) {
     return <Login onLogin={handleLogin} />;
   }
@@ -747,16 +769,13 @@ function App() {
                       )}
                       {visibleColumns.includes('gst_invoice') && (
                         <td>
-                          <a 
-                            href={`http://localhost:8080/api/orders/invoice?id=${order.id}&token=${token}`} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            download={`invoice-${order.order_number}.pdf`}
+                          <button 
+                            onClick={() => handleDownloadInvoice(order.id, order.order_number)}
                             className="btn-primary" 
-                            style={{fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-block'}}
+                            style={{fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-block', cursor: 'pointer', border: 'none'}}
                           >
                             Download
-                          </a>
+                          </button>
                         </td>
                       )}
                     </tr>
