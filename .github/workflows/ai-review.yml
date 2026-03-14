@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Fetch base branch
         run: |
@@ -55,10 +57,6 @@ jobs:
             -d "$JSON_PAYLOAD" > review.json
           
           cat review.json
-
-          echo "$RESPONSE" > review.json
-          cat review.json
-
       - name: Fallback to Gemini 3.1 Pro
         if: steps.flash.outcome == 'failure'
         env:
