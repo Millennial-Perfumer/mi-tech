@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/service"
 )
 
 // ReportHandler is a thin HTTP adapter for GST report endpoints.

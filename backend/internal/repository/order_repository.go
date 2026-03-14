@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

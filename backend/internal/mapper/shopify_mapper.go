@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
 )
 
 // GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.
@@ -61,11 +61,17 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	if len(so.Fulfillments) > 0 {
 		f := so.Fulfillments[0]
-		if f.DisplayStatus != "" {
+		
+		// Prioritize the latest fulfillment event status
+		if len(f.Events.Edges) > 0 {
+			lastEvent := f.Events.Edges[len(f.Events.Edges)-1].Node
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(lastEvent.Status, "_", " "))
+		} else if f.DisplayStatus != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
 		} else {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
 		}
+
 		if len(f.TrackingInfo) > 0 {
 			trackingNumber = f.TrackingInfo[0].Number
 			shippingCompany = f.TrackingInfo[0].Company

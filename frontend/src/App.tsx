@@ -4,6 +4,8 @@ import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
 import { GSTReports } from './GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
+import fullLogo from './assets/full_logo.png';
+import { Login } from './Login';
 import './App.css';
 
 interface Order {
@@ -63,9 +65,32 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
 
 function App() {
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveTab') || 'dashboard';
   });
+
+  const handleLogin = (newToken: string) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+  };
+
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+      handleLogout();
+    }
+    return response;
+  };
 
   useEffect(() => {
     localStorage.setItem('gstAppActiveTab', activeTab);
@@ -116,7 +141,8 @@ function App() {
 
   // Load saved date range from backend on startup
   useEffect(() => {
-    fetch('http://localhost:8080/api/settings/date-range')
+    if (!token) return;
+    fetchWithAuth('http://localhost:8080/api/settings/date-range')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.start_date && data.end_date) {
@@ -125,7 +151,7 @@ function App() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [token]);
 
   // Close tracking/status popover when clicking elsewhere
   useEffect(() => {
@@ -149,7 +175,7 @@ function App() {
   const handleStatusUpdate = async (orderId: string, newStatus: string) => {
     setIsUpdatingStatus(true);
     try {
-      const response = await fetch(`http://localhost:8080/api/orders/status?id=${orderId}`, {
+      const response = await fetchWithAuth(`http://localhost:8080/api/orders/status?id=${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -171,6 +197,7 @@ function App() {
   };
 
   const fetchDashboardData = async (silent = false) => {
+    if (!token) return;
     if (!silent) setIsLoading(true);
     try {
       let startObj = '';
@@ -186,21 +213,21 @@ function App() {
         endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
       }
       
-      const metricsRes = await fetch(`http://localhost:8080/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
+      const metricsRes = await fetchWithAuth(`http://localhost:8080/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
       const metricsData = await metricsRes.json();
       
       if (metricsData.success) {
         setMetrics(metricsData.metrics);
       }
 
-      const ordersRes = await fetch(`http://localhost:8080/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
+      const ordersRes = await fetchWithAuth(`http://localhost:8080/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
       const ordersData = await ordersRes.json();
       if (ordersData.success) {
         setOrders(ordersData.orders);
         setTotalCount(ordersData.total_count);
       }
 
-      const webhookRes = await fetch('http://localhost:8080/api/webhook/status');
+      const webhookRes = await fetchWithAuth('http://localhost:8080/api/webhook/status');
       const webhookData = await webhookRes.json();
       setWebhookStatus(webhookData);
     } catch (error) {
@@ -213,7 +240,7 @@ function App() {
   const syncShopify = async () => {
     setIsSyncing(true);
     try {
-      const response = await fetch('http://localhost:8080/api/shopify/sync', {
+      const response = await fetchWithAuth('http://localhost:8080/api/shopify/sync', {
         method: 'POST',
       });
       const data = await response.json();
@@ -237,7 +264,7 @@ function App() {
     }
     setIsResetting(true);
     try {
-      const response = await fetch('http://localhost:8080/api/shopify/reset', {
+      const response = await fetchWithAuth('http://localhost:8080/api/shopify/reset', {
         method: 'POST',
       });
       const data = await response.json();
@@ -270,14 +297,15 @@ function App() {
     return () => clearInterval(interval);
   }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
+  if (!token) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: 'var(--accent-color)'}}>
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-          </svg>
-          GST Invoice
+        <div className="sidebar-brand" style={{ justifyContent: 'flex-start', paddingLeft: '1rem', marginBottom: '2rem' }}>
+          <img src={fullLogo} alt="Mi Tech" style={{ width: '140px', height: 'auto', objectFit: 'contain' }} />
         </div>
         
         <nav className="sidebar-nav">
@@ -300,6 +328,10 @@ function App() {
           <a href="#" className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             Settings
+          </a>
+          <a href="#" className="nav-item" onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            Sign Out
           </a>
         </nav>
       </aside>
@@ -347,7 +379,7 @@ function App() {
                 setStartDate(start);
                 setEndDate(end);
                 // Persist date range to backend
-                fetch('http://localhost:8080/api/settings/date-range', {
+                fetchWithAuth('http://localhost:8080/api/settings/date-range', {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ start_date: start, end_date: end }),
@@ -358,7 +390,11 @@ function App() {
         )}
 
         {activeTab === 'dashboard' && (
-          <section className="dashboard-grid">
+          <>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+              <img src={fullLogo} alt="Mi Tech Full Logo" style={{ maxWidth: '160px', height: 'auto' }} />
+            </div>
+            <section className="dashboard-grid">
               <div className="card">
                 <h3 className="card-title">Total Revenue</h3>
                 <div className="card-value">₹{metrics?.total_revenue?.toLocaleString('en-IN') || '0'}</div>
@@ -403,7 +439,8 @@ function App() {
                 <h3 className="card-title" style={{ color: '#854d0e' }}>Unfulfilled Orders</h3>
                 <div className="card-value" style={{ color: '#854d0e' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-          </section>
+            </section>
+          </>
         )}
 
         {activeTab === 'shopify' && (
@@ -744,11 +781,11 @@ function App() {
         )}
 
         {activeTab === 'reports' && (
-          <GSTReports startDate={startDate} endDate={endDate} />
+          <GSTReports startDate={startDate} endDate={endDate} fetchWithAuth={fetchWithAuth} />
         )}
 
         {activeTab === 'automation' && (
-          <WhatsAppAutomation />
+          <WhatsAppAutomation fetchWithAuth={fetchWithAuth} />
         )}
 
       </main>

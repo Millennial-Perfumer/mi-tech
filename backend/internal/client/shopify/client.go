@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/config"
-	"shopify-gst-app/internal/dto"
+	"mi-tech/internal/config"
+	"mi-tech/internal/dto"
 )
 
 type Client struct {
@@ -98,6 +98,14 @@ func (c *Client) FetchOrders(since time.Time) ([]dto.GraphQLOrderNode, error) {
 							number
 							company
 							url
+						}
+						events(first: 10) {
+							edges {
+								node {
+									status
+									happenedAt
+								}
+							}
 						}
 					}
 					lineItems(first: 50) {
@@ -251,6 +259,14 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 					number
 					company
 					url
+				}
+				events(first: 10) {
+					edges {
+						node {
+							status
+							happenedAt
+						}
+					}
 				}
 			}
 			lineItems(first: 50) {

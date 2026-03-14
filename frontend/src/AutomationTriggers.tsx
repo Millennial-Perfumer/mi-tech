@@ -14,7 +14,11 @@ interface Template {
   status: string;
 }
 
-export function AutomationTriggers() {
+interface AutomationTriggersProps {
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
+
+export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,8 +34,8 @@ export function AutomationTriggers() {
     setIsLoading(true);
     try {
       const [triggersResp, templatesResp] = await Promise.all([
-        fetch('http://localhost:8080/api/automation/whatsapp/triggers'),
-        fetch('http://localhost:8080/api/automation/whatsapp/templates')
+        fetchWithAuth('http://localhost:8080/api/automation/whatsapp/triggers'),
+        fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates')
       ]);
       const triggersData = await triggersResp.json();
       const templatesData = await templatesResp.json();
@@ -53,7 +57,7 @@ export function AutomationTriggers() {
     
     setIsSaving(true);
     try {
-      const resp = await fetch('http://localhost:8080/api/automation/whatsapp/triggers', {
+      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/triggers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +79,7 @@ export function AutomationTriggers() {
 
   const handleToggle = async (id: number, currentEnabled: boolean) => {
     try {
-      const resp = await fetch(`http://localhost:8080/api/automation/whatsapp/triggers`, {
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/triggers`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, enabled: !currentEnabled })
@@ -89,7 +93,7 @@ export function AutomationTriggers() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this trigger mapping?')) return;
     try {
-      const resp = await fetch(`http://localhost:8080/api/automation/whatsapp/triggers?id=${id}`, { method: 'DELETE' });
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/triggers?id=${id}`, { method: 'DELETE' });
       if (resp.ok) fetchData();
     } catch (err) {
       console.error('Failed to delete trigger:', err);

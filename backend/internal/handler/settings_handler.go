@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/repository"
 )
 
 // SettingsHandler handles settings API requests.

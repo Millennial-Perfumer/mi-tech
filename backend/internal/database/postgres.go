@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"shopify-gst-app/internal/config"
+	"mi-tech/internal/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

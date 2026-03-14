@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
 )

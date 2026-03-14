@@ -4,37 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"shopify-gst-app/internal/config"
+	"mi-tech/internal/config"
 	"strings"
 )
-
-type TemplateHeader struct {
-	Type     string          `json:"type"` // image, video, document, location, none
-	Sample   json.RawMessage `json:"sample,omitempty"`
-	Location json.RawMessage `json:"location,omitempty"`
-}
-
-type TemplateButton struct {
-	Type        string `json:"type"` // custom, visit_website, call_whatsapp, call_phone, flow, copy_code
-	Text        string `json:"text"`
-	Payload     string `json:"payload,omitempty"`
-	URL         string `json:"url,omitempty"`
-	PhoneNumber string `json:"phoneNumber,omitempty"` // Frontend camelCase
-	FlowID      string `json:"flowID,omitempty"`      // Frontend camelCase
-	FlowName    string `json:"flowName,omitempty"`    // Frontend camelCase
-	OfferCode   string `json:"offerCode,omitempty"`   // Frontend camelCase
-}
-
-type CreateTemplateRequest struct {
-	Name     string           `json:"name"`
-	Language string           `json:"language"`
-	Category string           `json:"category"`
-	Header   *TemplateHeader  `json:"header,omitempty"`
-	Body     string           `json:"body"`
-	Footer   string           `json:"footer,omitempty"`
-	Buttons  []TemplateButton `json:"buttons,omitempty"`
-	Examples string           `json:"examples,omitempty"`
-}
 
 type TemplatesService struct {
 	repo       *TemplatesRepository
@@ -251,13 +223,13 @@ func (s *TemplatesService) SyncStatus(storeID string) error {
 	}
 
 	for _, t := range templates {
-		status, err := s.metaClient.GetTemplateStatus(t.TemplateName)
-		if err != nil {
+		remote, err := s.metaClient.GetRemoteTemplateByName(t.TemplateName)
+		if err != nil || remote == nil {
 			continue // Skip failed syncs
 		}
 
-		if status != t.Status {
-			s.repo.UpdateStatus(t.TemplateName, status)
+		if remote.Status != t.Status {
+			s.repo.UpdateStatus(t.TemplateName, remote.Status)
 		}
 	}
 
@@ -296,9 +268,25 @@ func (s *TemplatesService) UpdateTemplate(storeID string, id int, req CreateTemp
 	}
 
 	// 3. Resubmit to Meta
+	if t.MetaTemplateID == "" {
+		log.Printf("Service: MetaTemplateID missing locally for %s. Attempting to resolve from Meta...", t.TemplateName)
+		remote, err := s.metaClient.GetRemoteTemplateByName(t.TemplateName)
+		if err != nil {
+			return fmt.Errorf("failed to resolve template from meta: %w", err)
+		}
+		if remote != nil {
+			log.Printf("Service: Resolved MetaTemplateID for %s: %s", t.TemplateName, remote.ID)
+			t.MetaTemplateID = remote.ID
+			// Update locally immediately so we don't have to fetch again
+			_ = s.repo.UpdateTemplate(*t)
+		}
+	}
+
 	if t.MetaTemplateID != "" {
+		log.Printf("Service: Updating existing Meta template %s (ID: %s)", t.TemplateName, t.MetaTemplateID)
 		err = s.metaClient.UpdateTemplate(t.MetaTemplateID, components)
 	} else {
+		log.Printf("Service: Template %s not found on Meta. Creating new one.", t.TemplateName)
 		metaReq := TemplateRequest{
 			Name:       t.TemplateName,
 			Category:   t.Category,

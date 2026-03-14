@@ -1,10 +1,10 @@
 package service
 
 import (
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
-	"shopify-gst-app/internal/mapper"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/mapper"
+	"mi-tech/internal/repository"
 )
 
 // OrderService handles order CRUD business logic.
@@ -97,6 +97,11 @@ func (s *OrderService) UpdatePaymentStatus(externalOrderID string, status string
 // UpdateFulfillmentStatus updates the fulfillment status of an order.
 func (s *OrderService) UpdateFulfillmentStatus(externalOrderID string, status string) error {
 	return s.orderRepo.UpdateStatus(externalOrderID, "", status)
+}
+
+// UpdateTrackingInfo updates the tracking details of an order.
+func (s *OrderService) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
+	return s.orderRepo.UpdateTrackingInfo(externalOrderID, trackingNumber, shippingCompany, trackingUrl, deliveryStatus)
 }
 
 // CancelOrder marks an order as cancelled.

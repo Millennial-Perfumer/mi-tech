@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/repository"
 )
 
 // ReportService handles GST report business logic.

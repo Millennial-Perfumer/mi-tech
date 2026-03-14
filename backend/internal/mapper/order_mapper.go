@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
 )
 
 // OrderEntityToResponse converts a DB entity to an API response DTO.

@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
 )

@@ -4,7 +4,11 @@ import { AutomationTemplates } from './AutomationTemplates';
 import { AutomationTriggers } from './AutomationTriggers';
 import { AutomationMessages } from './AutomationMessages';
 
-export function WhatsAppAutomation() {
+interface WhatsAppAutomationProps {
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
+
+export function WhatsAppAutomation({ fetchWithAuth }: WhatsAppAutomationProps) {
   const [activeSubTab, setActiveSubTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveSubTab') || 'dashboard';
   });
@@ -52,10 +56,10 @@ export function WhatsAppAutomation() {
       </div>
 
       <div className="automation-content">
-        {activeSubTab === 'dashboard' && <AutomationDashboard />}
-        {activeSubTab === 'templates' && <AutomationTemplates />}
-        {activeSubTab === 'triggers' && <AutomationTriggers />}
-        {activeSubTab === 'messages' && <AutomationMessages />}
+        {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} />}
+        {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} />}
+        {activeSubTab === 'triggers' && <AutomationTriggers fetchWithAuth={fetchWithAuth} />}
+        {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} />}
       </div>
     </div>
   );

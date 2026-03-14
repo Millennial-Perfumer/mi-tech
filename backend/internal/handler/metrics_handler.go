@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/service"
 )
 
 // MetricsHandler is a thin HTTP adapter for dashboard metrics.

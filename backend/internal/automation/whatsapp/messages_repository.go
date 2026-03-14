@@ -2,7 +2,7 @@ package whatsapp
 
 import (
 	"database/sql"
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/entity"
 	"time"
 )
 

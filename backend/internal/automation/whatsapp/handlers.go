@@ -216,15 +216,6 @@ func (h *AutomationHandler) DeleteTrigger(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *AutomationHandler) DebugGetTemplates(w http.ResponseWriter, r *http.Request) {
-	templates, err := h.templatesService.GetTemplates("1")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(templates)
-}
 func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

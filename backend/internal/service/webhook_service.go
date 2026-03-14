@@ -6,11 +6,11 @@ import (
 	"log"
 	"strconv"
 
-	"shopify-gst-app/internal/client/shopify"
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/entity"
-	"shopify-gst-app/internal/mapper"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/mapper"
+	"mi-tech/internal/repository"
 )
 
 // WebhookService handles the business logic for processing Shopify webhooks.
@@ -83,43 +83,28 @@ func (s *WebhookService) ProcessOrderCancelled(externalOrderID string, cancelled
 // ProcessFulfillmentCreate handles fulfillments/create webhook.
 func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillment) error {
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
-	log.Printf("Processing fulfillments/create for Order ID: %s", extOrderID)
+	log.Printf("Processing fulfillments/create for Order ID: %s. Refreshing from Shopify API...", extOrderID)
 	
-	// 1. Update tracking info on the order immediately from payload
-	_ = s.orderService.orderRepo.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, entity.DerefStr(f.ShipmentStatus))
-	
-	// 2. Refresh full order from Shopify ONLY if critical status is missing (shipment_status == null)
-	// This helps avoid API latency and protects PII on basic plans.
-	if f.ShipmentStatus == nil {
-		err := s.RefreshOrder(extOrderID)
-		if err != nil {
-			log.Printf("Webhook Warning: Could not refresh order %s from Shopify: %v. Proceeding with local data.", extOrderID, err)
-		}
-	} else {
-		log.Printf("Webhook Info: Shipment status present in payload for order %s. Skipping Shopify API refresh.", extOrderID)
+	err := s.RefreshOrder(extOrderID)
+	if err != nil {
+		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
+		// Fallback: update tracking info from payload
+		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, "")
 	}
-	
 	return nil
 }
 
 // ProcessFulfillmentUpdate handles fulfillments/update webhook.
 func (s *WebhookService) ProcessFulfillmentUpdate(f dto.ShopifyWebhookFulfillment) error {
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
-	log.Printf("Processing fulfillments/update for Order ID: %s (Status: %s)", extOrderID, entity.DerefStr(f.ShipmentStatus))
+	log.Printf("Processing fulfillments/update for Order ID: %s. Refreshing from Shopify API...", extOrderID)
 	
-	// 1. Update shipment status on the order
-	_ = s.orderService.orderRepo.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, entity.DerefStr(f.ShipmentStatus))
-	
-	// 2. Refresh full order from Shopify ONLY if critical status is missing
-	if f.ShipmentStatus == nil {
-		err := s.RefreshOrder(extOrderID)
-		if err != nil {
-			log.Printf("Webhook Warning: Could not refresh order %s from Shopify: %v. Proceeding with local data.", extOrderID, err)
-		}
-	} else {
-		log.Printf("Webhook Info: Shipment status present in payload for order %s. Skipping Shopify API refresh.", extOrderID)
+	err := s.RefreshOrder(extOrderID)
+	if err != nil {
+		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
+		// Fallback: update tracking info from payload
+		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, "")
 	}
-	
 	return nil
 }
 

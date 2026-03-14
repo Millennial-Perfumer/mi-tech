@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"shopify-gst-app/internal/automation/whatsapp"
-	"shopify-gst-app/internal/config"
-	"shopify-gst-app/internal/database"
-	"shopify-gst-app/internal/client/shopify"
-	"shopify-gst-app/internal/handler"
-	"shopify-gst-app/internal/repository"
-	"shopify-gst-app/internal/service"
+	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/config"
+	"mi-tech/internal/database"
+	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/handler"
+	"mi-tech/internal/repository"
+	"mi-tech/internal/service"
 
 	"gorm.io/gorm"
 )
@@ -58,6 +58,7 @@ func New() (*Server, error) {
 	metricsService := service.NewMetricsService(metricsRepo)
 	reportService := service.NewReportService(reportRepo)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
+	authService := service.NewAuthService(db, cfg.JWTSecret)
 
 	// 6. WhatsApp Automation Module
 	sqlDB, _ := db.DB()
@@ -76,10 +77,11 @@ func New() (*Server, error) {
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, cfg.ShopifyWebhookSecret)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
+	authHandler := handler.NewAuthHandler(authService)
 
 	// 8. Router
 	mux := http.NewServeMux()
-	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler, redirectHandler)
+	RegisterRoutes(mux, orderHandler, syncHandler, metricsHandler, reportHandler, webhookHandler, automationHandler, settingsHandler, redirectHandler, authHandler, authService)
 
 	// 9. HTTP Server with timeouts
 	httpSrv := &http.Server{

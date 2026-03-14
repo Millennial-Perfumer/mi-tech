@@ -2,35 +2,8 @@ package whatsapp
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
-	"time"
 )
-
-type AutomationTemplate struct {
-	ID             int              `json:"id"`
-	StoreID        string           `json:"store_id"`
-	TemplateName   string           `json:"template_name"`
-	Language       string           `json:"language"`
-	Category       string           `json:"category"`
-	Body           string           `json:"body"`
-	Header         *json.RawMessage `json:"header,omitempty"`
-	Footer         *string          `json:"footer,omitempty"`
-	Buttons        *json.RawMessage `json:"buttons,omitempty"`
-	Status         string           `json:"status"`
-	MetaTemplateID string           `json:"meta_template_id"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
-}
-
-type Trigger struct {
-	ID           int       `json:"id"`
-	StoreID      string    `json:"store_id"`
-	WebhookTopic string    `json:"webhook_topic"`
-	TemplateID   int       `json:"template_id"`
-	Enabled      bool      `json:"enabled"`
-	CreatedAt    time.Time `json:"created_at"`
-}
 
 type TemplatesRepository struct {
 	db *sql.DB

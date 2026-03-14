@@ -7,7 +7,7 @@ import (
 
 	"github.com/jung-kurt/gofpdf"
 
-	"shopify-gst-app/internal/entity"
+	"mi-tech/internal/entity"
 )
 
 // InvoiceService handles PDF invoice generation.

@@ -1,8 +1,8 @@
 package service
 
 import (
-	"shopify-gst-app/internal/dto"
-	"shopify-gst-app/internal/repository"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/repository"
 )
 
 // MetricsService handles dashboard metrics business logic.
