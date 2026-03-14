@@ -391,9 +391,6 @@ function App() {
 
         {activeTab === 'dashboard' && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-              <img src={fullLogo} alt="Mi Tech Full Logo" style={{ maxWidth: '160px', height: 'auto' }} />
-            </div>
             <section className="dashboard-grid">
               <div className="card">
                 <h3 className="card-title">Total Revenue</h3>
