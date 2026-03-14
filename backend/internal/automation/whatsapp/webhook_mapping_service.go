@@ -97,11 +97,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	requiredCount := s.countRequiredParams(template.Body)
 
 	// Template-specific mapping logic
-	if template.TemplateName == "order_dispatched_v3" || template.TemplateName == "out_for_delivery_v3" {
-		if requiredCount >= 3 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
-		}
-	} else if template.TemplateName == "order_assigned_v3" {
+	if template.TemplateName == "order_dispatched_v3" || template.TemplateName == "out_for_delivery_v3" || template.TemplateName == "order_assigned_v3" {
 		if requiredCount >= 3 {
 			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
 		}
