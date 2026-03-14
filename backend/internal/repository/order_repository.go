@@ -207,36 +207,44 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			existingMap[key] = e
 		}
 
-		for _, o := range orders {
-			key := fmt.Sprintf("%s:%s", o.SourceID, o.ExternalOrderID)
+		for i := range orders {
+			key := fmt.Sprintf("%s:%s", orders[i].SourceID, orders[i].ExternalOrderID)
 			// Merge PII if existing order found
 			if existing, found := existingMap[key]; found {
-				r.mergePII(&existing, &o)
+				r.mergePII(&existing, &orders[i])
 			}
+		}
 
+		// 2. Batch Upsert Orders (Omit LineItems to handle them separately)
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"order_number", "total_price", "subtotal_price", "total_tax",
+				"updated_at", "customer_name", "customer_email", "customer_phone",
+				"customer_city", "customer_state", "customer_country", "status",
+				"financial_status", "fulfillment_status", "delivery_status",
+				"tracking_number", "shipping_company", "tracking_url",
+				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
+			}),
+		}).Omit("LineItems").Create(&orders).Error; err != nil {
+			return fmt.Errorf("failed to batch upsert orders: %w", err)
+		}
+
+		// 3. Flatten and Batch Upsert Line Items
+		var allLineItems []entity.LineItem
+		for i := range orders {
+			for j := range orders[i].LineItems {
+				orders[i].LineItems[j].OrderID = orders[i].ID
+				allLineItems = append(allLineItems, orders[i].LineItems[j])
+			}
+		}
+
+		if len(allLineItems) > 0 {
 			if err := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"order_number", "total_price", "subtotal_price", "total_tax",
-					"updated_at", "customer_name", "customer_email", "customer_phone",
-					"customer_city", "customer_state", "customer_country", "status",
-					"financial_status", "fulfillment_status", "delivery_status",
-					"tracking_number", "shipping_company", "tracking_url",
-					"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
-				}),
-			}).Create(&o).Error; err != nil {
-				log.Printf("Failed to upsert order %s: %v", o.ID, err)
-				continue
-			}
-
-			for _, li := range o.LineItems {
-				li.OrderID = o.ID
-				if err := tx.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
-				}).Create(&li).Error; err != nil {
-					log.Printf("Failed to upsert line item %s for order %s: %v", li.ID, o.ID, err)
-				}
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
+			}).Create(&allLineItems).Error; err != nil {
+				return fmt.Errorf("failed to batch upsert line items: %w", err)
 			}
 		}
 		return nil
