@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-wisegst}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - app-network
+    # DB port is intentionally not exposed to the host for production security
+
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-backend:latest
+    restart: always
+    environment:
+      DB_DSN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-wisegst}?sslmode=disable
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_NAME: ${POSTGRES_DB:-wisegst}
+      # Add other necessary backend environment variables here
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend:latest
+    restart: always
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      # Expose 443 if setting up SSL later
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:

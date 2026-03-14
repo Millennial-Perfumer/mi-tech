@@ -1,0 +1,115 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  # Converts repository name to lowercase for GHCR
+  IMAGE_NAME: ${{ github.repository }}
+  REPO_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Lowercase Repository Owner
+        run: |
+          echo "REPO_OWNER=${REPO_OWNER,,}" >> $GITHUB_ENV
+
+      # Backend Image
+      - name: Extract metadata (tags, labels) for Backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-backend
+
+      - name: Build and push Backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-backend:latest
+          labels: ${{ steps.meta-backend.outputs.labels }}
+
+      # Frontend Image
+      - name: Extract metadata (tags, labels) for Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend
+
+      - name: Build and push Frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend:latest
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+
+  deploy-to-vm:
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lowercase Repository Owner
+        run: |
+          echo "REPO_OWNER=${REPO_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Copy deployment files to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          password: ${{ secrets.VM_PASSWORD }}
+          source: "docker-compose.prod.yml,nginx/"
+          target: "~/mi-tech-app"
+
+      - name: Deploy on VM
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          REPO_OWNER: ${{ env.REPO_OWNER }}
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          password: ${{ secrets.VM_PASSWORD }}
+          envs: REPO_OWNER
+          script: |
+            cd ~/mi-tech-app
+
+            # Login to GHCR on the VM
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Export GITHUB_REPOSITORY_OWNER for docker-compose.prod.yml
+            export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
+
+            # Pull new images
+            docker-compose -f docker-compose.prod.yml pull
+
+            # Recreate containers with new images
+            docker-compose -f docker-compose.prod.yml up -d
+
+            # Remove old dangling images to save space
+            docker image prune -f
