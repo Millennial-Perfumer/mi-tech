@@ -86,13 +86,17 @@ func RunMigrations(db *gorm.DB) error {
 		db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders')").Scan(&exists)
 		if exists {
 			log.Println("Existing installation detected. Bootstrapping migration tracking...")
-			files, _ := os.ReadDir(migrationsDir)
-			for _, f := range files {
-				name := f.Name()
-				// Only bootstrap 001-008 (the ones that existed before tracking)
-				if strings.HasSuffix(name, ".sql") && name < "009" {
-					db.Exec("INSERT INTO schema_migrations (filename) VALUES (?) ON CONFLICT DO NOTHING", name)
-					applied = append(applied, name)
+			files, err := os.ReadDir(migrationsDir)
+			if err != nil {
+				log.Printf("Warning: Failed to read migrations directory for bootstrapping: %v", err)
+			} else {
+				for _, f := range files {
+					name := f.Name()
+					// Only bootstrap 001-008 (the ones that existed before tracking)
+					if strings.HasSuffix(name, ".sql") && name < "009" {
+						db.Exec("INSERT INTO schema_migrations (filename) VALUES (?) ON CONFLICT DO NOTHING", name)
+						applied = append(applied, name)
+					}
 				}
 			}
 		}

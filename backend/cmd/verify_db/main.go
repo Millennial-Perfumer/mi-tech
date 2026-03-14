@@ -18,6 +18,14 @@ func main() {
 
 	fmt.Println("Database connection verified successfully (Ready-only check)")
 
+	// Check if migrations table exists
+	var exists bool
+	db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations')").Scan(&exists)
+	if !exists {
+		fmt.Println("Warning: 'schema_migrations' table does not exist. The database may not have been initialized yet.")
+		return
+	}
+
 	var count int64
 	db.Table("schema_migrations").Count(&count)
 	fmt.Printf("Total migrations tracked: %d\n", count)

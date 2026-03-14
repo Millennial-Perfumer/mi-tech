@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	DefaultBusinessName    = "PARFUM TRADERS"
-	DefaultBusinessGSTIN   = "33AUSPR1909H1ZC"
-	DefaultAddressLine1    = "No. 9/21, 1st floor, Sadiq Basha Nagar,"
-	DefaultAddressLine2    = "2nd Street, Virugambakkam, Chennai - 600092"
-	DefaultBusinessPhone   = "7904769823"
-	DefaultFooterBusiness  = "Parfum Traders"
+	DefaultBusinessName   = "PARFUM TRADERS"
+	DefaultBusinessGSTIN  = "33AUSPR1909H1ZC"
+	DefaultAddressLine1   = "No. 9/21, 1st floor, Sadiq Basha Nagar,"
+	DefaultAddressLine2   = "2nd Street, Virugambakkam, Chennai - 600092"
+	DefaultBusinessPhone  = "7904769823"
+	DefaultFooterBusiness = "PARFUM TRADERS"
 )
 
 // InvoiceService handles PDF invoice generation.
@@ -90,7 +90,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.SetFont("Montserrat", "B", 7.5)
 	pdf.CellFormat(30, 4, "Order No:", "0", 0, "L", false, 0, "")
 	pdf.SetFont("Montserrat", "", 7.5)
-	pdf.CellFormat(60, 4, "#"+order.OrderNumber, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(60, 4, order.OrderNumber, "0", 1, "L", false, 0, "")
 
 	pdf.SetFont("Montserrat", "B", 7.5)
 	pdf.CellFormat(30, 4, "Date:", "0", 0, "L", false, 0, "")
@@ -191,7 +191,7 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 
 		lineTaxable := lineTotal / 1.18
 		lineTax := lineTotal - lineTaxable
-		
+
 		totalTaxable += lineTaxable
 		totalTax += lineTax
 
