@@ -11,6 +11,15 @@ import (
 	"mi-tech/internal/repository"
 )
 
+const (
+	DefaultBusinessName    = "PARFUM TRADERS"
+	DefaultBusinessGSTIN   = "33AUSPR1909H1ZC"
+	DefaultAddressLine1    = "No. 9/21, 1st floor, Sadiq Basha Nagar,"
+	DefaultAddressLine2    = "2nd Street, Virugambakkam, Chennai - 600092"
+	DefaultBusinessPhone   = "7904769823"
+	DefaultFooterBusiness  = "Parfum Traders"
+)
+
 // InvoiceService handles PDF invoice generation.
 type InvoiceService struct {
 	settingsRepo *repository.SettingsRepository
@@ -34,19 +43,19 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 
 	// -- Header --
 	bizName, _ := s.settingsRepo.Get("business_name")
-	if bizName == "" { bizName = "PARFUM TRADERS" }
+	if bizName == "" { bizName = DefaultBusinessName }
 	
 	gstin, _ := s.settingsRepo.Get("business_gstin")
-	if gstin == "" { gstin = "33AUSPR1909H1ZC" }
+	if gstin == "" { gstin = DefaultBusinessGSTIN }
 	
 	addr1, _ := s.settingsRepo.Get("business_address_line1")
-	if addr1 == "" { addr1 = "No. 9/21, 1st floor, Sadiq Basha Nagar," }
+	if addr1 == "" { addr1 = DefaultAddressLine1 }
 	
 	addr2, _ := s.settingsRepo.Get("business_address_line2")
-	if addr2 == "" { addr2 = "2nd Street, Virugambakkam, Chennai - 600092" }
+	if addr2 == "" { addr2 = DefaultAddressLine2 }
 	
 	phone, _ := s.settingsRepo.Get("business_phone")
-	if phone == "" { phone = "7904769823" }
+	if phone == "" { phone = DefaultBusinessPhone }
 
 	pdf.SetFont("Montserrat", "B", 13.5)
 	pdf.CellFormat(100, 10, bizName, "0", 0, "L", false, 0, "")
@@ -292,7 +301,7 @@ func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf) {
 	pdf.CellFormat(0, 4, "Intellectual Property:", "0", 1, "L", false, 0, "")
 	pdf.SetFont("Montserrat", "", footerSize)
 	bizName, _ := s.settingsRepo.Get("business_name")
-	if bizName == "" { bizName = "Parfum Traders" }
+	if bizName == "" { bizName = DefaultFooterBusiness }
 	pdf.MultiCell(0, 3.5, fmt.Sprintf("All branding and product names are trademarks of %s and may not be reproduced without permission.", bizName), "0", "L", false)
 }
 

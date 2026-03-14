@@ -9,10 +9,14 @@ import (
 
 func main() {
 	cfg := config.Load()
-	db, err := database.InitDB(cfg)
+
+	// Use ConnectDB instead of InitDB to avoid automatic migrations
+	db, err := database.ConnectDB(cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
+
+	fmt.Println("Database connection verified successfully (Ready-only check)")
 
 	var count int64
 	db.Table("schema_migrations").Count(&count)
