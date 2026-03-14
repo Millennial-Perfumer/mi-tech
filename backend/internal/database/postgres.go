@@ -2,8 +2,8 @@ package database
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,8 +16,22 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// InitDB initializes the GORM database connection and runs migrations.
+// InitDB initializes the database and runs migrations.
 func InitDB(cfg *config.Config) (*gorm.DB, error) {
+	db, err := ConnectDB(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := RunMigrations(db); err != nil {
+		return nil, fmt.Errorf("migration failure: %w", err)
+	}
+
+	return db, nil
+}
+
+// ConnectDB initializes the GORM database connection without running migrations.
+func ConnectDB(cfg *config.Config) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(cfg.DBDSN), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -40,19 +54,61 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	log.Println("Database connection pool initialized")
-
-	// Run migrations (keep SQL-file-based migrations for schema)
-	if err := runMigrations(db); err != nil {
-		return nil, fmt.Errorf("migration failure: %w", err)
-	}
-
 	return db, nil
 }
 
-// runMigrations executes all SQL files in the migrations directory.
-func runMigrations(db *gorm.DB) error {
+// RunMigrations executes all SQL files in the migrations directory with tracking.
+func RunMigrations(db *gorm.DB) error {
 	migrationsDir := "internal/database/migrations"
-	files, err := ioutil.ReadDir(migrationsDir)
+
+	// 1. Ensure migrations table exists
+	err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			filename VARCHAR(255) PRIMARY KEY,
+			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+	`).Error
+	if err != nil {
+		return fmt.Errorf("could not create migrations table: %w", err)
+	}
+
+	// 2. Load already applied migrations
+	var applied []string
+	if err := db.Raw("SELECT filename FROM schema_migrations").Scan(&applied).Error; err != nil {
+		return fmt.Errorf("could not load applied migrations: %w", err)
+	}
+
+	// --- Bootstrapping Check ---
+	// If schema_migrations is empty, check if core tables already exist.
+	// This prevents re-running migrations 001-008 in existing environments.
+	if len(applied) == 0 {
+		var exists bool
+		db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders')").Scan(&exists)
+		if exists {
+			log.Println("Existing installation detected. Bootstrapping migration tracking...")
+			files, err := os.ReadDir(migrationsDir)
+			if err != nil {
+				log.Printf("Warning: Failed to read migrations directory for bootstrapping: %v", err)
+			} else {
+				for _, f := range files {
+					name := f.Name()
+					// Only bootstrap 001-008 (the ones that existed before tracking)
+					if strings.HasSuffix(name, ".sql") && name < "009" {
+						db.Exec("INSERT INTO schema_migrations (filename) VALUES (?) ON CONFLICT DO NOTHING", name)
+						applied = append(applied, name)
+					}
+				}
+			}
+		}
+	}
+
+	appliedMap := make(map[string]bool)
+	for _, f := range applied {
+		appliedMap[f] = true
+	}
+
+	// 3. Read migration files
+	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
 		return fmt.Errorf("could not read migrations directory: %w", err)
 	}
@@ -65,18 +121,30 @@ func runMigrations(db *gorm.DB) error {
 	}
 	sort.Strings(sqlFiles)
 
+	// 4. Execute new migrations in transactions
 	for _, filename := range sqlFiles {
-		log.Printf("Executing migration: %s", filename)
-		content, err := ioutil.ReadFile(filepath.Join(migrationsDir, filename))
+		if appliedMap[filename] {
+			continue
+		}
+
+		log.Printf("Applying migration: %s", filename)
+		content, err := os.ReadFile(filepath.Join(migrationsDir, filename))
 		if err != nil {
 			return fmt.Errorf("could not read migration file %s: %w", filename, err)
 		}
 
-		if err := db.Exec(string(content)).Error; err != nil {
+		err = db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec(string(content)).Error; err != nil {
+				return err
+			}
+			return tx.Exec("INSERT INTO schema_migrations (filename) VALUES (?)", filename).Error
+		})
+
+		if err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", filename, err)
 		}
 	}
 
-	log.Println("All database migrations completed successfully")
+	log.Println("Database migration check completed")
 	return nil
 }

@@ -54,7 +54,7 @@ func New() (*Server, error) {
 	// 5. Services
 	orderService := service.NewOrderService(orderRepo, lineItemRepo)
 	syncService := service.NewSyncService(shopifyClient, orderRepo)
-	invoiceService := service.NewInvoiceService()
+	invoiceService := service.NewInvoiceService(settingsRepo)
 	metricsService := service.NewMetricsService(metricsRepo)
 	reportService := service.NewReportService(reportRepo)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)

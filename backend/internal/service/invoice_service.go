@@ -8,14 +8,34 @@ import (
 	"github.com/jung-kurt/gofpdf"
 
 	"mi-tech/internal/entity"
+	"mi-tech/internal/repository"
+)
+
+const (
+	DefaultBusinessName   = "PARFUM TRADERS"
+	DefaultBusinessGSTIN  = "33AUSPR1909H1ZC"
+	DefaultAddressLine1   = "No. 9/21, 1st floor, Sadiq Basha Nagar,"
+	DefaultAddressLine2   = "2nd Street, Virugambakkam, Chennai - 600092"
+	DefaultBusinessPhone  = "7904769823"
+	DefaultFooterBusiness = "PARFUM TRADERS"
 )
 
 // InvoiceService handles PDF invoice generation.
-type InvoiceService struct{}
+type InvoiceService struct {
+	settingsRepo *repository.SettingsRepository
+}
 
 // NewInvoiceService creates a new InvoiceService.
-func NewInvoiceService() *InvoiceService {
-	return &InvoiceService{}
+func NewInvoiceService(settingsRepo *repository.SettingsRepository) *InvoiceService {
+	return &InvoiceService{settingsRepo: settingsRepo}
+}
+
+func (s *InvoiceService) getSetting(key, defaultValue string) string {
+	val, _ := s.settingsRepo.Get(key)
+	if val == "" {
+		return defaultValue
+	}
+	return val
 }
 
 // GeneratePDF creates a professional GST invoice PDF and writes it to the provided writer.
@@ -30,18 +50,24 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.AddPage()
 
 	// -- Header --
+	bizName := s.getSetting("business_name", DefaultBusinessName)
+	gstin := s.getSetting("business_gstin", DefaultBusinessGSTIN)
+	addr1 := s.getSetting("business_address_line1", DefaultAddressLine1)
+	addr2 := s.getSetting("business_address_line2", DefaultAddressLine2)
+	phone := s.getSetting("business_phone", DefaultBusinessPhone)
+
 	pdf.SetFont("Montserrat", "B", 13.5)
-	pdf.CellFormat(100, 10, "PARFUM TRADERS", "0", 0, "L", false, 0, "")
+	pdf.CellFormat(100, 10, bizName, "0", 0, "L", false, 0, "")
 	pdf.CellFormat(80, 10, "TAX INVOICE", "0", 1, "R", false, 0, "")
 
 	pdf.SetFont("Montserrat", "", 7.5)
 	pdf.Ln(2)
-	pdf.CellFormat(100, 4, "GSTIN: 33AUSPR1909H1ZC", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(100, 4, "GSTIN: "+gstin, "0", 1, "L", false, 0, "")
 	pdf.Ln(1)
-	pdf.CellFormat(100, 4, "No. 9/21, 1st floor, Sadiq Basha Nagar,", "0", 1, "L", false, 0, "")
-	pdf.CellFormat(100, 4, "2nd Street, Virugambakkam, Chennai - 600092", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(100, 4, addr1, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(100, 4, addr2, "0", 1, "L", false, 0, "")
 	pdf.Ln(1)
-	pdf.CellFormat(100, 4, "Phone: 7904769823", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(100, 4, "Phone: "+phone, "0", 1, "L", false, 0, "")
 	pdf.Ln(6.5)
 
 	// -- Invoice & Customer Details --
@@ -64,7 +90,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.SetFont("Montserrat", "B", 7.5)
 	pdf.CellFormat(30, 4, "Order No:", "0", 0, "L", false, 0, "")
 	pdf.SetFont("Montserrat", "", 7.5)
-	pdf.CellFormat(60, 4, "#"+order.OrderNumber, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(60, 4, order.OrderNumber, "0", 1, "L", false, 0, "")
 
 	pdf.SetFont("Montserrat", "B", 7.5)
 	pdf.CellFormat(30, 4, "Date:", "0", 0, "L", false, 0, "")
@@ -165,7 +191,7 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 
 		lineTaxable := lineTotal / 1.18
 		lineTax := lineTotal - lineTaxable
-		
+
 		totalTaxable += lineTaxable
 		totalTax += lineTax
 
@@ -273,7 +299,8 @@ func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf) {
 	pdf.SetFont("Montserrat", "B", footerSize)
 	pdf.CellFormat(0, 4, "Intellectual Property:", "0", 1, "L", false, 0, "")
 	pdf.SetFont("Montserrat", "", footerSize)
-	pdf.MultiCell(0, 3.5, "All branding and product names are trademarks of Parfum Traders and may not be reproduced without permission.", "0", "L", false)
+	bizName := s.getSetting("business_name", DefaultFooterBusiness)
+	pdf.MultiCell(0, 3.5, fmt.Sprintf("All branding and product names are trademarks of %s and may not be reproduced without permission.", bizName), "0", "L", false)
 }
 
 // ns extracts the string value from a *string pointer, returning "" if nil.

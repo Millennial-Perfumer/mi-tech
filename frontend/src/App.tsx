@@ -8,6 +8,8 @@ import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
 import './App.css';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
 interface Order {
   id: string;
   order_number: string;
@@ -103,6 +105,7 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
+  const [appSettings, setAppSettings] = useState<Record<string, string>>({});
   const limit = 25;
   const [openTrackingId, setOpenTrackingId] = useState<string | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
@@ -196,6 +199,26 @@ function App() {
     }
   };
 
+  const fetchAppSettings = async () => {
+    if (!token) return;
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/settings`);
+      const data = await response.json();
+      if (data.success) {
+        setAppSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  // Dedicated effect for settings - only on mount or token change
+  useEffect(() => {
+    if (token) {
+      fetchAppSettings();
+    }
+  }, [token]);
+
   const fetchDashboardData = async (silent = false) => {
     if (!token) return;
     if (!silent) setIsLoading(true);
@@ -213,21 +236,21 @@ function App() {
         endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
       }
       
-      const metricsRes = await fetchWithAuth(`http://localhost:8080/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
+      const metricsRes = await fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
       const metricsData = await metricsRes.json();
       
       if (metricsData.success) {
         setMetrics(metricsData.metrics);
       }
 
-      const ordersRes = await fetchWithAuth(`http://localhost:8080/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
+      const ordersRes = await fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
       const ordersData = await ordersRes.json();
       if (ordersData.success) {
         setOrders(ordersData.orders);
         setTotalCount(ordersData.total_count);
       }
 
-      const webhookRes = await fetchWithAuth('http://localhost:8080/api/webhook/status');
+      const webhookRes = await fetchWithAuth(`${API_BASE}/api/webhook/status`);
       const webhookData = await webhookRes.json();
       setWebhookStatus(webhookData);
     } catch (error) {
@@ -240,7 +263,7 @@ function App() {
   const syncShopify = async () => {
     setIsSyncing(true);
     try {
-      const response = await fetchWithAuth('http://localhost:8080/api/shopify/sync', {
+      const response = await fetchWithAuth(`${API_BASE}/api/shopify/sync`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -297,6 +320,28 @@ function App() {
     return () => clearInterval(interval);
   }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
+  const handleDownloadInvoice = async (orderId: string, orderNumber: string) => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/invoice?id=${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice. Please try again.');
+    }
+  };
+
   if (!token) {
     return <Login onLogin={handleLogin} />;
   }
@@ -347,14 +392,16 @@ function App() {
           {activeTab !== 'automation' && (
             <div style={{display: 'flex', gap: '1rem'}}>
               <button className="btn-secondary">Export Data</button>
-              <button 
-                className="btn-secondary" 
-                style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isResetting ? 0.7 : 1, backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444'}}
-                onClick={resetShopify}
-                disabled={isResetting || isSyncing}
-              >
-                {isResetting ? 'Resetting...' : 'Reset & Resync'}
-              </button>
+              {appSettings?.show_reset_button === 'true' && (
+                <button 
+                  className="btn-secondary" 
+                  style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isResetting ? 0.7 : 1, backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444'}}
+                  onClick={resetShopify}
+                  disabled={isResetting || isSyncing}
+                >
+                  {isResetting ? 'Resetting...' : 'Reset & Resync'}
+                </button>
+              )}
               <button 
                 className="btn-primary" 
                 title="Manually fetch orders from Shopify in case webhook delivery fails."
@@ -391,9 +438,6 @@ function App() {
 
         {activeTab === 'dashboard' && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-              <img src={fullLogo} alt="Mi Tech Full Logo" style={{ maxWidth: '160px', height: 'auto' }} />
-            </div>
             <section className="dashboard-grid">
               <div className="card">
                 <h3 className="card-title">Total Revenue</h3>
@@ -732,16 +776,13 @@ function App() {
                       )}
                       {visibleColumns.includes('gst_invoice') && (
                         <td>
-                          <a 
-                            href={`http://localhost:8080/api/orders/invoice?id=${order.id}`} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            download={`invoice-${order.order_number}.pdf`}
+                          <button 
+                            onClick={() => handleDownloadInvoice(order.id, order.order_number)}
                             className="btn-primary" 
-                            style={{fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-block'}}
+                            style={{fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-block', cursor: 'pointer', border: 'none'}}
                           >
                             Download
-                          </a>
+                          </button>
                         </td>
                       )}
                     </tr>

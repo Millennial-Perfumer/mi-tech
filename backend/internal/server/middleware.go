@@ -27,7 +27,8 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
-			if strings.HasPrefix(path, "/api/webhooks") || 
+			if r.Method == "OPTIONS" ||
+			   strings.HasPrefix(path, "/api/webhooks") || 
 			   path == "/api/health" || 
 			   path == "/api/auth/login" {
 				next.ServeHTTP(w, r)
