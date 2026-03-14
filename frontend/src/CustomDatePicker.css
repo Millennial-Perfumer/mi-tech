@@ -12,39 +12,52 @@
   gap: 12px;
   background-color: var(--surface-color);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
+  border-radius: 12px; /* Smoother radius */
+  padding: 0.65rem 1.1rem;
   font-size: 0.9rem;
   color: var(--text-primary);
   min-width: 250px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .datepicker-trigger-btn:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border-color: var(--accent-color);
+  background-color: #fbfdff;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.datepicker-trigger-btn[aria-expanded="true"] {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
 }
 
 .datepicker-display-range {
   color: var(--text-secondary);
   font-size: 0.85rem;
+  font-weight: 500;
 }
 
 /* Dropdown popover container */
 .datepicker-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 12px);
   left: 0;
-  background-color: var(--surface-color);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 750px; /* Make wide enough for sidebar + 2 calendars */
+  min-width: 780px;
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Split content area */
@@ -60,33 +73,35 @@
   padding: 1rem 0;
   display: flex;
   flex-direction: column;
-  background-color: #fafafa;
+  background-color: rgba(248, 250, 252, 0.5);
 }
 
 .preset-btn {
   text-align: left;
-  padding: 0.6rem 1.5rem;
-  font-size: 0.9rem;
-  color: var(--text-primary);
+  padding: 0.7rem 1.5rem;
+  font-size: 0.875rem;
+  color: #475569;
   background: transparent;
-  transition: background-color 0.15s;
+  transition: all 0.2s;
+  font-weight: 500;
 }
 
 .preset-btn:hover {
-  background-color: #f3f4f6;
+  background-color: rgba(226, 232, 240, 0.5);
+  color: var(--text-primary);
 }
 
 .preset-btn.active {
-  background-color: #e0f2fe;
+  background-color: #f0f9ff;
   color: var(--accent-color);
-  font-weight: 500;
-  border-left: 3px solid var(--accent-color);
-  padding-left: calc(1.5rem - 3px);
+  font-weight: 700;
+  border-left: 4px solid var(--accent-color);
+  padding-left: calc(1.5rem - 4px);
 }
 
 /* Right side content */
 .datepicker-calendar-section {
-  padding: 1.5rem;
+  padding: 1.5rem 2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -97,27 +112,31 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .date-display-input {
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.6rem 0.8rem;
+  border: 2px solid #f1f5f9;
+  background-color: #f8fafc;
+  border-radius: 10px;
+  padding: 0.65rem 0.9rem;
   font-size: 0.9rem;
-  width: 140px;
-  color: var(--text-primary);
+  width: 150px;
+  color: #1e293b;
+  font-weight: 600;
   outline: none;
+  transition: all 0.2s;
 }
 
 .date-display-input:focus {
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
 }
 
 /* Override react-date-range default colors to match theme */
 .rdrDateDisplayWrapper {
-  display: none !important; /* We built our own input display above */
+  display: none !important;
 }
 
 .rdrMonthAndYearWrapper {
@@ -125,7 +144,8 @@
 }
 
 .rdrNextPrevButton {
-  background: #f3f4f6;
+  background: #f1f5f9;
+  border-radius: 8px;
 }
 
 .rdrDayToday .rdrDayNumber span:after {
@@ -137,8 +157,12 @@
 }
 
 .rdrInRange {
-  background: rgba(14, 165, 233, 0.1) !important;
+  background: rgba(14, 165, 233, 0.08) !important;
   color: var(--text-primary) !important;
+}
+
+.rdrDayNumber span {
+  font-weight: 500;
 }
 
 /* Footer Action Bar */
@@ -146,7 +170,14 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-top: 1px solid var(--border-color);
-  background-color: var(--surface-color);
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.datepicker-footer .btn-primary,
+.datepicker-footer .btn-secondary {
+  border-radius: 10px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 600;
 }

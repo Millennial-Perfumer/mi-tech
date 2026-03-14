@@ -1,117 +1,186 @@
-/* App specific styles can go here, but most structure is in index.css */
+/* --- Premium Modal & Overlay --- */
 
-.tracking-popover {
-  position: absolute;
-  top: calc(100% + 12px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
-  min-width: 320px;
-  box-shadow: 0 15px 50px rgba(0,0,0,0.25);
-  animation: popoverFadeIn 0.2s ease-out;
-}
-
-.tracking-popover::after {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 8px;
-  border-style: solid;
-  border-color: transparent transparent var(--border-color) transparent;
-}
-
-.tracking-popover::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 7px;
-  border-style: solid;
-  border-color: transparent transparent var(--bg-card) transparent;
-  z-index: 1;
-  margin-bottom: -1px;
-}
-
-@keyframes popoverFadeIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-.tracking-header {
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 12px;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1.5rem;
+  animation: overlayFadeIn 0.3s ease-out;
 }
 
-.tracking-id {
-  font-weight: 700;
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.premium-modal {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  padding: 2.5rem;
+  position: relative;
+  animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-header-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent-color), #3b82f6);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 20px -5px rgba(14, 165, 233, 0.3);
+}
+
+.premium-modal h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.03em;
+}
+
+.premium-modal p {
+  color: #64748b;
   font-size: 0.95rem;
-  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 2rem;
 }
 
-.tracking-info-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+/* --- Styled Form Controls --- */
+
+.sync-form-group {
+  margin-bottom: 1.5rem;
+  position: relative;
 }
 
-.tracking-icon-container {
-  background: rgba(59, 130, 246, 0.1);
-  border-radius: 8px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tracking-details {
-  flex: 1;
-}
-
-.tracking-link {
-  color: var(--accent-color);
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-decoration: none;
+.sync-form-group label {
   display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.tracking-link:hover {
-  text-decoration: underline;
-}
-
-.carrier-name {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.copy-button {
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 6px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: all 0.2s;
+.sync-input-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
 }
 
-.copy-button:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent-color);
+.sync-input-wrapper svg {
+  position: absolute;
+  left: 1rem;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.premium-date-input {
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 2.75rem !important;
+  background: #f8fafc !important;
+  border: 2px solid #f1f5f9 !important;
+  border-radius: 12px !important;
+  font-family: inherit;
+  font-size: 1rem !important;
+  color: #1e293b !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.premium-date-input:focus {
+  background: #ffffff !important;
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1) !important;
+}
+
+.premium-date-input:focus + svg {
   color: var(--accent-color);
+}
+
+/* --- Step Transition CSS --- */
+
+.step-content {
+  animation: stepFade 0.3s ease-out;
+}
+
+@keyframes stepFade {
+  from { opacity: 0; transform: translateX(5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.confirm-box {
+  background: #f0f9ff;
+  border-radius: 16px;
+  padding: 1.25rem;
+  border: 1px solid #e0f2fe;
+  margin-bottom: 2rem;
+}
+
+.confirm-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.confirm-label {
+  color: #0369a1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.confirm-value {
+  color: #0c4a6e;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.info-banner {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fffbeb;
+  border-radius: 12px;
+  border: 1px solid #fef3c7;
+  color: #92400e;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 0.875rem !important;
+  font-size: 1rem !important;
+  border-radius: 14px !important;
+  font-weight: 600 !important;
 }

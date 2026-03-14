@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"mi-tech/internal/service"
 )
@@ -24,7 +25,63 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.syncService.Sync()
+	var startTime, endTime *time.Time
+
+	// Try to get dates from query params
+	if s := r.URL.Query().Get("start_date"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			http.Error(w, "Invalid start_date format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		startTime = &t
+	}
+	if e := r.URL.Query().Get("end_date"); e != "" {
+		t, err := time.Parse("2006-01-02", e)
+		if err != nil {
+			http.Error(w, "Invalid end_date format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+		// Set end of day for end_date using helper
+		et := endOfDay(t)
+		endTime = &et
+	}
+
+	// Also check body for JSON (preferred for POST)
+	if r.Body != nil && r.ContentLength > 0 {
+		var body struct {
+			StartDate string `json:"start_date"`
+			EndDate   string `json:"end_date"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if body.StartDate != "" {
+			t, err := time.Parse("2006-01-02", body.StartDate)
+			if err != nil {
+				http.Error(w, "Invalid start_date format in body. Use YYYY-MM-DD", http.StatusBadRequest)
+				return
+			}
+			startTime = &t
+		}
+		if body.EndDate != "" {
+			t, err := time.Parse("2006-01-02", body.EndDate)
+			if err != nil {
+				http.Error(w, "Invalid end_date format in body. Use YYYY-MM-DD", http.StatusBadRequest)
+				return
+			}
+			et := endOfDay(t)
+			endTime = &et
+		}
+	}
+
+	if startTime != nil && endTime != nil && startTime.After(*endTime) {
+		http.Error(w, "start_date cannot be after end_date", http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.syncService.Sync(startTime, endTime)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -57,4 +114,9 @@ func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 		"message": "Reset and Sync completed successfully",
 		"count":   count,
 	})
+}
+
+// endOfDay returns the latest nanosecond of the given date.
+func endOfDay(t time.Time) time.Time {
+	return t.AddDate(0, 0, 1).Add(-time.Nanosecond)
 }

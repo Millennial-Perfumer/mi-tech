@@ -103,9 +103,29 @@ func (r *gormOrderRepository) GetByExternalID(externalID string) (entity.Order, 
 	return order, err
 }
 
+func (r *gormOrderRepository) isWeak(s *string) bool {
+	if s == nil { return true }
+	val := strings.TrimSpace(*s)
+	return val == "" || val == "Valued Customer" || val == "pending"
+}
+
+func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.Order) {
+	if r.isWeak(incoming.CustomerName) && !r.isWeak(existing.CustomerName) { incoming.CustomerName = existing.CustomerName }
+	if r.isWeak(incoming.CustomerFirstName) && !r.isWeak(existing.CustomerFirstName) { incoming.CustomerFirstName = existing.CustomerFirstName }
+	if r.isWeak(incoming.CustomerLastName) && !r.isWeak(existing.CustomerLastName) { incoming.CustomerLastName = existing.CustomerLastName }
+	if r.isWeak(incoming.CustomerEmail) && !r.isWeak(existing.CustomerEmail) { incoming.CustomerEmail = existing.CustomerEmail }
+	if r.isWeak(incoming.CustomerPhone) && !r.isWeak(existing.CustomerPhone) { incoming.CustomerPhone = existing.CustomerPhone }
+	if r.isWeak(incoming.CustomerCity) && !r.isWeak(existing.CustomerCity) { incoming.CustomerCity = existing.CustomerCity }
+	if r.isWeak(incoming.CustomerState) && !r.isWeak(existing.CustomerState) { incoming.CustomerState = existing.CustomerState }
+	if r.isWeak(incoming.CustomerCountry) && !r.isWeak(existing.CustomerCountry) { incoming.CustomerCountry = existing.CustomerCountry }
+	if r.isWeak(incoming.CustomerAddress1) && !r.isWeak(existing.CustomerAddress1) { incoming.CustomerAddress1 = existing.CustomerAddress1 }
+	if r.isWeak(incoming.CustomerAddress2) && !r.isWeak(existing.CustomerAddress2) { incoming.CustomerAddress2 = existing.CustomerAddress2 }
+	if r.isWeak(incoming.CustomerZip) && !r.isWeak(existing.CustomerZip) { incoming.CustomerZip = existing.CustomerZip }
+}
+
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		// 1. Check if the order already exists to preserve PII (Basic Plan Shopify API returns NULL for PII)
+		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
 			Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
@@ -113,18 +133,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			First(&existing).Error
 
 		if err == nil {
-			// Merge PII fields: only use existing values if the new ones are nil
-			if order.CustomerName == nil { order.CustomerName = existing.CustomerName }
-			if order.CustomerFirstName == nil { order.CustomerFirstName = existing.CustomerFirstName }
-			if order.CustomerLastName == nil { order.CustomerLastName = existing.CustomerLastName }
-			if order.CustomerEmail == nil { order.CustomerEmail = existing.CustomerEmail }
-			if order.CustomerPhone == nil { order.CustomerPhone = existing.CustomerPhone }
-			if order.CustomerCity == nil { order.CustomerCity = existing.CustomerCity }
-			if order.CustomerState == nil { order.CustomerState = existing.CustomerState }
-			if order.CustomerCountry == nil { order.CustomerCountry = existing.CustomerCountry }
-			if order.CustomerAddress1 == nil { order.CustomerAddress1 = existing.CustomerAddress1 }
-			if order.CustomerAddress2 == nil { order.CustomerAddress2 = existing.CustomerAddress2 }
-			if order.CustomerZip == nil { order.CustomerZip = existing.CustomerZip }
+			r.mergePII(&existing, &order)
 		}
 
 		// 2. Upsert the order
@@ -161,30 +170,82 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 }
 
 func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		for _, o := range orders {
-			if err := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"order_number", "total_price", "subtotal_price", "total_tax",
-					"updated_at", "customer_name", "customer_email", "customer_phone",
-					"customer_city", "customer_state", "customer_country", "status",
-					"financial_status", "fulfillment_status", "delivery_status",
-					"tracking_number", "shipping_company", "tracking_url",
-				}),
-			}).Create(&o).Error; err != nil {
-				log.Printf("Failed to upsert order %s: %v", o.ID, err)
-				continue
-			}
+	if len(orders) == 0 {
+		return nil
+	}
 
-			for _, li := range o.LineItems {
-				li.OrderID = o.ID
-				if err := tx.Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
-				}).Create(&li).Error; err != nil {
-					log.Printf("Failed to upsert line item %s for order %s: %v", li.ID, o.ID, err)
-				}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Fetch existing orders in one batch to preserve PII
+		externalIDs := make([]string, len(orders))
+		sourceIDs := make(map[string]bool)
+		for i, o := range orders {
+			externalIDs[i] = o.ExternalOrderID
+			sourceIDs[o.SourceID] = true
+		}
+
+		// Collect unique source IDs (usually just one, but let's be safe)
+		var uniqueSources []string
+		for s := range sourceIDs {
+			uniqueSources = append(uniqueSources, s)
+		}
+
+		var existingOrders []entity.Order
+		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
+			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
+				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+			Find(&existingOrders).Error
+		
+		if err != nil {
+			return fmt.Errorf("failed to fetch existing orders for merge: %w", err)
+		}
+
+		// Create a map for O(1) lookup: key = source_id:external_order_id
+		// This protects against map collisions if multiple sources use same external IDs
+		existingMap := make(map[string]entity.Order)
+		for _, e := range existingOrders {
+			key := fmt.Sprintf("%s:%s", e.SourceID, e.ExternalOrderID)
+			existingMap[key] = e
+		}
+
+		for i := range orders {
+			key := fmt.Sprintf("%s:%s", orders[i].SourceID, orders[i].ExternalOrderID)
+			// Merge PII if existing order found
+			if existing, found := existingMap[key]; found {
+				orders[i].ID = existing.ID // Crucial to link line items correctly
+				r.mergePII(&existing, &orders[i])
+			}
+		}
+
+		// 2. Batch Upsert Orders (Omit LineItems to handle them separately)
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"order_number", "total_price", "subtotal_price", "total_tax",
+				"updated_at", "customer_name", "customer_email", "customer_phone",
+				"customer_city", "customer_state", "customer_country", "status",
+				"financial_status", "fulfillment_status", "delivery_status",
+				"tracking_number", "shipping_company", "tracking_url",
+				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
+			}),
+		}).Omit("LineItems").Create(&orders).Error; err != nil {
+			return fmt.Errorf("failed to batch upsert orders: %w", err)
+		}
+
+		// 3. Flatten and Batch Upsert Line Items
+		var allLineItems []entity.LineItem
+		for i := range orders {
+			for j := range orders[i].LineItems {
+				orders[i].LineItems[j].OrderID = orders[i].ID
+				allLineItems = append(allLineItems, orders[i].LineItems[j])
+			}
+		}
+
+		if len(allLineItems) > 0 {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "id"}},
+				DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
+			}).Create(&allLineItems).Error; err != nil {
+				return fmt.Errorf("failed to batch upsert line items: %w", err)
 			}
 		}
 		return nil
