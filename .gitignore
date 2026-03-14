@@ -57,4 +57,5 @@ Desktop.ini
 
 # Backend specific
 backend/main
+backend/tmp/
 backend/internal/db/shopify_gst_app.db

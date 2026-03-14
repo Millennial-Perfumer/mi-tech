@@ -99,7 +99,7 @@ export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps)
                     <td>{new Date(a.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                     <td>{a.order_id ? `#${a.order_id}` : 'Webhook'}</td>
                     <td><code>{a.template_name}</code></td>
-                    <td>{a.phone_number.replace(/(\d{2})(\d{4})(\d{4})/, '+$1 xxxx $3')}</td>
+                    <td>{formatPhoneNumber(a.phone_number)}</td>
                     <td>
                       <span className={`badge ${
                         a.status === 'read' ? 'badge-success' : 
@@ -127,4 +127,22 @@ function MetricCard({ title, value, color }: { title: string, value: string | nu
       <span style={{ fontSize: '1.5rem', fontWeight: 700, color: color || 'var(--text-primary)' }}>{value}</span>
     </div>
   );
+}
+
+function formatPhoneNumber(phone: string): string {
+  if (!phone) return '-';
+  // Remove non-digit characters
+  const clean = phone.replace(/\D/g, '');
+  
+  // Handle 10-digit Indian numbers
+  if (clean.length === 10) {
+    return `+91 ${clean}`;
+  }
+  
+  // Handle 12-digit numbers starting with 91
+  if (clean.length === 12 && clean.startsWith('91')) {
+    return `+${clean}`;
+  }
+
+  return phone.startsWith('+') ? phone : `+${phone}`;
 }

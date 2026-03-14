@@ -89,7 +89,8 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			} `json:"entry"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		if err := json.Unmarshal(body, &payload); err != nil {
+			log.Printf("Error unmarshaling WhatsApp webhook: %v", err)
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
