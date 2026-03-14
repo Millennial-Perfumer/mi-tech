@@ -103,9 +103,23 @@ func (r *gormOrderRepository) GetByExternalID(externalID string) (entity.Order, 
 	return order, err
 }
 
+func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.Order) {
+	if incoming.CustomerName == nil { incoming.CustomerName = existing.CustomerName }
+	if incoming.CustomerFirstName == nil { incoming.CustomerFirstName = existing.CustomerFirstName }
+	if incoming.CustomerLastName == nil { incoming.CustomerLastName = existing.CustomerLastName }
+	if incoming.CustomerEmail == nil { incoming.CustomerEmail = existing.CustomerEmail }
+	if incoming.CustomerPhone == nil { incoming.CustomerPhone = existing.CustomerPhone }
+	if incoming.CustomerCity == nil { incoming.CustomerCity = existing.CustomerCity }
+	if incoming.CustomerState == nil { incoming.CustomerState = existing.CustomerState }
+	if incoming.CustomerCountry == nil { incoming.CustomerCountry = existing.CustomerCountry }
+	if incoming.CustomerAddress1 == nil { incoming.CustomerAddress1 = existing.CustomerAddress1 }
+	if incoming.CustomerAddress2 == nil { incoming.CustomerAddress2 = existing.CustomerAddress2 }
+	if incoming.CustomerZip == nil { incoming.CustomerZip = existing.CustomerZip }
+}
+
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		// 1. Check if the order already exists to preserve PII (Basic Plan Shopify API returns NULL for PII)
+		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
 			Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
@@ -113,18 +127,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			First(&existing).Error
 
 		if err == nil {
-			// Merge PII fields: only use existing values if the new ones are nil
-			if order.CustomerName == nil { order.CustomerName = existing.CustomerName }
-			if order.CustomerFirstName == nil { order.CustomerFirstName = existing.CustomerFirstName }
-			if order.CustomerLastName == nil { order.CustomerLastName = existing.CustomerLastName }
-			if order.CustomerEmail == nil { order.CustomerEmail = existing.CustomerEmail }
-			if order.CustomerPhone == nil { order.CustomerPhone = existing.CustomerPhone }
-			if order.CustomerCity == nil { order.CustomerCity = existing.CustomerCity }
-			if order.CustomerState == nil { order.CustomerState = existing.CustomerState }
-			if order.CustomerCountry == nil { order.CustomerCountry = existing.CustomerCountry }
-			if order.CustomerAddress1 == nil { order.CustomerAddress1 = existing.CustomerAddress1 }
-			if order.CustomerAddress2 == nil { order.CustomerAddress2 = existing.CustomerAddress2 }
-			if order.CustomerZip == nil { order.CustomerZip = existing.CustomerZip }
+			r.mergePII(&existing, &order)
 		}
 
 		// 2. Upsert the order
@@ -163,6 +166,17 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for _, o := range orders {
+			// Preserve PII during batch upsert
+			var existing entity.Order
+			err := tx.Where("source_id = ? AND external_order_id = ?", o.SourceID, o.ExternalOrderID).
+				Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
+					   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+				First(&existing).Error
+			
+			if err == nil {
+				r.mergePII(&existing, &o)
+			}
+
 			if err := tx.Clauses(clause.OnConflict{
 				Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
 				DoUpdates: clause.AssignmentColumns([]string{
@@ -171,6 +185,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 					"customer_city", "customer_state", "customer_country", "status",
 					"financial_status", "fulfillment_status", "delivery_status",
 					"tracking_number", "shipping_company", "tracking_url",
+					"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
 				}),
 			}).Create(&o).Error; err != nil {
 				log.Printf("Failed to upsert order %s: %v", o.ID, err)

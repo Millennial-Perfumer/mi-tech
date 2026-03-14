@@ -110,6 +110,12 @@ function App() {
   const [openTrackingId, setOpenTrackingId] = useState<string | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  
+  // Sync Modal State
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncStartDate, setSyncStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [syncEndDate, setSyncEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [syncStep, setSyncStep] = useState<'date' | 'confirm'>('date');
 
   // Sorting and Filtering State
   const [search, setSearch] = useState('');
@@ -262,16 +268,22 @@ function App() {
 
   const syncShopify = async () => {
     setIsSyncing(true);
+    setShowSyncModal(false);
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/shopify/sync`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_date: syncStartDate,
+          end_date: syncEndDate
+        })
       });
       const data = await response.json();
       if (data.success) {
         alert(`Successfully synced ${data.count} orders!`);
         fetchDashboardData();
       } else {
-        alert('Failed to sync orders.');
+        alert(data.message || 'Failed to sync orders.');
       }
     } catch (error) {
       console.error('Error syncing orders:', error);
@@ -346,8 +358,58 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  const minSyncDate = '2026-01-01';
+
   return (
     <div className="app-container">
+      {showSyncModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{maxWidth: '400px'}}>
+            <h2 className="modal-title">{syncStep === 'date' ? 'Manual Shopify Sync' : 'Confirm Sync'}</h2>
+            
+            {syncStep === 'date' ? (
+              <div className="modal-body" style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+                <p>Select the date range you wish to synchronize from Shopify.</p>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                  <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Sync From</label>
+                  <input 
+                    type="date" 
+                    className="form-control" 
+                    min={minSyncDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    value={syncStartDate}
+                    onChange={(e) => setSyncStartDate(e.target.value)}
+                  />
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                  <label style={{fontSize: '0.8rem', fontWeight: 'bold'}}>Sync To</label>
+                  <input 
+                    type="date" 
+                    className="form-control" 
+                    min={syncStartDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    value={syncEndDate}
+                    onChange={(e) => setSyncEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="modal-actions" style={{marginTop: '1rem'}}>
+                  <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
+                  <button className="btn-primary" onClick={() => setSyncStep('confirm')}>Next</button>
+                </div>
+              </div>
+            ) : (
+              <div className="modal-body" style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+                <p>You are about to sync orders between <strong>{syncStartDate}</strong> and <strong>{syncEndDate}</strong>.</p>
+                <p style={{fontSize: '0.85rem', color: '#666'}}>Existing data will be updated. Customer PII data will be preserved if previously fetched via webhook.</p>
+                <div className="modal-actions" style={{marginTop: '1rem'}}>
+                  <button className="btn-secondary" onClick={() => setSyncStep('date')}>Back</button>
+                  <button className="btn-primary" onClick={syncShopify}>Start Sync</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <aside className="sidebar">
         <div className="sidebar-brand" style={{ justifyContent: 'flex-start', paddingLeft: '1rem', marginBottom: '2rem' }}>
           <img src={fullLogo} alt="Mi Tech" style={{ width: '140px', height: 'auto', objectFit: 'contain' }} />
@@ -402,11 +464,16 @@ function App() {
                   {isResetting ? 'Resetting...' : 'Reset & Resync'}
                 </button>
               )}
-              <button 
+                 <button 
                 className="btn-primary" 
                 title="Manually fetch orders from Shopify in case webhook delivery fails."
                 style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
-                onClick={syncShopify}
+                onClick={() => {
+                  setSyncStartDate(new Date().toISOString().split('T')[0]);
+                  setSyncEndDate(new Date().toISOString().split('T')[0]);
+                  setSyncStep('date');
+                  setShowSyncModal(true);
+                }}
                 disabled={isSyncing || isResetting}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isSyncing ? 'spin' : ''}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>

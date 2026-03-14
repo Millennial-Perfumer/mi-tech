@@ -26,17 +26,32 @@ func NewSyncService(shopifyClient *shopify.Client, orderRepo repository.OrderRep
 }
 
 // Sync fetches new/updated orders from Shopify and upserts them into the database.
-func (s *SyncService) Sync() (int, error) {
-	lastSync := s.getLastSyncTime()
-	log.Printf("Starting Shopify order sync fetching orders updated after %s...", lastSync.Format(time.RFC3339))
+func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error) {
+	var start, end time.Time
 
-	shopifyOrders, err := s.shopifyClient.FetchOrders(lastSync)
+	if startTime != nil {
+		start = *startTime
+	} else {
+		start = s.getLastSyncTime()
+	}
+
+	if endTime != nil {
+		end = *endTime
+	} else {
+		end = time.Now()
+	}
+
+	log.Printf("Starting Shopify order sync fetching orders updated between %s and %s...", 
+		start.Format(time.RFC3339), end.Format(time.RFC3339))
+
+	shopifyOrders, err := s.shopifyClient.FetchOrders(start, end)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch from Shopify: %w", err)
 	}
 
 	if len(shopifyOrders) == 0 {
-		log.Printf("No new or updated orders found from Shopify since %s", lastSync.Format(time.RFC3339))
+		log.Printf("No new or updated orders found from Shopify between %s and %s", 
+			start.Format(time.RFC3339), end.Format(time.RFC3339))
 		return 0, nil
 	}
 
@@ -63,7 +78,7 @@ func (s *SyncService) ResetAndSync() (int, error) {
 	if err := s.orderRepo.TruncateAll(); err != nil {
 		return 0, err
 	}
-	return s.Sync()
+	return s.Sync(nil, nil)
 }
 
 func (s *SyncService) getLastSyncTime() time.Time {
