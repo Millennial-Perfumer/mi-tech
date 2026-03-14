@@ -85,8 +85,13 @@ func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillmen
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
 	log.Printf("Processing fulfillments/create for Order ID: %s. Refreshing from Shopify API...", extOrderID)
 	
-	// Always refresh full order from Shopify to get accurate status from fulfillment events
-	return s.RefreshOrder(extOrderID)
+	err := s.RefreshOrder(extOrderID)
+	if err != nil {
+		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
+		// Fallback: update tracking info from payload
+		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, "")
+	}
+	return nil
 }
 
 // ProcessFulfillmentUpdate handles fulfillments/update webhook.
@@ -94,8 +99,13 @@ func (s *WebhookService) ProcessFulfillmentUpdate(f dto.ShopifyWebhookFulfillmen
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
 	log.Printf("Processing fulfillments/update for Order ID: %s. Refreshing from Shopify API...", extOrderID)
 	
-	// Always refresh full order from Shopify to get accurate status from fulfillment events
-	return s.RefreshOrder(extOrderID)
+	err := s.RefreshOrder(extOrderID)
+	if err != nil {
+		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
+		// Fallback: update tracking info from payload
+		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, "")
+	}
+	return nil
 }
 
 func (s *WebhookService) RefreshOrder(externalOrderID string) error {

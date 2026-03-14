@@ -99,6 +99,11 @@ func (s *OrderService) UpdateFulfillmentStatus(externalOrderID string, status st
 	return s.orderRepo.UpdateStatus(externalOrderID, "", status)
 }
 
+// UpdateTrackingInfo updates the tracking details of an order.
+func (s *OrderService) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
+	return s.orderRepo.UpdateTrackingInfo(externalOrderID, trackingNumber, shippingCompany, trackingUrl, deliveryStatus)
+}
+
 // CancelOrder marks an order as cancelled.
 func (s *OrderService) CancelOrder(externalOrderID string, cancelledAt *string, reason string) error {
 	return s.orderRepo.CancelOrder(externalOrderID, cancelledAt, reason)

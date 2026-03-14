@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import fullLogo from '../assets/full_logo.png';
+import fullLogo from './assets/full_logo.png';
 
 interface LoginProps {
   onLogin: (token: string) => void;

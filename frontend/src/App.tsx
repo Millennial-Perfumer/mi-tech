@@ -4,7 +4,6 @@ import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
 import { GSTReports } from './GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
-import halfLogo from './assets/half_logo.png';
 import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
 import './App.css';

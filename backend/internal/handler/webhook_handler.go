@@ -124,7 +124,6 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 		if processErr != nil {
 			log.Printf("Webhook Error: Failed to process %s: %v", topic, processErr)
-			return
 		}
 
 		// Save webhook event log
