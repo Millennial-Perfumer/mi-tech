@@ -191,7 +191,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 
 		var existingOrders []entity.Order
 		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
-			Select("source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
+			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
 				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
 			Find(&existingOrders).Error
 		
@@ -211,6 +211,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			key := fmt.Sprintf("%s:%s", orders[i].SourceID, orders[i].ExternalOrderID)
 			// Merge PII if existing order found
 			if existing, found := existingMap[key]; found {
+				orders[i].ID = existing.ID // Crucial to link line items correctly
 				r.mergePII(&existing, &orders[i])
 			}
 		}

@@ -76,6 +76,11 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if startTime != nil && endTime != nil && startTime.After(*endTime) {
+		http.Error(w, "start_date cannot be after end_date", http.StatusBadRequest)
+		return
+	}
+
 	count, err := h.syncService.Sync(startTime, endTime)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
