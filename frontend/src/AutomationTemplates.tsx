@@ -359,12 +359,53 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
 
   return (
     <div className="automation-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>WhatsApp Templates</h2>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '2rem',
+        padding: '1.25rem 1.5rem',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+        border: '1px solid #f1f5f9'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>WhatsApp Templates</h1>
+            <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
+              Manage and monitor your automated message templates
+            </p>
+          </div>
+          
+          <div style={{ width: '1px', height: '40px', backgroundColor: '#e2e8f0' }}></div>
+        </div>
+
         {!showForm && (
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
-            Create New Template
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button 
+              className="btn-primary" 
+              onClick={() => setShowForm(true)}
+              style={{
+                backgroundColor: '#0ea5e9',
+                color: 'white',
+                border: 'none',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '10px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Create New Template
+            </button>
+          </div>
         )}
       </div>
 
