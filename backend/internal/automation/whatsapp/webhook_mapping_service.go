@@ -44,38 +44,19 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
 	log.Printf("Automation Start: Executing mapping for Order %s (%s), Topic: %s", order.ID, order.OrderNumber, topic)
 
-	// Check settings for invoice delivery
-	sendInvoiceVal, _ := s.settingsRepo.Get("send_invoice")
-	sendInvoice := sendInvoiceVal != "false" // Default to true
-
-	// 1. Find matching trigger or override
-	var templateID int
-	if !sendInvoice {
-		if topic == "orders/create" {
-			templateID = 148 // order_placed_no_invoice_v3
-			log.Printf("Automation Override: Using no-invoice template (ID: 148) for %s", topic)
-		} else if topic == "orders/updated" {
-			templateID = 149 // order_updated_no_invoice_v3
-			log.Printf("Automation Override: Using no-invoice template (ID: 149) for %s", topic)
-		}
-	}
-
+	// 1. Find matching trigger
 	var template *AutomationTemplate
 	var err error
 
-	if templateID != 0 {
-		template, err = s.templatesRepo.GetTemplateByID(templateID)
-	} else {
-		trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
-		if err != nil {
-			return fmt.Errorf("error fetching trigger: %w", err)
-		}
-		if trigger == nil {
-			log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s)", topic, storeID)
-			return nil
-		}
-		template, err = s.templatesRepo.GetTemplateByID(trigger.TemplateID)
+	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
+	if err != nil {
+		return fmt.Errorf("error fetching trigger: %w", err)
 	}
+	if trigger == nil {
+		log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s)", topic, storeID)
+		return nil
+	}
+	template, err = s.templatesRepo.GetTemplateByID(trigger.TemplateID)
 
 	if err != nil {
 		return fmt.Errorf("error fetching template: %w", err)
@@ -217,12 +198,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		json.Unmarshal(*template.Header, &hData)
 
 		if strings.ToUpper(hData.Type) == "DOCUMENT" {
-			// Check if we should send invoice
-			sendInvoiceVal, _ := s.settingsRepo.Get("send_invoice")
-			if sendInvoiceVal == "false" {
-				log.Printf("Automation Skip: send_invoice setting is false. Skipping invoice attachment.")
-			} else {
-				// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
+			// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
 				log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
 
 				// 1. Fetch line items (required for invoice generation)
@@ -264,7 +240,6 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 						})
 					}
 				}
-			}
 		}
 	}
 

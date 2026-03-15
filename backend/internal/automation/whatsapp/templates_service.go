@@ -222,26 +222,6 @@ func (s *TemplatesService) GetTriggers(storeID string) ([]Trigger, error) {
 		return nil, err
 	}
 
-	// Check for overrides
-	sendInvoiceVal, _ := s.settingsRepo.Get("send_invoice")
-	if sendInvoiceVal == "false" {
-		// Fetch no-invoice template names to display correctly
-		noInvoiceTemplates := map[int]string{
-			148: "order_placed_no_invoice_v3",
-			149: "order_updated_no_invoice_v3",
-		}
-
-		for i := range triggers {
-			if triggers[i].WebhookTopic == "orders/create" {
-				triggers[i].TemplateID = 148
-				triggers[i].TemplateName = noInvoiceTemplates[148]
-			} else if triggers[i].WebhookTopic == "orders/updated" {
-				triggers[i].TemplateID = 149
-				triggers[i].TemplateName = noInvoiceTemplates[149]
-			}
-		}
-	}
-
 	// For other triggers, the TemplateName might come empty from the base GetTriggers
 	// Let's ensure name is joined if missing
 	for i := range triggers {
