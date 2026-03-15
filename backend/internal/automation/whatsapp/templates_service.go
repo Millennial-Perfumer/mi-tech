@@ -6,6 +6,7 @@ import (
 	"log"
 	"mi-tech/internal/config"
 	"strings"
+	"time"
 )
 
 type TemplatesService struct {
@@ -217,7 +218,7 @@ func (s *TemplatesService) GetTriggers(storeID string) ([]Trigger, error) {
 }
 
 func (s *TemplatesService) SyncStatus(storeID string) error {
-	templates, err := s.repo.GetTemplates(storeID)
+	templates, err := s.repo.GetTemplates(storeID, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -236,8 +237,8 @@ func (s *TemplatesService) SyncStatus(storeID string) error {
 	return nil
 }
 
-func (s *TemplatesService) GetTemplates(storeID string) ([]AutomationTemplate, error) {
-	return s.repo.GetTemplates(storeID)
+func (s *TemplatesService) GetTemplates(storeID string, startDate, endDate *time.Time) ([]AutomationTemplate, error) {
+	return s.repo.GetTemplates(storeID, startDate, endDate)
 }
 
 func (s *TemplatesService) CreateTrigger(storeID, topic string, templateID int) error {

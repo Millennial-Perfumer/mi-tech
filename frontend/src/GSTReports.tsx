@@ -58,6 +58,8 @@ interface GSTReportsProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
 export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth }) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents'>('summary');
   const [summary, setSummary] = useState<GSTSummary | null>(null);
@@ -121,10 +123,10 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
         }
 
         const [sumRes, stateRes, hsnRes, docsRes] = await Promise.all([
-          fetchWithAuth(`http://localhost:8080/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`http://localhost:8080/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`http://localhost:8080/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`http://localhost:8080/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
+          fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
+          fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
+          fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
+          fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
         ]);
 
         const sumData = await sumRes.json();
@@ -154,7 +156,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     };
 
     fetchReports();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, fetchWithAuth]);
 
   const downloadCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CustomDatePicker } from './CustomDatePicker';
 
 interface Metrics {
   sent: number;
@@ -16,31 +17,38 @@ interface Activity {
   phone_number: string;
   status: string;
   order_id: string;
+  order_number: string;
+  customer_name: string;
 }
 
 interface AutomationDashboardProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  startDate: string;
+  endDate: string;
+  onDateChange: (start: string, end: string) => void;
 }
 
-export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps) {
+export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateChange }: AutomationDashboardProps) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const fetchData = async (silent = false) => {
       if (!silent) setIsLoading(true);
       try {
+        const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
         const [metricsResp, messagesResp] = await Promise.all([
-          fetchWithAuth('http://localhost:8080/api/automation/whatsapp/metrics'),
-          fetchWithAuth('http://localhost:8080/api/automation/whatsapp/messages')
+          fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/metrics${queryParams}`),
+          fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/messages${queryParams}`)
         ]);
         
         const mData = await metricsResp.json();
         const aData = await messagesResp.json();
         
         setMetrics(mData);
-        setActivities(aData.slice(0, 10)); // Top 10 recent
+        setActivities((aData.messages || []).slice(0, 10)); // Top 10 recent
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
       } finally {
@@ -55,12 +63,83 @@ export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps)
       }
     }, 15000); // 15 seconds for dashboard metrics
     return () => clearInterval(interval);
-  }, []);
+  }, [startDate, endDate]);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/sync-metrics${queryParams}`);
+      if (resp.ok) {
+        const mData = await resp.json();
+        setMetrics(mData);
+      } else {
+        console.error('Failed to sync metrics from Meta');
+      }
+    } catch (err) {
+      console.error('Error during metrics sync:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading dashboard...</div>;
 
   return (
     <div className="automation-dashboard">
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end', 
+        alignItems: 'center',
+        gap: '1rem',
+        marginBottom: '2rem' 
+      }}>
+        <button 
+          className="btn-secondary" 
+          onClick={handleSync}
+          disabled={isSyncing}
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            height: '42px', // Match date picker height
+            opacity: isSyncing ? 0.7 : 1
+          }}
+        >
+          <svg 
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            style={{ animation: isSyncing ? 'spin 1.5s linear infinite' : 'none' }}
+          >
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+          </svg>
+          {isSyncing ? 'Syncing...' : 'Sync Metrics'}
+        </button>
+
+        <CustomDatePicker 
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={onDateChange}
+        />
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       {/* KPI Grid */}
       <div className="metrics-grid" style={{ 
         display: 'grid', 
@@ -84,7 +163,7 @@ export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps)
             <thead>
               <tr>
                 <th>Time</th>
-                <th>Event/Order</th>
+                <th>Order ID</th>
                 <th>Template</th>
                 <th>Recipient</th>
                 <th>Status</th>
@@ -96,10 +175,15 @@ export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps)
               ) : (
                 activities.map(a => (
                   <tr key={a.id}>
-                    <td>{new Date(a.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td>{a.order_id ? `#${a.order_id}` : 'Webhook'}</td>
+                    <td>{new Date(a.sent_at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>
+                        {a.order_number ? (a.order_number.startsWith('#') ? a.order_number : `#${a.order_number}`) : (a.order_id ? (a.order_id.startsWith('#') ? a.order_id : `#${a.order_id}`) : '-')}
+                      </div>
+                      {a.customer_name && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{a.customer_name}</div>}
+                    </td>
                     <td><code>{a.template_name}</code></td>
-                    <td>{a.phone_number.replace(/(\d{2})(\d{4})(\d{4})/, '+$1 xxxx $3')}</td>
+                    <td>{formatPhoneNumber(a.phone_number)}</td>
                     <td>
                       <span className={`badge ${
                         a.status === 'read' ? 'badge-success' : 
@@ -127,4 +211,22 @@ function MetricCard({ title, value, color }: { title: string, value: string | nu
       <span style={{ fontSize: '1.5rem', fontWeight: 700, color: color || 'var(--text-primary)' }}>{value}</span>
     </div>
   );
+}
+
+function formatPhoneNumber(phone: string): string {
+  if (!phone) return '-';
+  // Remove non-digit characters
+  const clean = phone.replace(/\D/g, '');
+  
+  // Handle 10-digit Indian numbers
+  if (clean.length === 10) {
+    return `+91 ${clean}`;
+  }
+  
+  // Handle 12-digit numbers starting with 91
+  if (clean.length === 12 && clean.startsWith('91')) {
+    return `+${clean}`;
+  }
+
+  return phone.startsWith('+') ? phone : `+${phone}`;
 }

@@ -39,6 +39,11 @@ func ConnectDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("error opening database: %w", err)
 	}
 
+	// Force session to UTC to avoid double-offset issues with IST
+	if err := db.Exec("SET TimeZone='UTC'").Error; err != nil {
+		log.Printf("Warning: Failed to set database timezone to UTC: %v", err)
+	}
+
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, fmt.Errorf("error getting underlying sql.DB: %w", err)

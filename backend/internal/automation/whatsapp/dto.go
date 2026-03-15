@@ -57,4 +57,7 @@ type AutomationTemplate struct {
 	MetaTemplateID string           `json:"meta_template_id"`
 	CreatedAt      time.Time        `json:"created_at"`
 	UpdatedAt      time.Time        `json:"updated_at"`
+	SentCount      int              `json:"sent_count"`
+	DeliveredCount int              `json:"delivered_count"`
+	ReadCount      int              `json:"read_count"`
 }

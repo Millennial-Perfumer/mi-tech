@@ -79,6 +79,7 @@ func RegisterRoutes(
 
 	// --- WhatsApp Automation Routes ---
 	mux.HandleFunc("/api/automation/whatsapp/metrics", protected(automationHandler.GetAutomationMetrics))
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync", protected(automationHandler.SyncTemplateStatus))
 	mux.HandleFunc("/api/automation/whatsapp/templates/upload", protected(automationHandler.UploadTemplateMedia))
 	mux.HandleFunc("/api/automation/whatsapp/templates", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -105,6 +106,8 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
+	mux.HandleFunc("/api/automation/whatsapp/send-manual", protected(automationHandler.SendManualMessage))
+	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", protected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
 
 	// --- Redirect Tracking ---

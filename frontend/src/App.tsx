@@ -6,6 +6,7 @@ import { GSTReports } from './GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
+import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -27,6 +28,7 @@ interface Order {
   tracking_url: string;
   status: string;
   source_id: string;
+  customer_phone: string;
 }
 
 interface WebhookStatus {
@@ -61,6 +63,7 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
   { id: 'fulfillment_status', label: 'Fulfillment', category: 'Status', isDefault: true },
   { id: 'delivery_status', label: 'Delivery', category: 'Status', isDefault: true },
   { id: 'source', label: 'Source', category: 'General', isDefault: true },
+  { id: 'whatsapp', label: 'WhatsApp', category: 'General', isDefault: true },
   { id: 'gst_invoice', label: 'GST Invoice', category: 'General', isDefault: true },
 ];
 
@@ -110,6 +113,7 @@ function App() {
   const [openTrackingId, setOpenTrackingId] = useState<string | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
   
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -161,6 +165,18 @@ function App() {
       })
       .catch(() => {});
   }, [token]);
+
+  const handleUpdateDateRange = (start: string, end: string) => {
+    setPage(1);
+    setStartDate(start);
+    setEndDate(end);
+    // Persist date range to backend
+    fetchWithAuth('http://localhost:8080/api/settings/date-range', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: start, end_date: end }),
+    }).catch(console.error);
+  };
 
   // Close tracking/status popover when clicking elsewhere
   useEffect(() => {
@@ -517,22 +533,35 @@ function App() {
         </header>
 
         {activeTab !== 'automation' && (
-          <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center' }}>
-            <CustomDatePicker 
-              startDate={startDate} 
-              endDate={endDate} 
-              onDateChange={(start, end) => {
-                setPage(1);
-                setStartDate(start);
-                setEndDate(end);
-                // Persist date range to backend
-                fetchWithAuth('http://localhost:8080/api/settings/date-range', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ start_date: start, end_date: end }),
-                }).catch(console.error);
-              }} 
-            />
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '2rem',
+            padding: '1.25rem 1.5rem',
+            background: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+            border: '1px solid #f1f5f9'
+          }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
+                {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : 'Shopify Orders'}
+              </h1>
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
+                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : 'Manage your Shopify store orders'}
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+              <div style={{ width: '1px', height: '40px', backgroundColor: '#e2e8f0' }}></div>
+
+              <CustomDatePicker 
+                startDate={startDate} 
+                endDate={endDate} 
+                onDateChange={handleUpdateDateRange} 
+              />
+            </div>
           </div>
         )}
 
@@ -715,6 +744,7 @@ function App() {
                       Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
                     </th>
                   )}
+                  {visibleColumns.includes('whatsapp') && <th>WhatsApp</th>}
                   {visibleColumns.includes('gst_invoice') && <th>GST Invoice</th>}
                 </tr>
               </thead>
@@ -874,6 +904,48 @@ function App() {
                           </span>
                         </td>
                       )}
+                      {visibleColumns.includes('whatsapp') && (
+                        <td>
+                          {order.customer_phone ? (
+                            <button 
+                              className="btn-icon-minimal" 
+                              title="Send WhatsApp Message"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWhatsappOrder(order);
+                              }}
+                              style={{ 
+                                background: 'transparent', 
+                                color: '#25D366', 
+                                borderRadius: '6px', 
+                                width: '32px', 
+                                height: '32px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                border: '1px solid #e2e8f0',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.background = '#f0fdf4';
+                                e.currentTarget.style.borderColor = '#25D366';
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.borderColor = '#e2e8f0';
+                              }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                              </svg>
+                            </button>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>No phone</span>
+                          )}
+                        </td>
+                      )}
                       {visibleColumns.includes('gst_invoice') && (
                         <td>
                           <button 
@@ -926,10 +998,26 @@ function App() {
         )}
 
         {activeTab === 'automation' && (
-          <WhatsAppAutomation fetchWithAuth={fetchWithAuth} />
+          <WhatsAppAutomation 
+            fetchWithAuth={fetchWithAuth} 
+            startDate={startDate} 
+            endDate={endDate}
+            onDateChange={handleUpdateDateRange}
+          />
         )}
 
       </main>
+      {/* WhatsApp Modal */}
+      {whatsappOrder && (
+        <ManualWhatsAppModal  
+          isOpen={!!whatsappOrder} 
+          onClose={() => setWhatsappOrder(null)}
+          orderId={whatsappOrder.id}
+          orderNumber={whatsappOrder.order_number}
+          customerName={whatsappOrder.customer_name}
+          token={token}
+        />
+      )}
     </div>
   );
 }

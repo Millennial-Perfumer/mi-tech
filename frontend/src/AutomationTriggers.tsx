@@ -110,11 +110,61 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
 
   return (
     <div className="automation-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Webhook Triggers</h2>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : 'Register Trigger'}
-        </button>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '2rem',
+        padding: '1.25rem 1.5rem',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+        border: '1px solid #f1f5f9'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>Webhook Triggers</h1>
+            <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
+              Map Shopify events to automated message templates
+            </p>
+          </div>
+          
+          <div style={{ width: '1px', height: '40px', backgroundColor: '#e2e8f0' }}></div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowForm(!showForm)}
+            style={{
+              backgroundColor: showForm ? '#475569' : '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              padding: '0.65rem 1.25rem',
+              borderRadius: '10px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              boxShadow: showForm ? 'none' : '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            {showForm ? (
+               <>
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                 Cancel Registration
+               </>
+            ) : (
+               <>
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                 Register New Trigger
+               </>
+            )}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -152,39 +202,56 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
         </div>
       )}
 
-      <div className="table-container">
-        <table>
+      <div className="table-container" style={{ width: '100%', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
-            <tr>
-              <th>Webhook Event</th>
-              <th>Template</th>
-              <th>Status</th>
-              <th>Created Time</th>
-              <th>Actions</th>
+            <tr style={{ backgroundColor: '#f8fafc' }}>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9' }}>Webhook Event</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9' }}>Template</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9' }}>Status</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9' }}>Created Time</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Loading triggers...</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Loading triggers...</td></tr>
             ) : triggers.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>No triggers found.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>No triggers found.</td></tr>
             ) : (
               triggers.map(tr => (
-                <tr key={tr.id}>
-                  <td><code>{tr.webhook_topic}</code></td>
-                  <td>{templates.find(t => t.id === tr.template_id)?.template_name || `ID: ${tr.template_id}`}</td>
-                  <td>
-                    <span className={`badge ${tr.enabled ? 'badge-success' : 'badge-warning'}`}>
+                <tr key={tr.id} style={{ transition: 'background-color 0.2s' }} className="hover-row">
+                  <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
+                    <code style={{ background: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>{tr.webhook_topic}</code>
+                  </td>
+                  <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', color: '#1e293b', fontWeight: 500 }}>
+                    {templates.find(t => t.id === tr.template_id)?.template_name || `ID: ${tr.template_id}`}
+                  </td>
+                  <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
+                    <span className={`badge-pill ${tr.enabled ? 'badge-pill-success' : 'badge-pill-warning'}`} style={{ fontSize: '0.75rem' }}>
+                      <span className="dot" />
                       {tr.enabled ? 'ENABLED' : 'DISABLED'}
                     </span>
                   </td>
-                  <td style={{ fontSize: '0.85rem' }}>{new Date(tr.created_at).toLocaleDateString()}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="btn-small" onClick={() => handleToggle(tr.id, tr.enabled)}>
+                  <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem' }}>
+                    {new Date(tr.created_at).toLocaleDateString('en-GB')}
+                  </td>
+                  <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                      <button 
+                        className="btn-secondary" 
+                        onClick={() => handleToggle(tr.id, tr.enabled)}
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', minWidth: '80px' }}
+                      >
                         {tr.enabled ? 'Disable' : 'Enable'}
                       </button>
-                      <button className="btn-small" onClick={() => handleDelete(tr.id)} style={{ color: '#ef4444' }}>Delete</button>
+                      <button 
+                        className="btn-secondary" 
+                        onClick={() => handleDelete(tr.id)} 
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', color: '#ef4444', borderColor: '#fee2e2' }}
+                      >
+                         Delete
+                      </button>
                     </div>
                   </td>
                 </tr>

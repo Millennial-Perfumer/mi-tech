@@ -28,7 +28,7 @@ frontend:
 	cd frontend && npm run dev
 
 backend:
-	cd backend && go run cmd/main.go
+	cd backend && go run github.com/air-verse/air@latest -c .air.toml
 
 # Build both applications
 build: build-frontend build-backend

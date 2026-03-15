@@ -2,7 +2,9 @@ package whatsapp
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"time"
 )
 
 type TemplatesRepository struct {
@@ -28,10 +30,43 @@ func (r *TemplatesRepository) SaveTemplate(t AutomationTemplate) (int, error) {
 	return id, err
 }
 
-func (r *TemplatesRepository) GetTemplates(storeID string) ([]AutomationTemplate, error) {
-	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, ''), created_at, updated_at 
-	          FROM automation_templates WHERE store_id = $1`
-	rows, err := r.db.Query(query, storeID)
+func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate *time.Time) ([]AutomationTemplate, error) {
+	args := []interface{}{storeID}
+	placeholderID := 2
+
+	dateFilter := ""
+	if startDate != nil {
+		dateFilter += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
+		args = append(args, *startDate)
+		placeholderID++
+	}
+	if endDate != nil {
+		dateFilter += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
+		args = append(args, *endDate)
+		placeholderID++
+	}
+
+	query := fmt.Sprintf(`
+		SELECT 
+			t.id, t.store_id, t.template_name, t.language, t.category, t.body, t.header, t.footer, t.buttons, t.status, 
+			COALESCE(t.meta_template_id, ''), t.created_at, t.updated_at,
+			COALESCE(m.sent_count, 0),
+			COALESCE(m.delivered_count, 0),
+			COALESCE(m.read_count, 0)
+		FROM automation_templates t
+		LEFT JOIN (
+			SELECT 
+				template_id,
+				COUNT(*) FILTER (WHERE status != 'failed') as sent_count,
+				COUNT(*) FILTER (WHERE status = 'delivered' OR status = 'read') as delivered_count,
+				COUNT(*) FILTER (WHERE status = 'read') as read_count
+			FROM automation_messages
+			WHERE 1=1 %s
+			GROUP BY template_id
+		) m ON t.id = m.template_id
+		WHERE t.store_id = $1`, dateFilter)
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -40,14 +75,17 @@ func (r *TemplatesRepository) GetTemplates(storeID string) ([]AutomationTemplate
 	var templates []AutomationTemplate
 	for rows.Next() {
 		var t AutomationTemplate
-		err := rows.Scan(&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, &t.MetaTemplateID, &t.CreatedAt, &t.UpdatedAt)
+		err := rows.Scan(
+			&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, 
+			&t.MetaTemplateID, &t.CreatedAt, &t.UpdatedAt, &t.SentCount, &t.DeliveredCount, &t.ReadCount,
+		)
 		if err != nil {
 			log.Printf("Error scanning template row: %v", err)
 			return nil, err
 		}
 		templates = append(templates, t)
 	}
-	log.Printf("Repository: GetTemplates returned %d rows", len(templates))
+	log.Printf("Repository: GetTemplates (filtered) returned %d rows", len(templates))
 	return templates, nil
 }
 

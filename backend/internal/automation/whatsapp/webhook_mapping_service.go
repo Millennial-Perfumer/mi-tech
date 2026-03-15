@@ -62,18 +62,35 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	}
 
 	log.Printf("Automation Progress: Found trigger %s -> Template: %s (ID: %d)", topic, template.TemplateName, template.ID)
+	return s.executeWithTemplate(storeID, template, order, topic)
+}
 
-	// 2a. Deduplication Check: Don't send the same template twice to the same order
-	// Special Case: Lifecycle events (assigned, fulfilled, delivery) can be re-sent if intentional (e.g. re-assignment).
-	// The 15s/30s guards in WebhookHandler already prevent automated double-pings.
-	allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/updated"
+func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int, order entity.Order) error {
+	log.Printf("Automation Start: Executing manual send for Order %s (%s), Template ID: %d", order.ID, order.OrderNumber, templateID)
 
-	sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
+	// Fetch template
+	template, err := s.templatesRepo.GetTemplateByID(templateID)
 	if err != nil {
-		log.Printf("Automation Error: Deduplication check failed for order %s: %v", order.ID, err)
-	} else if sent && !allowMultiple {
-		log.Printf("Automation Skip: Template %s already sent for order %s. Skipping duplicate.", template.TemplateName, order.ID)
-		return nil
+		return fmt.Errorf("error fetching template: %w", err)
+	}
+	if template == nil {
+		return fmt.Errorf("template not found: %d", templateID)
+	}
+
+	return s.executeWithTemplate(storeID, template, order, "manual")
+}
+
+func (s *WebhookMappingService) executeWithTemplate(storeID string, template *AutomationTemplate, order entity.Order, topic string) error {
+	// Deduplication Check (only for automated topics)
+	if topic != "manual" {
+		allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/updated"
+		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
+		if err != nil {
+			log.Printf("Automation Error: Deduplication check failed for order %s: %v", order.ID, err)
+		} else if sent && !allowMultiple {
+			log.Printf("Automation Skip: Template %s already sent for order %s. Skipping duplicate.", template.TemplateName, order.ID)
+			return nil
+		}
 	}
 
 	// 3. Extract parameters based on template name or topic

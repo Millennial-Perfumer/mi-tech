@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"database/sql"
+	"fmt"
 	"mi-tech/internal/entity"
 	"time"
 )
@@ -12,6 +13,8 @@ type AutomationMessage struct {
 	TemplateID   int        `json:"template_id"`
 	TemplateName string     `json:"template_name"`
 	OrderID      string     `json:"order_id"`
+	OrderNumber  string     `json:"order_number"`
+	CustomerName string     `json:"customer_name"`
 	PhoneNumber  string     `json:"phone_number"`
 	MessageID    string     `json:"message_id"`
 	Status       string     `json:"status"`
@@ -30,12 +33,17 @@ func NewMessagesRepository(db *sql.DB) *MessagesRepository {
 }
 
 func (r *MessagesRepository) SaveMessage(m AutomationMessage) (int, error) {
+	if m.SentAt.IsZero() {
+		m.SentAt = time.Now().UTC()
+	} else {
+		m.SentAt = m.SentAt.UTC()
+	}
 	query := `
-		INSERT INTO automation_messages (store_id, template_id, order_id, phone_number, message_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO automation_messages (store_id, template_id, order_id, phone_number, message_id, status, sent_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id`
 	var id int
-	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.Status).Scan(&id)
+	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.Status, m.SentAt).Scan(&id)
 	return id, err
 }
 
@@ -47,7 +55,7 @@ func (r *MessagesRepository) HasSentTemplate(orderID string, templateID int) (bo
 
 func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error {
 	var query string
-	now := time.Now()
+	now := time.Now().UTC()
 	switch status {
 	case "delivered":
 		query = `UPDATE automation_messages SET status = $1, delivered_at = $2 WHERE message_id = $3`
@@ -87,14 +95,39 @@ func (r *MessagesRepository) GetMessagesByOrderID(orderID string) ([]AutomationM
 	}
 	return messages, nil
 }
-func (r *MessagesRepository) GetMessages(storeID string) ([]AutomationMessage, error) {
+func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *time.Time, limit, offset int) ([]AutomationMessage, error) {
 	query := `
-		SELECT m.id, m.store_id, m.template_id, t.template_name, m.order_id, m.phone_number, m.message_id, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
+		SELECT 
+			m.id, m.store_id, m.template_id, t.template_name, 
+			m.order_id, o.order_number, o.customer_name,
+			m.phone_number, m.message_id, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
 		FROM automation_messages m
 		LEFT JOIN automation_templates t ON m.template_id = t.id
-		WHERE m.store_id = $1 
-		ORDER BY m.sent_at DESC`
-	rows, err := r.db.Query(query, storeID)
+		LEFT JOIN orders o ON m.order_id = o.id
+		WHERE m.store_id = $1`
+	
+	args := []interface{}{storeID}
+	placeholderID := 2
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND m.sent_at >= $%d", placeholderID)
+		args = append(args, *startDate)
+		placeholderID++
+	}
+	if endDate != nil {
+		query += fmt.Sprintf(" AND m.sent_at <= $%d", placeholderID)
+		args = append(args, *endDate)
+		placeholderID++
+	}
+
+	query += " ORDER BY m.sent_at DESC"
+	
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", placeholderID, placeholderID+1)
+		args = append(args, limit, offset)
+	}
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -103,42 +136,88 @@ func (r *MessagesRepository) GetMessages(storeID string) ([]AutomationMessage, e
 	var messages []AutomationMessage
 	for rows.Next() {
 		var m AutomationMessage
-		var templateName, errorMsg sql.NullString
-		err := rows.Scan(&m.ID, &m.StoreID, &m.TemplateID, &templateName, &m.OrderID, &m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, &m.DeliveredAt, &m.ReadAt, &errorMsg)
+		var templateName, orderNumber, customerName, errorMsg sql.NullString
+		err := rows.Scan(
+			&m.ID, &m.StoreID, &m.TemplateID, &templateName, 
+			&m.OrderID, &orderNumber, &customerName,
+			&m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, 
+			&m.DeliveredAt, &m.ReadAt, &errorMsg,
+		)
 		if err != nil {
 			return nil, err
 		}
 		m.TemplateName = templateName.String
+		m.OrderNumber = orderNumber.String
+		m.CustomerName = customerName.String
 		m.ErrorMessage = errorMsg.String
 		messages = append(messages, m)
 	}
 	return messages, nil
 }
 
-func (r *MessagesRepository) GetAutomationMetrics(storeID string) (map[string]interface{}, error) {
+func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate *time.Time) (int, error) {
+	query := "SELECT COUNT(*) FROM automation_messages WHERE store_id = $1"
+	args := []interface{}{storeID}
+	placeholderID := 2
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
+		args = append(args, *startDate)
+		placeholderID++
+	}
+	if endDate != nil {
+		query += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
+		args = append(args, *endDate)
+		placeholderID++
+	}
+
+	var count int
+	err := r.db.QueryRow(query, args...).Scan(&count)
+	return count, err
+}
+
+func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, endDate *time.Time) (map[string]interface{}, error) {
 	metrics := make(map[string]interface{})
 
-	var sent, delivered, read, failed int
-	err := r.db.QueryRow(`SELECT 
+	whereClause := "WHERE 1=1"
+	args := []interface{}{}
+	placeholderID := 1
+
+	if storeID != "" {
+		whereClause += fmt.Sprintf(" AND store_id = $%d", placeholderID)
+		args = append(args, storeID)
+		placeholderID++
+	}
+
+	if startDate != nil {
+		whereClause += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
+		args = append(args, *startDate)
+		placeholderID++
+	}
+	if endDate != nil {
+		whereClause += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
+		args = append(args, *endDate)
+		placeholderID++
+	}
+
+	query := fmt.Sprintf(`SELECT 
 		COUNT(*) FILTER (WHERE status != 'failed'),
 		COUNT(*) FILTER (WHERE status = 'delivered' OR status = 'read'),
 		COUNT(*) FILTER (WHERE status = 'read'),
-		COUNT(*) FILTER (WHERE status = 'failed')
-		FROM automation_messages WHERE store_id = $1`, storeID).Scan(&sent, &delivered, &read, &failed)
+		COUNT(*) FILTER (WHERE status = 'failed'),
+		COUNT(*)
+		FROM automation_messages %s`, whereClause)
+
+	var sent, delivered, read, failed, triggered int
+	err := r.db.QueryRow(query, args...).Scan(&sent, &delivered, &read, &failed, &triggered)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	metrics["sent"] = sent
 	metrics["delivered"] = delivered
 	metrics["read"] = read
 	metrics["failed"] = failed
-
-	var triggered int
-	err = r.db.QueryRow(`SELECT COUNT(*) FROM automation_messages WHERE store_id = $1`, storeID).Scan(&triggered)
-	if err != nil {
-		return nil, err
-	}
 	metrics["triggered"] = triggered
 
 	readRate := 0.0
@@ -148,6 +227,22 @@ func (r *MessagesRepository) GetAutomationMetrics(storeID string) (map[string]in
 	metrics["read_rate"] = readRate
 
 	return metrics, nil
+}
+
+func (r *MessagesRepository) GetTriggeredCount(storeID string, startDate, endDate *time.Time) (int, error) {
+	metrics, err := r.GetAutomationMetrics(storeID, startDate, endDate)
+	if err != nil {
+		return 0, err
+	}
+	return metrics["triggered"].(int), nil
+}
+
+func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *time.Time) (int, error) {
+	metrics, err := r.GetAutomationMetrics(storeID, startDate, endDate)
+	if err != nil {
+		return 0, err
+	}
+	return metrics["failed"].(int), nil
 }
 func (r *MessagesRepository) GetOrderLineItems(orderID string) ([]entity.LineItem, error) {
 	query := `SELECT id, order_id, product_id, variant_id, title, sku, hs_code, quantity, price, discount FROM order_line_items WHERE order_id = $1`

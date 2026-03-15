@@ -1,4 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import { ColumnSelector } from './ColumnSelector';
+import type { ColumnOption } from './ColumnSelector';
+import { CustomDatePicker } from './CustomDatePicker';
+
+const availableColumns: ColumnOption[] = [
+  { id: 'template_name', label: 'Template Name', category: 'Essential' },
+  { id: 'category', label: 'Category', category: 'Essential' },
+  { id: 'language', label: 'Language', category: 'Essential' },
+  { id: 'status', label: 'Status', category: 'Status' },
+  { id: 'created_at', label: 'Created Time', category: 'Status' },
+  { id: 'sent_count', label: 'Sent', category: 'Metrics' },
+  { id: 'delivered_count', label: 'Delivered', category: 'Metrics' },
+  { id: 'read_count', label: 'Read', category: 'Metrics' },
+];
 
 interface TemplateHeader {
   type: 'none' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION';
@@ -28,13 +42,19 @@ interface Template {
   buttons?: TemplateButton[];
   status: string;
   created_at: string;
+  sent_count: number;
+  delivered_count: number;
+  read_count: number;
 }
 
 interface AutomationTemplatesProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  startDate: string;
+  endDate: string;
+  onDateChange: (start: string, end: string) => void;
 }
 
-export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps) {
+export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateChange }: AutomationTemplatesProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,8 +64,18 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
   const [headerFileBlob, setHeaderFileBlob] = useState<string | null>(null);
   const [headerFileName, setHeaderFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSyncingStatus, setIsSyncingStatus] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('gstAutomationVisibleCols');
+    return saved ? JSON.parse(saved) : ['template_name', 'category', 'language', 'status', 'created_at'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gstAutomationVisibleCols', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
   const [formData, setFormData] = useState({
     name: '',
     category: 'MARKETING',
@@ -70,13 +100,30 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
   const fetchTemplates = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates');
+      const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates${queryParams}`);
       const data = await resp.json();
       setTemplates(data || []);
     } catch (err) {
       console.error('Failed to fetch templates:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSyncStatus = async () => {
+    setIsSyncingStatus(true);
+    try {
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates/sync`);
+      if (resp.ok) {
+        fetchTemplates(true);
+      } else {
+        console.error('Failed to sync template status');
+      }
+    } catch (err) {
+      console.error('Error during status sync:', err);
+    } finally {
+      setIsSyncingStatus(false);
     }
   };
 
@@ -118,7 +165,7 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
       }
     }, 30000); // 30 seconds
     return () => clearInterval(interval);
-  }, [showForm]);
+  }, [showForm, startDate, endDate]);
 
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     let value = e.target.value;
@@ -359,14 +406,126 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
 
   return (
     <div className="automation-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>WhatsApp Templates</h2>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '2rem',
+        padding: '1.25rem 1.5rem',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+        border: '1px solid #f1f5f9'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>WhatsApp Templates</h1>
+            <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
+              Manage and monitor your automated message templates
+            </p>
+          </div>
+          
+          <div style={{ width: '1px', height: '40px', backgroundColor: '#e2e8f0' }}></div>
+        </div>
+
         {!showForm && (
-          <button className="btn-primary" onClick={() => setShowForm(true)}>
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowForm(true)}
+            style={{
+              backgroundColor: '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              padding: '0.65rem 1.25rem',
+              borderRadius: '10px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             Create New Template
           </button>
         )}
       </div>
+
+      {!showForm && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: '1.25rem',
+          marginBottom: '1.5rem',
+          padding: '1rem 1.25rem',
+          background: 'white',
+          borderRadius: '12px',
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
+        }}>
+          <button 
+            className="btn-secondary" 
+            onClick={handleSyncStatus}
+            disabled={isSyncingStatus}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.625rem',
+              padding: '0.55rem 1rem',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: 'white',
+              color: '#475569',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              height: '42px' // Match date picker height
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.backgroundColor = 'white';
+            }}
+          >
+            <svg 
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" 
+              strokeLinecap="round" strokeLinejoin="round" 
+              style={{ 
+                animation: isSyncingStatus ? 'spin 2s linear infinite' : 'none',
+                color: isSyncingStatus ? '#0ea5e9' : 'currentColor'
+              }}
+            >
+              <path d="M21 2v6h-6"></path>
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+              <path d="M3 22v-6h6"></path>
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+            </svg>
+            {isSyncingStatus ? 'Syncing...' : 'Sync Status'}
+          </button>
+
+          <CustomDatePicker 
+            startDate={startDate}
+            endDate={endDate}
+            onDateChange={onDateChange}
+          />
+
+          <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }}></div>
+
+          <ColumnSelector
+            columns={availableColumns}
+            visibleColumns={visibleColumns}
+            onChange={setVisibleColumns}
+          />
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay">
@@ -722,35 +881,43 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
         </div>
       )}
 
-      <div className="table-container">
-        <table>
+      <div className="table-container" style={{ overflowX: 'auto', backgroundColor: 'white', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <table style={{ minWidth: '1000px' }}>
           <thead>
             <tr>
-              <th>Template Name</th>
-              <th>Category</th>
-              <th>Language</th>
-              <th>Status</th>
-              <th>Created Time</th>
+              {visibleColumns.includes('template_name') && <th>Template Name</th>}
+              {visibleColumns.includes('category') && <th>Category</th>}
+              {visibleColumns.includes('language') && <th>Language</th>}
+              {visibleColumns.includes('sent_count') && <th style={{ textAlign: 'center' }}>Sent</th>}
+              {visibleColumns.includes('delivered_count') && <th style={{ textAlign: 'center' }}>Deliv.</th>}
+              {visibleColumns.includes('read_count') && <th style={{ textAlign: 'center' }}>Read</th>}
+              {visibleColumns.includes('status') && <th>Status</th>}
+              {visibleColumns.includes('created_at') && <th>Created Time</th>}
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</td></tr>
+              <tr><td colSpan={visibleColumns.length + 1} style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</td></tr>
             ) : templates.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No templates found.</td></tr>
+              <tr><td colSpan={visibleColumns.length + 1} style={{ textAlign: 'center', padding: '2rem' }}>No templates found.</td></tr>
             ) : (
               templates.map(t => (
                 <tr key={t.id}>
-                  <td><strong>{t.template_name}</strong></td>
-                  <td><span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#64748b' }}>{t.category}</span></td>
-                  <td>{t.language}</td>
-                  <td>
-                    <span className="badge" style={getStatusBadgeStyle(t.status || 'PENDING')}>
-                      {(t.status || 'PENDING').toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '0.85rem' }}>{new Date(t.created_at).toLocaleDateString()}</td>
+                  {visibleColumns.includes('template_name') && <td><strong>{t.template_name}</strong></td>}
+                  {visibleColumns.includes('category') && <td><span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#64748b' }}>{t.category}</span></td>}
+                  {visibleColumns.includes('language') && <td>{t.language}</td>}
+                  {visibleColumns.includes('sent_count') && <td style={{ textAlign: 'center' }}><strong>{t.sent_count || 0}</strong></td>}
+                  {visibleColumns.includes('delivered_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.delivered_count > 0 ? '#00a884' : 'inherit' }}>{t.delivered_count || 0}</span></td>}
+                  {visibleColumns.includes('read_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.read_count > 0 ? '#34b7f1' : 'inherit' }}>{t.read_count || 0}</span></td>}
+                  {visibleColumns.includes('status') && (
+                    <td>
+                      <span className="badge" style={getStatusBadgeStyle(t.status || 'PENDING')}>
+                        {(t.status || 'PENDING').toUpperCase()}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.includes('created_at') && <td style={{ fontSize: '0.85rem' }}>{new Date(t.created_at).toLocaleDateString()}</td>}
                   <td>
                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                       <button 

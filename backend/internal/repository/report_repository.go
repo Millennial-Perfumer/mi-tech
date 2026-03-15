@@ -23,14 +23,14 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string) (
 
 	query := `
 		SELECT 
-			COALESCE(SUM(total_price), 0) as total_revenue,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) = 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as cgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) = 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as sgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) != 'tamil nadu' THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END), 0) as igst,
+			COALESCE(SUM(total_price) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as total_revenue,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as cgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as sgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as igst,
 			COUNT(id) as total_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
 			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled') as fulfilled_orders,
-			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND LOWER(status) != 'cancelled') as unfulfilled_orders
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND (status IS NULL OR LOWER(status) != 'cancelled')) as unfulfilled_orders
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ?
 	`
@@ -74,11 +74,11 @@ func (r *gormReportRepository) GetGSTSummary(startDate, endDate string) (totalOr
 			COUNT(id),
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled'),
 			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled'),
-			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND LOWER(status) != 'cancelled'),
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND (status IS NULL OR LOWER(status) != 'cancelled')),
 			COUNT(id) FILTER (WHERE LOWER(financial_status) = 'paid'),
-			COALESCE(SUM(total_price) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as revenue,
-			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as taxable,
-			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE LOWER(status) != 'cancelled'), 0) as tax
+			COALESCE(SUM(total_price) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as revenue,
+			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as taxable,
+			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as tax
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ?
 	`
@@ -121,7 +121,7 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as total_gst,
 			COALESCE(SUM(total_price), 0) as revenue
 		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND LOWER(status) != 'cancelled'
+		WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR LOWER(status) != 'cancelled')
 		GROUP BY customer_state
 		ORDER BY revenue DESC
 	`
@@ -154,7 +154,7 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
 			JOIN OrderSubtotals os ON li.order_id = os.order_id
-			WHERE o.created_at >= ? AND o.created_at <= ? AND LOWER(o.status) != 'cancelled' AND os.line_sum > 0
+			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled') AND os.line_sum > 0
 		)
 		SELECT 
 			hs_code as hsn_code,
@@ -210,9 +210,9 @@ func (r *gormReportRepository) GetTaxByState(startDate, endDate string) ([]State
 	query := `
 		SELECT 
 			COALESCE(customer_state, 'N/A') as state,
-			SUM(total_price - (total_price / 1.18)) as tax
+			SUM(total_price - ROUND(total_price / 1.18, 2)) as tax
 		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND LOWER(status) != 'cancelled'
+		WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR LOWER(status) != 'cancelled')
 		GROUP BY customer_state
 	`
 

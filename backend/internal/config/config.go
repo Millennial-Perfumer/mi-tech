@@ -34,7 +34,7 @@ func Load() *Config {
 
 	dbDSN := os.Getenv("DB_DSN")
 	if dbDSN == "" {
-		dbDSN = "postgres://postgres:password@localhost:5432/wisegst?sslmode=disable"
+		dbDSN = "postgres://postgres:password@localhost:5432/wisegst?sslmode=disable&timezone=UTC"
 	}
 
 	return &Config{
