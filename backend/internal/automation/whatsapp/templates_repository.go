@@ -30,16 +30,17 @@ func (r *TemplatesRepository) SaveTemplate(t AutomationTemplate) (int, error) {
 }
 
 func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate string) ([]AutomationTemplate, error) {
-	dateFilter := ""
 	args := []interface{}{storeID}
 	placeholderID := 2
 
+	dateFilter := ""
 	if startDate != "" {
 		dateFilter += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
 		args = append(args, startDate)
 		placeholderID++
 	}
 	if endDate != "" {
+		// Handle date-only input by appending time
 		if len(endDate) == 10 {
 			endDate += " 23:59:59"
 		}
@@ -48,6 +49,8 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate st
 		placeholderID++
 	}
 
+	// Using the same dateFilter for metrics subqueries. 
+	// This works because the placeholders ($2, $3 etc) refer to the same slice of args.
 	query := fmt.Sprintf(`
 		SELECT 
 			t.id, t.store_id, t.template_name, t.language, t.category, t.body, t.header, t.footer, t.buttons, t.status, 

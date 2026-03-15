@@ -396,7 +396,7 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 	// Note: Meta API requires specific date formats.
 	
 	url := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)", 
-		c.apiVersion, c.wabaID, startDate, endDate)
+		c.apiVersion, c.wabaID, url.QueryEscape(startDate), url.QueryEscape(endDate))
 	
 	log.Printf("Fetching Meta Analytics from: %s", url)
 
@@ -413,7 +413,11 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read analytics response: %w", err)
+	}
+
 	if resp.StatusCode >= 400 {
 		log.Printf("Meta Analytics API Error: %s", string(respBody))
 		return nil, fmt.Errorf("meta api error: status %d", resp.StatusCode)

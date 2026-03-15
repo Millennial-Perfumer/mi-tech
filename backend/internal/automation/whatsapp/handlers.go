@@ -6,7 +6,16 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 )
+
+func isValidDate(date string) bool {
+	if date == "" {
+		return true
+	}
+	_, err := time.Parse("2006-01-02", date)
+	return err == nil
+}
 
 type AutomationHandler struct {
 	templatesService *TemplatesService
@@ -47,6 +56,11 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
+	if !isValidDate(startDate) || !isValidDate(endDate) {
+		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
 	log.Printf("GetTemplates called for storeID: 1, start: %s, end: %s", startDate, endDate)
 	// Sync status before returning
 	h.templatesService.SyncStatus("1")
@@ -64,7 +78,7 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
-	// 1. Hub Challenge for verification (Optional, but good for setup)
+	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
 		challenge := r.URL.Query().Get("hub.challenge")
 		if challenge != "" {
@@ -76,7 +90,14 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 
 	// 2. Handle status updates
 	if r.Method == http.MethodPost {
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading WhatsApp webhook body: %v", err)
+			http.Error(w, "Failed to read body", http.StatusInternalServerError)
+			return
+		}
+		defer r.Body.Close()
+
 		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
 		
 		var payload struct {
@@ -101,7 +122,10 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 		for _, entry := range payload.Entry {
 			for _, change := range entry.Changes {
 				for _, status := range change.Value.Statuses {
-					h.messagesService.HandleStatusUpdate(status.ID, status.Status)
+					err := h.messagesService.HandleStatusUpdate(status.ID, status.Status)
+					if err != nil {
+						log.Printf("Error updating message status for %s: %v", status.ID, err)
+					}
 				}
 			}
 		}
@@ -141,6 +165,11 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
+	if !isValidDate(startDate) || !isValidDate(endDate) {
+		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
 	messages, err := h.messagesService.GetMessages("1", startDate, endDate)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
@@ -153,6 +182,11 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+
+	if !isValidDate(startDate) || !isValidDate(endDate) {
+		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
 
 	metrics, err := h.messagesService.GetAutomationMetrics("1", startDate, endDate)
 	if err != nil {
@@ -269,6 +303,11 @@ func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.R
 func (h *AutomationHandler) SyncAutomationMetrics(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+
+	if !isValidDate(startDate) || !isValidDate(endDate) {
+		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
 
 	log.Printf("SyncAutomationMetrics called: start=%s, end=%s", startDate, endDate)
 
