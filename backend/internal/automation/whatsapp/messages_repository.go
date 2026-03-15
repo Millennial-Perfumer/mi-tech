@@ -95,7 +95,7 @@ func (r *MessagesRepository) GetMessagesByOrderID(orderID string) ([]AutomationM
 	}
 	return messages, nil
 }
-func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *time.Time, limit, offset int) ([]AutomationMessage, error) {
+func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *time.Time, search string, limit, offset int) ([]AutomationMessage, error) {
 	query := `
 		SELECT 
 			m.id, m.store_id, m.template_id, t.template_name, 
@@ -117,6 +117,12 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 	if endDate != nil {
 		query += fmt.Sprintf(" AND m.sent_at <= $%d", placeholderID)
 		args = append(args, *endDate)
+		placeholderID++
+	}
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query += fmt.Sprintf(" AND (m.order_id ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
+		args = append(args, searchTerm)
 		placeholderID++
 	}
 
@@ -155,19 +161,29 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 	return messages, nil
 }
 
-func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate *time.Time) (int, error) {
-	query := "SELECT COUNT(*) FROM automation_messages WHERE store_id = $1"
+func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate *time.Time, search string) (int, error) {
+	query := `
+		SELECT COUNT(*) 
+		FROM automation_messages m
+		LEFT JOIN orders o ON m.order_id = o.id
+		WHERE m.store_id = $1`
 	args := []interface{}{storeID}
 	placeholderID := 2
 
 	if startDate != nil {
-		query += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
+		query += fmt.Sprintf(" AND m.sent_at >= $%d", placeholderID)
 		args = append(args, *startDate)
 		placeholderID++
 	}
 	if endDate != nil {
-		query += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
+		query += fmt.Sprintf(" AND m.sent_at <= $%d", placeholderID)
 		args = append(args, *endDate)
+		placeholderID++
+	}
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query += fmt.Sprintf(" AND (m.order_id ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
+		args = append(args, searchTerm)
 		placeholderID++
 	}
 

@@ -272,13 +272,15 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 	}
 	offset := (page - 1) * limit
 
-	messages, err := h.messagesService.GetMessages("1", start, end, limit, offset)
+	search := r.URL.Query().Get("search")
+
+	messages, err := h.messagesService.GetMessages("1", start, end, search, limit, offset)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
 	}
 
-	totalCount, err := h.messagesService.GetMessagesCount("1", start, end)
+	totalCount, err := h.messagesService.GetMessagesCount("1", start, end, search)
 	if err != nil {
 		log.Printf("Error fetching message count: %v", err)
 		// Non-blocking, continue with 0 count or let it fail gracefully
