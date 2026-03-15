@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 )
 
 type TemplatesRepository struct {
@@ -29,22 +30,19 @@ func (r *TemplatesRepository) SaveTemplate(t AutomationTemplate) (int, error) {
 	return id, err
 }
 
-func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate string) ([]AutomationTemplate, error) {
+func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate *time.Time) ([]AutomationTemplate, error) {
 	args := []interface{}{storeID}
 	placeholderID := 2
 
 	dateFilter := ""
-	if startDate != "" {
+	if startDate != nil {
 		dateFilter += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
-		args = append(args, startDate)
+		args = append(args, *startDate)
 		placeholderID++
 	}
-	if endDate != "" {
-		if len(endDate) == 10 {
-			endDate += " 23:59:59"
-		}
+	if endDate != nil {
 		dateFilter += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
-		args = append(args, endDate)
+		args = append(args, *endDate)
 		placeholderID++
 	}
 

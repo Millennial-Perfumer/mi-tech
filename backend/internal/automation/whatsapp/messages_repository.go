@@ -13,6 +13,8 @@ type AutomationMessage struct {
 	TemplateID   int        `json:"template_id"`
 	TemplateName string     `json:"template_name"`
 	OrderID      string     `json:"order_id"`
+	OrderNumber  string     `json:"order_number"`
+	CustomerName string     `json:"customer_name"`
 	PhoneNumber  string     `json:"phone_number"`
 	MessageID    string     `json:"message_id"`
 	Status       string     `json:"status"`
@@ -31,12 +33,17 @@ func NewMessagesRepository(db *sql.DB) *MessagesRepository {
 }
 
 func (r *MessagesRepository) SaveMessage(m AutomationMessage) (int, error) {
+	if m.SentAt.IsZero() {
+		m.SentAt = time.Now().UTC()
+	} else {
+		m.SentAt = m.SentAt.UTC()
+	}
 	query := `
-		INSERT INTO automation_messages (store_id, template_id, order_id, phone_number, message_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO automation_messages (store_id, template_id, order_id, phone_number, message_id, status, sent_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id`
 	var id int
-	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.Status).Scan(&id)
+	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.Status, m.SentAt).Scan(&id)
 	return id, err
 }
 
@@ -48,7 +55,7 @@ func (r *MessagesRepository) HasSentTemplate(orderID string, templateID int) (bo
 
 func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error {
 	var query string
-	now := time.Now()
+	now := time.Now().UTC()
 	switch status {
 	case "delivered":
 		query = `UPDATE automation_messages SET status = $1, delivered_at = $2 WHERE message_id = $3`
@@ -88,28 +95,28 @@ func (r *MessagesRepository) GetMessagesByOrderID(orderID string) ([]AutomationM
 	}
 	return messages, nil
 }
-func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate string, limit, offset int) ([]AutomationMessage, error) {
+func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *time.Time, limit, offset int) ([]AutomationMessage, error) {
 	query := `
-		SELECT m.id, m.store_id, m.template_id, t.template_name, m.order_id, m.phone_number, m.message_id, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
+		SELECT 
+			m.id, m.store_id, m.template_id, t.template_name, 
+			m.order_id, o.order_number, o.customer_name,
+			m.phone_number, m.message_id, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
 		FROM automation_messages m
 		LEFT JOIN automation_templates t ON m.template_id = t.id
+		LEFT JOIN orders o ON m.order_id = o.id
 		WHERE m.store_id = $1`
 	
 	args := []interface{}{storeID}
 	placeholderID := 2
 
-	if startDate != "" {
+	if startDate != nil {
 		query += fmt.Sprintf(" AND m.sent_at >= $%d", placeholderID)
-		args = append(args, startDate)
+		args = append(args, *startDate)
 		placeholderID++
 	}
-	if endDate != "" {
-		// Append 23:59:59 to endDate if it's just a date
-		if len(endDate) == 10 {
-			endDate += " 23:59:59"
-		}
+	if endDate != nil {
 		query += fmt.Sprintf(" AND m.sent_at <= $%d", placeholderID)
-		args = append(args, endDate)
+		args = append(args, *endDate)
 		placeholderID++
 	}
 
@@ -129,34 +136,39 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate stri
 	var messages []AutomationMessage
 	for rows.Next() {
 		var m AutomationMessage
-		var templateName, errorMsg sql.NullString
-		err := rows.Scan(&m.ID, &m.StoreID, &m.TemplateID, &templateName, &m.OrderID, &m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, &m.DeliveredAt, &m.ReadAt, &errorMsg)
+		var templateName, orderNumber, customerName, errorMsg sql.NullString
+		err := rows.Scan(
+			&m.ID, &m.StoreID, &m.TemplateID, &templateName, 
+			&m.OrderID, &orderNumber, &customerName,
+			&m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, 
+			&m.DeliveredAt, &m.ReadAt, &errorMsg,
+		)
 		if err != nil {
 			return nil, err
 		}
 		m.TemplateName = templateName.String
+		m.OrderNumber = orderNumber.String
+		m.CustomerName = customerName.String
 		m.ErrorMessage = errorMsg.String
 		messages = append(messages, m)
 	}
 	return messages, nil
 }
 
-func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate string) (int, error) {
+func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate *time.Time) (int, error) {
 	query := "SELECT COUNT(*) FROM automation_messages WHERE store_id = $1"
 	args := []interface{}{storeID}
 	placeholderID := 2
 
-	if startDate != "" {
+	if startDate != nil {
 		query += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
-		args = append(args, startDate)
+		args = append(args, *startDate)
 		placeholderID++
 	}
-	if endDate != "" {
-		if len(endDate) == 10 {
-			endDate += " 23:59:59"
-		}
+	if endDate != nil {
 		query += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
-		args = append(args, endDate)
+		args = append(args, *endDate)
+		placeholderID++
 	}
 
 	var count int
@@ -164,7 +176,7 @@ func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate
 	return count, err
 }
 
-func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, endDate string) (map[string]interface{}, error) {
+func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, endDate *time.Time) (map[string]interface{}, error) {
 	metrics := make(map[string]interface{})
 
 	whereClause := "WHERE 1=1"
@@ -177,17 +189,14 @@ func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, end
 		placeholderID++
 	}
 
-	if startDate != "" {
+	if startDate != nil {
 		whereClause += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
-		args = append(args, startDate)
+		args = append(args, *startDate)
 		placeholderID++
 	}
-	if endDate != "" {
-		if len(endDate) == 10 {
-			endDate += " 23:59:59"
-		}
+	if endDate != nil {
 		whereClause += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
-		args = append(args, endDate)
+		args = append(args, *endDate)
 		placeholderID++
 	}
 
@@ -220,7 +229,7 @@ func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, end
 	return metrics, nil
 }
 
-func (r *MessagesRepository) GetTriggeredCount(storeID string, startDate, endDate string) (int, error) {
+func (r *MessagesRepository) GetTriggeredCount(storeID string, startDate, endDate *time.Time) (int, error) {
 	metrics, err := r.GetAutomationMetrics(storeID, startDate, endDate)
 	if err != nil {
 		return 0, err
@@ -228,7 +237,7 @@ func (r *MessagesRepository) GetTriggeredCount(storeID string, startDate, endDat
 	return metrics["triggered"].(int), nil
 }
 
-func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate string) (int, error) {
+func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *time.Time) (int, error) {
 	metrics, err := r.GetAutomationMetrics(storeID, startDate, endDate)
 	if err != nil {
 		return 0, err

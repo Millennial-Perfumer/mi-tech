@@ -67,7 +67,7 @@ func New() (*Server, error) {
 	templatesService := whatsapp.NewTemplatesService(templatesRepo, cfg)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, cfg)
 	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService, invoiceService)
-	automationHandler := whatsapp.NewAutomationHandler(templatesService, messagesService)
+	automationHandler := whatsapp.NewAutomationHandler(templatesService, messagesService, mappingService, orderService, cfg)
 
 	// 7. Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService)

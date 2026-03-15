@@ -1,12 +1,18 @@
 package whatsapp
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"mi-tech/internal/config"
+	"mi-tech/internal/service"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,15 +24,46 @@ func isValidDate(date string) bool {
 	return err == nil
 }
 
+// parseISTAsUTCBoundaries converts a YYYY-MM-DD string (assumed IST) to a UTC time.Time boundary.
+func parseISTAsUTCBoundaries(dateStr string, isEnd bool) (*time.Time, error) {
+	if dateStr == "" {
+		return nil, nil
+	}
+
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// IST is UTC +5:30
+	ist := time.FixedZone("IST", 5*3600+1800)
+
+	var istMoment time.Time
+	if isEnd {
+		istMoment = time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 999999999, ist)
+	} else {
+		istMoment = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, ist)
+	}
+
+	utcMoment := istMoment.UTC()
+	return &utcMoment, nil
+}
+
 type AutomationHandler struct {
 	templatesService *TemplatesService
 	messagesService  *MessagesService
+	mappingService   *WebhookMappingService
+	orderService     *service.OrderService
+	cfg              *config.Config
 }
 
-func NewAutomationHandler(tService *TemplatesService, mService *MessagesService) *AutomationHandler {
+func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, cfg *config.Config) *AutomationHandler {
 	return &AutomationHandler{
 		templatesService: tService,
 		messagesService:  mService,
+		mappingService:   mappingService,
+		orderService:     orderService,
+		cfg:              cfg,
 	}
 }
 
@@ -54,18 +91,24 @@ func (h *AutomationHandler) CreateTemplate(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request) {
-	startDate := r.URL.Query().Get("start_date")
-	endDate := r.URL.Query().Get("end_date")
+	startDateStr := r.URL.Query().Get("start_date")
+	endDateStr := r.URL.Query().Get("end_date")
 
-	if !isValidDate(startDate) || !isValidDate(endDate) {
-		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+	start, err := parseISTAsUTCBoundaries(startDateStr, false)
+	if err != nil {
+		http.Error(w, "Invalid start date", http.StatusBadRequest)
+		return
+	}
+	end, err := parseISTAsUTCBoundaries(endDateStr, true)
+	if err != nil {
+		http.Error(w, "Invalid end date", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("GetTemplates called for storeID: 1, start: %s, end: %s", startDate, endDate)
+	log.Printf("GetTemplates called for storeID: 1, start: %v, end: %v", start, end)
 	// DECOUPLED: Removed s.templatesService.SyncStatus("1") to eliminate GET latency.
 
-	templates, err := h.templatesService.GetTemplates("1", startDate, endDate)
+	templates, err := h.templatesService.GetTemplates("1", start, end)
 	if err != nil {
 		log.Printf("Error fetching templates: %v", err)
 		http.Error(w, "Failed to fetch templates", http.StatusInternalServerError)
@@ -103,6 +146,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 
 	// 2. Handle status updates
 	if r.Method == http.MethodPost {
+		// Read body for both validation and unmarshaling
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("Error reading WhatsApp webhook body: %v", err)
@@ -110,6 +154,14 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		defer r.Body.Close()
+
+		// 3. Security: Validate X-Hub-Signature-256
+		signature := r.Header.Get("X-Hub-Signature-256")
+		if !h.validateWhatsAppSignature(body, signature) {
+			log.Printf("Invalid X-Hub-Signature-256 received")
+			http.Error(w, "Invalid signature", http.StatusUnauthorized)
+			return
+		}
 
 		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
 		
@@ -147,6 +199,24 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature string) bool {
+	if signature == "" {
+		return false
+	}
+
+	// Signature format: sha256=HEX_DIGEST
+	if !strings.HasPrefix(signature, "sha256=") {
+		return false
+	}
+	actualHash := signature[7:]
+
+	mac := hmac.New(sha256.New, []byte(h.cfg.WhatsAppAppSecret))
+	mac.Write(body)
+	expectedHash := hex.EncodeToString(mac.Sum(nil))
+
+	return hmac.Equal([]byte(actualHash), []byte(expectedHash))
+}
+
 func (h *AutomationHandler) GetTriggers(w http.ResponseWriter, r *http.Request) {
 	triggers, err := h.templatesService.GetTriggers("1")
 	if err != nil {
@@ -175,11 +245,17 @@ func (h *AutomationHandler) CreateTrigger(w http.ResponseWriter, r *http.Request
 }
 
 func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
-	startDate := r.URL.Query().Get("start_date")
-	endDate := r.URL.Query().Get("end_date")
+	startDateStr := r.URL.Query().Get("start_date")
+	endDateStr := r.URL.Query().Get("end_date")
 
-	if !isValidDate(startDate) || !isValidDate(endDate) {
-		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+	start, err := parseISTAsUTCBoundaries(startDateStr, false)
+	if err != nil {
+		http.Error(w, "Invalid start date", http.StatusBadRequest)
+		return
+	}
+	end, err := parseISTAsUTCBoundaries(endDateStr, true)
+	if err != nil {
+		http.Error(w, "Invalid end date", http.StatusBadRequest)
 		return
 	}
 
@@ -196,13 +272,13 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 	}
 	offset := (page - 1) * limit
 
-	messages, err := h.messagesService.GetMessages("1", startDate, endDate, limit, offset)
+	messages, err := h.messagesService.GetMessages("1", start, end, limit, offset)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
 	}
 
-	totalCount, err := h.messagesService.GetMessagesCount("1", startDate, endDate)
+	totalCount, err := h.messagesService.GetMessagesCount("1", start, end)
 	if err != nil {
 		log.Printf("Error fetching message count: %v", err)
 		// Non-blocking, continue with 0 count or let it fail gracefully
@@ -216,15 +292,21 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.Request) {
-	startDate := r.URL.Query().Get("start_date")
-	endDate := r.URL.Query().Get("end_date")
+	startDateStr := r.URL.Query().Get("start_date")
+	endDateStr := r.URL.Query().Get("end_date")
 
-	if !isValidDate(startDate) || !isValidDate(endDate) {
-		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+	start, err := parseISTAsUTCBoundaries(startDateStr, false)
+	if err != nil {
+		http.Error(w, "Invalid start date", http.StatusBadRequest)
+		return
+	}
+	end, err := parseISTAsUTCBoundaries(endDateStr, true)
+	if err != nil {
+		http.Error(w, "Invalid end date", http.StatusBadRequest)
 		return
 	}
 
-	metrics, err := h.messagesService.GetAutomationMetrics("1", startDate, endDate)
+	metrics, err := h.messagesService.GetAutomationMetrics("1", start, end)
 	if err != nil {
 		http.Error(w, "Failed to fetch metrics", http.StatusInternalServerError)
 		return
@@ -337,17 +419,26 @@ func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.R
 	})
 }
 func (h *AutomationHandler) SyncAutomationMetrics(w http.ResponseWriter, r *http.Request) {
-	startDate := r.URL.Query().Get("start_date")
-	endDate := r.URL.Query().Get("end_date")
+	startDateStr := r.URL.Query().Get("start_date")
+	endDateStr := r.URL.Query().Get("end_date")
 
-	if !isValidDate(startDate) || !isValidDate(endDate) {
-		http.Error(w, "Invalid date format, use YYYY-MM-DD", http.StatusBadRequest)
+	start, err := parseISTAsUTCBoundaries(startDateStr, false)
+	if err != nil {
+		http.Error(w, "Invalid start date", http.StatusBadRequest)
+		return
+	}
+	end, err := parseISTAsUTCBoundaries(endDateStr, true)
+	if err != nil {
+		http.Error(w, "Invalid end date", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("SyncAutomationMetrics called: start=%s, end=%s", startDate, endDate)
+	log.Printf("SyncAutomationMetrics called: start=%v, end=%v", start, end)
 
-	metrics, err := h.messagesService.SyncMetricsFromMeta(startDate, endDate)
+	// Since SyncMetricsFromMeta likely takes strings for the Meta API, we might need to format them back to YYYY-MM-DD
+	// But the user said "all logic IST". Meta API handles start/end based on account timezone mostly.
+	// We'll keep strings for Meta API calls for now but ensure we pass the correct filtered range to our local update.
+	metrics, err := h.messagesService.SyncMetricsFromMeta(startDateStr, endDateStr)
 	if err != nil {
 		log.Printf("Error syncing metrics: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to sync metrics: %v", err), http.StatusInternalServerError)
@@ -356,4 +447,44 @@ func (h *AutomationHandler) SyncAutomationMetrics(w http.ResponseWriter, r *http
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metrics)
+}
+
+func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		OrderID    string `json:"order_id"`
+		TemplateID int    `json:"template_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.OrderID == "" || req.TemplateID == 0 {
+		http.Error(w, "order_id and template_id are required", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Fetch current order data
+	order, err := h.orderService.GetOrderEntity(req.OrderID)
+	if err != nil {
+		log.Printf("Manual Send Error: Order %s not found: %v", req.OrderID, err)
+		http.Error(w, "Order not found", http.StatusNotFound)
+		return
+	}
+
+	// 2. Execute send
+	err = h.mappingService.ExecuteManualSend("1", req.TemplateID, order)
+	if err != nil {
+		log.Printf("Manual Send Error: Failed to execute send for order %s, template %d: %v", req.OrderID, req.TemplateID, err)
+		http.Error(w, fmt.Sprintf("Failed to send message: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }

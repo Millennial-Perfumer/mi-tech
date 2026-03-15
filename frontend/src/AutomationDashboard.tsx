@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { CustomDatePicker } from './CustomDatePicker';
 
 interface Metrics {
   sent: number;
@@ -16,15 +17,18 @@ interface Activity {
   phone_number: string;
   status: string;
   order_id: string;
+  order_number: string;
+  customer_name: string;
 }
 
 interface AutomationDashboardProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   startDate: string;
   endDate: string;
+  onDateChange: (start: string, end: string) => void;
 }
 
-export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: AutomationDashboardProps) {
+export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateChange }: AutomationDashboardProps) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +48,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: Autom
         const aData = await messagesResp.json();
         
         setMetrics(mData);
-        setActivities(aData.slice(0, 10)); // Top 10 recent
+        setActivities((aData.messages || []).slice(0, 10)); // Top 10 recent
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
       } finally {
@@ -86,7 +90,9 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: Autom
       <div style={{ 
         display: 'flex', 
         justifyContent: 'flex-end', 
-        marginBottom: '1rem' 
+        alignItems: 'center',
+        gap: '1rem',
+        marginBottom: '2rem' 
       }}>
         <button 
           className="btn-secondary" 
@@ -98,6 +104,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: Autom
             gap: '0.5rem',
             padding: '0.5rem 1rem',
             fontSize: '0.85rem',
+            height: '42px', // Match date picker height
             opacity: isSyncing ? 0.7 : 1
           }}
         >
@@ -117,8 +124,14 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: Autom
             <path d="M3 22v-6h6"></path>
             <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
           </svg>
-          {isSyncing ? 'Syncing...' : 'Sync Ground-Truth Metrics'}
+          {isSyncing ? 'Syncing...' : 'Sync Metrics'}
         </button>
+
+        <CustomDatePicker 
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={onDateChange}
+        />
       </div>
 
       <style>{`
@@ -150,7 +163,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: Autom
             <thead>
               <tr>
                 <th>Time</th>
-                <th>Event/Order</th>
+                <th>Order ID</th>
                 <th>Template</th>
                 <th>Recipient</th>
                 <th>Status</th>
@@ -162,8 +175,13 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: Autom
               ) : (
                 activities.map(a => (
                   <tr key={a.id}>
-                    <td>{new Date(a.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td>{a.order_id ? `#${a.order_id}` : 'Webhook'}</td>
+                    <td>{new Date(a.sent_at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>
+                        {a.order_number ? (a.order_number.startsWith('#') ? a.order_number : `#${a.order_number}`) : (a.order_id ? (a.order_id.startsWith('#') ? a.order_id : `#${a.order_id}`) : '-')}
+                      </div>
+                      {a.customer_name && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{a.customer_name}</div>}
+                    </td>
                     <td><code>{a.template_name}</code></td>
                     <td>{formatPhoneNumber(a.phone_number)}</td>
                     <td>

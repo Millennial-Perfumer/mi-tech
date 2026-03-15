@@ -3,23 +3,18 @@ import { AutomationDashboard } from './AutomationDashboard';
 import { AutomationTemplates } from './AutomationTemplates';
 import { AutomationTriggers } from './AutomationTriggers';
 import { AutomationMessages } from './AutomationMessages';
-import { CustomDatePicker } from './CustomDatePicker';
 
 interface WhatsAppAutomationProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  startDate: string;
+  endDate: string;
+  onDateChange: (start: string, end: string) => void;
 }
 
-export function WhatsAppAutomation({ fetchWithAuth }: WhatsAppAutomationProps) {
+export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateChange }: WhatsAppAutomationProps) {
   const [activeSubTab, setActiveSubTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveSubTab') || 'dashboard';
   });
-
-  const [startDate, setStartDate] = useState<string>(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     localStorage.setItem('gstAppActiveSubTab', activeSubTab);
@@ -63,24 +58,11 @@ export function WhatsAppAutomation({ fetchWithAuth }: WhatsAppAutomationProps) {
         </div>
       </div>
 
-      {activeSubTab !== 'triggers' && (
-        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '2rem' }}>
-          <CustomDatePicker 
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={(start, end) => {
-              setStartDate(start);
-              setEndDate(end);
-            }}
-          />
-        </div>
-      )}
-
       <div className="automation-content">
-        {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} />}
-        {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} />}
+        {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} />}
+        {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} />}
         {activeSubTab === 'triggers' && <AutomationTriggers fetchWithAuth={fetchWithAuth} />}
-        {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} />}
+        {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} />}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
+import { CustomDatePicker } from './CustomDatePicker';
 
 const availableColumns: ColumnOption[] = [
   { id: 'template_name', label: 'Template Name', category: 'Essential' },
@@ -50,9 +51,10 @@ interface AutomationTemplatesProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   startDate: string;
   endDate: string;
+  onDateChange: (start: string, end: string) => void;
 }
 
-export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: AutomationTemplatesProps) {
+export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateChange }: AutomationTemplatesProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -481,7 +483,8 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: Autom
               backgroundColor: 'white',
               color: '#475569',
               cursor: 'pointer',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              height: '42px' // Match date picker height
             }}
             onMouseEnter={e => {
               e.currentTarget.style.borderColor = '#cbd5e1';
@@ -507,6 +510,12 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: Autom
             </svg>
             {isSyncingStatus ? 'Syncing...' : 'Sync Status'}
           </button>
+
+          <CustomDatePicker 
+            startDate={startDate}
+            endDate={endDate}
+            onDateChange={onDateChange}
+          />
 
           <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }}></div>
 

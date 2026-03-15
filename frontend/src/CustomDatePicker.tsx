@@ -58,11 +58,25 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
   // Sync if props change
   useEffect(() => {
+    const start = startDate ? parseISO(startDate) : startOfMonth(startOfToday());
+    const end = endDate ? parseISO(endDate) : endOfToday();
+    
     setLocalSelection({
-      startDate: startDate ? parseISO(startDate) : startOfMonth(startOfToday()),
-      endDate: endDate ? parseISO(endDate) : endOfToday(),
+      startDate: start,
+      endDate: end,
       key: 'selection'
     });
+
+    // Try to find matching preset
+    const startStr = format(start, 'yyyy-MM-dd');
+    const endStr = format(end, 'yyyy-MM-dd');
+    
+    const matchingPreset = PRESETS.find(p => {
+      const [pStart, pEnd] = p.getValue();
+      return format(pStart, 'yyyy-MM-dd') === startStr && format(pEnd, 'yyyy-MM-dd') === endStr;
+    });
+
+    setActivePreset(matchingPreset ? matchingPreset.label : 'Custom');
   }, [startDate, endDate]);
 
   // Click outside listener
@@ -145,51 +159,57 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
         </div>
       </button>
 
-      {/* Popover Dropdown */}
+      {/* Modal Overlay and Content */}
       {isOpen && (
-        <div className="datepicker-popover">
-          <div className="datepicker-content">
+        <div className="datepicker-modal-overlay" onClick={handleCancel}>
+          <div className="datepicker-modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="datepicker-modal-header">
+              <h3>Select Date Range</h3>
+              <button className="modal-close-btn" onClick={handleCancel}>&times;</button>
+            </div>
             
-            {/* Left Presets Sidebar */}
-            <div className="datepicker-sidebar">
-              {PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  className={`preset-btn ${activePreset === preset.label ? 'active' : ''}`}
-                  onClick={() => handlePresetClick(preset)}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Right Calendar Section */}
-            <div className="datepicker-calendar-section">
-              <div className="datepicker-inputs-row">
-                <input type="text" value={format(localSelection.startDate, 'MMM d, yyyy')} readOnly className="date-display-input" />
-                <span style={{color: 'var(--text-secondary)'}}>→</span>
-                <input type="text" value={format(localSelection.endDate || localSelection.startDate, 'MMM d, yyyy')} readOnly className="date-display-input" />
+            <div className="datepicker-content">
+              {/* Left Presets Sidebar */}
+              <div className="datepicker-sidebar">
+                {PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    className={`preset-btn ${activePreset === preset.label ? 'active' : ''}`}
+                    onClick={() => handlePresetClick(preset)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
 
-              <div className="calendar-wrapper">
-                <DateRangePicker
-                  ranges={[localSelection]}
-                  onChange={handleCalendarChange}
-                  months={2}
-                  direction="horizontal"
-                  minDate={parsedMinDate} // Strict constraint
-                  moveRangeOnFirstSelection={false}
-                  showMonthAndYearPickers={false} // Shopify style usually hides year drop downs
-                  showPreview={false} // clean look
-                />
+              {/* Right Calendar Section */}
+              <div className="datepicker-calendar-section">
+                <div className="datepicker-inputs-row">
+                  <input type="text" value={format(localSelection.startDate, 'MMM d, yyyy')} readOnly className="date-display-input" />
+                  <span style={{color: 'var(--text-secondary)'}}>→</span>
+                  <input type="text" value={format(localSelection.endDate || localSelection.startDate, 'MMM d, yyyy')} readOnly className="date-display-input" />
+                </div>
+
+                <div className="calendar-wrapper">
+                  <DateRangePicker
+                    ranges={[localSelection]}
+                    onChange={handleCalendarChange}
+                    months={2}
+                    direction="horizontal"
+                    minDate={parsedMinDate} // Strict constraint
+                    moveRangeOnFirstSelection={false}
+                    showMonthAndYearPickers={false} // Shopify style usually hides year drop downs
+                    showPreview={false} // clean look
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Footer Action Bar */}
-          <div className="datepicker-footer">
-            <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
-            <button className="btn-primary" onClick={handleApply}>Apply</button>
+            {/* Footer Action Bar */}
+            <div className="datepicker-footer">
+              <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
+              <button className="btn-primary" onClick={handleApply}>Apply</button>
+            </div>
           </div>
         </div>
       )}

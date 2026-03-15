@@ -106,6 +106,7 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
+	mux.HandleFunc("/api/automation/whatsapp/send-manual", protected(automationHandler.SendManualMessage))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", protected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
 
