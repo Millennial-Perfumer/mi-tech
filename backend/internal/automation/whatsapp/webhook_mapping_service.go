@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"regexp"
 	"mi-tech/internal/entity"
+	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -28,40 +29,63 @@ type WebhookMappingService struct {
 	templatesRepo   *TemplatesRepository
 	messagesService *MessagesService
 	invoiceService  *service.InvoiceService
+	settingsRepo    *repository.SettingsRepository
 }
 
-func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService) *WebhookMappingService {
+func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository) *WebhookMappingService {
 	return &WebhookMappingService{
 		templatesRepo:   tRepo,
 		messagesService: mService,
 		invoiceService:  iService,
+		settingsRepo:    sRepo,
 	}
 }
 
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
 	log.Printf("Automation Start: Executing mapping for Order %s (%s), Topic: %s", order.ID, order.OrderNumber, topic)
 
-	// 1. Find matching trigger
-	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
-	if err != nil {
-		return fmt.Errorf("error fetching trigger: %w", err)
-	}
-	if trigger == nil {
-		log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s)", topic, storeID)
-		return nil // No mapping for this topic
+	// Check settings for invoice delivery
+	sendInvoiceVal, _ := s.settingsRepo.Get("send_invoice")
+	sendInvoice := sendInvoiceVal != "false" // Default to true
+
+	// 1. Find matching trigger or override
+	var templateID int
+	if !sendInvoice {
+		if topic == "orders/create" {
+			templateID = 148 // order_placed_no_invoice_v3
+			log.Printf("Automation Override: Using no-invoice template (ID: 148) for %s", topic)
+		} else if topic == "orders/updated" {
+			templateID = 149 // order_updated_no_invoice_v3
+			log.Printf("Automation Override: Using no-invoice template (ID: 149) for %s", topic)
+		}
 	}
 
-	// 2. Fetch template
-	template, err := s.templatesRepo.GetTemplateByID(trigger.TemplateID)
+	var template *AutomationTemplate
+	var err error
+
+	if templateID != 0 {
+		template, err = s.templatesRepo.GetTemplateByID(templateID)
+	} else {
+		trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
+		if err != nil {
+			return fmt.Errorf("error fetching trigger: %w", err)
+		}
+		if trigger == nil {
+			log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s)", topic, storeID)
+			return nil
+		}
+		template, err = s.templatesRepo.GetTemplateByID(trigger.TemplateID)
+	}
+
 	if err != nil {
 		return fmt.Errorf("error fetching template: %w", err)
 	}
 	if template == nil {
-		log.Printf("Automation Error: Trigger exists for %s but template %d not found", topic, trigger.TemplateID)
-		return fmt.Errorf("template not found: %d", trigger.TemplateID)
+		log.Printf("Automation Error: Template not found for topic %s", topic)
+		return fmt.Errorf("template not found")
 	}
 
-	log.Printf("Automation Progress: Found trigger %s -> Template: %s (ID: %d)", topic, template.TemplateName, template.ID)
+	log.Printf("Automation Progress: Found template: %s (ID: %d)", template.TemplateName, template.ID)
 	return s.executeWithTemplate(storeID, template, order, topic)
 }
 
@@ -193,46 +217,52 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		json.Unmarshal(*template.Header, &hData)
 
 		if strings.ToUpper(hData.Type) == "DOCUMENT" {
-			// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
-			log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
-
-			// 1. Fetch line items (required for invoice generation)
-			items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
-			if err != nil {
-				log.Printf("Automation Error: Failed to fetch line items for invoice: %v", err)
+			// Check if we should send invoice
+			sendInvoiceVal, _ := s.settingsRepo.Get("send_invoice")
+			if sendInvoiceVal == "false" {
+				log.Printf("Automation Skip: send_invoice setting is false. Skipping invoice attachment.")
 			} else {
-				// 2. Generate PDF bytes
-				var buf bytes.Buffer
-				if err := s.invoiceService.GeneratePDF(order, items, &buf); err != nil {
-					log.Printf("Automation Error: Failed to generate PDF: %v", err)
+				// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
+				log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
+
+				// 1. Fetch line items (required for invoice generation)
+				items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
+				if err != nil {
+					log.Printf("Automation Error: Failed to fetch line items for invoice: %v", err)
 				} else {
-					// 3. Upload to WhatsApp Media API to get a Media ID
-					filename := "Invoice_" + order.OrderNumber + ".pdf"
-					id, err := s.messagesService.metaClient.UploadWhatsAppMedia(buf.Bytes(), filename, "application/pdf")
-					if err != nil {
-						log.Printf("Automation Error: Failed to upload invoice to Meta: %v", err)
-						return fmt.Errorf("failed to upload invoice: %w", err)
-					}
-					log.Printf("Automation Success: Uploaded invoice, Media ID: %s", id)
+					// 2. Generate PDF bytes
+					var buf bytes.Buffer
+					if err := s.invoiceService.GeneratePDF(order, items, &buf); err != nil {
+						log.Printf("Automation Error: Failed to generate PDF: %v", err)
+					} else {
+						// 3. Upload to WhatsApp Media API to get a Media ID
+						filename := "Invoice_" + order.OrderNumber + ".pdf"
+						id, err := s.messagesService.metaClient.UploadWhatsAppMedia(buf.Bytes(), filename, "application/pdf")
+						if err != nil {
+							log.Printf("Automation Error: Failed to upload invoice to Meta: %v", err)
+							return fmt.Errorf("failed to upload invoice: %w", err)
+						}
+						log.Printf("Automation Success: Uploaded invoice, Media ID: %s", id)
 
-					// Meta Cloud API often expects the ID as a numeric value in JSON
-					var idVal interface{} = id
-					if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
-						idVal = numericID
-					}
+						// Meta Cloud API often expects the ID as a numeric value in JSON
+						var idVal interface{} = id
+						if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
+							idVal = numericID
+						}
 
-					components = append(components, map[string]interface{}{
-						"type": "header",
-						"parameters": []map[string]interface{}{
-							{
-								"type": "document",
-								"document": map[string]interface{}{
-									"id":       idVal,
-									"filename": filename,
+						components = append(components, map[string]interface{}{
+							"type": "header",
+							"parameters": []map[string]interface{}{
+								{
+									"type": "document",
+									"document": map[string]interface{}{
+										"id":       idVal,
+										"filename": filename,
+									},
 								},
 							},
-						},
-					})
+						})
+					}
 				}
 			}
 		}

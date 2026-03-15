@@ -105,7 +105,7 @@ export function SettingsTab({ settings, onUpdateSetting, isSyncing, isResetting 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <div>
                 <div style={{ fontWeight: 600, color: '#0f172a' }}>Manual Sync Button</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Show the "Manual Sync" button in the header</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Show the \"Manual Sync\" button in the header</div>
               </div>
               <button 
                 onClick={() => handleToggle('show_sync_button')}
@@ -128,6 +128,38 @@ export function SettingsTab({ settings, onUpdateSetting, isSyncing, isResetting 
                   borderRadius: '50%',
                   backgroundColor: 'white',
                   transform: localSettings.show_sync_button !== 'false' ? 'translateX(24px)' : 'translateX(0)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div>
+                <div style={{ fontWeight: 600, color: '#0f172a' }}>Send Invoice with Order</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Attach PDF invoice to WhatsApp order messages</div>
+              </div>
+              <button 
+                onClick={() => handleToggle('send_invoice')}
+                disabled={isSaving === 'send_invoice'}
+                style={{
+                  position: 'relative',
+                  width: '48px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  backgroundColor: localSettings.send_invoice !== 'false' ? 'var(--accent-color)' : '#cbd5e1', // Default to true if not set
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  padding: '2px'
+                }}
+              >
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: 'white',
+                  transform: localSettings.send_invoice !== 'false' ? 'translateX(24px)' : 'translateX(0)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                 }} />

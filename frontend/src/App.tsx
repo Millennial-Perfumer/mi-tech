@@ -12,6 +12,10 @@ import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+const getTodayIST = () => {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+};
+
 interface Order {
   id: string;
   order_number: string;
@@ -118,8 +122,8 @@ function App() {
   
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
-  const [syncStartDate, setSyncStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [syncEndDate, setSyncEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [syncStartDate, setSyncStartDate] = useState(getTodayIST());
+  const [syncEndDate, setSyncEndDate] = useState(getTodayIST());
   const [syncStep, setSyncStep] = useState<'date' | 'confirm'>('date');
 
   // Sorting and Filtering State
@@ -149,7 +153,7 @@ function App() {
 
   // Default to Year-to-Date (YTD) or January 1st as requested
   const defaultStartDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
-  const defaultEndDate = new Date().toISOString().split('T')[0];
+  const defaultEndDate = getTodayIST();
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
 
@@ -391,7 +395,6 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  const minSyncDate = '2026-01-01';
 
   return (
     <div className="app-container">
@@ -412,34 +415,16 @@ function App() {
               <div className="step-content">
                 <p>Select the date range you wish to synchronize from Shopify. Existing orders will be updated.</p>
                 
-                <div className="sync-form-group">
-                  <label>Sync From</label>
-                  <div className="sync-input-wrapper">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <input 
-                      type="date" 
-                      className="premium-date-input" 
-                      min={minSyncDate}
-                      max={new Date().toISOString().split('T')[0]}
-                      value={syncStartDate}
-                      onChange={(e) => setSyncStartDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="sync-form-group">
-                  <label>Sync To</label>
-                  <div className="sync-input-wrapper">
-                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <input 
-                      type="date" 
-                      className="premium-date-input" 
-                      min={syncStartDate}
-                      max={new Date().toISOString().split('T')[0]}
-                      value={syncEndDate}
-                      onChange={(e) => setSyncEndDate(e.target.value)}
-                    />
-                  </div>
+                <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 600, color: '#334155' }}>Select Sync Range</label>
+                  <CustomDatePicker 
+                    startDate={syncStartDate}
+                    endDate={syncEndDate}
+                    onDateChange={(start, end) => {
+                      setSyncStartDate(start);
+                      setSyncEndDate(end);
+                    }}
+                  />
                 </div>
 
                 <div className="modal-actions">
@@ -536,8 +521,8 @@ function App() {
                   title="Manually fetch orders from Shopify in case webhook delivery fails."
                   style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
                   onClick={() => {
-                    setSyncStartDate(new Date().toISOString().split('T')[0]);
-                    setSyncEndDate(new Date().toISOString().split('T')[0]);
+                    setSyncStartDate(getTodayIST());
+                    setSyncEndDate(getTodayIST());
                     setSyncStep('date');
                     setShowSyncModal(true);
                   }}
