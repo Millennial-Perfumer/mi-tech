@@ -1009,7 +1009,7 @@ function App() {
       </main>
       {/* WhatsApp Modal */}
       {whatsappOrder && (
-        <ManualWhatsAppModal 
+        <ManualWhatsAppModal  
           isOpen={!!whatsappOrder} 
           onClose={() => setWhatsappOrder(null)}
           orderId={whatsappOrder.id}
