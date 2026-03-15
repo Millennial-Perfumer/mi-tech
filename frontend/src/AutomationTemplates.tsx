@@ -62,6 +62,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: Autom
   const [headerFileBlob, setHeaderFileBlob] = useState<string | null>(null);
   const [headerFileName, setHeaderFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSyncingStatus, setIsSyncingStatus] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
@@ -105,6 +106,22 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: Autom
       console.error('Failed to fetch templates:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSyncStatus = async () => {
+    setIsSyncingStatus(true);
+    try {
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates/sync`);
+      if (resp.ok) {
+        fetchTemplates(true);
+      } else {
+        console.error('Failed to sync template status');
+      }
+    } catch (err) {
+      console.error('Error during status sync:', err);
+    } finally {
+      setIsSyncingStatus(false);
     }
   };
 
@@ -410,37 +427,96 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: Autom
         </div>
 
         {!showForm && (
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <ColumnSelector
-              columns={availableColumns}
-              visibleColumns={visibleColumns}
-              onChange={setVisibleColumns}
-            />
-            <button 
-              className="btn-primary" 
-              onClick={() => setShowForm(true)}
-              style={{
-                backgroundColor: '#0ea5e9',
-                color: 'white',
-                border: 'none',
-                padding: '0.65rem 1.25rem',
-                borderRadius: '10px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              Create New Template
-            </button>
-          </div>
+          <button 
+            className="btn-primary" 
+            onClick={() => setShowForm(true)}
+            style={{
+              backgroundColor: '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              padding: '0.65rem 1.25rem',
+              borderRadius: '10px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Create New Template
+          </button>
         )}
       </div>
+
+      {!showForm && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: '1.25rem',
+          marginBottom: '1.5rem',
+          padding: '1rem 1.25rem',
+          background: 'white',
+          borderRadius: '12px',
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
+        }}>
+          <button 
+            className="btn-secondary" 
+            onClick={handleSyncStatus}
+            disabled={isSyncingStatus}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.625rem',
+              padding: '0.55rem 1rem',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: 'white',
+              color: '#475569',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.backgroundColor = 'white';
+            }}
+          >
+            <svg 
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" 
+              strokeLinecap="round" strokeLinejoin="round" 
+              style={{ 
+                animation: isSyncingStatus ? 'spin 2s linear infinite' : 'none',
+                color: isSyncingStatus ? '#0ea5e9' : 'currentColor'
+              }}
+            >
+              <path d="M21 2v6h-6"></path>
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+              <path d="M3 22v-6h6"></path>
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+            </svg>
+            {isSyncingStatus ? 'Syncing...' : 'Sync Status'}
+          </button>
+
+          <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }}></div>
+
+          <ColumnSelector
+            columns={availableColumns}
+            visibleColumns={visibleColumns}
+            onChange={setVisibleColumns}
+          />
+        </div>
+      )}
 
       {showForm && (
         <div className="modal-overlay">

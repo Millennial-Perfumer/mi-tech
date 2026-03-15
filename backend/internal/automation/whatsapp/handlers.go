@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -62,8 +63,7 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 	}
 
 	log.Printf("GetTemplates called for storeID: 1, start: %s, end: %s", startDate, endDate)
-	// Sync status before returning
-	h.templatesService.SyncStatus("1")
+	// DECOUPLED: Removed s.templatesService.SyncStatus("1") to eliminate GET latency.
 
 	templates, err := h.templatesService.GetTemplates("1", startDate, endDate)
 	if err != nil {
@@ -75,6 +75,19 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 	log.Printf("Found %d templates in database", len(templates))
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(templates)
+}
+
+func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Request) {
+	log.Printf("SyncTemplateStatus called for storeID: 1")
+	err := h.templatesService.SyncStatus("1")
+	if err != nil {
+		log.Printf("Error syncing statuses: %v", err)
+		http.Error(w, "Failed to sync template statuses", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "Template statuses synced with Meta"})
 }
 
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
@@ -170,13 +183,36 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	messages, err := h.messagesService.GetMessages("1", startDate, endDate)
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
+		limit = 25
+	}
+	offset := (page - 1) * limit
+
+	messages, err := h.messagesService.GetMessages("1", startDate, endDate, limit, offset)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
 	}
+
+	totalCount, err := h.messagesService.GetMessagesCount("1", startDate, endDate)
+	if err != nil {
+		log.Printf("Error fetching message count: %v", err)
+		// Non-blocking, continue with 0 count or let it fail gracefully
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"messages":    messages,
+		"total_count": totalCount,
+	})
 }
 
 func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.Request) {

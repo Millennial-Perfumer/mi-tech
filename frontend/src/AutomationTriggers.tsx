@@ -234,7 +234,7 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
                     </span>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', color: '#64748b', fontSize: '0.85rem' }}>
-                    {new Date(tr.created_at).toLocaleDateString('/en-GB')}
+                    {new Date(tr.created_at).toLocaleDateString('en-GB')}
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>

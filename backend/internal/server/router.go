@@ -79,6 +79,7 @@ func RegisterRoutes(
 
 	// --- WhatsApp Automation Routes ---
 	mux.HandleFunc("/api/automation/whatsapp/metrics", protected(automationHandler.GetAutomationMetrics))
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync", protected(automationHandler.SyncTemplateStatus))
 	mux.HandleFunc("/api/automation/whatsapp/templates/upload", protected(automationHandler.UploadTemplateMedia))
 	mux.HandleFunc("/api/automation/whatsapp/templates", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

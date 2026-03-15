@@ -54,8 +54,12 @@ func (s *MessagesService) HandleStatusUpdate(messageID, status string) error {
 	return s.repo.UpdateMessageStatus(messageID, status)
 }
 
-func (s *MessagesService) GetMessages(storeID string, startDate, endDate string) ([]AutomationMessage, error) {
-	return s.repo.GetMessages(storeID, startDate, endDate)
+func (s *MessagesService) GetMessages(storeID string, startDate, endDate string, limit, offset int) ([]AutomationMessage, error) {
+	return s.repo.GetMessages(storeID, startDate, endDate, limit, offset)
+}
+
+func (s *MessagesService) GetMessagesCount(storeID string, startDate, endDate string) (int, error) {
+	return s.repo.GetMessagesCount(storeID, startDate, endDate)
 }
 
 func (s *MessagesService) GetAutomationMetrics(storeID string, startDate, endDate string) (map[string]interface{}, error) {
@@ -68,8 +72,10 @@ func (s *MessagesService) SyncMetricsFromMeta(startDate, endDate string) (map[st
 		return nil, err
 	}
 
-	triggered, _ := s.repo.GetTriggeredCount("", startDate, endDate) // Get triggered count locally
-	failed, _ := s.repo.GetFailedCount("", startDate, endDate)       // Get failed count locally
+	// Consolidate: Fetch local metrics once instead of multiple redundant calls
+	localMetrics, _ := s.repo.GetAutomationMetrics("", startDate, endDate)
+	triggered := localMetrics["triggered"].(int)
+	failed := localMetrics["failed"].(int)
 
 	var totalSent, totalDelivered, totalRead int
 	for _, t := range analytics {

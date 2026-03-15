@@ -40,7 +40,6 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate st
 		placeholderID++
 	}
 	if endDate != "" {
-		// Handle date-only input by appending time
 		if len(endDate) == 10 {
 			endDate += " 23:59:59"
 		}
@@ -49,17 +48,25 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate st
 		placeholderID++
 	}
 
-	// Using the same dateFilter for metrics subqueries. 
-	// This works because the placeholders ($2, $3 etc) refer to the same slice of args.
 	query := fmt.Sprintf(`
 		SELECT 
 			t.id, t.store_id, t.template_name, t.language, t.category, t.body, t.header, t.footer, t.buttons, t.status, 
 			COALESCE(t.meta_template_id, ''), t.created_at, t.updated_at,
-			(SELECT COUNT(*) FROM automation_messages WHERE template_id = t.id AND status != 'failed' %s) as sent_count,
-			(SELECT COUNT(*) FROM automation_messages WHERE template_id = t.id AND (status = 'delivered' OR status = 'read') %s) as delivered_count,
-			(SELECT COUNT(*) FROM automation_messages WHERE template_id = t.id AND status = 'read' %s) as read_count
+			COALESCE(m.sent_count, 0),
+			COALESCE(m.delivered_count, 0),
+			COALESCE(m.read_count, 0)
 		FROM automation_templates t
-		WHERE t.store_id = $1`, dateFilter, dateFilter, dateFilter)
+		LEFT JOIN (
+			SELECT 
+				template_id,
+				COUNT(*) FILTER (WHERE status != 'failed') as sent_count,
+				COUNT(*) FILTER (WHERE status = 'delivered' OR status = 'read') as delivered_count,
+				COUNT(*) FILTER (WHERE status = 'read') as read_count
+			FROM automation_messages
+			WHERE 1=1 %s
+			GROUP BY template_id
+		) m ON t.id = m.template_id
+		WHERE t.store_id = $1`, dateFilter)
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {

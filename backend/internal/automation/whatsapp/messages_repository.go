@@ -88,7 +88,7 @@ func (r *MessagesRepository) GetMessagesByOrderID(orderID string) ([]AutomationM
 	}
 	return messages, nil
 }
-func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate string) ([]AutomationMessage, error) {
+func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate string, limit, offset int) ([]AutomationMessage, error) {
 	query := `
 		SELECT m.id, m.store_id, m.template_id, t.template_name, m.order_id, m.phone_number, m.message_id, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
 		FROM automation_messages m
@@ -114,6 +114,12 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate stri
 	}
 
 	query += " ORDER BY m.sent_at DESC"
+	
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", placeholderID, placeholderID+1)
+		args = append(args, limit, offset)
+	}
+
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -133,6 +139,29 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate stri
 		messages = append(messages, m)
 	}
 	return messages, nil
+}
+
+func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate string) (int, error) {
+	query := "SELECT COUNT(*) FROM automation_messages WHERE store_id = $1"
+	args := []interface{}{storeID}
+	placeholderID := 2
+
+	if startDate != "" {
+		query += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
+		args = append(args, startDate)
+		placeholderID++
+	}
+	if endDate != "" {
+		if len(endDate) == 10 {
+			endDate += " 23:59:59"
+		}
+		query += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
+		args = append(args, endDate)
+	}
+
+	var count int
+	err := r.db.QueryRow(query, args...).Scan(&count)
+	return count, err
 }
 
 func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, endDate string) (map[string]interface{}, error) {
