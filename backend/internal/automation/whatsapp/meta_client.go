@@ -395,12 +395,12 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 	// Format: GET /WABA_ID?fields=template_analytics.start(YYYY-MM-DD).end(YYYY-MM-DD).granularity(DAILY)
 	// Note: Meta API requires specific date formats.
 	
-	url := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)", 
+	apiURL := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)", 
 		c.apiVersion, c.wabaID, url.QueryEscape(startDate), url.QueryEscape(endDate))
 	
-	log.Printf("Fetching Meta Analytics from: %s", url)
+	log.Printf("Fetching Meta Analytics from: %s", apiURL)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil, err
 	}
