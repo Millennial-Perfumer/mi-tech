@@ -119,9 +119,9 @@ func (c *MetaClient) UploadMediaFromBytes(appID string, body []byte, mimeType st
 	// 2. Create upload session
 	escapedMime := url.QueryEscape(mimeType)
 	sessionURL := fmt.Sprintf("https://graph.facebook.com/%s/%s/uploads?file_length=%d&file_type=%s", c.apiVersion, appID, fileLength, escapedMime)
-	
+
 	log.Printf("Meta Automation: Creating upload session. Length: %d, Type: %s, URL: %s", fileLength, mimeType, sessionURL)
-	
+
 	req, _ := http.NewRequest("POST", sessionURL, nil)
 	req.Header.Set("Authorization", "Bearer "+c.accessToken)
 
@@ -176,10 +176,10 @@ func (c *MetaClient) UploadWhatsAppMedia(body []byte, filename, mimeType string)
 	// Create a multipart form
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
-	
+
 	// Add messaging_product
 	_ = w.WriteField("messaging_product", "whatsapp")
-	
+
 	// Add the file with explicit Content-Type
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "file", filename))
@@ -189,10 +189,10 @@ func (c *MetaClient) UploadWhatsAppMedia(body []byte, filename, mimeType string)
 		return "", err
 	}
 	_, _ = io.Copy(part, bytes.NewReader(body))
-	
+
 	// Add type
 	_ = w.WriteField("type", mimeType)
-	
+
 	_ = w.Close()
 
 	req, err := http.NewRequest("POST", url, &b)
@@ -394,10 +394,10 @@ type MetaTemplateAnalytics struct {
 func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string]AutomationTemplate, error) {
 	// Format: GET /WABA_ID?fields=template_analytics.start(YYYY-MM-DD).end(YYYY-MM-DD).granularity(DAILY)
 	// Note: Meta API requires specific date formats.
-	
-	apiURL := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)", 
+
+	apiURL := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)",
 		c.apiVersion, c.wabaID, url.QueryEscape(startDate), url.QueryEscape(endDate))
-	
+
 	log.Printf("Fetching Meta Analytics from: %s", apiURL)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
@@ -426,11 +426,11 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 	var result struct {
 		TemplateAnalytics struct {
 			Data []struct {
-				TemplateID string `json:"template_id"`
+				TemplateID   string `json:"template_id"`
 				TemplateName string `json:"template_name"`
-				Sent       int    `json:"sent"`
-				Delivered  int    `json:"delivered"`
-				Read       int    `json:"read"`
+				Sent         int    `json:"sent"`
+				Delivered    int    `json:"delivered"`
+				Read         int    `json:"read"`
 			} `json:"data"`
 		} `json:"template_analytics"`
 	}

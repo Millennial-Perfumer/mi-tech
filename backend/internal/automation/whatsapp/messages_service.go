@@ -73,15 +73,15 @@ func (s *MessagesService) SyncMetricsFromMeta(startDate, endDate string) (map[st
 	}
 
 	// For local metrics, we need to treat the strings as IST and convert to UTC bounds
-	// but since we're in the service layer, we might not have the helper. 
-	// Actually, the easiest is to just pass the strings if the repo still supports them, 
-	// or have the handler pass the parsed times. 
+	// but since we're in the service layer, we might not have the helper.
+	// Actually, the easiest is to just pass the strings if the repo still supports them,
+	// or have the handler pass the parsed times.
 	// Let's assume the repo handles the conversion if we pass it *time.Time.
-	
+
 	// I'll keep it simple for now and update the repo to handle *time.Time.
-	// We'll trust the caller (handler) to pass parsed times if they have them, 
+	// We'll trust the caller (handler) to pass parsed times if they have them,
 	// or we can parse them here using a similar logic.
-	
+
 	// However, SyncMetricsFromMeta is called with strings. Let's parse them.
 	ist := time.FixedZone("IST", 5*3600+1800)
 	var start, end *time.Time

@@ -64,9 +64,9 @@ func New() (*Server, error) {
 	sqlDB, _ := db.DB()
 	templatesRepo := whatsapp.NewTemplatesRepository(sqlDB)
 	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
-	templatesService := whatsapp.NewTemplatesService(templatesRepo, cfg)
+	templatesService := whatsapp.NewTemplatesService(templatesRepo, cfg, settingsRepo)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, cfg)
-	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService, invoiceService)
+	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService, invoiceService, settingsRepo)
 	automationHandler := whatsapp.NewAutomationHandler(templatesService, messagesService, mappingService, orderService, cfg)
 
 	// 7. Handlers

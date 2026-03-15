@@ -110,17 +110,31 @@ func (r *gormOrderRepository) isWeak(s *string) bool {
 }
 
 func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.Order) {
-	if r.isWeak(incoming.CustomerName) && !r.isWeak(existing.CustomerName) { incoming.CustomerName = existing.CustomerName }
-	if r.isWeak(incoming.CustomerFirstName) && !r.isWeak(existing.CustomerFirstName) { incoming.CustomerFirstName = existing.CustomerFirstName }
-	if r.isWeak(incoming.CustomerLastName) && !r.isWeak(existing.CustomerLastName) { incoming.CustomerLastName = existing.CustomerLastName }
-	if r.isWeak(incoming.CustomerEmail) && !r.isWeak(existing.CustomerEmail) { incoming.CustomerEmail = existing.CustomerEmail }
-	if r.isWeak(incoming.CustomerPhone) && !r.isWeak(existing.CustomerPhone) { incoming.CustomerPhone = existing.CustomerPhone }
-	if r.isWeak(incoming.CustomerCity) && !r.isWeak(existing.CustomerCity) { incoming.CustomerCity = existing.CustomerCity }
-	if r.isWeak(incoming.CustomerState) && !r.isWeak(existing.CustomerState) { incoming.CustomerState = existing.CustomerState }
-	if r.isWeak(incoming.CustomerCountry) && !r.isWeak(existing.CustomerCountry) { incoming.CustomerCountry = existing.CustomerCountry }
-	if r.isWeak(incoming.CustomerAddress1) && !r.isWeak(existing.CustomerAddress1) { incoming.CustomerAddress1 = existing.CustomerAddress1 }
-	if r.isWeak(incoming.CustomerAddress2) && !r.isWeak(existing.CustomerAddress2) { incoming.CustomerAddress2 = existing.CustomerAddress2 }
-	if r.isWeak(incoming.CustomerZip) && !r.isWeak(existing.CustomerZip) { incoming.CustomerZip = existing.CustomerZip }
+	updatedAny := false
+	
+	check := func(incomingField **string, existingField **string) {
+		if r.isWeak(*incomingField) && !r.isWeak(*existingField) {
+			*incomingField = *existingField
+		} else if !r.isWeak(*incomingField) && r.isWeak(*existingField) {
+			updatedAny = true
+		}
+	}
+
+	check(&incoming.CustomerName, &existing.CustomerName)
+	check(&incoming.CustomerFirstName, &existing.CustomerFirstName)
+	check(&incoming.CustomerLastName, &existing.CustomerLastName)
+	check(&incoming.CustomerEmail, &existing.CustomerEmail)
+	check(&incoming.CustomerPhone, &existing.CustomerPhone)
+	check(&incoming.CustomerCity, &existing.CustomerCity)
+	check(&incoming.CustomerState, &existing.CustomerState)
+	check(&incoming.CustomerCountry, &existing.CustomerCountry)
+	check(&incoming.CustomerAddress1, &existing.CustomerAddress1)
+	check(&incoming.CustomerAddress2, &existing.CustomerAddress2)
+	check(&incoming.CustomerZip, &existing.CustomerZip)
+
+	if updatedAny {
+		log.Printf("Repository: Order %s PII upgraded from weak/empty to strong data.", incoming.ExternalOrderID)
+	}
 }
 
 func (r *gormOrderRepository) Upsert(order entity.Order) error {

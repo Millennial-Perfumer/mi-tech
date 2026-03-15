@@ -164,7 +164,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 		}
 
 		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
-		
+
 		var payload struct {
 			Entry []struct {
 				Changes []struct {

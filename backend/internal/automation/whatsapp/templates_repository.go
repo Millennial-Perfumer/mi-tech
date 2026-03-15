@@ -76,7 +76,7 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate *t
 	for rows.Next() {
 		var t AutomationTemplate
 		err := rows.Scan(
-			&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, 
+			&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status,
 			&t.MetaTemplateID, &t.CreatedAt, &t.UpdatedAt, &t.SentCount, &t.DeliveredCount, &t.ReadCount,
 		)
 		if err != nil {

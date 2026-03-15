@@ -5,22 +5,25 @@ import (
 	"fmt"
 	"log"
 	"mi-tech/internal/config"
+	"mi-tech/internal/repository"
 	"strings"
 	"time"
 )
 
 type TemplatesService struct {
-	repo       *TemplatesRepository
-	metaClient *MetaClient
-	cfg        *config.Config
+	repo         *TemplatesRepository
+	metaClient   *MetaClient
+	cfg          *config.Config
+	settingsRepo *repository.SettingsRepository
 }
 
-func NewTemplatesService(repo *TemplatesRepository, cfg *config.Config) *TemplatesService {
+func NewTemplatesService(repo *TemplatesRepository, cfg *config.Config, sRepo *repository.SettingsRepository) *TemplatesService {
 	metaClient := NewMetaClient(cfg.WhatsAppAccessToken, cfg.WhatsAppPhoneNumberID, cfg.WhatsAppWABAID)
 	return &TemplatesService{
-		repo:       repo,
-		metaClient: metaClient,
-		cfg:        cfg,
+		repo:         repo,
+		metaClient:   metaClient,
+		cfg:          cfg,
+		settingsRepo: sRepo,
 	}
 }
 
@@ -107,7 +110,7 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 				// Fallback to old behavior if not a quoted JSON string
 				sampleStr = strings.Trim(string(req.Header.Sample), "\"")
 			}
-			
+
 			// Sanitization: Ensure no newlines or spaces in handle
 			sampleStr = strings.TrimSpace(sampleStr)
 			if idx := strings.IndexAny(sampleStr, "\n\r"); idx != -1 {
@@ -214,7 +217,23 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 }
 
 func (s *TemplatesService) GetTriggers(storeID string) ([]Trigger, error) {
-	return s.repo.GetTriggers(storeID)
+	triggers, err := s.repo.GetTriggers(storeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// For other triggers, the TemplateName might come empty from the base GetTriggers
+	// Let's ensure name is joined if missing
+	for i := range triggers {
+		if triggers[i].TemplateName == "" {
+			t, err := s.repo.GetTemplateByID(triggers[i].TemplateID)
+			if err == nil && t != nil {
+				triggers[i].TemplateName = t.TemplateName
+			}
+		}
+	}
+
+	return triggers, nil
 }
 
 func (s *TemplatesService) SyncStatus(storeID string) error {

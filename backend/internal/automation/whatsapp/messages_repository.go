@@ -105,7 +105,7 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 		LEFT JOIN automation_templates t ON m.template_id = t.id
 		LEFT JOIN orders o ON m.order_id = o.id
 		WHERE m.store_id = $1`
-	
+
 	args := []interface{}{storeID}
 	placeholderID := 2
 
@@ -127,7 +127,7 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 	}
 
 	query += " ORDER BY m.sent_at DESC"
-	
+
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", placeholderID, placeholderID+1)
 		args = append(args, limit, offset)
@@ -144,9 +144,9 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 		var m AutomationMessage
 		var templateName, orderNumber, customerName, errorMsg sql.NullString
 		err := rows.Scan(
-			&m.ID, &m.StoreID, &m.TemplateID, &templateName, 
+			&m.ID, &m.StoreID, &m.TemplateID, &templateName,
 			&m.OrderID, &orderNumber, &customerName,
-			&m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt, 
+			&m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt,
 			&m.DeliveredAt, &m.ReadAt, &errorMsg,
 		)
 		if err != nil {
@@ -229,7 +229,7 @@ func (r *MessagesRepository) GetAutomationMetrics(storeID string, startDate, end
 	if err != nil {
 		return nil, err
 	}
-	
+
 	metrics["sent"] = sent
 	metrics["delivered"] = delivered
 	metrics["read"] = read
