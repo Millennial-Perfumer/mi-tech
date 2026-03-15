@@ -7,6 +7,7 @@ import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
 import { ManualWhatsAppModal } from './ManualWhatsAppModal';
+import { SettingsTab } from './SettingsTab';
 import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -229,8 +230,24 @@ function App() {
       if (data.success) {
         setAppSettings(data.settings);
       }
-    } catch (error) {
-      console.error('Error fetching settings:', error);
+    } catch (err) {
+      console.error('Failed to fetch app settings:', err);
+    }
+  };
+
+  const handleUpdateSetting = async (key: string, value: string) => {
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+      });
+      if (!resp.ok) throw new Error('Failed to update setting');
+      setAppSettings(prev => ({ ...prev, [key]: value }));
+    } catch (err) {
+      console.error(`Failed to update setting ${key}:`, err);
+      // Re-fetch to sync with server on failure
+      fetchAppSettings();
     }
   };
 
@@ -497,7 +514,7 @@ function App() {
           <div>
             <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : "Manage your store data and preferences."}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
           {activeTab !== 'automation' && (
@@ -513,26 +530,28 @@ function App() {
                   {isResetting ? 'Resetting...' : 'Reset & Resync'}
                 </button>
               )}
-                 <button 
-                className="btn-primary" 
-                title="Manually fetch orders from Shopify in case webhook delivery fails."
-                style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
-                onClick={() => {
-                  setSyncStartDate(new Date().toISOString().split('T')[0]);
-                  setSyncEndDate(new Date().toISOString().split('T')[0]);
-                  setSyncStep('date');
-                  setShowSyncModal(true);
-                }}
-                disabled={isSyncing || isResetting}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isSyncing ? 'spin' : ''}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                {isSyncing ? 'Syncing...' : 'Manual Sync'}
-              </button>
+              {appSettings?.show_sync_button !== 'false' && (
+                <button 
+                  className="btn-primary" 
+                  title="Manually fetch orders from Shopify in case webhook delivery fails."
+                  style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
+                  onClick={() => {
+                    setSyncStartDate(new Date().toISOString().split('T')[0]);
+                    setSyncEndDate(new Date().toISOString().split('T')[0]);
+                    setSyncStep('date');
+                    setShowSyncModal(true);
+                  }}
+                  disabled={isSyncing || isResetting}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isSyncing ? 'spin' : ''}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  {isSyncing ? 'Syncing...' : 'Manual Sync'}
+                </button>
+              )}
             </div>
           )}
         </header>
 
-        {activeTab !== 'automation' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1006,6 +1025,14 @@ function App() {
           />
         )}
 
+        {activeTab === 'settings' && (
+          <SettingsTab 
+            settings={appSettings} 
+            onUpdateSetting={handleUpdateSetting}
+            isSyncing={isSyncing}
+            isResetting={isResetting}
+          />
+        )}
       </main>
       {/* WhatsApp Modal */}
       {whatsappOrder && (

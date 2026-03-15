@@ -67,7 +67,14 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/webhook/status", protected(webhookHandler.GetWebhookStatus))
 
 	// --- Settings Routes ---
-	mux.HandleFunc("/api/settings", protected(settingsHandler.GetAllSettings))
+	mux.HandleFunc("/api/settings", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			settingsHandler.UpdateSetting(w, r)
+		default:
+			settingsHandler.GetAllSettings(w, r)
+		}
+	}))
 	mux.HandleFunc("/api/settings/date-range", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
