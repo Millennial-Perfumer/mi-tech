@@ -1,4 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
+import { ColumnSelector } from './ColumnSelector';
+import type { ColumnOption } from './ColumnSelector';
+
+const availableColumns: ColumnOption[] = [
+  { id: 'template_name', label: 'Template Name', category: 'Essential' },
+  { id: 'category', label: 'Category', category: 'Essential' },
+  { id: 'language', label: 'Language', category: 'Essential' },
+  { id: 'status', label: 'Status', category: 'Status' },
+  { id: 'created_at', label: 'Created Time', category: 'Status' },
+  { id: 'sent_count', label: 'Sent', category: 'Metrics' },
+  { id: 'delivered_count', label: 'Delivered', category: 'Metrics' },
+  { id: 'read_count', label: 'Read', category: 'Metrics' },
+];
 
 interface TemplateHeader {
   type: 'none' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION';
@@ -28,13 +41,18 @@ interface Template {
   buttons?: TemplateButton[];
   status: string;
   created_at: string;
+  sent_count: number;
+  delivered_count: number;
+  read_count: number;
 }
 
 interface AutomationTemplatesProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  startDate: string;
+  endDate: string;
 }
 
-export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps) {
+export function AutomationTemplates({ fetchWithAuth, startDate, endDate }: AutomationTemplatesProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,6 +64,15 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
   const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('gstAutomationVisibleCols');
+    return saved ? JSON.parse(saved) : ['template_name', 'category', 'language', 'status', 'created_at'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gstAutomationVisibleCols', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
   const [formData, setFormData] = useState({
     name: '',
     category: 'MARKETING',
@@ -70,7 +97,8 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
   const fetchTemplates = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates');
+      const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates${queryParams}`);
       const data = await resp.json();
       setTemplates(data || []);
     } catch (err) {
@@ -118,7 +146,7 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
       }
     }, 30000); // 30 seconds
     return () => clearInterval(interval);
-  }, [showForm]);
+  }, [showForm, startDate, endDate]);
 
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     let value = e.target.value;
@@ -382,7 +410,12 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
         </div>
 
         {!showForm && (
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <ColumnSelector
+              columns={availableColumns}
+              visibleColumns={visibleColumns}
+              onChange={setVisibleColumns}
+            />
             <button 
               className="btn-primary" 
               onClick={() => setShowForm(true)}
@@ -763,35 +796,43 @@ export function AutomationTemplates({ fetchWithAuth }: AutomationTemplatesProps)
         </div>
       )}
 
-      <div className="table-container">
-        <table>
+      <div className="table-container" style={{ overflowX: 'auto', backgroundColor: 'white', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <table style={{ minWidth: '1000px' }}>
           <thead>
             <tr>
-              <th>Template Name</th>
-              <th>Category</th>
-              <th>Language</th>
-              <th>Status</th>
-              <th>Created Time</th>
+              {visibleColumns.includes('template_name') && <th>Template Name</th>}
+              {visibleColumns.includes('category') && <th>Category</th>}
+              {visibleColumns.includes('language') && <th>Language</th>}
+              {visibleColumns.includes('sent_count') && <th style={{ textAlign: 'center' }}>Sent</th>}
+              {visibleColumns.includes('delivered_count') && <th style={{ textAlign: 'center' }}>Deliv.</th>}
+              {visibleColumns.includes('read_count') && <th style={{ textAlign: 'center' }}>Read</th>}
+              {visibleColumns.includes('status') && <th>Status</th>}
+              {visibleColumns.includes('created_at') && <th>Created Time</th>}
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</td></tr>
+              <tr><td colSpan={visibleColumns.length + 1} style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</td></tr>
             ) : templates.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No templates found.</td></tr>
+              <tr><td colSpan={visibleColumns.length + 1} style={{ textAlign: 'center', padding: '2rem' }}>No templates found.</td></tr>
             ) : (
               templates.map(t => (
                 <tr key={t.id}>
-                  <td><strong>{t.template_name}</strong></td>
-                  <td><span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#64748b' }}>{t.category}</span></td>
-                  <td>{t.language}</td>
-                  <td>
-                    <span className="badge" style={getStatusBadgeStyle(t.status || 'PENDING')}>
-                      {(t.status || 'PENDING').toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '0.85rem' }}>{new Date(t.created_at).toLocaleDateString()}</td>
+                  {visibleColumns.includes('template_name') && <td><strong>{t.template_name}</strong></td>}
+                  {visibleColumns.includes('category') && <td><span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#64748b' }}>{t.category}</span></td>}
+                  {visibleColumns.includes('language') && <td>{t.language}</td>}
+                  {visibleColumns.includes('sent_count') && <td style={{ textAlign: 'center' }}><strong>{t.sent_count || 0}</strong></td>}
+                  {visibleColumns.includes('delivered_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.delivered_count > 0 ? '#00a884' : 'inherit' }}>{t.delivered_count || 0}</span></td>}
+                  {visibleColumns.includes('read_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.read_count > 0 ? '#34b7f1' : 'inherit' }}>{t.read_count || 0}</span></td>}
+                  {visibleColumns.includes('status') && (
+                    <td>
+                      <span className="badge" style={getStatusBadgeStyle(t.status || 'PENDING')}>
+                        {(t.status || 'PENDING').toUpperCase()}
+                      </span>
+                    </td>
+                  )}
+                  {visibleColumns.includes('created_at') && <td style={{ fontSize: '0.85rem' }}>{new Date(t.created_at).toLocaleDateString()}</td>}
                   <td>
                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                       <button 

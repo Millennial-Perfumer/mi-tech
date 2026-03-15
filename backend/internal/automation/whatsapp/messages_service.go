@@ -54,10 +54,41 @@ func (s *MessagesService) HandleStatusUpdate(messageID, status string) error {
 	return s.repo.UpdateMessageStatus(messageID, status)
 }
 
-func (s *MessagesService) GetMessages(storeID string) ([]AutomationMessage, error) {
-	return s.repo.GetMessages(storeID)
+func (s *MessagesService) GetMessages(storeID string, startDate, endDate string) ([]AutomationMessage, error) {
+	return s.repo.GetMessages(storeID, startDate, endDate)
 }
 
-func (s *MessagesService) GetAutomationMetrics(storeID string) (map[string]interface{}, error) {
-	return s.repo.GetAutomationMetrics(storeID)
+func (s *MessagesService) GetAutomationMetrics(storeID string, startDate, endDate string) (map[string]interface{}, error) {
+	return s.repo.GetAutomationMetrics(storeID, startDate, endDate)
+}
+
+func (s *MessagesService) SyncMetricsFromMeta(startDate, endDate string) (map[string]interface{}, error) {
+	analytics, err := s.metaClient.GetTemplateAnalytics(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	triggered, _ := s.repo.GetTriggeredCount("", startDate, endDate) // Get triggered count locally
+	failed, _ := s.repo.GetFailedCount("", startDate, endDate)       // Get failed count locally
+
+	var totalSent, totalDelivered, totalRead int
+	for _, t := range analytics {
+		totalSent += t.SentCount
+		totalDelivered += t.DeliveredCount
+		totalRead += t.ReadCount
+	}
+
+	readRate := 0.0
+	if totalSent > 0 {
+		readRate = (float64(totalRead) / float64(totalSent)) * 100
+	}
+
+	return map[string]interface{}{
+		"sent":      totalSent,
+		"delivered": totalDelivered,
+		"read":      totalRead,
+		"read_rate": readRate,
+		"triggered": triggered,
+		"failed":    failed,
+	}, nil
 }

@@ -44,11 +44,14 @@ func (h *AutomationHandler) CreateTemplate(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request) {
-	log.Printf("GetTemplates called for storeID: 1")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+
+	log.Printf("GetTemplates called for storeID: 1, start: %s, end: %s", startDate, endDate)
 	// Sync status before returning
 	h.templatesService.SyncStatus("1")
 
-	templates, err := h.templatesService.GetTemplates("1")
+	templates, err := h.templatesService.GetTemplates("1", startDate, endDate)
 	if err != nil {
 		log.Printf("Error fetching templates: %v", err)
 		http.Error(w, "Failed to fetch templates", http.StatusInternalServerError)
@@ -135,7 +138,10 @@ func (h *AutomationHandler) CreateTrigger(w http.ResponseWriter, r *http.Request
 }
 
 func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
-	messages, err := h.messagesService.GetMessages("1")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+
+	messages, err := h.messagesService.GetMessages("1", startDate, endDate)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
@@ -145,7 +151,10 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.Request) {
-	metrics, err := h.messagesService.GetAutomationMetrics("1")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+
+	metrics, err := h.messagesService.GetAutomationMetrics("1", startDate, endDate)
 	if err != nil {
 		http.Error(w, "Failed to fetch metrics", http.StatusInternalServerError)
 		return
@@ -256,4 +265,20 @@ func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.R
 	json.NewEncoder(w).Encode(map[string]string{
 		"handle": handle,
 	})
+}
+func (h *AutomationHandler) SyncAutomationMetrics(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+
+	log.Printf("SyncAutomationMetrics called: start=%s, end=%s", startDate, endDate)
+
+	metrics, err := h.messagesService.SyncMetricsFromMeta(startDate, endDate)
+	if err != nil {
+		log.Printf("Error syncing metrics: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to sync metrics: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(metrics)
 }

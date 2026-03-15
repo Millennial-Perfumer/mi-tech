@@ -380,3 +380,70 @@ func (c *MetaClient) SendTemplateMessage(phoneNumber, templateName, languageCode
 
 	return "", nil
 }
+
+type MetaTemplateAnalytics struct {
+	Data []struct {
+		TemplateID string `json:"template_id"`
+		Name       string `json:"name"`
+		Sent       int    `json:"sent"`
+		Delivered  int    `json:"delivered"`
+		Read       int    `json:"read"`
+	} `json:"data"`
+}
+
+func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string]AutomationTemplate, error) {
+	// Format: GET /WABA_ID?fields=template_analytics.start(YYYY-MM-DD).end(YYYY-MM-DD).granularity(DAILY)
+	// Note: Meta API requires specific date formats.
+	
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)", 
+		c.apiVersion, c.wabaID, startDate, endDate)
+	
+	log.Printf("Fetching Meta Analytics from: %s", url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		log.Printf("Meta Analytics API Error: %s", string(respBody))
+		return nil, fmt.Errorf("meta api error: status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		TemplateAnalytics struct {
+			Data []struct {
+				TemplateID string `json:"template_id"`
+				TemplateName string `json:"template_name"`
+				Sent       int    `json:"sent"`
+				Delivered  int    `json:"delivered"`
+				Read       int    `json:"read"`
+			} `json:"data"`
+		} `json:"template_analytics"`
+	}
+
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, err
+	}
+
+	analyticsMap := make(map[string]AutomationTemplate)
+	for _, d := range result.TemplateAnalytics.Data {
+		analyticsMap[d.TemplateName] = AutomationTemplate{
+			TemplateName:   d.TemplateName,
+			SentCount:      d.Sent,
+			DeliveredCount: d.Delivered,
+			ReadCount:      d.Read,
+		}
+	}
+
+	return analyticsMap, nil
+}

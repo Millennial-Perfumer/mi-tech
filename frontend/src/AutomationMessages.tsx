@@ -14,16 +14,18 @@ interface Message {
 
 interface AutomationMessagesProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  startDate: string;
+  endDate: string;
 }
 
-export function AutomationMessages({ fetchWithAuth }: AutomationMessagesProps) {
+export function AutomationMessages({ fetchWithAuth, startDate, endDate }: AutomationMessagesProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchMessages = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/messages');
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/messages?start_date=${startDate}&end_date=${endDate}`);
       const data = await resp.json();
       setMessages(data || []);
     } catch (err) {
@@ -38,7 +40,7 @@ export function AutomationMessages({ fetchWithAuth }: AutomationMessagesProps) {
     // Auto-refresh every 10 seconds for real-time status updates
     const interval = setInterval(() => fetchMessages(true), 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [startDate, endDate]);
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {

@@ -20,20 +20,24 @@ interface Activity {
 
 interface AutomationDashboardProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  startDate: string;
+  endDate: string;
 }
 
-export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps) {
+export function AutomationDashboard({ fetchWithAuth, startDate, endDate }: AutomationDashboardProps) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const fetchData = async (silent = false) => {
       if (!silent) setIsLoading(true);
       try {
+        const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
         const [metricsResp, messagesResp] = await Promise.all([
-          fetchWithAuth('http://localhost:8080/api/automation/whatsapp/metrics'),
-          fetchWithAuth('http://localhost:8080/api/automation/whatsapp/messages')
+          fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/metrics${queryParams}`),
+          fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/messages${queryParams}`)
         ]);
         
         const mData = await metricsResp.json();
@@ -55,12 +59,74 @@ export function AutomationDashboard({ fetchWithAuth }: AutomationDashboardProps)
       }
     }, 15000); // 15 seconds for dashboard metrics
     return () => clearInterval(interval);
-  }, []);
+  }, [startDate, endDate]);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
+      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/sync-metrics${queryParams}`);
+      if (resp.ok) {
+        const mData = await resp.json();
+        setMetrics(mData);
+      } else {
+        console.error('Failed to sync metrics from Meta');
+      }
+    } catch (err) {
+      console.error('Error during metrics sync:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   if (isLoading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading dashboard...</div>;
 
   return (
     <div className="automation-dashboard">
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end', 
+        marginBottom: '1rem' 
+      }}>
+        <button 
+          className="btn-secondary" 
+          onClick={handleSync}
+          disabled={isSyncing}
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            opacity: isSyncing ? 0.7 : 1
+          }}
+        >
+          <svg 
+            width="16" 
+            height="16" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            style={{ animation: isSyncing ? 'spin 1.5s linear infinite' : 'none' }}
+          >
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+          </svg>
+          {isSyncing ? 'Syncing...' : 'Sync Ground-Truth Metrics'}
+        </button>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       {/* KPI Grid */}
       <div className="metrics-grid" style={{ 
         display: 'grid', 

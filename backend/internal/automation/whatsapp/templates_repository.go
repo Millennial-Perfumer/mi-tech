@@ -2,6 +2,7 @@ package whatsapp
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -28,10 +29,36 @@ func (r *TemplatesRepository) SaveTemplate(t AutomationTemplate) (int, error) {
 	return id, err
 }
 
-func (r *TemplatesRepository) GetTemplates(storeID string) ([]AutomationTemplate, error) {
-	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, ''), created_at, updated_at 
-	          FROM automation_templates WHERE store_id = $1`
-	rows, err := r.db.Query(query, storeID)
+func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate string) ([]AutomationTemplate, error) {
+	dateFilter := ""
+	args := []interface{}{storeID}
+	placeholderID := 2
+
+	if startDate != "" {
+		dateFilter += fmt.Sprintf(" AND sent_at >= $%d", placeholderID)
+		args = append(args, startDate)
+		placeholderID++
+	}
+	if endDate != "" {
+		if len(endDate) == 10 {
+			endDate += " 23:59:59"
+		}
+		dateFilter += fmt.Sprintf(" AND sent_at <= $%d", placeholderID)
+		args = append(args, endDate)
+		placeholderID++
+	}
+
+	query := fmt.Sprintf(`
+		SELECT 
+			t.id, t.store_id, t.template_name, t.language, t.category, t.body, t.header, t.footer, t.buttons, t.status, 
+			COALESCE(t.meta_template_id, ''), t.created_at, t.updated_at,
+			(SELECT COUNT(*) FROM automation_messages WHERE template_id = t.id AND status != 'failed' %s) as sent_count,
+			(SELECT COUNT(*) FROM automation_messages WHERE template_id = t.id AND (status = 'delivered' OR status = 'read') %s) as delivered_count,
+			(SELECT COUNT(*) FROM automation_messages WHERE template_id = t.id AND status = 'read' %s) as read_count
+		FROM automation_templates t
+		WHERE t.store_id = $1`, dateFilter, dateFilter, dateFilter)
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -40,14 +67,17 @@ func (r *TemplatesRepository) GetTemplates(storeID string) ([]AutomationTemplate
 	var templates []AutomationTemplate
 	for rows.Next() {
 		var t AutomationTemplate
-		err := rows.Scan(&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, &t.MetaTemplateID, &t.CreatedAt, &t.UpdatedAt)
+		err := rows.Scan(
+			&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, 
+			&t.MetaTemplateID, &t.CreatedAt, &t.UpdatedAt, &t.SentCount, &t.DeliveredCount, &t.ReadCount,
+		)
 		if err != nil {
 			log.Printf("Error scanning template row: %v", err)
 			return nil, err
 		}
 		templates = append(templates, t)
 	}
-	log.Printf("Repository: GetTemplates returned %d rows", len(templates))
+	log.Printf("Repository: GetTemplates (filtered) returned %d rows", len(templates))
 	return templates, nil
 }
 
