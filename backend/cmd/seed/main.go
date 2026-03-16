@@ -4,7 +4,9 @@ import (
 	"log"
 	"mi-tech/internal/config"
 	"mi-tech/internal/database"
+	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
+	"os"
 )
 
 func main() {
@@ -14,10 +16,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	authService := service.NewAuthService(db, cfg.JWTSecret)
+	configsRepo := repository.NewConfigsRepository(db)
+	settingsProvider := config.NewSettingsProvider(configsRepo)
 
-	username := "admin"
-	password := "password"
+	authService := service.NewAuthService(db, settingsProvider)
+
+	username := os.Getenv("ADMIN_USERNAME")
+	if username == "" {
+		username = "admin"
+	}
+
+	password := os.Getenv("ADMIN_PASSWORD")
+	if password == "" {
+		password = "password"
+	}
 
 	err = authService.Register(username, password)
 	if err != nil {

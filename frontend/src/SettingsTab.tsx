@@ -1,234 +1,465 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-interface SettingsTabProps {
-  settings: Record<string, string>;
-  onUpdateSetting: (key: string, value: string) => Promise<void>;
-  isSyncing: boolean;
-  isResetting: boolean;
+// Animation for collapsible sections
+const SLIDE_IN_ANIMATION = `
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const API_BASE = 'http://localhost:8080';
+
+interface AppConfig {
+  key: string;
+  value: string;
+  is_secret: boolean;
+  label: string;
+  category: string;
+  sort_order: number;
 }
 
-export function SettingsTab({ settings, onUpdateSetting, isSyncing, isResetting }: SettingsTabProps) {
-  const [localSettings, setLocalSettings] = useState(settings);
-  const [isSaving, setIsSaving] = useState<string | null>(null);
+interface SettingsTabProps {
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
 
-  const handleToggle = async (key: string) => {
-    const newValue = localSettings[key] === 'true' ? 'false' : 'true';
-    setIsSaving(key);
+const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; color: string }> = {
+  shopify: {
+    title: 'Shopify',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>,
+    color: '#10b981'
+  },
+  whatsapp: {
+    title: 'WhatsApp',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
+    color: '#22c55e'
+  },
+  system: {
+    title: 'System',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+    color: '#6366f1'
+  },
+  business: {
+    title: 'Business',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+    color: '#f59e0b'
+  }
+};
+
+export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
+  // Configs state
+  const [configs, setConfigs] = useState<AppConfig[]>([]);
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(true);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  // Fetch configs on mount
+  useEffect(() => {
+    fetchConfigs();
+  }, []);
+
+  const fetchConfigs = async () => {
+    setIsLoadingConfigs(true);
     try {
-      await onUpdateSetting(key, newValue);
-      setLocalSettings(prev => ({ ...prev, [key]: newValue }));
-    } finally {
-      setIsSaving(null);
-    }
-  };
-
-  const handleInputChange = (key: string, value: string) => {
-    setLocalSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleSaveProfile = async () => {
-    const keysToSave = [
-      'business_name', 
-      'business_gstin', 
-      'business_phone', 
-      'business_address_line1', 
-      'business_address_line2'
-    ];
-    
-    setIsSaving('business_profile');
-    try {
-      const changedKeys = keysToSave.filter(key => localSettings[key] !== settings[key]);
-      if (changedKeys.length > 0) {
-        await Promise.all(changedKeys.map(key => 
-          onUpdateSetting(key, localSettings[key] || '')
-        ));
+      const resp = await fetchWithAuth(`${API_BASE}/api/configs`);
+      const data = await resp.json();
+      if (data.success) {
+        setConfigs(data.configs || []);
       }
+    } catch (err) {
+      console.error('Failed to fetch configs:', err);
     } finally {
-      setIsSaving(null);
+      setIsLoadingConfigs(false);
     }
   };
 
-  const hasProfileChanges = [
-    'business_name', 
-    'business_gstin', 
-    'business_phone', 
-    'business_address_line1', 
-    'business_address_line2'
-  ].some(key => (localSettings[key] || '') !== (settings[key] || ''));
+  const handleReveal = async () => {
+    setPasswordError('');
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/configs/reveal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setConfigs(data.configs || []);
+        setIsRevealed(true);
+        setShowPasswordModal(false);
+        setPassword('');
+      } else {
+        setPasswordError(data.message || 'Incorrect password');
+      }
+    } catch (err) {
+      setPasswordError('Network error');
+    }
+  };
+
+  const handleHide = async () => {
+    setIsRevealed(false);
+    await fetchConfigs();
+  };
+
+  const handleStartEdit = (config: AppConfig) => {
+    setEditingKey(config.key);
+    setEditValue(config.value);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingKey(null);
+    setEditValue('');
+  };
+
+  const handleSaveConfig = async (key: string, value: string) => {
+    setIsSavingConfig(true);
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/configs`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
+        setEditingKey(null);
+        setEditValue('');
+      }
+    } catch (err) {
+      console.error('Failed to save config:', err);
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const handleToggleConfig = async (cfg: AppConfig) => {
+    const newValue = cfg.value === 'true' ? 'false' : 'true';
+    await handleSaveConfig(cfg.key, newValue);
+  };
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [cat]: !prev[cat]
+    }));
+  };
+
+  // Group configs by category
+  const groupedConfigs: Record<string, AppConfig[]> = {};
+  configs.forEach(cfg => {
+    if (!groupedConfigs[cfg.category]) groupedConfigs[cfg.category] = [];
+    groupedConfigs[cfg.category].push(cfg);
+  });
+
+  // Sort categories: Business > Shopify > WhatsApp > System
+  const categoryOrder = ['business', 'shopify', 'whatsapp', 'system'];
+  const sortedCategories = Object.keys(groupedConfigs).sort((a, b) => {
+    const idxA = categoryOrder.indexOf(a);
+    const idxB = categoryOrder.indexOf(b);
+    return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+  });
+
+  // Sort items within each category by sort_order
+  sortedCategories.forEach(cat => {
+    groupedConfigs[cat].sort((a, b) => a.sort_order - b.sort_order);
+  });
 
   return (
     <div className="settings-container" style={{ padding: '0.5rem' }}>
-      <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
-        
-        {/* Feature Toggles */}
-        <section className="card" style={{ padding: '2rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-            Feature Management
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>
-            Enable or disable specific tools and buttons across the application interface.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <div>
-                <div style={{ fontWeight: 600, color: '#0f172a' }}>Reset & Resync Button</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Show the Red "Reset" button in the header</div>
-              </div>
-              <button 
-                onClick={() => handleToggle('show_reset_button')}
-                disabled={isSaving === 'show_reset_button' || isResetting || isSyncing}
-                style={{
-                  position: 'relative',
-                  width: '48px',
-                  height: '24px',
-                  borderRadius: '12px',
-                  backgroundColor: localSettings.show_reset_button === 'true' ? 'var(--accent-color)' : '#cbd5e1',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  padding: '2px'
-                }}
-              >
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: 'white',
-                  transform: localSettings.show_reset_button === 'true' ? 'translateX(24px)' : 'translateX(0)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                }} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <div>
-                <div style={{ fontWeight: 600, color: '#0f172a' }}>Manual Sync Button</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Show the \"Manual Sync\" button in the header</div>
-              </div>
-              <button 
-                onClick={() => handleToggle('show_sync_button')}
-                disabled={isSaving === 'show_sync_button' || isSyncing || isResetting}
-                style={{
-                  position: 'relative',
-                  width: '48px',
-                  height: '24px',
-                  borderRadius: '12px',
-                  backgroundColor: localSettings.show_sync_button !== 'false' ? 'var(--accent-color)' : '#cbd5e1', // Default to true if not set
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  padding: '2px'
-                }}
-              >
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: 'white',
-                  transform: localSettings.show_sync_button !== 'false' ? 'translateX(24px)' : 'translateX(0)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                }} />
-              </button>
-            </div>
+      <style>{SLIDE_IN_ANIMATION}</style>
+      <section className="card" style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+              API Keys & Configuration
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Manage Business details, API keys, and Feature configurations. Secret values are masked by default.
+            </p>
           </div>
-        </section>
+          <button
+            className={isRevealed ? 'btn-secondary' : 'btn-primary'}
+            onClick={() => {
+              if (isRevealed) {
+                handleHide();
+              } else {
+                setShowPasswordModal(true);
+                setPassword('');
+                setPasswordError('');
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, borderRadius: '10px', whiteSpace: 'nowrap' }}
+          >
+            {isRevealed ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                Hide Secrets
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                Reveal Secrets
+              </>
+            )}
+          </button>
+        </div>
 
-        {/* Business Information */}
-        <section className="card" style={{ padding: '2rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-            Business Profile
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>
-            These details are used for generating GST-compliant invoices and reports.
-          </p>
+        {isLoadingConfigs ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading configurations...</div>
+        ) : configs.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No configurations found. Run the migration to initialize.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {sortedCategories.map(category => {
+              const items = groupedConfigs[category];
+              const meta = CATEGORY_META[category] || { title: category, icon: null, color: '#64748b' };
+              const isExpanded = expandedCategories[category];
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="input-group">
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Business Name</label>
-              <input 
-                type="text" 
-                value={localSettings.business_name || ''} 
-                onChange={(e) => handleInputChange('business_name', e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
-                placeholder="Enter business name"
-              />
+              return (
+                <div key={category} style={{
+                  border: '1px solid #f1f5f9',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: '#ffffff'
+                }}>
+                  <div
+                    onClick={() => toggleCategory(category)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '1rem 1.25rem',
+                      background: !isExpanded ? '#ffffff' : '#f8fafc',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                    onMouseLeave={e => e.currentTarget.style.background = !isExpanded ? '#ffffff' : '#f8fafc'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ color: meta.color, display: 'flex', alignItems: 'center' }}>{meta.icon}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {meta.title}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                        {items.length}
+                      </span>
+                    </div>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#94a3b8"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </div>
+
+                  {isExpanded && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      padding: '1rem',
+                      borderTop: '1px solid #f1f5f9',
+                      animation: 'slideIn 0.2s ease-out'
+                    }}>
+                    {items.map(cfg => (
+                      <div
+                        key={cfg.key}
+                        className="config-row"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '1rem',
+                          padding: '0.75rem 1rem',
+                          background: editingKey === cfg.key ? '#f0f9ff' : '#f8fafc',
+                          borderRadius: '10px',
+                          border: editingKey === cfg.key ? '1px solid var(--accent-color)' : '1px solid #e2e8f0',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ minWidth: '160px', flexShrink: 0 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>{cfg.label}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace' }}>{cfg.key}</div>
+                        </div>
+                        
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {(cfg.value === 'true' || cfg.value === 'false') && editingKey !== cfg.key ? (
+                            <button 
+                              onClick={() => handleToggleConfig(cfg)}
+                              disabled={isSavingConfig}
+                              style={{
+                                position: 'relative',
+                                width: '42px',
+                                height: '22px',
+                                borderRadius: '11px',
+                                backgroundColor: cfg.value === 'true' ? 'var(--accent-color)' : '#cbd5e1',
+                                border: 'none',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease',
+                                padding: '2px'
+                              }}
+                            >
+                              <div style={{
+                                width: '18px',
+                                height: '18px',
+                                borderRadius: '50%',
+                                backgroundColor: 'white',
+                                transform: cfg.value === 'true' ? 'translateX(20px)' : 'translateX(0)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                              }} />
+                            </button>
+                          ) : editingKey === cfg.key ? (
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={e => setEditValue(e.target.value)}
+                              autoFocus
+                              style={{
+                                width: '100%',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '6px',
+                                border: '1px solid var(--accent-color)',
+                                fontSize: '0.85rem',
+                                fontFamily: 'monospace',
+                                outline: 'none',
+                                boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)'
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
+                                if (e.key === 'Escape') handleCancelEdit();
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              fontSize: '0.85rem',
+                              fontFamily: 'monospace',
+                              color: cfg.is_secret && !isRevealed ? '#94a3b8' : '#334155',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              letterSpacing: cfg.is_secret && !isRevealed ? '0.1em' : 'normal'
+                            }}>
+                              {cfg.value || <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>Not set</span>}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                          {cfg.is_secret && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              color: '#ef4444',
+                              background: '#fef2f2',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid #fee2e2',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em'
+                            }}>
+                              Secret
+                            </span>
+                          )}
+                          
+                          {editingKey === cfg.key ? (
+                            <>
+                              <button
+                                className="toolbar-btn"
+                                title="Save"
+                                disabled={isSavingConfig}
+                                onClick={() => handleSaveConfig(cfg.key, editValue)}
+                                style={{ color: '#10b981' }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                              </button>
+                              <button
+                                className="toolbar-btn"
+                                title="Cancel"
+                                onClick={handleCancelEdit}
+                                style={{ color: '#ef4444' }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="toolbar-btn"
+                              title="Edit"
+                              onClick={() => {
+                                if (cfg.is_secret && !isRevealed) {
+                                  setShowPasswordModal(true);
+                                  setPassword('');
+                                  setPasswordError('');
+                                } else {
+                                  handleStartEdit(cfg);
+                                }
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Password Modal */}
+      {showPasswordModal && (
+        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
+          <div className="premium-modal" style={{ maxWidth: '380px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             </div>
+            <h2 style={{ fontSize: '1.25rem' }}>Enter Password</h2>
+            <p style={{ fontSize: '0.85rem' }}>Enter your admin password to reveal secret values.</p>
             
-            <div className="input-group">
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>GSTIN</label>
-              <input 
-                type="text" 
-                value={localSettings.business_gstin || ''} 
-                onChange={(e) => handleInputChange('business_gstin', e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
-                placeholder="Enter GST registration number"
-              />
-            </div>
-
-            <div className="input-group">
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Phone Number</label>
-              <input 
-                type="text" 
-                value={localSettings.business_phone || ''} 
-                onChange={(e) => handleInputChange('business_phone', e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
-                placeholder="Enter business contact number"
-              />
-            </div>
-
-            <div className="input-group">
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Address Line 1</label>
-              <input 
-                type="text" 
-                value={localSettings.business_address_line1 || ''} 
-                onChange={(e) => handleInputChange('business_address_line1', e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem' }}
-                placeholder="Street address, P.O. box, company name, c/o"
-              />
-            </div>
-
-            <div className="input-group">
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>Address Line 2</label>
-              <textarea 
-                value={localSettings.business_address_line2 || ''} 
-                onChange={(e) => handleInputChange('business_address_line2', e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical' }}
-                placeholder="Apartment, suite, unit, building, floor, etc."
-              />
-            </div>
-
-            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button 
-                className="btn-primary"
-                onClick={handleSaveProfile}
-                disabled={isSaving === 'business_profile' || !hasProfileChanges}
-                style={{ 
-                  padding: '0.75rem 2rem', 
-                  borderRadius: '8px', 
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  opacity: (isSaving === 'business_profile' || !hasProfileChanges) ? 0.6 : 1,
-                  cursor: (isSaving === 'business_profile' || !hasProfileChanges) ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {isSaving === 'business_profile' ? (
-                  <>
-                    <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
-                    Saving...
-                  </>
-                ) : 'Save Profile Changes'}
-              </button>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setPasswordError(''); }}
+              placeholder="Admin password"
+              autoFocus
+              style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid #ef4444' : '2px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s' }}
+              onKeyDown={e => { if (e.key === 'Enter') handleReveal(); }}
+            />
+            {passwordError && (
+              <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 600 }}>
+                {passwordError}
+              </div>
+            )}
+            
+            <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
+              <button className="btn-secondary" onClick={() => setShowPasswordModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleReveal} disabled={!password}>Unlock</button>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

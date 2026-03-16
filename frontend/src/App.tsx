@@ -115,7 +115,7 @@ function App() {
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
   const [appSettings, setAppSettings] = useState<Record<string, string>>({});
   const limit = 25;
-  const [openTrackingId, setOpenTrackingId] = useState<string | null>(null);
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
@@ -183,15 +183,14 @@ function App() {
     }).catch(console.error);
   };
 
-  // Close tracking/status popover when clicking elsewhere
+  // Close status popover when clicking elsewhere
   useEffect(() => {
     const handleOutsideClick = () => {
-      if (openTrackingId) setOpenTrackingId(null);
       if (editingStatusId) setEditingStatusId(null);
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
-  }, [openTrackingId, editingStatusId]);
+  }, [editingStatusId]);
 
   // Debounced search effect
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -239,21 +238,6 @@ function App() {
     }
   };
 
-  const handleUpdateSetting = async (key: string, value: string) => {
-    try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value })
-      });
-      if (!resp.ok) throw new Error('Failed to update setting');
-      setAppSettings(prev => ({ ...prev, [key]: value }));
-    } catch (err) {
-      console.error(`Failed to update setting ${key}:`, err);
-      // Re-fetch to sync with server on failure
-      fetchAppSettings();
-    }
-  };
 
   // Dedicated effect for settings - only on mount or token change
   useEffect(() => {
@@ -819,72 +803,21 @@ function App() {
                         </td>
                       )}
                       {visibleColumns.includes('delivery_status') && (
-                        <td style={{ position: 'relative' }}>
+                        <td>
                           {order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
-                            <div className="delivery-status-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                              <span
-                                className="badge-pill badge-pill-info"
-                                style={{ 
-                                  cursor: order.tracking_number ? 'pointer' : 'default',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  whiteSpace: 'nowrap'
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (order.tracking_number) {
-                                    setOpenTrackingId(openTrackingId === order.id ? null : order.id);
-                                  }
-                                }}
-                              >
-                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                 {order.delivery_status?.charAt(0).toUpperCase() + order.delivery_status?.slice(1)}
+                            <div 
+                              className="delivery-status-collapsed"
+                              title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} - ${order.shipping_company || 'Standard Tracking'}: ${order.tracking_number}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTrackingOrder(order);
+                              }}
+                              style={{ cursor: 'pointer', display: 'inline-block' }}
+                            >
+                              <span className="badge-pill badge-pill-info">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                {order.delivery_status?.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                               </span>
-
-                              {openTrackingId === order.id && (
-                                <div className="tracking-popover" onClick={e => e.stopPropagation()}>
-                                  <div className="tracking-header">
-                                    <span className="tracking-id">{order.order_number}</span>
-                                    <span className="badge-pill badge-pill-info" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                                      {order.delivery_status?.charAt(0).toUpperCase() + order.delivery_status?.slice(1)}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="tracking-info-row">
-                                    <div className="tracking-icon-container">
-                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-                                      </svg>
-                                    </div>
-                                    
-                                    <div className="tracking-details">
-                                      <a
-                                        href={order.tracking_url || `https://www.delhivery.com/track/package/${order.tracking_number}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="tracking-link"
-                                        title="Open tracking page"
-                                      >
-                                        {order.tracking_number}
-                                      </a>
-                                      <div className="carrier-name">{order.shipping_company || 'Standard Tracking'}</div>
-                                    </div>
-                                    
-                                    <button
-                                      className="copy-button"
-                                      title="Copy AWB Number"
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(order.tracking_number);
-                                        // Optional: add a tiny "Copied!" toast/feedback here if needed
-                                      }}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                                      </svg>
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           ) : (
                             <span style={{color: '#94a3b8', fontSize: '0.8rem'}}>—</span>
@@ -1012,10 +945,7 @@ function App() {
 
         {activeTab === 'settings' && (
           <SettingsTab 
-            settings={appSettings} 
-            onUpdateSetting={handleUpdateSetting}
-            isSyncing={isSyncing}
-            isResetting={isResetting}
+            fetchWithAuth={fetchWithAuth}
           />
         )}
       </main>
@@ -1029,6 +959,75 @@ function App() {
           customerName={whatsappOrder.customer_name}
           token={token}
         />
+      )}
+
+      {/* Tracking Modal */}
+      {trackingOrder && (
+        <div className="modal-overlay" onClick={() => setTrackingOrder(null)}>
+          <div className="premium-modal tracking-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9, #2563eb)' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+              </svg>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h2>Tracking Details</h2>
+                <p>Order {trackingOrder.order_number}</p>
+              </div>
+              <span className="badge-pill badge-pill-info" style={{ fontSize: '0.8rem', padding: '6px 14px' }}>
+                <span className="dot"></span> {trackingOrder.delivery_status?.replace(/_/g, ' ')}
+              </span>
+            </div>
+
+            <div className="tracking-card">
+              <div className="tracking-label">Carrier</div>
+              <div className="tracking-value">{trackingOrder.shipping_company || 'Standard Tracking'}</div>
+              
+              <div style={{ margin: '1.5rem 0' }}>
+                <div className="tracking-label">Tracking Number</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <a 
+                    href={trackingOrder.tracking_url || '#'} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="tracking-modal-link"
+                  >
+                    {trackingOrder.tracking_number}
+                  </a>
+                  <button 
+                    className="copy-btn-minimal"
+                    onClick={(e) => {
+                      navigator.clipboard.writeText(trackingOrder.tracking_number);
+                      const btn = e.currentTarget;
+                      const original = btn.innerHTML;
+                      btn.innerHTML = '<span style="color: #10b981; font-size: 0.75rem; font-weight: 700;">Copied!</span>';
+                      setTimeout(() => btn.innerHTML = original, 2000);
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: '2rem' }}>
+                <button className="btn-secondary" onClick={() => setTrackingOrder(null)}>Close</button>
+                <a 
+                  href={trackingOrder.tracking_url || '#'} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  Track on Official Website
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

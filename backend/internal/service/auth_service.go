@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"mi-tech/internal/config"
 	"time"
 
 	"mi-tech/internal/entity"
@@ -13,14 +14,14 @@ import (
 )
 
 type AuthService struct {
-	db        *gorm.DB
-	jwtSecret []byte
+	db       *gorm.DB
+	settings *config.SettingsProvider
 }
 
-func NewAuthService(db *gorm.DB, jwtSecret string) *AuthService {
+func NewAuthService(db *gorm.DB, settings *config.SettingsProvider) *AuthService {
 	return &AuthService{
-		db:        db,
-		jwtSecret: []byte(jwtSecret),
+		db:       db,
+		settings: settings,
 	}
 }
 
@@ -50,7 +51,7 @@ func (s *AuthService) GenerateToken(user entity.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
+	return token.SignedString([]byte(s.settings.GetJWTSecret()))
 }
 
 // Register (for initial setup) hashes password and saves user.
@@ -74,6 +75,6 @@ func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return s.jwtSecret, nil
+		return []byte(s.settings.GetJWTSecret()), nil
 	})
 }

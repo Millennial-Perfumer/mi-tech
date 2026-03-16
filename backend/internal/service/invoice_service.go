@@ -236,7 +236,7 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 }
 
 func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, calcTaxable, calcTax float64) {
-	oGrandTotal := order.TotalPrice
+	oGrandTotal := calcTaxable + calcTax
 
 	isInterState := true
 	custState := ns(order.CustomerState)

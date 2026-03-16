@@ -15,13 +15,13 @@ import (
 )
 
 type Client struct {
-	config     *config.Config
+	settings   *config.SettingsProvider
 	httpClient *http.Client
 }
 
-func NewClient(cfg *config.Config) *Client {
+func NewClient(settings *config.SettingsProvider) *Client {
 	return &Client{
-		config: cfg,
+		settings: settings,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -33,19 +33,22 @@ var baselineDate = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // FetchOrders fetches orders from Shopify using the GraphQL Admin API, extracting specific location vectors.
 func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderNode, error) {
-	if c.config.ShopifyStoreURL == "" || c.config.ShopifyAccessToken == "" {
-		return nil, fmt.Errorf("shopify credentials are not configured")
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+
+	if shopifyURL == "" || accessToken == "" {
+		return nil, fmt.Errorf("shopify credentials are not configured in DB")
 	}
 
 	var allOrders []dto.GraphQLOrderNode
-	apiURL := fmt.Sprintf("https://%s/admin/api/2025-07/graphql.json", c.config.ShopifyStoreURL)
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
 
 	// Build the search query dynamically.
 	searchQuery := fmt.Sprintf("updated_at:>'%s' AND updated_at:<='%s'", since.Format(time.RFC3339), to.Format(time.RFC3339))
-	
+
 	// If since is the default/zero value, we still enforce the 2026-01-01 baseline
 	if since.Before(baselineDate) {
-		searchQuery = fmt.Sprintf("created_at:>='%s' AND updated_at:>'%s' AND updated_at:<='%s'", 
+		searchQuery = fmt.Sprintf("created_at:>='%s' AND updated_at:>'%s' AND updated_at:<='%s'",
 			baselineDate.Format(time.RFC3339), since.Format(time.RFC3339), to.Format(time.RFC3339))
 	}
 
@@ -60,7 +63,6 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 				node {
 					id
 					name
-					email
 					processedAt
 					createdAt
 					updatedAt
@@ -137,6 +139,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 										amount
 									}
 								}
+								currentQuantity
 								variant {
 									inventoryItem {
 										harmonizedSystemCode
@@ -174,7 +177,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 			return nil, err
 		}
 
-		req.Header.Add("X-Shopify-Access-Token", c.config.ShopifyAccessToken)
+		req.Header.Add("X-Shopify-Access-Token", c.settings.GetShopifyAccessToken())
 		req.Header.Add("Content-Type", "application/json")
 
 		resp, err := c.httpClient.Do(req)
@@ -221,11 +224,14 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 
 // FetchOrderByID fetches a single order from Shopify using GraphQL.
 func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
-	if c.config.ShopifyStoreURL == "" || c.config.ShopifyAccessToken == "" {
-		return nil, fmt.Errorf("shopify credentials are not configured")
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+
+	if shopifyURL == "" || accessToken == "" {
+		return nil, fmt.Errorf("shopify credentials are not configured in DB")
 	}
 
-	apiURL := fmt.Sprintf("https://%s/admin/api/2025-07/graphql.json", c.config.ShopifyStoreURL)
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
 
 	// Ensure the ID is in the correct GID format
 	gid := id
@@ -285,6 +291,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 						quantity
 						totalDiscountSet { shopMoney { amount } }
 						originalTotalSet { shopMoney { amount } }
+						currentQuantity
 						variant {
 							inventoryItem {
 								harmonizedSystemCode
@@ -314,7 +321,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 		return nil, err
 	}
 
-	req.Header.Add("X-Shopify-Access-Token", c.config.ShopifyAccessToken)
+	req.Header.Add("X-Shopify-Access-Token", c.settings.GetShopifyAccessToken())
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)

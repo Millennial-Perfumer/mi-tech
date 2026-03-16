@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-wisegst}
+      POSTGRES_DB: ${POSTGRES_DB:-mi-tech}
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
     networks:
@@ -18,12 +18,12 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-backend:latest
     restart: always
     environment:
-      DB_DSN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-wisegst}?sslmode=disable
+      DB_DSN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-mi-tech}?sslmode=disable
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      DB_NAME: ${POSTGRES_DB:-wisegst}
+      DB_NAME: ${POSTGRES_DB:-mi-tech}
       # Add other necessary backend environment variables here
     depends_on:
       - db

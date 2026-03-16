@@ -663,3 +663,142 @@ textarea {
   color: #ef4444;
   background-color: #fee2e2;
 }
+/* Delivery Status Redesign */
+.delivery-status-collapsed {
+  display: inline-flex;
+  transition: all 0.2s ease;
+}
+
+.delivery-status-collapsed:hover {
+  transform: scale(1.05);
+}
+
+.tracking-modal {
+  max-width: 420px !important;
+  background: #ffffff !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  padding: 1.75rem !important;
+}
+
+.tracking-modal .modal-header-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 1.25rem;
+}
+
+.tracking-modal .modal-header-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tracking-modal h2 {
+  font-size: 1.4rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.tracking-modal p {
+  font-size: 0.85rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.tracking-card {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.tracking-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.15rem;
+}
+
+.tracking-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.tracking-modal-link {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent-color);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.tracking-modal-link:hover {
+  border-bottom-color: var(--accent-color);
+}
+
+.copy-btn-minimal {
+  padding: 6px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.copy-btn-minimal svg {
+  width: 14px;
+  height: 14px;
+}
+
+.copy-btn-minimal:hover {
+  background: #f1f5f9;
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.tracking-modal .modal-actions {
+  margin-top: 1.75rem !important;
+  gap: 0.75rem !important;
+}
+
+.tracking-modal .modal-actions button,
+.tracking-modal .modal-actions a {
+  padding: 0.65rem !important;
+  font-size: 0.85rem !important;
+  border-radius: 10px !important;
+}
+
+/* Config Management */
+.config-row:hover {
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+
+.toolbar-btn {
+  padding: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: #f1f5f9;
+  color: var(--accent-color);
+  border-color: #e2e8f0;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
