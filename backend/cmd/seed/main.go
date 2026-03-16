@@ -15,7 +15,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	configsRepo := repository.NewConfigsRepository(db)
+configsRepo, err := repository.NewConfigsRepository(db)
+	if err != nil {
+		log.Fatalf("failed to create configs repository: %v", err)
+	}
 	settingsProvider := config.NewSettingsProvider(configsRepo)
 
 	authService := service.NewAuthService(db, settingsProvider)
