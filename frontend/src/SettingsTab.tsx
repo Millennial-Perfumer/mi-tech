@@ -232,7 +232,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
             {sortedCategories.map(category => {
               const items = groupedConfigs[category];
               const meta = CATEGORY_META[category] || { title: category, icon: null, color: '#64748b' };
-              const isExpanded = expandedCategories[category];
+              const isExpanded = expandedCategories[category] !== false;
 
               return (
                 <div key={category} style={{
@@ -432,6 +432,52 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                         </div>
                       </div>
                     ))}
+                    {category === 'shopify' && (
+                      <div
+                        className="config-row"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '1rem',
+                          padding: '1rem',
+                          background: 'linear-gradient(to right, #f0f9ff, #e0f2fe)',
+                          borderRadius: '10px',
+                          border: '1px dashed #0ea5e9',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '10px', 
+                            background: '#0ea5e9', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'white'
+                          }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0369a1' }}>Manual Order Synchronization</div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
+                          </div>
+                        </div>
+                        <button 
+                          className="btn-primary" 
+                          onClick={() => {
+                            // Trigger the global manual sync button logic
+                            const syncBtn = document.querySelector('button[title*="Manually fetch orders"]') as HTMLButtonElement;
+                            if (syncBtn) syncBtn.click();
+                          }}
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                        >
+                          Launch Sync
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 </div>

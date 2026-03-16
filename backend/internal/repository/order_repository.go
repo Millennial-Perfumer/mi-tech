@@ -147,12 +147,13 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			First(&existing).Error
 
 		if err == nil {
+			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
 			r.mergePII(&existing, &order)
 		}
 
 		// 2. Upsert the order
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
+			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "status", "updated_at",
@@ -232,7 +233,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 
 		// 2. Batch Upsert Orders (Omit LineItems to handle them separately)
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
+			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"order_number", "total_price", "subtotal_price", "total_tax",
 				"updated_at", "customer_name", "customer_email", "customer_phone",

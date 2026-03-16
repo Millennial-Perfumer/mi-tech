@@ -39,6 +39,8 @@ type GraphQLOrderNode struct {
 	ShippingAddress          *GraphQLAddress      `json:"shippingAddress"`
 	Fulfillments             []GraphQLFulfillment `json:"fulfillments"`
 	LineItems                GraphQLLineItemWrap  `json:"lineItems"`
+	CancelledAt              string               `json:"cancelledAt"`
+	CancelReason             string               `json:"cancelReason"`
 }
 
 // MoneySet wraps a shopMoney amount (replaces the old TotalPriceSet).

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { DateRangePicker } from 'react-date-range';
 import type { RangeKeyDict } from 'react-date-range';
 import {
@@ -54,41 +55,34 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     key: 'selection',
   });
 
-  const [activePreset, setActivePreset] = useState<string>('Month to date'); // default
+  const [activePreset, setActivePreset] = useState<string>('Custom');
 
-  // Sync if props change
+  // Sync if props change - ONLY when the props actually change from the parent
+  // But we want to avoid resetting the user's "working" selection if they are picking
   useEffect(() => {
-    const start = startDate ? parseISO(startDate) : startOfMonth(startOfToday());
-    const end = endDate ? parseISO(endDate) : endOfToday();
-    
-    setLocalSelection({
-      startDate: start,
-      endDate: end,
-      key: 'selection'
-    });
+    if (!isOpen) { // Only sync when the dropdown is closed to avoid jumping while picking
+      const start = startDate ? parseISO(startDate) : startOfMonth(startOfToday());
+      const end = endDate ? parseISO(endDate) : endOfToday();
+      
+      setLocalSelection({
+        startDate: start,
+        endDate: end,
+        key: 'selection'
+      });
 
-    // Try to find matching preset
-    const startStr = format(start, 'yyyy-MM-dd');
-    const endStr = format(end, 'yyyy-MM-dd');
-    
-    const matchingPreset = PRESETS.find(p => {
-      const [pStart, pEnd] = p.getValue();
-      return format(pStart, 'yyyy-MM-dd') === startStr && format(pEnd, 'yyyy-MM-dd') === endStr;
-    });
+      const startStr = format(start, 'yyyy-MM-dd');
+      const endStr = format(end, 'yyyy-MM-dd');
+      
+      const matchingPreset = PRESETS.find(p => {
+        const [pStart, pEnd] = p.getValue();
+        return format(pStart, 'yyyy-MM-dd') === startStr && format(pEnd, 'yyyy-MM-dd') === endStr;
+      });
 
-    setActivePreset(matchingPreset ? matchingPreset.label : 'Custom');
-  }, [startDate, endDate]);
+      setActivePreset(matchingPreset ? matchingPreset.label : 'Custom');
+    }
+  }, [startDate, endDate, isOpen]);
 
-  // Click outside listener
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
 
   const handleApply = () => {
     onDateChange(
@@ -159,10 +153,17 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
         </div>
       </button>
 
-      {/* Modal Overlay and Content */}
-      {isOpen && (
-        <div className="datepicker-modal-overlay" onClick={handleCancel}>
-          <div className="datepicker-modal-container" onClick={(e) => e.stopPropagation()}>
+      {/* Modal Overlay and Content - Rendering via Portal to avoid overflow:hidden from parent modals */}
+      {isOpen && createPortal(
+        <div 
+          className="datepicker-modal-overlay" 
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCancel();
+            }
+          }}
+        >
+          <div className="datepicker-modal-container">
             <div className="datepicker-modal-header">
               <h3>Select Date Range</h3>
               <button className="modal-close-btn" onClick={handleCancel}>&times;</button>
@@ -211,7 +212,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
               <button className="btn-primary" onClick={handleApply}>Apply</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

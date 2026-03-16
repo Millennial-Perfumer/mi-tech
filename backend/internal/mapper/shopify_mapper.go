@@ -46,7 +46,12 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	// Determine status
 	status := "unfulfilled"
-	if so.DisplayFulfillmentStatus == "FULFILLED" {
+	deliveryStatus := "pending"
+
+	if so.CancelledAt != "" {
+		status = "CANCELLED"
+		deliveryStatus = ""
+	} else if so.DisplayFulfillmentStatus == "FULFILLED" {
 		status = "fulfilled"
 	} else if so.DisplayFinancialStatus == "PAID" {
 		status = "paid"
@@ -54,7 +59,6 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	financialStatus := strings.ToLower(so.DisplayFinancialStatus)
 	fulfillmentStatus := strings.ToLower(so.DisplayFulfillmentStatus)
-	deliveryStatus := "pending"
 	trackingNumber := ""
 	shippingCompany := ""
 	trackingUrl := ""
@@ -119,6 +123,8 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		ShippingCompany:   strPtr(shippingCompany),
 		TrackingUrl:       strPtr(trackingUrl),
 		Status:            strPtr(status),
+		CancelledAt:       parseTimePtr(&so.CancelledAt),
+		CancelReason:      strPtr(so.CancelReason),
 		CustomerName:      strPtr(custName),
 		CustomerEmail:     strPtr(custEmail),
 		CustomerPhone:     strPtr(custPhone),
