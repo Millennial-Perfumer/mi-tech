@@ -10,6 +10,7 @@ import (
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
 	"net/http"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -103,8 +104,12 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 func (s *Server) Run() error {
 	server := &http.Server{
-		Addr:    ":" + s.port,
-		Handler: s.mux,
+		Addr:              ":" + s.port,
+		Handler:           s.mux,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	log.Printf("Server starting on port %s", s.port)

@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
 
+// Animation for collapsible sections
+const SLIDE_IN_ANIMATION = `
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
 const API_BASE = 'http://localhost:8080';
 
 interface AppConfig {
@@ -49,6 +57,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
   // Fetch configs on mount
   useEffect(() => {
@@ -133,6 +142,13 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
     await handleSaveConfig(cfg.key, newValue);
   };
 
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [cat]: !prev[cat]
+    }));
+  };
+
   // Group configs by category
   const groupedConfigs: Record<string, AppConfig[]> = {};
   configs.forEach(cfg => {
@@ -155,6 +171,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
 
   return (
     <div className="settings-container" style={{ padding: '0.5rem' }}>
+      <style>{SLIDE_IN_ANIMATION}</style>
       <section className="card" style={{ padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
@@ -202,13 +219,66 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
             {sortedCategories.map(category => {
               const items = groupedConfigs[category];
               const meta = CATEGORY_META[category] || { title: category, icon: null, color: '#64748b' };
+              const isExpanded = expandedCategories[category];
+
               return (
-                <div key={category}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                    <span style={{ color: meta.color }}>{meta.icon}</span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{meta.title}</span>
+                <div key={category} style={{
+                  border: '1px solid #f1f5f9',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: '#ffffff'
+                }}>
+                  <div
+                    onClick={() => toggleCategory(category)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '1rem 1.25rem',
+                      background: !isExpanded ? '#ffffff' : '#f8fafc',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                    onMouseLeave={e => e.currentTarget.style.background = !isExpanded ? '#ffffff' : '#f8fafc'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ color: meta.color, display: 'flex', alignItems: 'center' }}>{meta.icon}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {meta.title}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                        {items.length}
+                      </span>
+                    </div>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#94a3b8"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+                  {isExpanded && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      padding: '1rem',
+                      borderTop: '1px solid #f1f5f9',
+                      animation: 'slideIn 0.2s ease-out'
+                    }}>
                     {items.map(cfg => (
                       <div
                         key={cfg.key}
@@ -350,6 +420,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                       </div>
                     ))}
                   </div>
+                )}
                 </div>
               );
             })}

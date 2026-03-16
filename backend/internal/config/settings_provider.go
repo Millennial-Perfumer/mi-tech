@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"mi-tech/internal/repository"
 )
 
@@ -13,7 +14,10 @@ func NewSettingsProvider(configsRepo *repository.ConfigsRepository) *SettingsPro
 }
 
 func (p *SettingsProvider) get(key string) string {
-	val, _ := p.configsRepo.Get(key)
+	val, err := p.configsRepo.Get(key)
+	if err != nil {
+		log.Printf("ERROR: failed to get config for key %s: %v", key, err)
+	}
 	return val
 }
 

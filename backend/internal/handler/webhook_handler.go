@@ -54,7 +54,6 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 	topic := r.Header.Get("X-Shopify-Topic")
 	webhookDeliveryID := r.Header.Get("X-Shopify-Webhook-Id")
 	log.Printf("Received Webhook: %s (Delivery ID: %s)", topic, webhookDeliveryID)
-	log.Printf("Webhook Payload: %s", string(body))
 
 	// Record activity
 	h.webhookService.RecordActivity(topic)

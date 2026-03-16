@@ -6,6 +6,7 @@ import (
 	"mi-tech/internal/database"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
+	"os"
 )
 
 func main() {
@@ -15,16 +16,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-configsRepo, err := repository.NewConfigsRepository(db)
-	if err != nil {
-		log.Fatalf("failed to create configs repository: %v", err)
-	}
+	configsRepo := repository.NewConfigsRepository(db)
 	settingsProvider := config.NewSettingsProvider(configsRepo)
 
 	authService := service.NewAuthService(db, settingsProvider)
 
-	username := "admin"
-	password := "password"
+	username := os.Getenv("ADMIN_USERNAME")
+	if username == "" {
+		username = "admin"
+	}
+
+	password := os.Getenv("ADMIN_PASSWORD")
+	if password == "" {
+		password = "password"
+	}
 
 	err = authService.Register(username, password)
 	if err != nil {

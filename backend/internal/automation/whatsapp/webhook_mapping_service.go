@@ -120,14 +120,24 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 
 	// Template-specific mapping logic
 	if template.TemplateName == "order_dispatched_v3" || template.TemplateName == "out_for_delivery_v3" || template.TemplateName == "order_assigned_v3" {
+		shippingCo := entity.DerefStr(order.ShippingCompany)
+		trackingNum := entity.DerefStr(order.TrackingNumber)
+		trackingUrl := entity.DerefStr(order.TrackingUrl)
+
+		if shippingCo == "" || trackingNum == "" || trackingUrl == "" {
+			log.Printf("Automation Skip: Missing tracking info for template %s (Order: %s). ShippingCo: '%s', TrackingNum: '%s', TrackingUrl: '%s'",
+				template.TemplateName, order.ID, shippingCo, trackingNum, trackingUrl)
+			return nil
+		}
+
 		if requiredCount >= 3 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": shippingCo})
 		}
 		if requiredCount >= 4 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingNumber)})
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": trackingNum})
 		}
 		if requiredCount >= 5 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": trackingUrl})
 		}
 	} else {
 		// Generic fallback
