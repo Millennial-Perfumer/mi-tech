@@ -5,25 +5,22 @@ import (
 	"fmt"
 	"log"
 	"mi-tech/internal/config"
-	"mi-tech/internal/repository"
 	"strings"
 	"time"
 )
 
 type TemplatesService struct {
-	repo         *TemplatesRepository
-	metaClient   *MetaClient
-	cfg          *config.Config
-	settingsRepo *repository.SettingsRepository
+	repo       *TemplatesRepository
+	metaClient *MetaClient
+	settings   *config.SettingsProvider
 }
 
-func NewTemplatesService(repo *TemplatesRepository, cfg *config.Config, sRepo *repository.SettingsRepository) *TemplatesService {
-	metaClient := NewMetaClient(cfg.WhatsAppAccessToken, cfg.WhatsAppPhoneNumberID, cfg.WhatsAppWABAID)
+func NewTemplatesService(repo *TemplatesRepository, settings *config.SettingsProvider) *TemplatesService {
+	metaClient := NewMetaClient(settings)
 	return &TemplatesService{
-		repo:         repo,
-		metaClient:   metaClient,
-		cfg:          cfg,
-		settingsRepo: sRepo,
+		repo:       repo,
+		metaClient: metaClient,
+		settings:   settings,
 	}
 }
 
@@ -71,7 +68,7 @@ func (s *TemplatesService) CreateTemplate(storeID string, req CreateTemplateRequ
 }
 
 func (s *TemplatesService) UploadMediaBytes(body []byte, mimeType string) (string, error) {
-	appID := s.cfg.WhatsAppAppID
+	appID := s.settings.GetWhatsAppAppID()
 	if appID == "" {
 		return "", fmt.Errorf("WHATSAPP_APP_ID is required to upload media")
 	}
@@ -143,7 +140,7 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 				if strings.HasPrefix(sampleStr, "http") {
 					// We must provide a header_handle for template creation.
 					// Upload the URL to Meta first using the Resumable Upload API.
-					appID := s.cfg.WhatsAppAppID
+					appID := s.settings.GetWhatsAppAppID()
 					if appID == "" {
 						return nil, fmt.Errorf("WHATSAPP_APP_ID is required to upload media examples")
 					}

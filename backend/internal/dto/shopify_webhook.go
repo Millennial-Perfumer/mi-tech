@@ -4,6 +4,7 @@ package dto
 type ShopifyWebhookOrder struct {
 	ID                int64                  `json:"id"`
 	OrderNumber       int64                  `json:"order_number"`
+	Name              string                 `json:"name"`
 	Email             string                 `json:"email"`
 	TotalPrice        string                 `json:"total_price"`
 	SubtotalPrice     string                 `json:"subtotal_price"`

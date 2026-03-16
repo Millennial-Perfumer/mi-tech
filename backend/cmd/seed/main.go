@@ -4,6 +4,7 @@ import (
 	"log"
 	"mi-tech/internal/config"
 	"mi-tech/internal/database"
+	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
 )
 
@@ -14,7 +15,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	authService := service.NewAuthService(db, cfg.JWTSecret)
+	configsRepo := repository.NewConfigsRepository(db)
+	settingsProvider := config.NewSettingsProvider(configsRepo)
+
+	authService := service.NewAuthService(db, settingsProvider)
 
 	username := "admin"
 	password := "password"

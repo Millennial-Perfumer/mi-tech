@@ -71,10 +71,10 @@ type GraphQLAddress struct {
 
 // GraphQLFulfillment contains fulfillment & tracking data.
 type GraphQLFulfillment struct {
-	Status        string                `json:"status"`
-	DisplayStatus string                `json:"displayStatus"`
-	CreatedAt     string                `json:"createdAt"`
-	TrackingInfo  []GraphQLTrackingInfo     `json:"trackingInfo"`
+	Status        string                   `json:"status"`
+	DisplayStatus string                   `json:"displayStatus"`
+	CreatedAt     string                   `json:"createdAt"`
+	TrackingInfo  []GraphQLTrackingInfo    `json:"trackingInfo"`
 	Events        GraphQLFulfillmentEvents `json:"events"`
 }
 
@@ -113,16 +113,16 @@ type GraphQLLineItemEdge struct {
 
 // GraphQLLineItemNode represents a single line item from the GraphQL response.
 type GraphQLLineItemNode struct {
-	ID                   string                `json:"id"`
-	Title                string                `json:"title"`
-	SKU                  string                `json:"sku"`
-	Quantity             int                   `json:"quantity"`
-	CurrentQuantity      *int                  `json:"currentQuantity"`
-	Vendor               string                `json:"vendor"`
-	OriginalTotalSet     MoneySet              `json:"originalTotalSet"`
-	TotalDiscountSet     MoneySet              `json:"totalDiscountSet"`
-	OriginalUnitPriceSet MoneySet              `json:"originalUnitPriceSet"`
-	Variant              *GraphQLLineVariant   `json:"variant"`
+	ID                   string              `json:"id"`
+	Title                string              `json:"title"`
+	SKU                  string              `json:"sku"`
+	Quantity             int                 `json:"quantity"`
+	CurrentQuantity      *int                `json:"currentQuantity"`
+	Vendor               string              `json:"vendor"`
+	OriginalTotalSet     MoneySet            `json:"originalTotalSet"`
+	TotalDiscountSet     MoneySet            `json:"totalDiscountSet"`
+	OriginalUnitPriceSet MoneySet            `json:"originalUnitPriceSet"`
+	Variant              *GraphQLLineVariant `json:"variant"`
 }
 
 // GraphQLLineVariant holds variant-level data such as HS codes.

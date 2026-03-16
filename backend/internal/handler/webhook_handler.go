@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
@@ -22,15 +23,15 @@ import (
 type WebhookHandler struct {
 	webhookService *service.WebhookService
 	mappingService *whatsapp.WebhookMappingService
-	webhookSecret  string
+	settings       *config.SettingsProvider
 }
 
 // NewWebhookHandler creates a new WebhookHandler.
-func NewWebhookHandler(webhookService *service.WebhookService, mappingService *whatsapp.WebhookMappingService, secret string) *WebhookHandler {
+func NewWebhookHandler(webhookService *service.WebhookService, mappingService *whatsapp.WebhookMappingService, settings *config.SettingsProvider) *WebhookHandler {
 	return &WebhookHandler{
 		webhookService: webhookService,
 		mappingService: mappingService,
-		webhookSecret:  secret,
+		settings:       settings,
 	}
 }
 
@@ -216,7 +217,8 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 }
 
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
-	if h.webhookSecret == "" {
+	secret := h.settings.GetShopifyWebhookSecret()
+	if secret == "" {
 		return true
 	}
 
@@ -225,7 +227,7 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 		return false
 	}
 
-	hash := hmac.New(sha256.New, []byte(h.webhookSecret))
+	hash := hmac.New(sha256.New, []byte(secret))
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 

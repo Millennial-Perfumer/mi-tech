@@ -54,16 +54,16 @@ type AutomationHandler struct {
 	messagesService  *MessagesService
 	mappingService   *WebhookMappingService
 	orderService     *service.OrderService
-	cfg              *config.Config
+	settings         *config.SettingsProvider
 }
 
-func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, cfg *config.Config) *AutomationHandler {
+func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, settings *config.SettingsProvider) *AutomationHandler {
 	return &AutomationHandler{
 		templatesService: tService,
 		messagesService:  mService,
 		mappingService:   mappingService,
 		orderService:     orderService,
-		cfg:              cfg,
+		settings:         settings,
 	}
 }
 
@@ -210,7 +210,7 @@ func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature str
 	}
 	actualHash := signature[7:]
 
-	mac := hmac.New(sha256.New, []byte(h.cfg.WhatsAppAppSecret))
+	mac := hmac.New(sha256.New, []byte(h.settings.GetWhatsAppAppSecret()))
 	mac.Write(body)
 	expectedHash := hex.EncodeToString(mac.Sum(nil))
 

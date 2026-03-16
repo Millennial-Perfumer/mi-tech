@@ -19,6 +19,7 @@ func RegisterRoutes(
 	webhookHandler *handler.WebhookHandler,
 	automationHandler *whatsapp.AutomationHandler,
 	settingsHandler *handler.SettingsHandler,
+	configsHandler *handler.ConfigsHandler,
 	redirectHandler *handler.RedirectHandler,
 	authHandler *handler.AuthHandler,
 	authService *service.AuthService,
@@ -83,6 +84,17 @@ func RegisterRoutes(
 			settingsHandler.GetDateRange(w, r)
 		}
 	}))
+
+	// --- Configs Routes (API Keys & Secrets) ---
+	mux.HandleFunc("/api/configs", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			configsHandler.UpdateConfig(w, r)
+		default:
+			configsHandler.GetAllConfigs(w, r)
+		}
+	}))
+	mux.HandleFunc("/api/configs/reveal", protected(configsHandler.RevealConfigs))
 
 	// --- WhatsApp Automation Routes ---
 	mux.HandleFunc("/api/automation/whatsapp/metrics", protected(automationHandler.GetAutomationMetrics))

@@ -8,15 +8,15 @@ import (
 type MessagesService struct {
 	repo       *MessagesRepository
 	metaClient *MetaClient
-	cfg        *config.Config
+	settings   *config.SettingsProvider
 }
 
-func NewMessagesService(repo *MessagesRepository, cfg *config.Config) *MessagesService {
-	metaClient := NewMetaClient(cfg.WhatsAppAccessToken, cfg.WhatsAppPhoneNumberID, cfg.WhatsAppWABAID)
+func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvider) *MessagesService {
+	metaClient := NewMetaClient(settings)
 	return &MessagesService{
 		repo:       repo,
 		metaClient: metaClient,
-		cfg:        cfg,
+		settings:   settings,
 	}
 }
 

@@ -145,7 +145,7 @@ func GraphQLLineItemsToEntities(orderID string, items dto.GraphQLLineItemWrap) [
 			qty = *li.CurrentQuantity
 		}
 
-		if qty <= 0 {
+		if li.CurrentQuantity != nil && *li.CurrentQuantity <= 0 {
 			continue
 		}
 
@@ -262,11 +262,16 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		trackingUrl = f.TrackingUrl
 	}
 
+	orderNumber := payload.Name
+	if orderNumber == "" {
+		orderNumber = strconv.FormatInt(payload.OrderNumber, 10)
+	}
+
 	order := entity.Order{
 		ID:                idStr,
 		ExternalOrderID:   idStr,
 		SourceID:          sourceID,
-		OrderNumber:       strconv.FormatInt(payload.OrderNumber, 10),
+		OrderNumber:       orderNumber,
 		TotalPrice:        totalPrice,
 		SubtotalPrice:     &taxableValue,
 		TotalTax:          &totalTax,
@@ -314,7 +319,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 			qty = *li.CurrentQuantity
 		}
 
-		if qty <= 0 {
+		if li.CurrentQuantity != nil && *li.CurrentQuantity <= 0 {
 			continue
 		}
 

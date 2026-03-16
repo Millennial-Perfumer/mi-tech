@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mi-tech/internal/config"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -14,18 +15,14 @@ import (
 )
 
 type MetaClient struct {
-	accessToken   string
-	phoneNumberID string
-	wabaID        string
-	apiVersion    string
+	settings   *config.SettingsProvider
+	apiVersion string
 }
 
-func NewMetaClient(accessToken, phoneNumberID, wabaID string) *MetaClient {
+func NewMetaClient(settings *config.SettingsProvider) *MetaClient {
 	return &MetaClient{
-		accessToken:   accessToken,
-		phoneNumberID: phoneNumberID,
-		wabaID:        wabaID,
-		apiVersion:    "v22.0",
+		settings:   settings,
+		apiVersion: "v22.0",
 	}
 }
 
@@ -37,7 +34,8 @@ type TemplateRequest struct {
 }
 
 func (c *MetaClient) CreateTemplate(req TemplateRequest) (string, error) {
-	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates", c.apiVersion, c.wabaID)
+	wabaID := c.settings.GetWhatsAppWABAID()
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates", c.apiVersion, wabaID)
 	log.Printf("Creating Meta Template at URL: %s", url)
 
 	// Use a custom encoder to prevent escaping of '&' and other characters in URLs
@@ -55,7 +53,7 @@ func (c *MetaClient) CreateTemplate(req TemplateRequest) (string, error) {
 		return "", err
 	}
 
-	httpReq.Header.Set("Authorization", "Bearer "+c.accessToken)
+	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(httpReq)
@@ -123,7 +121,7 @@ func (c *MetaClient) UploadMediaFromBytes(appID string, body []byte, mimeType st
 	log.Printf("Meta Automation: Creating upload session. Length: %d, Type: %s, URL: %s", fileLength, mimeType, sessionURL)
 
 	req, _ := http.NewRequest("POST", sessionURL, nil)
-	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
 	sessionResp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -146,7 +144,7 @@ func (c *MetaClient) UploadMediaFromBytes(appID string, body []byte, mimeType st
 	// 3. Upload file to session
 	uploadURL := fmt.Sprintf("https://graph.facebook.com/%s/%s", c.apiVersion, sessionData.ID)
 	reqUpload, _ := http.NewRequest("POST", uploadURL, bytes.NewBuffer(body))
-	reqUpload.Header.Set("Authorization", "OAuth "+c.accessToken)
+	reqUpload.Header.Set("Authorization", "OAuth "+c.settings.GetWhatsAppAccessToken())
 	reqUpload.Header.Set("file_offset", "0")
 
 	uploadResp, err := http.DefaultClient.Do(reqUpload)
@@ -171,7 +169,8 @@ func (c *MetaClient) UploadMediaFromBytes(appID string, body []byte, mimeType st
 }
 
 func (c *MetaClient) UploadWhatsAppMedia(body []byte, filename, mimeType string) (string, error) {
-	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/media", c.apiVersion, c.phoneNumberID)
+	phoneNumberID := c.settings.GetWhatsAppPhoneNumberID()
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/media", c.apiVersion, phoneNumberID)
 
 	// Create a multipart form
 	var b bytes.Buffer
@@ -200,7 +199,7 @@ func (c *MetaClient) UploadWhatsAppMedia(body []byte, filename, mimeType string)
 		return "", err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
 	resp, err := http.DefaultClient.Do(req)
@@ -241,7 +240,7 @@ func (c *MetaClient) UpdateTemplate(metaTemplateID string, components []map[stri
 		return err
 	}
 
-	httpReq.Header.Set("Authorization", "Bearer "+c.accessToken)
+	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(httpReq)
@@ -259,14 +258,15 @@ func (c *MetaClient) UpdateTemplate(metaTemplateID string, components []map[stri
 }
 
 func (c *MetaClient) DeleteTemplate(templateName string) error {
-	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?name=%s", c.apiVersion, c.wabaID, templateName)
+	wabaID := c.settings.GetWhatsAppWABAID()
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?name=%s", c.apiVersion, wabaID, templateName)
 
 	httpReq, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
 
-	httpReq.Header.Set("Authorization", "Bearer "+c.accessToken)
+	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
@@ -290,14 +290,15 @@ type RemoteTemplate struct {
 }
 
 func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTemplate, error) {
-	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?name=%s", c.apiVersion, c.wabaID, url.QueryEscape(templateName))
+	wabaID := c.settings.GetWhatsAppWABAID()
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?name=%s", c.apiVersion, wabaID, url.QueryEscape(templateName))
 
 	httpReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	httpReq.Header.Set("Authorization", "Bearer "+c.accessToken)
+	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
@@ -325,7 +326,8 @@ func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTempla
 }
 
 func (c *MetaClient) SendTemplateMessage(phoneNumber, templateName, languageCode string, components []interface{}) (string, error) {
-	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/messages", c.apiVersion, c.phoneNumberID)
+	phoneNumberID := c.settings.GetWhatsAppPhoneNumberID()
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/messages", c.apiVersion, phoneNumberID)
 
 	payload := map[string]interface{}{
 		"messaging_product": "whatsapp",
@@ -350,7 +352,7 @@ func (c *MetaClient) SendTemplateMessage(phoneNumber, templateName, languageCode
 		return "", err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -395,8 +397,9 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 	// Format: GET /WABA_ID?fields=template_analytics.start(YYYY-MM-DD).end(YYYY-MM-DD).granularity(DAILY)
 	// Note: Meta API requires specific date formats.
 
+	wabaID := c.settings.GetWhatsAppWABAID()
 	apiURL := fmt.Sprintf("https://graph.facebook.com/%s/%s?fields=template_analytics.start(%s).end(%s)",
-		c.apiVersion, c.wabaID, url.QueryEscape(startDate), url.QueryEscape(endDate))
+		c.apiVersion, wabaID, url.QueryEscape(startDate), url.QueryEscape(endDate))
 
 	log.Printf("Fetching Meta Analytics from: %s", apiURL)
 
@@ -405,7 +408,7 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
