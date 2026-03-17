@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -23,9 +24,20 @@ func Load() *Config {
 		port = "8080"
 	}
 
-	dbDSN := os.Getenv("DB_DSN")
-	if dbDSN == "" {
-		dbDSN = "postgres://postgres:password@localhost:5432/mi-tech?sslmode=disable&timezone=UTC"
+	// Prefer individual components for robustness against special characters
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+
+	var dbDSN string
+	if dbUser != "" && dbHost != "" {
+		dbDSN = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+			dbHost, dbUser, dbPass, dbName, dbPort)
+	} else {
+		// Fallback to DB_DSN if components are missing
+		dbDSN = os.Getenv("DB_DSN")
 	}
 
 	return &Config{
