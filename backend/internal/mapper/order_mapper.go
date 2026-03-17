@@ -11,7 +11,7 @@ import (
 // OrderEntityToResponse converts a DB entity to an API response DTO.
 func OrderEntityToResponse(e entity.Order) dto.OrderResponse {
 	resp := dto.OrderResponse{
-		ID:                e.ID,
+		ID:                fmt.Sprintf("%d", e.ID),
 		OrderNumber:       e.OrderNumber,
 		TotalPrice:        fmt.Sprintf("%.2f", e.TotalPrice),
 		SubtotalPrice:     ptrFloat64ToStr(e.SubtotalPrice),

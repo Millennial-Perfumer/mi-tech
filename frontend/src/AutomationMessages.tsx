@@ -3,7 +3,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 
 interface Message {
   id: number;
-  order_id: string;
+  order_id: string | number;
   order_number: string;
   customer_name: string;
   phone_number: string;
@@ -165,7 +165,9 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
                   </td>
                   <td>
                     <div style={{ fontWeight: 600 }}>
-                      {m.order_number ? (m.order_number.startsWith('#') ? m.order_number : `#${m.order_number}`) : (m.order_id ? (m.order_id.startsWith('#') ? m.order_id : `#${m.order_id}`) : 'Bulk/Test')}
+                      {m.order_number ? 
+                        (String(m.order_number).startsWith('#') ? m.order_number : `#${m.order_number}`) : 
+                        (m.order_id ? (String(m.order_id).startsWith('#') ? m.order_id : `#${m.order_id}`) : 'Bulk/Test')}
                     </div>
                     {m.customer_name && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{m.customer_name}</div>}
                   </td>

@@ -7,7 +7,7 @@ import (
 
 // Order represents a row in the "orders" table.
 type Order struct {
-	ID                string           `gorm:"column:id;primaryKey"`
+	ID                int64            `gorm:"column:id;primaryKey;autoIncrement"`
 	SourceID          string           `gorm:"column:source_id"`
 	ExternalOrderID   string           `gorm:"column:external_order_id"`
 	StoreID           *string          `gorm:"column:store_id"`
@@ -47,7 +47,7 @@ func (Order) TableName() string { return "orders" }
 // LineItem represents a row in the "order_line_items" table.
 type LineItem struct {
 	ID        string   `gorm:"column:id;primaryKey"`
-	OrderID   string   `gorm:"column:order_id"`
+	OrderID   int64    `gorm:"column:order_id"`
 	ProductID *string  `gorm:"column:product_id"`
 	VariantID *string  `gorm:"column:variant_id"`
 	Title     *string  `gorm:"column:title"`
@@ -64,7 +64,7 @@ func (LineItem) TableName() string { return "order_line_items" }
 type WebhookEvent struct {
 	ID                int              `gorm:"column:id;primaryKey;autoIncrement"`
 	SourceID          string           `gorm:"column:source_id"`
-	OrderID           *string          `gorm:"column:order_id"`
+	OrderID           *int64           `gorm:"column:order_id"`
 	Topic             string           `gorm:"column:topic"`
 	ExternalID        string           `gorm:"column:external_id"`
 	WebhookDeliveryID string           `gorm:"column:webhook_delivery_id"`

@@ -79,7 +79,13 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	rowsAffected, err := h.orderService.UpdateOrderStatus(id, reqBody.Status)
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid order id format", http.StatusBadRequest)
+		return
+	}
+
+	rowsAffected, err := h.orderService.UpdateOrderStatus(idInt, reqBody.Status)
 	if err != nil {
 		http.Error(w, "Failed to update database", http.StatusInternalServerError)
 		return
@@ -103,9 +109,15 @@ func (h *OrderHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.URL.Query().Get("id")
-	if id == "" {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
 		http.Error(w, "Missing order id", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid order id format", http.StatusBadRequest)
 		return
 	}
 

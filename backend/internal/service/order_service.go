@@ -49,7 +49,7 @@ func (s *OrderService) ListOrders(startDate, endDate string, page, limit int, se
 }
 
 // GetOrder retrieves a single order by ID with its line items.
-func (s *OrderService) GetOrder(id string) (dto.OrderResponse, error) {
+func (s *OrderService) GetOrder(id int64) (dto.OrderResponse, error) {
 	e, err := s.orderRepo.GetByID(id)
 	if err != nil {
 		return dto.OrderResponse{}, err
@@ -65,7 +65,7 @@ func (s *OrderService) GetOrder(id string) (dto.OrderResponse, error) {
 }
 
 // GetOrderEntity retrieves the raw entity for internal use (e.g., invoice generation).
-func (s *OrderService) GetOrderEntity(id string) (entity.Order, error) {
+func (s *OrderService) GetOrderEntity(id int64) (entity.Order, error) {
 	return s.orderRepo.GetByID(id)
 }
 
@@ -75,12 +75,12 @@ func (s *OrderService) GetOrderByExternalID(externalID string) (entity.Order, er
 }
 
 // GetLineItems retrieves line items for an order.
-func (s *OrderService) GetLineItems(orderID string) ([]entity.LineItem, error) {
+func (s *OrderService) GetLineItems(orderID int64) ([]entity.LineItem, error) {
 	return s.lineItemRepo.GetByOrderID(orderID)
 }
 
 // UpdateOrderStatus updates the status field of an order.
-func (s *OrderService) UpdateOrderStatus(id string, status string) (int64, error) {
+func (s *OrderService) UpdateOrderStatus(id int64, status string) (int64, error) {
 	return s.orderRepo.UpdateOrderStatus(id, status)
 }
 

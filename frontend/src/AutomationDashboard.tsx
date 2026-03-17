@@ -16,7 +16,7 @@ interface Activity {
   template_name: string;
   phone_number: string;
   status: string;
-  order_id: string;
+  order_id: string | number;
   order_number: string;
   customer_name: string;
 }
@@ -178,7 +178,9 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
                     <td>{new Date(a.sent_at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                     <td>
                       <div style={{ fontWeight: 600 }}>
-                        {a.order_number ? (a.order_number.startsWith('#') ? a.order_number : `#${a.order_number}`) : (a.order_id ? (a.order_id.startsWith('#') ? a.order_id : `#${a.order_id}`) : '-')}
+                        {a.order_number ? 
+                          (String(a.order_number).startsWith('#') ? a.order_number : `#${a.order_number}`) : 
+                          (a.order_id ? (String(a.order_id).startsWith('#') ? a.order_id : `#${a.order_id}`) : '-')}
                       </div>
                       {a.customer_name && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{a.customer_name}</div>}
                     </td>

@@ -20,7 +20,7 @@ func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvi
 	}
 }
 
-func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, orderID, phoneNumber, templateName, languageCode string, components []interface{}) error {
+func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}) error {
 	// 1. Send via Meta
 	msgID, err := s.metaClient.SendTemplateMessage(phoneNumber, templateName, languageCode, components)
 	if err != nil {

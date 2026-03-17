@@ -126,7 +126,6 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	inr := "INR"
 	return entity.Order{
-		ID:                idStr,
 		ExternalOrderID:   idStr,
 		SourceID:          sourceID,
 		OrderNumber:       so.Name,
@@ -155,7 +154,7 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 }
 
 // GraphQLLineItemsToEntities converts GraphQL line items into DB entities.
-func GraphQLLineItemsToEntities(orderID string, items dto.GraphQLLineItemWrap) []entity.LineItem {
+func GraphQLLineItemsToEntities(orderID int64, items dto.GraphQLLineItemWrap) []entity.LineItem {
 	var result []entity.LineItem
 	defaultHSN := "33029019"
 	for _, edge := range items.Edges {
@@ -313,7 +312,6 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 	}
 
 	order := entity.Order{
-		ID:                idStr,
 		ExternalOrderID:   idStr,
 		SourceID:          sourceID,
 		OrderNumber:       orderNumber,
@@ -370,7 +368,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 
 		order.LineItems = append(order.LineItems, entity.LineItem{
 			ID:        strconv.FormatInt(li.ID, 10),
-			OrderID:   idStr,
+			OrderID:   0, // Will be linked in repository
 			ProductID: strPtr(strconv.FormatInt(li.ProductID, 10)),
 			VariantID: strPtr(strconv.FormatInt(li.VariantID, 10)),
 			Title:     strPtr(li.Title),
