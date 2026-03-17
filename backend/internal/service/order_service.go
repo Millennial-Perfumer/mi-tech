@@ -69,6 +69,11 @@ func (s *OrderService) GetOrderEntity(id int64) (entity.Order, error) {
 	return s.orderRepo.GetByID(id)
 }
 
+// GetOrderFlexible retrieves an order by either internal ID or external ID.
+func (s *OrderService) GetOrderFlexible(id string) (entity.Order, error) {
+	return s.orderRepo.GetByFlexibleID(id)
+}
+
 // GetOrderByExternalID retrieves an order by external (Shopify) ID.
 func (s *OrderService) GetOrderByExternalID(externalID string) (entity.Order, error) {
 	return s.orderRepo.GetByExternalID(externalID)

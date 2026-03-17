@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 	"mi-tech/internal/repository"
-	"strconv"
 	"strings"
 )
 
@@ -23,13 +22,7 @@ func (h *RedirectHandler) RedirectTracking(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	idInt, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		http.Redirect(w, r, "https://millennialperfumer.com", http.StatusTemporaryRedirect)
-		return
-	}
-
-	order, err := h.orderRepo.GetByID(idInt)
+	order, err := h.orderRepo.GetByFlexibleID(id)
 	if err != nil {
 		http.Redirect(w, r, "https://millennialperfumer.com", http.StatusTemporaryRedirect)
 		return

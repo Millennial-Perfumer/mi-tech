@@ -23,6 +23,7 @@ type OrderFilter struct {
 // OrderRepository defines all data access operations for the orders table.
 type OrderRepository interface {
 	List(filter OrderFilter) ([]entity.Order, int, error)
+	GetByFlexibleID(id string) (entity.Order, error)
 	GetByID(id int64) (entity.Order, error)
 	GetByExternalID(externalID string) (entity.Order, error)
 	Upsert(order entity.Order) error

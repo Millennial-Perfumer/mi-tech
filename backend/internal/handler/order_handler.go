@@ -79,13 +79,13 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idInt, err := strconv.ParseInt(id, 10, 64)
+	order, err := h.orderService.GetOrderFlexible(id)
 	if err != nil {
-		http.Error(w, "Invalid order id format", http.StatusBadRequest)
+		http.Error(w, "Order not found", http.StatusNotFound)
 		return
 	}
 
-	rowsAffected, err := h.orderService.UpdateOrderStatus(idInt, reqBody.Status)
+	rowsAffected, err := h.orderService.UpdateOrderStatus(order.ID, reqBody.Status)
 	if err != nil {
 		http.Error(w, "Failed to update database", http.StatusInternalServerError)
 		return
@@ -115,14 +115,8 @@ func (h *OrderHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid order id format", http.StatusBadRequest)
-		return
-	}
-
-	// Fetch order entity + line items via service
-	order, err := h.orderService.GetOrderEntity(id)
+	// Fetch order entity via service
+	order, err := h.orderService.GetOrderFlexible(idStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Order not found", http.StatusNotFound)

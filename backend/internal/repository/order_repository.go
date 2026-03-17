@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -94,6 +95,19 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 func (r *gormOrderRepository) GetByID(id int64) (entity.Order, error) {
 	var order entity.Order
 	err := r.db.First(&order, id).Error
+	return order, err
+}
+
+func (r *gormOrderRepository) GetByFlexibleID(id string) (entity.Order, error) {
+	var order entity.Order
+	// 1. Try numeric primary key
+	if idInt, err := strconv.ParseInt(id, 10, 64); err == nil {
+		if err := r.db.First(&order, idInt).Error; err == nil {
+			return order, nil
+		}
+	}
+	// 2. Fallback to external_order_id
+	err := r.db.Where("external_order_id = ?", id).First(&order).Error
 	return order, err
 }
 
