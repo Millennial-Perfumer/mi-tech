@@ -58,6 +58,12 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   const [editValue, setEditValue] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   // Fetch configs on mount
   useEffect(() => {
@@ -71,9 +77,12 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
       const data = await resp.json();
       if (data.success) {
         setConfigs(data.configs || []);
+      } else {
+        showNotification(data.message || 'Failed to load configurations', 'error');
       }
     } catch (err) {
       console.error('Failed to fetch configs:', err);
+      showNotification('Failed to load configurations. Please check your connection.', 'error');
     } finally {
       setIsLoadingConfigs(false);
     }
@@ -129,9 +138,13 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
         setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
         setEditingKey(null);
         setEditValue('');
+        showNotification('Configuration updated successfully');
+      } else {
+        showNotification(data.message || 'Failed to save configuration', 'error');
       }
     } catch (err) {
       console.error('Failed to save config:', err);
+      showNotification('Failed to save configuration. Network error.', 'error');
     } finally {
       setIsSavingConfig(false);
     }
@@ -219,7 +232,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
             {sortedCategories.map(category => {
               const items = groupedConfigs[category];
               const meta = CATEGORY_META[category] || { title: category, icon: null, color: '#64748b' };
-              const isExpanded = expandedCategories[category];
+              const isExpanded = expandedCategories[category] !== false;
 
               return (
                 <div key={category} style={{
@@ -419,6 +432,52 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                         </div>
                       </div>
                     ))}
+                    {category === 'shopify' && (
+                      <div
+                        className="config-row"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '1rem',
+                          padding: '1rem',
+                          background: 'linear-gradient(to right, #f0f9ff, #e0f2fe)',
+                          borderRadius: '10px',
+                          border: '1px dashed #0ea5e9',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '10px', 
+                            background: '#0ea5e9', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'white'
+                          }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0369a1' }}>Manual Order Synchronization</div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
+                          </div>
+                        </div>
+                        <button 
+                          className="btn-primary" 
+                          onClick={() => {
+                            // Trigger the global manual sync button logic
+                            const syncBtn = document.querySelector('button[title*="Manually fetch orders"]') as HTMLButtonElement;
+                            if (syncBtn) syncBtn.click();
+                          }}
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                        >
+                          Launch Sync
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 </div>
@@ -458,6 +517,34 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
               <button className="btn-primary" onClick={handleReveal} disabled={!password}>Unlock</button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Notifications */}
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          padding: '1rem 1.5rem',
+          background: notification.type === 'error' ? '#fef2f2' : '#f0fdf4',
+          border: notification.type === 'error' ? '1px solid #fee2e2' : '1px solid #dcfce7',
+          borderRadius: '12px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          color: notification.type === 'error' ? '#991b1b' : '#166534',
+          zIndex: 3000,
+          animation: 'slideIn 0.3s ease-out',
+          fontWeight: 600,
+          fontSize: '0.9rem'
+        }}>
+          {notification.type === 'error' ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          )}
+          {notification.message}
         </div>
       )}
     </div>

@@ -82,7 +82,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
+          username: ${{ secrets.VM_USER }}
           password: ${{ secrets.VM_PASSWORD }}
           source: "docker-compose.prod.yml,nginx/"
           target: "~/mi-tech-app"
@@ -93,7 +93,7 @@ jobs:
           REPO_OWNER: ${{ env.REPO_OWNER }}
         with:
           host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
+          username: ${{ secrets.VM_USER }}
           password: ${{ secrets.VM_PASSWORD }}
           envs: REPO_OWNER
           script: |
@@ -112,4 +112,4 @@ jobs:
             docker-compose -f docker-compose.prod.yml up -d
 
             # Remove old dangling images to save space
-            docker image prune -f
+            docker image prune -af

@@ -46,7 +46,12 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	// Determine status
 	status := "unfulfilled"
-	if so.DisplayFulfillmentStatus == "FULFILLED" {
+	deliveryStatus := "pending"
+
+	if so.CancelledAt != "" {
+		status = "CANCELLED"
+		deliveryStatus = ""
+	} else if so.DisplayFulfillmentStatus == "FULFILLED" {
 		status = "fulfilled"
 	} else if so.DisplayFinancialStatus == "PAID" {
 		status = "paid"
@@ -54,13 +59,27 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	financialStatus := strings.ToLower(so.DisplayFinancialStatus)
 	fulfillmentStatus := strings.ToLower(so.DisplayFulfillmentStatus)
-	deliveryStatus := "pending"
 	trackingNumber := ""
 	shippingCompany := ""
 	trackingUrl := ""
 
 	if len(so.Fulfillments) > 0 {
-		f := so.Fulfillments[0]
+		// Iterate to find the best active fulfillment (ignore cancelled ones if possible)
+		var bestFulfillment *dto.GraphQLFulfillment
+		for i := len(so.Fulfillments) - 1; i >= 0; i-- {
+			f := so.Fulfillments[i]
+			if strings.ToLower(f.Status) != "cancelled" {
+				bestFulfillment = &so.Fulfillments[i]
+				break
+			}
+		}
+
+		// Fallback to the last one if all are cancelled
+		if bestFulfillment == nil {
+			bestFulfillment = &so.Fulfillments[len(so.Fulfillments)-1]
+		}
+
+		f := bestFulfillment
 		
 		// Prioritize the latest fulfillment event status
 		if len(f.Events.Edges) > 0 {
@@ -76,6 +95,11 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 			trackingNumber = f.TrackingInfo[0].Number
 			shippingCompany = f.TrackingInfo[0].Company
 			trackingUrl = f.TrackingInfo[0].Url
+		}
+
+		// If no carrier events exist but we possess a tracking number, assume Confirmed
+		if deliveryStatus == "fulfilled" && trackingNumber != "" {
+			deliveryStatus = "confirmed"
 		}
 	}
 
@@ -119,6 +143,8 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		ShippingCompany:   strPtr(shippingCompany),
 		TrackingUrl:       strPtr(trackingUrl),
 		Status:            strPtr(status),
+		CancelledAt:       parseTimePtr(&so.CancelledAt),
+		CancelReason:      strPtr(so.CancelReason),
 		CustomerName:      strPtr(custName),
 		CustomerEmail:     strPtr(custEmail),
 		CustomerPhone:     strPtr(custPhone),
@@ -247,12 +273,24 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 	trackingUrl := ""
 
 	if len(payload.Fulfillments) > 0 {
-		f := payload.Fulfillments[0]
-		// Determine delivery status from shipment_status or display_status
+		var bestFulfillment *dto.ShopifyFulfillment
+		for i := len(payload.Fulfillments) - 1; i >= 0; i-- {
+			f := payload.Fulfillments[i]
+			if strings.ToLower(f.Status) != "cancelled" {
+				bestFulfillment = &payload.Fulfillments[i]
+				break
+			}
+		}
+
+		if bestFulfillment == nil {
+			bestFulfillment = &payload.Fulfillments[len(payload.Fulfillments)-1]
+		}
+
+		f := bestFulfillment
+		
+		// Determine delivery status from shipment_status or status
 		if f.ShipmentStatus != nil && *f.ShipmentStatus != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(*f.ShipmentStatus, "_", " "))
-		} else if f.DisplayStatus != "" {
-			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
 		} else if f.Status != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
 		}
@@ -260,6 +298,10 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		trackingNumber = f.TrackingNumber
 		shippingCompany = f.TrackingCompany
 		trackingUrl = f.TrackingUrl
+
+		if (deliveryStatus == "fulfilled" || deliveryStatus == "success") && trackingNumber != "" {
+			deliveryStatus = "confirmed"
+		}
 	}
 
 	orderNumber := payload.Name

@@ -117,6 +117,8 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 							}
 						}
 					}
+					cancelledAt
+					cancelReason
 					lineItems(first: 50) {
 						edges {
 							node {
@@ -282,6 +284,8 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 					}
 				}
 			}
+			cancelledAt
+			cancelReason
 			lineItems(first: 50) {
 				edges {
 					node {

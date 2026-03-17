@@ -124,7 +124,6 @@ function App() {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncStartDate, setSyncStartDate] = useState(getTodayIST());
   const [syncEndDate, setSyncEndDate] = useState(getTodayIST());
-  const [syncStep, setSyncStep] = useState<'date' | 'confirm'>('date');
 
   // Sorting and Filtering State
   const [search, setSearch] = useState('');
@@ -384,64 +383,129 @@ function App() {
     <div className="app-container">
       {showSyncModal && (
         <div className="modal-overlay">
-          <div className="premium-modal">
-            <div className="modal-header-icon">
-              {syncStep === 'date' ? (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              ) : (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><polyline points="12 6 12 12 16 14"></polyline></svg>
-              )}
+          <div className="premium-modal wide">
+            <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9, #2563eb)' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
             
-            <h2>{syncStep === 'date' ? 'Manual Sync' : 'Ready to Sync?'}</h2>
+            <h2 style={{ marginBottom: '0.5rem' }}>Manual Synchronization</h2>
             
-            {syncStep === 'date' ? (
-              <div className="step-content">
-                <p>Select the date range you wish to synchronize from Shopify. Existing orders will be updated.</p>
-                
-                <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 600, color: '#334155' }}>Select Sync Range</label>
-                  <CustomDatePicker 
-                    startDate={syncStartDate}
-                    endDate={syncEndDate}
-                    onDateChange={(start, end) => {
-                      setSyncStartDate(start);
-                      setSyncEndDate(end);
-                    }}
-                  />
+            <div className="step-content">
+              <p style={{marginBottom: '2rem'}}>Select the date range you wish to synchronize from Shopify. Existing orders will be updated.</p>
+              
+              <div className="sync-date-selector" style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px', marginBottom: '1.5rem' }}>
+                  {[
+                    { label: 'Today', days: 0 },
+                    { label: 'Yesterday', days: 1, exact: true },
+                    { label: 'Last 7 days', days: 7 },
+                    { label: 'Last 30 days', days: 30 },
+                    { label: 'This Month', type: 'month', days: 0 }
+                  ].map(preset => (
+                    <button
+                      key={preset.label}
+                      className="btn-secondary"
+                      style={{ 
+                        padding: '0.5rem', 
+                        fontSize: '0.85rem', 
+                        background: '#ffffff',
+                        borderColor: '#e2e8f0',
+                        color: '#475569'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                      onClick={() => {
+                        const today = new Date();
+                        if (preset.type === 'month') {
+                          const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                          setSyncStartDate(firstDay.toISOString().split('T')[0]);
+                          setSyncEndDate(today.toISOString().split('T')[0]);
+                        } else if (preset.exact) {
+                          const specificDate = new Date(today);
+                          specificDate.setDate(today.getDate() - preset.days);
+                          const dateStr = specificDate.toISOString().split('T')[0];
+                          setSyncStartDate(dateStr);
+                          setSyncEndDate(dateStr);
+                        } else {
+                          const pastDate = new Date(today);
+                          pastDate.setDate(today.getDate() - preset.days);
+                          setSyncStartDate(pastDate.toISOString().split('T')[0]);
+                          setSyncEndDate(today.toISOString().split('T')[0]);
+                        }
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                 </div>
-
-                <div className="modal-actions">
-                  <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
-                  <button className="btn-primary" onClick={() => setSyncStep('confirm')}>Next</button>
+                
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>From Date</label>
+                    <input 
+                      type="date" 
+                      value={syncStartDate}
+                      max={syncEndDate}
+                      onChange={(e) => setSyncStartDate(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: '2px solid transparent', 
+                        boxShadow: '0 0 0 1px #cbd5e1',
+                        outline: 'none', 
+                        fontFamily: 'inherit',
+                        fontSize: '0.95rem',
+                        color: '#0f172a',
+                        transition: 'all 0.2s'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-color)'}
+                      onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px #cbd5e1'}
+                    />
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '1.5rem', alignSelf: 'flex-end', paddingBottom: '0.5rem' }}>→</div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>To Date</label>
+                    <input 
+                      type="date" 
+                      value={syncEndDate}
+                      min={syncStartDate}
+                      onChange={(e) => setSyncEndDate(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: '2px solid transparent', 
+                        boxShadow: '0 0 0 1px #cbd5e1',
+                        outline: 'none', 
+                        fontFamily: 'inherit',
+                        fontSize: '0.95rem',
+                        color: '#0f172a',
+                        transition: 'all 0.2s'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-color)'}
+                      onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px #cbd5e1'}
+                    />
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="step-content">
-                <p>Please review your sync settings before proceeding.</p>
-                
-                <div className="confirm-box">
-                  <div className="confirm-row">
-                    <span className="confirm-label">Start Date</span>
-                    <span className="confirm-value">{syncStartDate}</span>
-                  </div>
-                  <div className="confirm-row" style={{borderTop: '1px solid rgba(0,0,0,0.05)', marginTop: '4px', paddingTop: '4px'}}>
-                    <span className="confirm-label">End Date</span>
-                    <span className="confirm-value">{syncEndDate}</span>
-                  </div>
-                </div>
 
-                <div className="info-banner">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                  <span>Your existing PII data (Customer Names, Emails, Phones) is safe and will be preserved automatically.</span>
-                </div>
-
-                <div className="modal-actions" style={{marginTop: '2rem'}}>
-                  <button className="btn-secondary" onClick={() => setSyncStep('date')}>Back</button>
-                  <button className="btn-primary" onClick={syncShopify}>Start Sync</button>
-                </div>
+              <div className="info-banner" style={{ marginTop: '1.5rem' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>PII data (Customer Names, Emails, Phones) is preserved during synchronization.</span>
               </div>
-            )}
+
+              <div className="modal-actions" style={{marginTop: '2rem'}}>
+                <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
+                <button 
+                  className="btn-primary" 
+                  onClick={syncShopify}
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? 'Syncing...' : 'Start Synchronization'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -505,9 +569,8 @@ function App() {
                   title="Manually fetch orders from Shopify in case webhook delivery fails."
                   style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
                   onClick={() => {
-                    setSyncStartDate(getTodayIST());
-                    setSyncEndDate(getTodayIST());
-                    setSyncStep('date');
+                    setSyncStartDate(startDate); // Use current dashboard start date
+                    setSyncEndDate(endDate);     // Use current dashboard end date
                     setShowSyncModal(true);
                   }}
                   disabled={isSyncing || isResetting}
@@ -766,7 +829,7 @@ function App() {
                       {visibleColumns.includes('fulfillment_status') && (
                         <td style={{ position: 'relative' }}>
                           <span 
-                            className={`badge-pill badge-pill-${order.fulfillment_status === 'fulfilled' ? 'gray' : (order.fulfillment_status === 'cancelled' || order.status === 'CANCELLED' ? 'danger' : 'yellow')}`}
+                            className={`badge-pill badge-pill-${order.fulfillment_status?.toLowerCase() === 'fulfilled' ? 'gray' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'danger' : 'yellow')}`}
                             style={{ cursor: isUpdatingStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 }}
                             onClick={(e) => {
                               if (isUpdatingStatus) return;
@@ -774,7 +837,7 @@ function App() {
                               setEditingStatusId(editingStatusId === order.id ? null : order.id);
                             }}
                           >
-                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.fulfillment_status?.charAt(0).toUpperCase() + order.fulfillment_status?.slice(1) || 'Unfulfilled')}
+                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.charAt(0).toUpperCase() + order.fulfillment_status?.slice(1) || 'Unfulfilled'))}
                           </span>
 
                           {editingStatusId === order.id && (
@@ -804,7 +867,9 @@ function App() {
                       )}
                       {visibleColumns.includes('delivery_status') && (
                         <td>
-                          {order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
+                          {order.status?.toUpperCase() === 'CANCELLED' ? (
+                            <span style={{color: '#94a3b8', fontSize: '0.8rem'}}>—</span>
+                          ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
                             <div 
                               className="delivery-status-collapsed"
                               title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} - ${order.shipping_company || 'Standard Tracking'}: ${order.tracking_number}`}
