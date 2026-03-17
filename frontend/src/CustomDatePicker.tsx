@@ -11,7 +11,8 @@ import {
   startOfToday,
   endOfToday,
   isBefore,
-  parseISO
+  parseISO,
+  isValid
 } from 'date-fns';
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; // theme css file
@@ -44,10 +45,16 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Parse initial dates safely
-  const parsedStart = startDate ? parseISO(startDate) : startOfMonth(startOfToday());
-  const parsedEnd = endDate ? parseISO(endDate) : endOfToday();
-  const parsedMinDate = parseISO(minDate);
+  // Parse initial dates safely with isValid checks
+  const safeParseISO = (dateStr: string | undefined, fallback: Date) => {
+    if (!dateStr) return fallback;
+    const raw = parseISO(dateStr);
+    return isValid(raw) ? raw : fallback;
+  };
+
+  const parsedStart = safeParseISO(startDate, startOfMonth(startOfToday()));
+  const parsedEnd = safeParseISO(endDate, endOfToday());
+  const parsedMinDate = safeParseISO(minDate, new Date('2026-01-01'));
 
   const [localSelection, setLocalSelection] = useState({
     startDate: parsedStart,

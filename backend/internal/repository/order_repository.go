@@ -104,14 +104,16 @@ func (r *gormOrderRepository) GetByExternalID(externalID string) (entity.Order, 
 }
 
 func (r *gormOrderRepository) isWeak(s *string) bool {
-	if s == nil { return true }
+	if s == nil {
+		return true
+	}
 	val := strings.TrimSpace(*s)
 	return val == "" || val == "Valued Customer" || val == "pending"
 }
 
 func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.Order) {
 	updatedAny := false
-	
+
 	check := func(incomingField **string, existingField **string) {
 		if r.isWeak(*incomingField) && !r.isWeak(*existingField) {
 			*incomingField = *existingField
@@ -142,8 +144,8 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
-			Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
-				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+			Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
 			First(&existing).Error
 
 		if err == nil {
@@ -206,10 +208,10 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 
 		var existingOrders []entity.Order
 		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
-			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone", 
-				   "customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
 			Find(&existingOrders).Error
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to fetch existing orders for merge: %w", err)
 		}
