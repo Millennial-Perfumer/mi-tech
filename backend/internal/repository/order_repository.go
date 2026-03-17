@@ -144,7 +144,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
-			Select("customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
+			Select("id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
 				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
 			First(&existing).Error
 
@@ -155,10 +155,10 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 
 		// 2. Upsert the order
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
+			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"financial_status", "fulfillment_status", "delivery_status",
-				"tracking_number", "shipping_company", "status", "updated_at",
+				"order_number", "financial_status", "fulfillment_status", "delivery_status",
+				"tracking_number", "shipping_company", "tracking_url", "status", "updated_at",
 				"cancelled_at", "cancel_reason", "total_price", "subtotal_price",
 				"total_tax", "customer_name", "customer_email", "customer_phone",
 				"customer_city", "customer_state", "customer_country",
@@ -177,7 +177,9 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 
 		for _, item := range order.LineItems {
 			item.OrderID = order.ID
-			if err := tx.Create(&item).Error; err != nil {
+			if err := tx.Clauses(clause.OnConflict{
+				UpdateAll: true,
+			}).Create(&item).Error; err != nil {
 				return fmt.Errorf("failed to insert line item %s: %w", item.ID, err)
 			}
 		}
@@ -235,7 +237,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 
 		// 2. Batch Upsert Orders (Omit LineItems to handle them separately)
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
+			Columns: []clause.Column{{Name: "source_id"}, {Name: "external_order_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"order_number", "total_price", "subtotal_price", "total_tax",
 				"updated_at", "customer_name", "customer_email", "customer_phone",
@@ -243,6 +245,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "tracking_url",
 				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
+				"raw_payload",
 			}),
 		}).Omit("LineItems").Create(&orders).Error; err != nil {
 			return fmt.Errorf("failed to batch upsert orders: %w", err)

@@ -232,7 +232,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
             {sortedCategories.map(category => {
               const items = groupedConfigs[category];
               const meta = CATEGORY_META[category] || { title: category, icon: null, color: '#64748b' };
-              const isExpanded = expandedCategories[category] !== false;
+              const isExpanded = !!expandedCategories[category];
 
               return (
                 <div key={category} style={{
