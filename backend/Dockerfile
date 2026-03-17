@@ -30,8 +30,9 @@ RUN apk --no-cache add ca-certificates tzdata
 # Copy the binary from builder
 COPY --from=builder /app/main .
 
-# Copy migration files ensuring they exist for runtime bootstrap
+# Copy migration and documentation files ensuring they exist for runtime bootstrap
 COPY --from=builder /app/internal/database/migrations ./internal/database/migrations
+COPY --from=builder /app/docs ./docs
 
 # Expose port (adjust if your backend uses a different port)
 EXPOSE 8080
