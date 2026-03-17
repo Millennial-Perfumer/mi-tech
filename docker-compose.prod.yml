@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mi-tech}
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
       - app-network
     # DB port is intentionally not exposed to the host for production security
