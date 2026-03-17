@@ -42,7 +42,7 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 }
 
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
-	log.Printf("Automation Start: Executing mapping for Order %s (%s), Topic: %s", order.ID, order.OrderNumber, topic)
+	log.Printf("Automation Start: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
 
 	// 1. Find matching trigger
 	var template *AutomationTemplate
@@ -71,7 +71,7 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 }
 
 func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int, order entity.Order) error {
-	log.Printf("Automation Start: Executing manual send for Order %s (%s), Template ID: %d", order.ID, order.OrderNumber, templateID)
+	log.Printf("Automation Start: Executing manual send for Order %d (%s), Template ID: %d", order.ID, order.OrderNumber, templateID)
 
 	// Fetch template
 	template, err := s.templatesRepo.GetTemplateByID(templateID)
@@ -91,9 +91,9 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/updated"
 		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
 		if err != nil {
-			log.Printf("Automation Error: Deduplication check failed for order %s: %v", order.ID, err)
+			log.Printf("Automation Error: Deduplication check failed for order %d: %v", order.ID, err)
 		} else if sent && !allowMultiple {
-			log.Printf("Automation Skip: Template %s already sent for order %s. Skipping duplicate.", template.TemplateName, order.ID)
+			log.Printf("Automation Skip: Template %s already sent for order %d. Skipping duplicate.", template.TemplateName, order.ID)
 			return nil
 		}
 	}
@@ -112,7 +112,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 
 	bodyParams := []map[string]string{
 		{"type": "text", "text": custName},
-		{"type": "text", "text": order.OrderNumber},
+		{"type": "text", "text": strings.TrimPrefix(order.OrderNumber, "#")},
 	}
 
 	// Dynamic Parameter Mapping: Match the exact number of placeholders in the template body
@@ -125,7 +125,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		trackingUrl := entity.DerefStr(order.TrackingUrl)
 
 		if shippingCo == "" || trackingNum == "" || trackingUrl == "" {
-			log.Printf("Automation Skip: Missing tracking info for template %s (Order: %s). ShippingCo: '%s', TrackingNum: '%s', TrackingUrl: '%s'",
+			log.Printf("Automation Skip: Missing tracking info for template %s (Order: %d). ShippingCo: '%s', TrackingNum: '%s', TrackingUrl: '%s'",
 				template.TemplateName, order.ID, shippingCo, trackingNum, trackingUrl)
 			return nil
 		}
@@ -190,7 +190,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 								},
 							},
 						})
-						log.Printf("Automation Detail: Added tracking_url parameter to dynamic button %d (Param: %s)", i, buttonParam)
+						log.Printf("Automation Detail: Added tracking_url parameter to dynamic button %d (Param: %d)", i, buttonParam)
 						break // Usually only one tracking button per template
 					} else if trackingURL != "" {
 						log.Printf("Automation Info: Button %d is static (no {{1}}). Skipping parameter injection.", i)
@@ -266,7 +266,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 	}
 
 	compJSON, _ := json.Marshal(components)
-	log.Printf("Automation Meta Call: Sending %s to %s (Order: %s). Payload: %s", template.TemplateName, cleanPhone, order.ID, string(compJSON))
+	log.Printf("Automation Meta Call: Sending %s to %s (Order: %d). Payload: %s", template.TemplateName, cleanPhone, order.ID, string(compJSON))
 
 	return s.messagesService.SendTemplateMessage(
 		storeID,

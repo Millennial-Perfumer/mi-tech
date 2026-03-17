@@ -471,8 +471,15 @@ func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	orderIDInt, err := strconv.ParseInt(req.OrderID, 10, 64)
+	if err != nil {
+		log.Printf("Manual Send Error: Invalid order_id format %s: %v", req.OrderID, err)
+		http.Error(w, "Invalid order_id format", http.StatusBadRequest)
+		return
+	}
+
 	// 1. Fetch current order data
-	order, err := h.orderService.GetOrderEntity(req.OrderID)
+	order, err := h.orderService.GetOrderEntity(orderIDInt)
 	if err != nil {
 		log.Printf("Manual Send Error: Order %s not found: %v", req.OrderID, err)
 		http.Error(w, "Order not found", http.StatusNotFound)

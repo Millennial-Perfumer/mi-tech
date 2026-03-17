@@ -145,7 +145,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		if order.ID == "" {
+		if order.ID == 0 {
 			log.Printf("Automation Warning: Order %s not found in DB after ingestion. Skipping automation.", externalID)
 			return
 		}
@@ -154,7 +154,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 		if h.mappingService != nil && automationTopic != "" {
 
-			log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %s", automationTopic, order.ID)
+			log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %d", automationTopic, order.ID)
 			// Re-verify granular status ONLY for fulfillment updates.
 			// Generic orders/updated will retain its topic to allow manual edit notifications (invoices).
 			if topic == "fulfillments/update" {
@@ -171,14 +171,14 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				case "picked up", "in transit", "in_transit", "picked_up":
 					automationTopic = "orders/fulfilled"
 				case "confirmed":
-					log.Printf("Automation Info: Fulfillment status is 'confirmed' (Order %s). Skipping as assignment is handled by fulfillments/create.", order.ID)
+					log.Printf("Automation Info: Fulfillment status is 'confirmed' (Order %d). Skipping as assignment is handled by fulfillments/create.", order.ID)
 					return
 				}
 			}
 
 			// Guard 1: Skip ghost updates following order creation (30s window)
 			if automationTopic == "orders/updated" && time.Since(order.CreatedAt).Seconds() < 30 {
-				log.Printf("Automation Skip: Topic %s ignored for order %s (Created %v ago). Filtering ghost update.", automationTopic, order.ID, time.Since(order.CreatedAt))
+				log.Printf("Automation Skip: Topic %s ignored for order %d (Created %v ago). Filtering ghost update.", automationTopic, order.ID, time.Since(order.CreatedAt))
 				return
 			}
 
@@ -186,14 +186,14 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			// Shopify sends redundant generic 'orders/updated' right after more specific ones.
 			// We check the delivery status to see if it was RECENTLY changed by a specific hook.
 			if automationTopic == "orders/updated" && order.DeliveryStatus != nil && time.Since(order.UpdatedAt).Seconds() < 5 {
-				log.Printf("Automation Info: Topic %s detected for order %s. This might be a side-effect, but we will allow it if it is a manual edit.", automationTopic, order.ID)
+				log.Printf("Automation Info: Topic %s detected for order %d. This might be a side-effect, but we will allow it if it is a manual edit.", automationTopic, order.ID)
 			}
 
 			err = h.mappingService.ExecuteMapping("1", automationTopic, order)
 			if err != nil {
-				log.Printf("Automation Error: Failed to execute mapping for order %s, topic %s: %v", order.ID, automationTopic, err)
+				log.Printf("Automation Error: Failed to execute mapping for order %d, topic %s: %v", order.ID, automationTopic, err)
 			} else {
-				log.Printf("Automation Success: Triggered %s for order %s", automationTopic, order.ID)
+				log.Printf("Automation Success: Triggered %s for order %d", automationTopic, order.ID)
 			}
 		}
 	}()

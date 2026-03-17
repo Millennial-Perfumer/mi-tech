@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -91,9 +92,22 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 	return orders, int(totalCount), nil
 }
 
-func (r *gormOrderRepository) GetByID(id string) (entity.Order, error) {
+func (r *gormOrderRepository) GetByID(id int64) (entity.Order, error) {
 	var order entity.Order
-	err := r.db.Where("id = ? OR external_order_id = ?", id, id).First(&order).Error
+	err := r.db.First(&order, id).Error
+	return order, err
+}
+
+func (r *gormOrderRepository) GetByFlexibleID(id string) (entity.Order, error) {
+	var order entity.Order
+	// 1. Try numeric primary key
+	if idInt, err := strconv.ParseInt(id, 10, 64); err == nil {
+		if err := r.db.First(&order, idInt).Error; err == nil {
+			return order, nil
+		}
+	}
+	// 2. Fallback to external_order_id
+	err := r.db.Where("external_order_id = ?", id).First(&order).Error
 	return order, err
 }
 
@@ -283,7 +297,7 @@ func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStat
 		}).Error
 }
 
-func (r *gormOrderRepository) UpdateOrderStatus(id string, status string) (int64, error) {
+func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64, error) {
 	status = strings.ToUpper(status)
 	updates := map[string]interface{}{
 		"status":     status,

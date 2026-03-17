@@ -22,7 +22,7 @@ func (h *RedirectHandler) RedirectTracking(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	order, err := h.orderRepo.GetByID(id)
+	order, err := h.orderRepo.GetByFlexibleID(id)
 	if err != nil {
 		http.Redirect(w, r, "https://millennialperfumer.com", http.StatusTemporaryRedirect)
 		return

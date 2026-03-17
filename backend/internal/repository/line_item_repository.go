@@ -19,7 +19,7 @@ func NewLineItemRepository(db *gorm.DB) LineItemRepository {
 	return &gormLineItemRepository{db: db}
 }
 
-func (r *gormLineItemRepository) GetByOrderID(orderID string) ([]entity.LineItem, error) {
+func (r *gormLineItemRepository) GetByOrderID(orderID int64) ([]entity.LineItem, error) {
 	var items []entity.LineItem
 	if err := r.db.Where("order_id = ?", orderID).Find(&items).Error; err != nil {
 		return nil, fmt.Errorf("failed to query line items: %w", err)
@@ -27,7 +27,7 @@ func (r *gormLineItemRepository) GetByOrderID(orderID string) ([]entity.LineItem
 	return items, nil
 }
 
-func (r *gormLineItemRepository) UpsertBatch(tx *gorm.DB, orderID string, items []entity.LineItem) error {
+func (r *gormLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items []entity.LineItem) error {
 	for _, item := range items {
 		item.OrderID = orderID
 		if err := tx.Clauses(clause.OnConflict{
@@ -40,6 +40,6 @@ func (r *gormLineItemRepository) UpsertBatch(tx *gorm.DB, orderID string, items 
 	return nil
 }
 
-func (r *gormLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID string) error {
+func (r *gormLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) error {
 	return tx.Where("order_id = ?", orderID).Delete(&entity.LineItem{}).Error
 }

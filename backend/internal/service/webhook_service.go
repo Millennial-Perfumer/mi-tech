@@ -51,14 +51,14 @@ func (s *WebhookService) SaveEvent(event *entity.WebhookEvent) error {
 // ProcessOrderCreate handles the orders/create webhook topic.
 func (s *WebhookService) ProcessOrderCreate(payload dto.ShopifyWebhookOrder, raw *json.RawMessage) error {
 	order := mapper.WebhookOrderToEntity(payload, raw)
-	log.Printf("Processing orders/create for Order ID: %s", order.ID)
+	log.Printf("Processing orders/create for Order ID: %d", order.ID)
 	return s.orderService.UpsertOrder(order)
 }
 
 // ProcessOrderUpdate handles the orders/updated webhook topic.
 func (s *WebhookService) ProcessOrderUpdate(payload dto.ShopifyWebhookOrder, raw *json.RawMessage) error {
 	order := mapper.WebhookOrderToEntity(payload, raw)
-	log.Printf("Processing orders/updated for Order ID: %s", order.ID)
+	log.Printf("Processing orders/updated for Order ID: %d", order.ID)
 	return s.orderService.UpsertOrder(order)
 }
 
@@ -130,7 +130,7 @@ func (s *WebhookService) GetOrder(externalID string) (entity.Order, error) {
 }
 
 // LinkWebhookToOrder links a processed webhook event to an internal order.
-func (s *WebhookService) LinkWebhookToOrder(deliveryID string, orderID string) error {
+func (s *WebhookService) LinkWebhookToOrder(deliveryID string, orderID int64) error {
 	return s.webhookEventRepo.LinkToOrder(deliveryID, orderID)
 }
 

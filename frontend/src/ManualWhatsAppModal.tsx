@@ -12,7 +12,7 @@ interface Template {
 interface ManualWhatsAppModalProps {
   isOpen: boolean;
   onClose: () => void;
-  orderId: string;
+  orderId: string | number;
   orderNumber: string;
   customerName: string;
   token: string | null;

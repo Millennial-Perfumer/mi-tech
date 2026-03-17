@@ -12,7 +12,7 @@ type AutomationMessage struct {
 	StoreID      string     `json:"store_id"`
 	TemplateID   int        `json:"template_id"`
 	TemplateName string     `json:"template_name"`
-	OrderID      string     `json:"order_id"`
+	OrderID      int64      `json:"order_id"`
 	OrderNumber  string     `json:"order_number"`
 	CustomerName string     `json:"customer_name"`
 	PhoneNumber  string     `json:"phone_number"`
@@ -47,7 +47,7 @@ func (r *MessagesRepository) SaveMessage(m AutomationMessage) (int, error) {
 	return id, err
 }
 
-func (r *MessagesRepository) HasSentTemplate(orderID string, templateID int) (bool, error) {
+func (r *MessagesRepository) HasSentTemplate(orderID int64, templateID int) (bool, error) {
 	var count int
 	err := r.db.QueryRow("SELECT COUNT(*) FROM automation_messages WHERE order_id = $1 AND template_id = $2 AND status != 'failed'", orderID, templateID).Scan(&count)
 	return count > 0, err
@@ -76,7 +76,7 @@ func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error
 	}
 }
 
-func (r *MessagesRepository) GetMessagesByOrderID(orderID string) ([]AutomationMessage, error) {
+func (r *MessagesRepository) GetMessagesByOrderID(orderID int64) ([]AutomationMessage, error) {
 	query := `SELECT id, store_id, template_id, order_id, phone_number, message_id, status, sent_at FROM automation_messages WHERE order_id = $1`
 	rows, err := r.db.Query(query, orderID)
 	if err != nil {
@@ -260,7 +260,7 @@ func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *
 	}
 	return metrics["failed"].(int), nil
 }
-func (r *MessagesRepository) GetOrderLineItems(orderID string) ([]entity.LineItem, error) {
+func (r *MessagesRepository) GetOrderLineItems(orderID int64) ([]entity.LineItem, error) {
 	query := `SELECT id, order_id, product_id, variant_id, title, sku, hs_code, quantity, price, discount FROM order_line_items WHERE order_id = $1`
 	rows, err := r.db.Query(query, orderID)
 	if err != nil {

@@ -17,7 +17,7 @@ const getTodayIST = () => {
 };
 
 interface Order {
-  id: string;
+  id: string | number;
   order_number: string;
   total_price: string;
   created_at: string;
@@ -116,7 +116,7 @@ function App() {
   const [appSettings, setAppSettings] = useState<Record<string, string>>({});
   const limit = 25;
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
-  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
   
@@ -200,7 +200,7 @@ function App() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+  const handleStatusUpdate = async (orderId: string | number, newStatus: string) => {
     setIsUpdatingStatus(true);
     try {
       const response = await fetchWithAuth(`http://localhost:8080/api/orders/status?id=${orderId}`, {
@@ -352,7 +352,7 @@ function App() {
     return () => clearInterval(interval);
   }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
-  const handleDownloadInvoice = async (orderId: string, orderNumber: string) => {
+  const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/orders/invoice?id=${orderId}`);
       if (!response.ok) {

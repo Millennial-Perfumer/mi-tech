@@ -23,12 +23,13 @@ type OrderFilter struct {
 // OrderRepository defines all data access operations for the orders table.
 type OrderRepository interface {
 	List(filter OrderFilter) ([]entity.Order, int, error)
-	GetByID(id string) (entity.Order, error)
+	GetByFlexibleID(id string) (entity.Order, error)
+	GetByID(id int64) (entity.Order, error)
 	GetByExternalID(externalID string) (entity.Order, error)
 	Upsert(order entity.Order) error
 	UpsertBatch(orders []entity.Order) error
 	UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error
-	UpdateOrderStatus(id string, status string) (int64, error)
+	UpdateOrderStatus(id int64, status string) (int64, error)
 	CancelOrder(externalOrderID string, cancelledAt *string, reason string) error
 	UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error
 	TruncateAll() error
@@ -36,16 +37,16 @@ type OrderRepository interface {
 
 // LineItemRepository defines all data access operations for the order_line_items table.
 type LineItemRepository interface {
-	GetByOrderID(orderID string) ([]entity.LineItem, error)
-	UpsertBatch(tx *gorm.DB, orderID string, items []entity.LineItem) error
-	DeleteByOrderID(tx *gorm.DB, orderID string) error
+	GetByOrderID(orderID int64) ([]entity.LineItem, error)
+	UpsertBatch(tx *gorm.DB, orderID int64, items []entity.LineItem) error
+	DeleteByOrderID(tx *gorm.DB, orderID int64) error
 }
 
 // WebhookEventRepository defines data access for the webhook_events table.
 type WebhookEventRepository interface {
 	Save(event *entity.WebhookEvent) error
 	IsProcessed(deliveryID string) (bool, error)
-	LinkToOrder(deliveryID string, orderID string) error
+	LinkToOrder(deliveryID string, orderID int64) error
 }
 
 // WebhookStatusRepository defines data access for the webhook_status table.

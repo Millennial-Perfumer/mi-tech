@@ -31,7 +31,7 @@ func (r *gormWebhookEventRepository) IsProcessed(deliveryID string) (bool, error
 	return count > 0, err
 }
 
-func (r *gormWebhookEventRepository) LinkToOrder(deliveryID string, orderID string) error {
+func (r *gormWebhookEventRepository) LinkToOrder(deliveryID string, orderID int64) error {
 	result := r.db.Model(&entity.WebhookEvent{}).
 		Where("webhook_delivery_id = ?", deliveryID).
 		Updates(map[string]interface{}{
