@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"os"
 	"mi-tech/internal/repository"
 )
 
@@ -54,6 +55,10 @@ func (p *SettingsProvider) GetWhatsAppAppSecret() string {
 }
 
 func (p *SettingsProvider) GetJWTSecret() string {
+	// Fallback to environment variable if not in DB
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		return secret
+	}
 	return p.get("jwt_secret")
 }
 
