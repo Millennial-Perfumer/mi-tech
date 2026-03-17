@@ -869,7 +869,7 @@ function App() {
                         <td>
                           {order.status?.toUpperCase() === 'CANCELLED' ? (
                             <span style={{color: '#94a3b8', fontSize: '0.8rem'}}>—</span>
-                          ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
+                          ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' && (order.delivery_status !== 'success' || order.tracking_number || order.tracking_url) ? (
                             <div 
                               className="delivery-status-collapsed"
                               title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} - ${order.shipping_company || 'Standard Tracking'}: ${order.tracking_number}`}
