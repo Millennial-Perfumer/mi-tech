@@ -1,3 +1,8 @@
+// @title Mi-Tech API
+// @version 1.0
+// @description Backend API for Mi-Tech GST Invoice Manager.
+// @BasePath /api
+
 package main
 
 import (

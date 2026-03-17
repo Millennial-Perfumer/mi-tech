@@ -24,6 +24,16 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
+// Login handles POST /api/auth/login.
+// @Summary Login to the application
+// @Description Authenticate a user and return a JWT token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body LoginRequest true "Login credentials"
+// @Success 200 {object} LoginResponse
+// @Failure 401 {string} string "unauthorized"
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

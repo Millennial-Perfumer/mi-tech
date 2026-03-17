@@ -25,6 +25,23 @@ func NewOrderHandler(orderService *service.OrderService, invoiceService *service
 }
 
 // GetOrders handles GET /api/orders with pagination and date filters.
+// @Summary List orders
+// @Description Get a paginated list of orders with filters
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param start_date query string false "Start date (YYYY-MM-DD)"
+// @Param end_date query string false "End date (YYYY-MM-DD)"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Param search query string false "Search term"
+// @Param source query string false "Order source"
+// @Param financial_status query string false "Financial status"
+// @Param fulfillment_status query string false "Fulfillment status"
+// @Param sort_by query string false "Sort by field"
+// @Param sort_order query string false "Sort order (asc/desc)"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders [get]
 func (h *OrderHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -58,7 +75,21 @@ func (h *OrderHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateStatusRequest represents the body for status update.
+type UpdateStatusRequest struct {
+	Status string `json:"status"`
+}
+
 // UpdateOrderStatus handles PUT /api/orders/status.
+// @Summary Update order status
+// @Description Update the internal status of an order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id query string true "Order ID (Internal or External)"
+// @Param body body UpdateStatusRequest true "New status"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/status [put]
 func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut && r.Method != http.MethodOptions {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -71,9 +102,7 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var reqBody struct {
-		Status string `json:"status"`
-	}
+	var reqBody UpdateStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -103,6 +132,13 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 }
 
 // GenerateInvoice handles GET /api/orders/invoice and streams a PDF.
+// @Summary Generate invoice PDF
+// @Description Generate and download a GST invoice PDF for an order
+// @Tags orders
+// @Produce application/pdf
+// @Param id query string true "Order ID (Internal or External)"
+// @Success 200 {file} file
+// @Router /orders/invoice [get]
 func (h *OrderHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

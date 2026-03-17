@@ -1,0 +1,209 @@
+basePath: /api
+definitions:
+  internal_handler.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  internal_handler.LoginResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  internal_handler.SyncRequest:
+    properties:
+      end_date:
+        type: string
+      start_date:
+        type: string
+    type: object
+  internal_handler.UpdateStatusRequest:
+    properties:
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Backend API for Mi-Tech GST Invoice Manager.
+  title: Mi-Tech API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and return a JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.LoginResponse'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+      summary: Login to the application
+      tags:
+      - auth
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of orders with filters
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Order source
+        in: query
+        name: source
+        type: string
+      - description: Financial status
+        in: query
+        name: financial_status
+        type: string
+      - description: Fulfillment status
+        in: query
+        name: fulfillment_status
+        type: string
+      - description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List orders
+      tags:
+      - orders
+  /orders/invoice:
+    get:
+      description: Generate and download a GST invoice PDF for an order
+      parameters:
+      - description: Order ID (Internal or External)
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/pdf
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: Generate invoice PDF
+      tags:
+      - orders
+  /orders/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the internal status of an order
+      parameters:
+      - description: Order ID (Internal or External)
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: New status
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update order status
+      tags:
+      - orders
+  /shopify/reset:
+    post:
+      consumes:
+      - application/json
+      description: Wipe local orders and re-sync everything from Shopify
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Reset and sync orders
+      tags:
+      - sync
+  /shopify/sync:
+    post:
+      consumes:
+      - application/json
+      description: Fetch and sync orders from Shopify within a date range
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Date range in body
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/internal_handler.SyncRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Sync orders from Shopify
+      tags:
+      - sync
+swagger: "2.0"

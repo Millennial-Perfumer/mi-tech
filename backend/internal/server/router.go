@@ -7,6 +7,9 @@ import (
 	"mi-tech/internal/automation/whatsapp"
 	"mi-tech/internal/handler"
 	"mi-tech/internal/service"
+
+	_ "mi-tech/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // RegisterRoutes sets up all API routes in one place.
@@ -128,6 +131,9 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/automation/whatsapp/send-manual", protected(automationHandler.SendManualMessage))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", protected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
+
+	// --- Swagger ---
+	mux.Handle("/api/swagger/", httpSwagger.WrapHandler)
 
 	// --- Redirect Tracking ---
 	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)

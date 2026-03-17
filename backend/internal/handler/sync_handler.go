@@ -18,7 +18,23 @@ func NewSyncHandler(syncService *service.SyncService) *SyncHandler {
 	return &SyncHandler{syncService: syncService}
 }
 
+// SyncRequest represents the body for sync operation.
+type SyncRequest struct {
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+}
+
 // SyncOrders handles POST /api/shopify/sync.
+// @Summary Sync orders from Shopify
+// @Description Fetch and sync orders from Shopify within a date range
+// @Tags sync
+// @Accept json
+// @Produce json
+// @Param start_date query string false "Start date (YYYY-MM-DD)"
+// @Param end_date query string false "End date (YYYY-MM-DD)"
+// @Param body body SyncRequest false "Date range in body"
+// @Success 200 {object} map[string]interface{}
+// @Router /shopify/sync [post]
 func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -49,10 +65,7 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 
 	// Also check body for JSON (preferred for POST)
 	if r.Body != nil && r.ContentLength > 0 {
-		var body struct {
-			StartDate string `json:"start_date"`
-			EndDate   string `json:"end_date"`
-		}
+		var body SyncRequest
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 			return
@@ -96,6 +109,13 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 // ResetOrders handles POST /api/shopify/reset.
+// @Summary Reset and sync orders
+// @Description Wipe local orders and re-sync everything from Shopify
+// @Tags sync
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /shopify/reset [post]
 func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
