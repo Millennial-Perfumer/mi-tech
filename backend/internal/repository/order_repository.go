@@ -158,7 +158,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"financial_status", "fulfillment_status", "delivery_status",
-				"tracking_number", "shipping_company", "status", "updated_at",
+				"tracking_number", "shipping_company", "tracking_url", "status", "updated_at",
 				"cancelled_at", "cancel_reason", "total_price", "subtotal_price",
 				"total_tax", "customer_name", "customer_email", "customer_phone",
 				"customer_city", "customer_state", "customer_country",
@@ -243,6 +243,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "tracking_url",
 				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
+				"raw_payload",
 			}),
 		}).Omit("LineItems").Create(&orders).Error; err != nil {
 			return fmt.Errorf("failed to batch upsert orders: %w", err)

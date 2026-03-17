@@ -81,13 +81,13 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 		f := bestFulfillment
 		
-		// Prioritize the latest fulfillment event status
+		// Prioritize: 1. Latest event status, 2. Display status, 3. Raw status
 		if len(f.Events.Edges) > 0 {
 			lastEvent := f.Events.Edges[len(f.Events.Edges)-1].Node
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(lastEvent.Status, "_", " "))
 		} else if f.DisplayStatus != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
-		} else {
+		} else if f.Status != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
 		}
 
@@ -98,7 +98,7 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		}
 
 		// If no carrier events exist but we possess a tracking number, assume Confirmed
-		if deliveryStatus == "fulfilled" && trackingNumber != "" {
+		if (deliveryStatus == "fulfilled" || deliveryStatus == "success") && trackingNumber != "" {
 			deliveryStatus = "confirmed"
 		}
 	}
@@ -288,9 +288,11 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 
 		f := bestFulfillment
 		
-		// Determine delivery status from shipment_status or status
+		// Determine delivery status from shipment_status, display_status, or status
 		if f.ShipmentStatus != nil && *f.ShipmentStatus != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(*f.ShipmentStatus, "_", " "))
+		} else if f.DisplayStatus != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
 		} else if f.Status != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
 		}
@@ -302,6 +304,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		if (deliveryStatus == "fulfilled" || deliveryStatus == "success") && trackingNumber != "" {
 			deliveryStatus = "confirmed"
 		}
+
 	}
 
 	orderNumber := payload.Name
