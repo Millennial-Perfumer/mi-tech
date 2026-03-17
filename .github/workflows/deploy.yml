@@ -27,7 +27,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.MITECH_DOCKER_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,50 +66,50 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend:latest
           labels: ${{ steps.meta-frontend.outputs.labels }}
 
-  deploy-to-vm:
-    needs: build-and-push-images
-    runs-on: ubuntu-latest
+  # deploy-to-vm:
+  #   needs: build-and-push-images
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Lowercase Repository Owner
-        run: |
-          echo "REPO_OWNER=${REPO_OWNER,,}" >> $GITHUB_ENV
+  #     - name: Lowercase Repository Owner
+  #       run: |
+  #         echo "REPO_OWNER=${REPO_OWNER,,}" >> $GITHUB_ENV
 
-      - name: Copy deployment files to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          password: ${{ secrets.VM_PASSWORD }}
-          source: "docker-compose.prod.yml,nginx/"
-          target: "~/mi-tech-app"
+  #     - name: Copy deployment files to VM
+  #       uses: appleboy/scp-action@v0.1.7
+  #       with:
+  #         host: ${{ secrets.VM_HOST }}
+  #         username: ${{ secrets.VM_USER }}
+  #         password: ${{ secrets.VM_PASSWORD }}
+  #         source: "docker-compose.prod.yml,nginx/"
+  #         target: "~/mi-tech-app"
 
-      - name: Deploy on VM
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          REPO_OWNER: ${{ env.REPO_OWNER }}
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          password: ${{ secrets.VM_PASSWORD }}
-          envs: REPO_OWNER
-          script: |
-            cd ~/mi-tech-app
+  #     - name: Deploy on VM
+  #       uses: appleboy/ssh-action@v1.0.3
+  #       env:
+  #         REPO_OWNER: ${{ env.REPO_OWNER }}
+  #       with:
+  #         host: ${{ secrets.VM_HOST }}
+  #         username: ${{ secrets.VM_USER }}
+  #         password: ${{ secrets.VM_PASSWORD }}
+  #         envs: REPO_OWNER
+  #         script: |
+  #           cd ~/mi-tech-app
 
-            # Login to GHCR on the VM
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #           # Login to GHCR on the VM
+  #           echo ${{ secrets.MITECH_DOCKER_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Export GITHUB_REPOSITORY_OWNER for docker-compose.prod.yml
-            export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
+  #           # Export GITHUB_REPOSITORY_OWNER for docker-compose.prod.yml
+  #           export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
 
-            # Pull new images
-            docker-compose -f docker-compose.prod.yml pull
+  #           # Pull new images
+  #           docker-compose -f docker-compose.prod.yml pull
 
-            # Recreate containers with new images
-            docker-compose -f docker-compose.prod.yml up -d
+  #           # Recreate containers with new images
+  #           docker-compose -f docker-compose.prod.yml up -d
 
-            # Remove old dangling images to save space
-            docker image prune -af
+  #           # Remove old dangling images to save space
+  #           docker image prune -af
