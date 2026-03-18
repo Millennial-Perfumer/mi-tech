@@ -83,7 +83,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           password: ${{ secrets.VM_PASSWORD }}
-          source: "docker-compose.prod.yml,nginx/"
+          source: "docker-compose.prod.yml,nginx/,init-ssl.sh"
           target: "~/mi-tech-app"
 
       - name: Deploy on VM
