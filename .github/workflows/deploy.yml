@@ -61,7 +61,7 @@ jobs:
         with:
           context: ./frontend
           push: true
-          build-args: VITE_API_URL=http://mi-tech-api.millennialperfumer.in
+          build-args: VITE_API_URL=https://mi-tech-api.millennialperfumer.in
           tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend:latest
           labels: ${{ steps.meta-frontend.outputs.labels }}
 
