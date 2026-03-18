@@ -34,6 +34,7 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/internal/database/migrations ./internal/database/migrations
 COPY --from=builder /app/internal/fonts ./internal/fonts
 COPY --from=builder /app/docs ./docs
+COPY --from=builder /app/scripts ./scripts
 
 # Expose port (adjust if your backend uses a different port)
 EXPOSE 8080
