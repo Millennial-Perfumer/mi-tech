@@ -7,11 +7,37 @@ set -o pipefail
 # CONFIGURATION
 ############################################
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Detect project root (works if script is in /scripts or /backend/scripts)
+if [[ "$(dirname "${BASH_SOURCE[0]}")" == *"backend/scripts"* ]]; then
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+else
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+
 BACKUP_DIR="$PROJECT_ROOT/backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILE="$BACKUP_DIR/db_backup_$TIMESTAMP.sql.gz"
 RETENTION_DAYS=7
+
+############################################
+# LOGGING TO DATABASE
+############################################
+
+log_to_db() {
+    local status=$1
+    local remote_status=$2
+    local error_msg=$3
+    local file_size=$( [ -f "$BACKUP_FILE" ] && du -h "$BACKUP_FILE" | cut -f1 || echo "0B" )
+    local filename=$(basename "$BACKUP_FILE")
+
+    echo "Logging status to database..."
+    
+    # Run the insert command via Docker Compose
+    $COMPOSE_CMD exec -T db sh -c "PGPASSWORD=\$POSTGRES_PASSWORD psql -U \$POSTGRES_USER -d \$POSTGRES_DB -c \"
+        INSERT INTO database_backups (file_name, file_size, status, remote_sync_status, error_message)
+        VALUES ('$filename', '$file_size', '$status', '$remote_status', '$error_msg');
+    \"" >/dev/null 2>&1 || echo "Warning: Failed to log to database."
+}
 
 ############################################
 # LOAD ENV VARIABLES
@@ -54,25 +80,51 @@ fi
 
 echo "Running pg_dump..."
 
-$COMPOSE_CMD exec -T db sh -c '
+# Initial attempt
+REMOTE_SYNC_STATUS="not_synced"
+ERROR_MSG=""
+
+if $COMPOSE_CMD exec -T db sh -c '
 PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
   -U "$POSTGRES_USER" \
   -d "$POSTGRES_DB" \
   --clean --if-exists --no-owner --no-privileges
-' | gzip > "$BACKUP_FILE"
+' | gzip > "$BACKUP_FILE"; then
+    
+    # VALIDATE BACKUP
+    if [ ! -s "$BACKUP_FILE" ]; then
+        echo "Backup failed: file is empty!"
+        ERROR_MSG="Backup failed: file is empty!"
+        log_to_db "failed" "not_synced" "$ERROR_MSG"
+        rm -f "$BACKUP_FILE"
+        exit 1
+    fi
 
-############################################
-# VALIDATE BACKUP
-############################################
+    echo "Backup successful: $BACKUP_FILE"
+    echo "Size: $(du -h "$BACKUP_FILE" | cut -f1)"
 
-if [ ! -s "$BACKUP_FILE" ]; then
-    echo "Backup failed: file is empty!"
+    # SYNC TO REMOTE STORAGE (OPTIONAL)
+    if [ ! -z "$RCLONE_REMOTE" ]; then
+        echo "Syncing backup to $RCLONE_REMOTE..."
+        if rclone copy "$BACKUP_FILE" "$RCLONE_REMOTE" --progress; then
+            echo "Remote sync successful!"
+            REMOTE_SYNC_STATUS="success"
+        else
+            echo "Error: Remote sync failed!"
+            REMOTE_SYNC_STATUS="failed"
+        fi
+    fi
+
+    # Log success to DB
+    log_to_db "success" "$REMOTE_SYNC_STATUS" ""
+
+else
+    echo "Error: pg_dump command failed!"
+    ERROR_MSG="pg_dump command failed"
+    log_to_db "failed" "not_synced" "$ERROR_MSG"
     rm -f "$BACKUP_FILE"
     exit 1
 fi
-
-echo "Backup successful: $BACKUP_FILE"
-echo "Size: $(du -h "$BACKUP_FILE" | cut -f1)"
 
 ############################################
 # CLEANUP OLD BACKUPS
