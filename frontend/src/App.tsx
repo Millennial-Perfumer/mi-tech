@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
@@ -10,7 +11,6 @@ import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import { SettingsTab } from './SettingsTab';
 import './App.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const getTodayIST = () => {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -159,7 +159,7 @@ function App() {
   // Load saved date range from backend on startup
   useEffect(() => {
     if (!token) return;
-    fetchWithAuth('http://localhost:8080/api/settings/date-range')
+    fetchWithAuth(`${API_BASE}/api/settings/date-range`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.start_date && data.end_date) {
@@ -175,7 +175,7 @@ function App() {
     setStartDate(start);
     setEndDate(end);
     // Persist date range to backend
-    fetchWithAuth('http://localhost:8080/api/settings/date-range', {
+    fetchWithAuth(`${API_BASE}/api/settings/date-range`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ start_date: start, end_date: end }),
@@ -203,7 +203,7 @@ function App() {
   const handleStatusUpdate = async (orderId: string | number, newStatus: string) => {
     setIsUpdatingStatus(true);
     try {
-      const response = await fetchWithAuth(`http://localhost:8080/api/orders/status?id=${orderId}`, {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/status?id=${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -319,7 +319,7 @@ function App() {
     }
     setIsResetting(true);
     try {
-      const response = await fetchWithAuth('http://localhost:8080/api/shopify/reset', {
+      const response = await fetchWithAuth(`${API_BASE}/api/shopify/reset`, {
         method: 'POST',
       });
       const data = await response.json();

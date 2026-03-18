@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
 
 // Animation for collapsible sections
@@ -8,7 +9,6 @@ const SLIDE_IN_ANIMATION = `
   }
 `;
 
-const API_BASE = 'http://localhost:8080';
 
 interface AppConfig {
   key: string;

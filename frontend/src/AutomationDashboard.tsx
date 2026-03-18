@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 
@@ -40,8 +41,8 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
       try {
         const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
         const [metricsResp, messagesResp] = await Promise.all([
-          fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/metrics${queryParams}`),
-          fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/messages${queryParams}`)
+          fetchWithAuth(`${API_BASE}/api/automation/whatsapp/metrics${queryParams}`),
+          fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages${queryParams}`)
         ]);
         
         const mData = await metricsResp.json();
@@ -69,7 +70,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
     setIsSyncing(true);
     try {
       const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/sync-metrics${queryParams}`);
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/sync-metrics${queryParams}`);
       if (resp.ok) {
         const mData = await resp.json();
         setMetrics(mData);

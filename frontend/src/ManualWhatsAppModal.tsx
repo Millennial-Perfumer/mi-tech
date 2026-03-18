@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import React, { useState, useEffect } from 'react';
 
 interface Template {
@@ -41,7 +42,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8080/api/automation/whatsapp/templates', {
+      const response = await fetch(`${API_BASE}/api/automation/whatsapp/templates`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -59,7 +60,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
     setSending(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:8080/api/automation/whatsapp/send-manual', {
+      const response = await fetch(`${API_BASE}/api/automation/whatsapp/send-manual`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
