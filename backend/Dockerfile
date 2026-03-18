@@ -32,6 +32,7 @@ COPY --from=builder /app/main .
 
 # Copy migration and documentation files ensuring they exist for runtime bootstrap
 COPY --from=builder /app/internal/database/migrations ./internal/database/migrations
+COPY --from=builder /app/internal/fonts ./internal/fonts
 COPY --from=builder /app/docs ./docs
 
 # Expose port (adjust if your backend uses a different port)
