@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import React, { useState, useEffect } from 'react';
 
 interface GSTSummary {
@@ -58,7 +59,6 @@ interface GSTReportsProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth }) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents'>('summary');

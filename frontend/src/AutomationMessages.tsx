@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 
@@ -43,7 +44,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
   const fetchMessages = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/messages?start_date=${startDate}&end_date=${endDate}&page=${page}&limit=${limit}&search=${encodeURIComponent(debouncedSearch)}`);
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages?start_date=${startDate}&end_date=${endDate}&page=${page}&limit=${limit}&search=${encodeURIComponent(debouncedSearch)}`);
       const data = await resp.json();
       setMessages(data.messages || []);
       setTotalCount(data.total_count || 0);

@@ -61,7 +61,8 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint: ["/bin/sh", "-c"]
-    command: ["trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"]
+    command:
+      - "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
     networks:
       - app-network
 

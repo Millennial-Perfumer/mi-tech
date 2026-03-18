@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import { useState, useEffect, useRef } from 'react';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -101,7 +102,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
     if (!silent) setIsLoading(true);
     try {
       const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates${queryParams}`);
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates${queryParams}`);
       const data = await resp.json();
       setTemplates(data || []);
     } catch (err) {
@@ -114,7 +115,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
   const handleSyncStatus = async () => {
     setIsSyncingStatus(true);
     try {
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates/sync`);
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates/sync`);
       if (resp.ok) {
         fetchTemplates(true);
       } else {
@@ -233,7 +234,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
       const form = new FormData();
       form.append('file', file);
 
-      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates/upload', {
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates/upload`, {
         method: 'POST',
         body: form,
       });
@@ -304,7 +305,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
       };
 
       const method = editingTemplate ? 'PUT' : 'POST';
-      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates', {
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -328,7 +329,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this template? This will remove it from WhatsApp and the automation system.')) return;
     try {
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/templates?id=${id}`, { method: 'DELETE' });
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates?id=${id}`, { method: 'DELETE' });
       if (resp.ok) {
         fetchTemplates();
       } else {

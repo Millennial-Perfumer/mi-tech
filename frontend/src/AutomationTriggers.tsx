@@ -1,3 +1,4 @@
+import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
 
 interface Trigger {
@@ -34,8 +35,8 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
     setIsLoading(true);
     try {
       const [triggersResp, templatesResp] = await Promise.all([
-        fetchWithAuth('http://localhost:8080/api/automation/whatsapp/triggers'),
-        fetchWithAuth('http://localhost:8080/api/automation/whatsapp/templates')
+        fetchWithAuth(`${API_BASE}/api/automation/whatsapp/triggers`),
+        fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates`)
       ]);
       const triggersData = await triggersResp.json();
       const templatesData = await templatesResp.json();
@@ -57,7 +58,7 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
     
     setIsSaving(true);
     try {
-      const resp = await fetchWithAuth('http://localhost:8080/api/automation/whatsapp/triggers', {
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/triggers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,7 +80,7 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
 
   const handleToggle = async (id: number, currentEnabled: boolean) => {
     try {
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/triggers`, {
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/triggers`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, enabled: !currentEnabled })
@@ -93,7 +94,7 @@ export function AutomationTriggers({ fetchWithAuth }: AutomationTriggersProps) {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this trigger mapping?')) return;
     try {
-      const resp = await fetchWithAuth(`http://localhost:8080/api/automation/whatsapp/triggers?id=${id}`, { method: 'DELETE' });
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/triggers?id=${id}`, { method: 'DELETE' });
       if (resp.ok) fetchData();
     } catch (err) {
       console.error('Failed to delete trigger:', err);
