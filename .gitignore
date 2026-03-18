@@ -62,3 +62,6 @@ backend/internal/db/shopify_gst_app.db
 
 # SSL certificates (generated on server, never commit)
 certbot/
+
+# Database backups
+backups/
