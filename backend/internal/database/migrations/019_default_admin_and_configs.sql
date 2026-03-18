@@ -1,11 +1,3 @@
--- Migration 019: Seed default admin and ensure configuration keys exist
--- This ensures that fresh installations have an admin user and visible settings in the UI.
-
--- 1. Insert default admin user if it doesn't exist
--- Username: admin, Password: (provided by user)
-INSERT INTO users (username, password_hash)
-VALUES ('admin', '$2b$12$wfxnb3A28AzabsodKXnEfO1cbs.93JIppsbXdexZkapTrEo79Mr5W')
-ON CONFLICT (username) DO NOTHING;
 
 -- 2. Ensure all essential app_configs keys exist so they show up in the UI
 INSERT INTO app_configs (key, value, is_secret, label, category, sort_order)
