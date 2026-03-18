@@ -105,10 +105,10 @@ jobs:
             export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
 
             # Pull new images
-            docker-compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml pull
 
             # Recreate containers with new images
-            docker-compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml up -d
 
             # Remove old dangling images to save space
             docker image prune -af
