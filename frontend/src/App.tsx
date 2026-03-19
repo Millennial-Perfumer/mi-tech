@@ -146,6 +146,10 @@ function App() {
     return DEFAULT_VISIBLE_COLUMNS;
   });
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
+
   useEffect(() => {
     localStorage.setItem('shopifyAppVisibleColumns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
@@ -245,8 +249,14 @@ function App() {
     }
   }, [token]);
 
-  const fetchDashboardData = async (silent = false) => {
+  const fetchDashboardData = async (silent = false, force = false) => {
     if (!token) return;
+    
+    // Only fetch dashboard/orders data if specifically on those tabs (unless forced)
+    if (!force && activeTab !== 'dashboard' && activeTab !== 'shopify') {
+      return;
+    }
+
     if (!silent) setIsLoading(true);
     try {
       let startObj = '';
@@ -298,10 +308,10 @@ function App() {
           end_date: syncEndDate
         })
       });
-      const data = await response.json();
-      if (data.success) {
+      const data = await response.json();      if (data.success) {
         alert(`Successfully synced ${data.count} orders!`);
-        fetchDashboardData();
+        triggerRefresh();
+        fetchDashboardData(false, true);
       } else {
         alert(data.message || 'Failed to sync orders.');
       }
@@ -350,7 +360,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [activeTab, startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
   const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {
@@ -996,7 +1006,12 @@ function App() {
         )}
 
         {activeTab === 'reports' && (
-          <GSTReports startDate={startDate} endDate={endDate} fetchWithAuth={fetchWithAuth} />
+          <GSTReports 
+            startDate={startDate} 
+            endDate={endDate} 
+            fetchWithAuth={fetchWithAuth} 
+            refreshTrigger={refreshTrigger}
+          />
         )}
 
         {activeTab === 'automation' && (
@@ -1005,6 +1020,7 @@ function App() {
             startDate={startDate} 
             endDate={endDate}
             onDateChange={handleUpdateDateRange}
+            refreshTrigger={refreshTrigger}
           />
         )}
 

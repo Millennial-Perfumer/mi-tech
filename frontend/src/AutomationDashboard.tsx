@@ -27,17 +27,22 @@ interface AutomationDashboardProps {
   startDate: string;
   endDate: string;
   onDateChange: (start: string, end: string) => void;
+  refreshTrigger?: number;
 }
 
-export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateChange }: AutomationDashboardProps) {
+export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateChange, refreshTrigger }: AutomationDashboardProps) {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!metrics);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const fetchData = async (silent = false) => {
-      if (!silent) setIsLoading(true);
+      if (!silent) {
+        if (metrics) setIsRefreshing(true);
+        else setIsLoading(true);
+      }
       try {
         const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
         const [metricsResp, messagesResp] = await Promise.all([
@@ -54,6 +59,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
         console.error('Failed to fetch dashboard data:', err);
       } finally {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
     };
 
@@ -64,7 +70,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
       }
     }, 15000); // 15 seconds for dashboard metrics
     return () => clearInterval(interval);
-  }, [startDate, endDate]);
+  }, [startDate, endDate, refreshTrigger]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -95,6 +101,12 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
         gap: '1rem',
         marginBottom: '2rem' 
       }}>
+        {isRefreshing && (
+          <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-color)', fontSize: '0.85rem', fontWeight: 600 }}>
+             <div className="dot-flashing"></div>
+             Updating...
+          </div>
+        )}
         <button 
           className="btn-secondary" 
           onClick={handleSync}

@@ -9,9 +9,10 @@ interface WhatsAppAutomationProps {
   startDate: string;
   endDate: string;
   onDateChange: (start: string, end: string) => void;
+  refreshTrigger?: number;
 }
 
-export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateChange }: WhatsAppAutomationProps) {
+export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateChange, refreshTrigger }: WhatsAppAutomationProps) {
   const [activeSubTab, setActiveSubTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveSubTab') || 'dashboard';
   });
@@ -59,10 +60,10 @@ export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateCh
       </div>
 
       <div className="automation-content">
-        {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} />}
+        {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} refreshTrigger={refreshTrigger} />}
         {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} />}
         {activeSubTab === 'triggers' && <AutomationTriggers fetchWithAuth={fetchWithAuth} />}
-        {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} />}
+        {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} refreshTrigger={refreshTrigger} />}
       </div>
     </div>
   );

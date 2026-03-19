@@ -21,11 +21,13 @@ interface AutomationMessagesProps {
   startDate: string;
   endDate: string;
   onDateChange: (start: string, end: string) => void;
+  refreshTrigger?: number;
 }
 
-export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateChange }: AutomationMessagesProps) {
+export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateChange, refreshTrigger }: AutomationMessagesProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!messages.length);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +44,10 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
   }, [searchQuery]);
 
   const fetchMessages = async (silent = false) => {
-    if (!silent) setIsLoading(true);
+    if (!silent) {
+      if (messages.length > 0) setIsRefreshing(true);
+      else setIsLoading(true);
+    }
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages?start_date=${startDate}&end_date=${endDate}&page=${page}&limit=${limit}&search=${encodeURIComponent(debouncedSearch)}`);
       const data = await resp.json();
@@ -52,6 +57,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
       console.error('Failed to fetch messages:', err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -60,7 +66,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
     // Auto-refresh every 10 seconds for real-time status updates
     const interval = setInterval(() => fetchMessages(true), 10000);
     return () => clearInterval(interval);
-  }, [startDate, endDate, page, debouncedSearch]);
+  }, [startDate, endDate, page, debouncedSearch, refreshTrigger]);
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -132,6 +138,12 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-refreshing every 10s</span>
           <button className="btn-secondary" onClick={() => fetchMessages()} style={{ height: '42px' }}>Refresh Now</button>
+          {isRefreshing && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-color)', fontSize: '0.8rem', fontWeight: 600 }}>
+              <div className="dot-flashing"></div>
+              Updating...
+            </div>
+          )}
           <CustomDatePicker 
             startDate={startDate}
             endDate={endDate}
