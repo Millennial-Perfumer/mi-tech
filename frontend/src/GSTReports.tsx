@@ -57,17 +57,19 @@ interface GSTReportsProps {
   startDate: string;
   endDate: string;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  refreshTrigger?: number;
 }
 
 
-export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth }) => {
+export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth, refreshTrigger }) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents'>('summary');
   const [summary, setSummary] = useState<GSTSummary | null>(null);
   const [stateData, setStateData] = useState<StateReport[]>([]);
   const [hsnData, setHsnData] = useState<HSNReport[]>([]);
   const [docsData, setDocsData] = useState<DocumentIssued[]>([]);
   const [opSummary, setOpSummary] = useState<OperationalSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!summary);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Sorting State
   const [sortField, setSortField] = useState<string>('');
@@ -107,7 +109,12 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
 
   useEffect(() => {
     const fetchReports = async () => {
-      setLoading(true);
+      if (summary) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       try {
         let startObj = '';
         let endObj = '';
@@ -152,11 +159,12 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
         console.error('Failed to fetch reports:', err);
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     };
 
     fetchReports();
-  }, [startDate, endDate, fetchWithAuth]);
+  }, [startDate, endDate, fetchWithAuth, refreshTrigger]);
 
   const downloadCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;
@@ -178,7 +186,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     <div className="gst-reports-container" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* Sub-navigation */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto', alignItems: 'center' }}>
         {[
           { id: 'summary', label: 'Dashboard' },
           { id: 'state', label: 'B2C State-wise' },
@@ -200,6 +208,12 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
             {tab.label}
           </button>
         ))}
+        {isRefreshing && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-color)', fontSize: '0.8rem', fontWeight: 600 }}>
+            <div className="dot-flashing"></div>
+            Updating...
+          </div>
+        )}
       </div>
 
       {activeSubTab === 'summary' && (
