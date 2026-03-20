@@ -105,10 +105,10 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 
 	// Map sourceName to internal source_id
 	sourceID := "shopify"
-	switch strings.ToLower(so.SourceName) {
-	case "amazon":
+	sourceName := strings.ToLower(so.SourceName)
+	if strings.Contains(sourceName, "amazon") {
 		sourceID = "amazon"
-	case "pos":
+	} else if strings.Contains(sourceName, "pos") {
 		sourceID = "pos"
 	}
 
@@ -250,10 +250,10 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 
 	// Map source_name to source_id
 	sourceID := "shopify"
-	switch strings.ToLower(payload.SourceName) {
-	case "amazon":
+	sourceName := strings.ToLower(payload.SourceName)
+	if strings.Contains(sourceName, "amazon") {
 		sourceID = "amazon"
-	case "pos":
+	} else if strings.Contains(sourceName, "pos") {
 		sourceID = "pos"
 	}
 
