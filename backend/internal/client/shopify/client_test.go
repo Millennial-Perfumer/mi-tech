@@ -50,6 +50,12 @@ func (h *mockShopifyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		resp.Data.Orders.PageInfo.HasNextPage = false
 	}
 
+	// Add mock data to simulate processing overhead
+	resp.Data.Orders.Edges = []dto.GraphQLOrderEdge{
+		{Node: dto.GraphQLOrderNode{ID: "gid://shopify/Order/1", Name: "#1001"}},
+		{Node: dto.GraphQLOrderNode{ID: "gid://shopify/Order/2", Name: "#1002"}},
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
