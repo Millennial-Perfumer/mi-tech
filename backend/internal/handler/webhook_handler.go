@@ -20,6 +20,8 @@ import (
 	"mi-tech/internal/service"
 )
 
+const webhookProcessingTimeout = 2 * time.Minute
+
 // WebhookHandler is a thin HTTP adapter for Shopify webhook endpoints.
 type WebhookHandler struct {
 	webhookService *service.WebhookService
@@ -83,7 +85,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 		// Use a detached context with timeout for async processing.
 		// We cannot use r.Context() here because the handler returns immediately,
 		// and r.Context() would be cancelled.
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), webhookProcessingTimeout)
 		defer cancel()
 
 		// Process by topic using appropriate payload type
