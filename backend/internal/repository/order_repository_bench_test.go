@@ -23,7 +23,7 @@ func BenchmarkUpsertLineItems(b *testing.B) {
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		b.Skip("Database not available for benchmark")
+		b.Fatalf("Database not available for benchmark: %v", err)
 	}
 
 	sqlDB, err := db.DB()
@@ -43,34 +43,44 @@ func BenchmarkUpsertLineItems(b *testing.B) {
 		sqlDB.Close()
 	})
 
-	repo := NewOrderRepository(db)
-
-	order := entity.Order{
-		SourceID:    "bench-source",
-		OrderNumber: "BENCH001",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	// Create many line items
-	for i := 0; i < 100; i++ {
-		id := fmt.Sprintf("li-%d", i)
-		title := fmt.Sprintf("Item %d", i)
-		order.LineItems = append(order.LineItems, entity.LineItem{
-			ID:       id,
-			Title:    &title,
-			Quantity: 1,
-			Price:    10.0,
-		})
-	}
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Ensure each iteration is independent by providing a unique external order ID
-		order.ExternalOrderID = fmt.Sprintf("bench-order-%d", i)
-		err := repo.Upsert(order)
+		// Start a transaction for each iteration to isolate operations
+		tx := db.Begin()
+		if tx.Error != nil {
+			b.Fatalf("Failed to begin transaction: %v", tx.Error)
+		}
+		// Use a repository initialized with the transaction
+		txRepo := NewOrderRepository(tx)
+
+		// Create a fresh order object for each iteration to ensure isolation
+		currentOrder := entity.Order{
+			SourceID:    "bench-source",
+			OrderNumber: "BENCH001",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+		currentOrder.ExternalOrderID = fmt.Sprintf("bench-order-%d", i) // Unique order ID
+
+		// Create many line items
+		for j := 0; j < 100; j++ {
+			// Make LineItem IDs unique across all benchmark iterations
+			id := fmt.Sprintf("li-%d-%d", i, j)
+			title := fmt.Sprintf("Item %d", j)
+			currentOrder.LineItems = append(currentOrder.LineItems, entity.LineItem{
+				ID:       id,
+				Title:    &title,
+				Quantity: 1,
+				Price:    10.0,
+			})
+		}
+
+		err := txRepo.Upsert(currentOrder)
 		if err != nil {
+			tx.Rollback()
 			b.Fatalf("Upsert failed: %v", err)
 		}
+		// Rollback the transaction to discard changes and ensure a consistent state for the next iteration
+		tx.Rollback()
 	}
 }
