@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -16,20 +17,27 @@ func BenchmarkUpsertLineItems(b *testing.B) {
 	// or use a mock. Since we want to measure DB performance,
 	// a real DB is better.
 	// For this environment, we might need to rely on the dockerized DB.
-	dsn := "host=localhost user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=UTC"
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		dsn = "host=localhost user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=UTC"
+	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		b.Skip("Database not available for benchmark")
 	}
 
+	sqlDB, err := db.DB()
+	if err == nil {
+		defer sqlDB.Close()
+	}
+
 	repo := NewOrderRepository(db)
 
 	order := entity.Order{
-		ExternalOrderID: "bench-order-1",
-		SourceID:        "bench-source",
-		OrderNumber:     "BENCH001",
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		SourceID:    "bench-source",
+		OrderNumber: "BENCH001",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	// Create many line items
@@ -46,6 +54,8 @@ func BenchmarkUpsertLineItems(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		// Ensure each iteration is independent by providing a unique external order ID
+		order.ExternalOrderID = fmt.Sprintf("bench-order-%d", i)
 		err := repo.Upsert(order)
 		if err != nil {
 			b.Fatalf("Upsert failed: %v", err)
