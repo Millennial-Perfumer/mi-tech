@@ -1,0 +1,54 @@
+package repository
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	"mi-tech/internal/entity"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
+
+func BenchmarkUpsertLineItems(b *testing.B) {
+	// Setup a temporary database for benchmarking if possible,
+	// or use a mock. Since we want to measure DB performance,
+	// a real DB is better.
+	// For this environment, we might need to rely on the dockerized DB.
+	dsn := "host=localhost user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=UTC"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		b.Skip("Database not available for benchmark")
+	}
+
+	repo := NewOrderRepository(db)
+
+	order := entity.Order{
+		ExternalOrderID: "bench-order-1",
+		SourceID:        "bench-source",
+		OrderNumber:     "BENCH001",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	// Create many line items
+	for i := 0; i < 100; i++ {
+		id := fmt.Sprintf("li-%d", i)
+		title := fmt.Sprintf("Item %d", i)
+		order.LineItems = append(order.LineItems, entity.LineItem{
+			ID:       id,
+			Title:    &title,
+			Quantity: 1,
+			Price:    10.0,
+		})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := repo.Upsert(order)
+		if err != nil {
+			b.Fatalf("Upsert failed: %v", err)
+		}
+	}
+}
