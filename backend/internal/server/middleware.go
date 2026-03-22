@@ -16,7 +16,7 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		} else {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
-		
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -35,9 +35,9 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
 			if r.Method == "OPTIONS" ||
-			   strings.HasPrefix(path, "/api/webhooks") || 
-			   path == "/api/health" || 
-			   path == "/api/auth/login" {
+				strings.HasPrefix(path, "/api/webhooks") ||
+				path == "/api/health" ||
+				path == "/api/auth/login" {
 				next.ServeHTTP(w, r)
 				return
 			}

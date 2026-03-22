@@ -57,6 +57,7 @@ func (r *SettingsRepository) SetDateRange(startDate, endDate string) error {
 	}
 	return r.Set("date_range_end", endDate)
 }
+
 // GetAll retrieves all settings.
 func (r *SettingsRepository) GetAll(settings *[]AppSetting) error {
 	return r.db.Find(settings).Error

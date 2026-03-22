@@ -94,7 +94,7 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.syncService.Sync(startTime, endTime)
+	count, err := h.syncService.Sync(r.Context(), startTime, endTime)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -122,7 +122,7 @@ func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.syncService.ResetAndSync()
+	count, err := h.syncService.ResetAndSync(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

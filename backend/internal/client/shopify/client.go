@@ -1,6 +1,7 @@
 package shopify
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/time/rate"
 	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 )
@@ -17,6 +19,8 @@ import (
 type Client struct {
 	settings   *config.SettingsProvider
 	httpClient *http.Client
+	baseURL    string // For testing
+	limiter    *rate.Limiter
 }
 
 func NewClient(settings *config.SettingsProvider) *Client {
@@ -25,14 +29,26 @@ func NewClient(settings *config.SettingsProvider) *Client {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		// Shopify's GraphQL API has a leaky bucket limit, but for simplicity
+		// we'll use a rate limiter. 2 requests per second with a burst of 10
+		// is generally safe for many Shopify stores.
+		limiter: rate.NewLimiter(rate.Limit(2), 10),
 	}
+}
+
+func (c *Client) getAPIURL() string {
+	if c.baseURL != "" {
+		return c.baseURL
+	}
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	return fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
 }
 
 // baselineDate is the earliest date we care about for orders (2026-01-01).
 var baselineDate = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // FetchOrders fetches orders from Shopify using the GraphQL Admin API, extracting specific location vectors.
-func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderNode, error) {
+func (c *Client) FetchOrders(ctx context.Context, since time.Time, to time.Time) ([]dto.GraphQLOrderNode, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -41,7 +57,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 	}
 
 	var allOrders []dto.GraphQLOrderNode
-	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
+	apiURL := c.getAPIURL()
 
 	// Build the search query dynamically.
 	searchQuery := fmt.Sprintf("updated_at:>'%s' AND updated_at:<='%s'", since.Format(time.RFC3339), to.Format(time.RFC3339))
@@ -214,8 +230,10 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 		if result.Data.Orders.PageInfo.HasNextPage && result.Data.Orders.PageInfo.EndCursor != "" {
 			endCursor := result.Data.Orders.PageInfo.EndCursor
 			cursor = &endCursor
-			// To respect rate limits
-			time.Sleep(500 * time.Millisecond)
+			// Wait for rate limit before next page
+			if err := c.limiter.Wait(ctx); err != nil {
+				return nil, err
+			}
 		} else {
 			break
 		}
@@ -225,7 +243,12 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 }
 
 // FetchOrderByID fetches a single order from Shopify using GraphQL.
-func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
+func (c *Client) FetchOrderByID(ctx context.Context, id string) (*dto.GraphQLOrderNode, error) {
+	// Respect rate limits
+	if err := c.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -233,7 +256,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 		return nil, fmt.Errorf("shopify credentials are not configured in DB")
 	}
 
-	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
+	apiURL := c.getAPIURL()
 
 	// Ensure the ID is in the correct GID format
 	gid := id

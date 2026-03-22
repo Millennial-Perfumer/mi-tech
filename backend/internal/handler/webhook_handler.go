@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -79,6 +80,9 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 		var automationTopic string
 		var processErr error
 
+		// Use Background context for async processing
+		ctx := context.Background()
+
 		// Process by topic using appropriate payload type
 		if strings.HasPrefix(topic, "orders/") {
 			var payload dto.ShopifyWebhookOrder
@@ -112,10 +116,10 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			switch topic {
 			case "fulfillments/create":
 				automationTopic = "orders/assigned"
-				processErr = h.webhookService.ProcessFulfillmentCreate(payload)
+				processErr = h.webhookService.ProcessFulfillmentCreate(ctx, payload)
 			case "fulfillments/update":
 				automationTopic = "fulfillments/update"
-				processErr = h.webhookService.ProcessFulfillmentUpdate(payload)
+				processErr = h.webhookService.ProcessFulfillmentUpdate(ctx, payload)
 			}
 		} else {
 			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)

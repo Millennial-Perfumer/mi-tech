@@ -8,8 +8,8 @@ import (
 	"mi-tech/internal/handler"
 	"mi-tech/internal/service"
 
-	_ "mi-tech/docs"
 	httpSwagger "github.com/swaggo/http-swagger"
+	_ "mi-tech/docs"
 )
 
 // RegisterRoutes sets up all API routes in one place.

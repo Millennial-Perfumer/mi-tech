@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -81,11 +82,11 @@ func (s *WebhookService) ProcessOrderCancelled(externalOrderID string, cancelled
 }
 
 // ProcessFulfillmentCreate handles fulfillments/create webhook.
-func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillment) error {
+func (s *WebhookService) ProcessFulfillmentCreate(ctx context.Context, f dto.ShopifyWebhookFulfillment) error {
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
 	log.Printf("Processing fulfillments/create for Order ID: %s. Refreshing from Shopify API...", extOrderID)
-	
-	err := s.RefreshOrder(extOrderID)
+
+	err := s.RefreshOrder(ctx, extOrderID)
 	if err != nil {
 		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
 		// Fallback: update tracking info from payload
@@ -95,11 +96,11 @@ func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillmen
 }
 
 // ProcessFulfillmentUpdate handles fulfillments/update webhook.
-func (s *WebhookService) ProcessFulfillmentUpdate(f dto.ShopifyWebhookFulfillment) error {
+func (s *WebhookService) ProcessFulfillmentUpdate(ctx context.Context, f dto.ShopifyWebhookFulfillment) error {
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
 	log.Printf("Processing fulfillments/update for Order ID: %s. Refreshing from Shopify API...", extOrderID)
-	
-	err := s.RefreshOrder(extOrderID)
+
+	err := s.RefreshOrder(ctx, extOrderID)
 	if err != nil {
 		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
 		// Fallback: update tracking info from payload
@@ -108,9 +109,9 @@ func (s *WebhookService) ProcessFulfillmentUpdate(f dto.ShopifyWebhookFulfillmen
 	return nil
 }
 
-func (s *WebhookService) RefreshOrder(externalOrderID string) error {
+func (s *WebhookService) RefreshOrder(ctx context.Context, externalOrderID string) error {
 	log.Printf("Refreshing order %s from Shopify API...", externalOrderID)
-	so, err := s.shopifyClient.FetchOrderByID(externalOrderID)
+	so, err := s.shopifyClient.FetchOrderByID(ctx, externalOrderID)
 	if err != nil {
 		return err
 	}
@@ -120,7 +121,7 @@ func (s *WebhookService) RefreshOrder(externalOrderID string) error {
 
 	order := mapper.GraphQLOrderToEntity(*so)
 	order.LineItems = mapper.GraphQLLineItemsToEntities(order.ID, so.LineItems)
-	
+
 	return s.orderService.UpsertOrder(order)
 }
 

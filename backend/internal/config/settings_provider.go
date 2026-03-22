@@ -2,8 +2,8 @@ package config
 
 import (
 	"log"
-	"os"
 	"mi-tech/internal/repository"
+	"os"
 )
 
 type SettingsProvider struct {

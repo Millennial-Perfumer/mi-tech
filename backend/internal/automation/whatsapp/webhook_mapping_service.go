@@ -209,47 +209,47 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 
 		if strings.ToUpper(hData.Type) == "DOCUMENT" {
 			// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
-				log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
+			log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
 
-				// 1. Fetch line items (required for invoice generation)
-				items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
-				if err != nil {
-					log.Printf("Automation Error: Failed to fetch line items for invoice: %v", err)
+			// 1. Fetch line items (required for invoice generation)
+			items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
+			if err != nil {
+				log.Printf("Automation Error: Failed to fetch line items for invoice: %v", err)
+			} else {
+				// 2. Generate PDF bytes
+				var buf bytes.Buffer
+				if err := s.invoiceService.GeneratePDF(order, items, &buf); err != nil {
+					log.Printf("Automation Error: Failed to generate PDF: %v", err)
 				} else {
-					// 2. Generate PDF bytes
-					var buf bytes.Buffer
-					if err := s.invoiceService.GeneratePDF(order, items, &buf); err != nil {
-						log.Printf("Automation Error: Failed to generate PDF: %v", err)
-					} else {
-						// 3. Upload to WhatsApp Media API to get a Media ID
-						filename := "Invoice_" + order.OrderNumber + ".pdf"
-						id, err := s.messagesService.metaClient.UploadWhatsAppMedia(buf.Bytes(), filename, "application/pdf")
-						if err != nil {
-							log.Printf("Automation Error: Failed to upload invoice to Meta: %v", err)
-							return fmt.Errorf("failed to upload invoice: %w", err)
-						}
-						log.Printf("Automation Success: Uploaded invoice, Media ID: %s", id)
+					// 3. Upload to WhatsApp Media API to get a Media ID
+					filename := "Invoice_" + order.OrderNumber + ".pdf"
+					id, err := s.messagesService.metaClient.UploadWhatsAppMedia(buf.Bytes(), filename, "application/pdf")
+					if err != nil {
+						log.Printf("Automation Error: Failed to upload invoice to Meta: %v", err)
+						return fmt.Errorf("failed to upload invoice: %w", err)
+					}
+					log.Printf("Automation Success: Uploaded invoice, Media ID: %s", id)
 
-						// Meta Cloud API often expects the ID as a numeric value in JSON
-						var idVal interface{} = id
-						if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
-							idVal = numericID
-						}
+					// Meta Cloud API often expects the ID as a numeric value in JSON
+					var idVal interface{} = id
+					if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
+						idVal = numericID
+					}
 
-						components = append(components, map[string]interface{}{
-							"type": "header",
-							"parameters": []map[string]interface{}{
-								{
-									"type": "document",
-									"document": map[string]interface{}{
-										"id":       idVal,
-										"filename": filename,
-									},
+					components = append(components, map[string]interface{}{
+						"type": "header",
+						"parameters": []map[string]interface{}{
+							{
+								"type": "document",
+								"document": map[string]interface{}{
+									"id":       idVal,
+									"filename": filename,
 								},
 							},
-						})
-					}
+						},
+					})
 				}
+			}
 		}
 	}
 

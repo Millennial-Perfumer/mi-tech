@@ -80,6 +80,7 @@ func (h *SettingsHandler) GetAllSettings(w http.ResponseWriter, r *http.Request)
 		"settings": res,
 	})
 }
+
 // UpdateSetting updates a single setting value.
 func (h *SettingsHandler) UpdateSetting(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {

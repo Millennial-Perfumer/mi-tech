@@ -80,7 +80,7 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		}
 
 		f := bestFulfillment
-		
+
 		// Prioritize: 1. Latest event status, 2. Display status, 3. Raw status
 		if len(f.Events.Edges) > 0 {
 			lastEvent := f.Events.Edges[len(f.Events.Edges)-1].Node
@@ -286,7 +286,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		}
 
 		f := bestFulfillment
-		
+
 		// Determine delivery status from shipment_status, display_status, or status
 		if f.ShipmentStatus != nil && *f.ShipmentStatus != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(*f.ShipmentStatus, "_", " "))
@@ -295,7 +295,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		} else if f.Status != "" {
 			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
 		}
-		
+
 		trackingNumber = f.TrackingNumber
 		shippingCompany = f.TrackingCompany
 		trackingUrl = f.TrackingUrl
