@@ -31,6 +31,11 @@ func BenchmarkUpsertLineItems(b *testing.B) {
 		b.Fatalf("Failed to get underlying *sql.DB: %v", err)
 	}
 
+	// Ensure the schema is ready for benchmarking
+	if err := db.AutoMigrate(&entity.Order{}, &entity.LineItem{}); err != nil {
+		b.Fatalf("Failed to auto-migrate database schema: %v", err)
+	}
+
 	// Ensure tables are cleaned up after the benchmark run
 	b.Cleanup(func() {
 		db.Exec("TRUNCATE TABLE order_line_items CASCADE")
