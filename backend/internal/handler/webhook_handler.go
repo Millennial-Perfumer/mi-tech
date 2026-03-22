@@ -80,8 +80,11 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 		var automationTopic string
 		var processErr error
 
-		// Use Background context for async processing
-		ctx := context.Background()
+		// Use a detached context with timeout for async processing.
+		// We cannot use r.Context() here because the handler returns immediately,
+		// and r.Context() would be cancelled.
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
 
 		// Process by topic using appropriate payload type
 		if strings.HasPrefix(topic, "orders/") {
