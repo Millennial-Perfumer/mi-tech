@@ -19,26 +19,27 @@ import (
 type Client struct {
 	settings   *config.SettingsProvider
 	httpClient *http.Client
-	baseURL    string // For testing
+	testURL    string // For testing
 	limiter    *rate.Limiter
 }
 
 func NewClient(settings *config.SettingsProvider) *Client {
+	limit := settings.GetShopifyRateLimit()
+	burst := settings.GetShopifyRateBurst()
+
 	return &Client{
 		settings: settings,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		// Shopify's GraphQL API has a leaky bucket limit, but for simplicity
-		// we'll use a rate limiter. 2 requests per second with a burst of 10
-		// is generally safe for many Shopify stores.
-		limiter: rate.NewLimiter(rate.Limit(2), 10),
+		// Shopify's GraphQL API has a leaky bucket limit.
+		limiter: rate.NewLimiter(rate.Limit(limit), burst),
 	}
 }
 
 func (c *Client) getAPIURL() string {
-	if c.baseURL != "" {
-		return c.baseURL
+	if c.testURL != "" {
+		return c.testURL
 	}
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	return fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
@@ -190,7 +191,7 @@ func (c *Client) FetchOrders(ctx context.Context, since time.Time, to time.Time)
 			return nil, err
 		}
 
-		req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(payloadBytes)))
+		req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(string(payloadBytes)))
 		if err != nil {
 			return nil, err
 		}
@@ -343,7 +344,7 @@ func (c *Client) FetchOrderByID(ctx context.Context, id string) (*dto.GraphQLOrd
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(payloadBytes)))
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(string(payloadBytes)))
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"log"
 	"mi-tech/internal/repository"
 	"os"
+	"strconv"
 )
 
 type SettingsProvider struct {
@@ -100,4 +101,28 @@ func (p *SettingsProvider) GetBusinessAddressLine2() string {
 
 func (p *SettingsProvider) GetBusinessPhone() string {
 	return p.get("business_phone")
+}
+
+func (p *SettingsProvider) GetShopifyRateLimit() float64 {
+	val := p.get("shopify_rate_limit")
+	if val == "" {
+		return 2.0
+	}
+	f, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		return 2.0
+	}
+	return f
+}
+
+func (p *SettingsProvider) GetShopifyRateBurst() int {
+	val := p.get("shopify_rate_burst")
+	if val == "" {
+		return 10
+	}
+	i, err := strconv.Atoi(val)
+	if err != nil {
+		return 10
+	}
+	return i
 }

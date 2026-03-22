@@ -30,7 +30,7 @@ func setupTestClient(b *testing.B, apiURL string) *Client {
 
 	settings := config.NewSettingsProvider(repo)
 	client := NewClient(settings)
-	client.baseURL = apiURL
+	client.testURL = apiURL
 	return client
 }
 
