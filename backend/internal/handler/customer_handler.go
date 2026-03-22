@@ -16,13 +16,28 @@ func NewCustomerHandler(service *service.CustomerService) *CustomerHandler {
 }
 
 func (h *CustomerHandler) ListCustomers(w http.ResponseWriter, r *http.Request) {
-	search := r.URL.Query().Get("search")
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
-	sortBy := r.URL.Query().Get("sortBy")
-	sortOrder := r.URL.Query().Get("sortOrder")
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	pageSize, _ := strconv.Atoi(q.Get("pageSize"))
+	minSpent, _ := strconv.ParseFloat(q.Get("min_spent"), 64)
+	maxSpent, _ := strconv.ParseFloat(q.Get("max_spent"), 64)
+	minOrders, _ := strconv.Atoi(q.Get("min_orders"))
 
-	customers, total, err := h.service.ListCustomers(r.Context(), search, sortBy, sortOrder, page, pageSize)
+	filter := service.CustomerFilter{
+		Search:    q.Get("search"),
+		SortBy:    q.Get("sortBy"),
+		SortOrder: q.Get("sortOrder"),
+		SourceID:  q.Get("source_id"),
+		MinSpent:  minSpent,
+		MaxSpent:  maxSpent,
+		MinOrders: minOrders,
+		City:      q.Get("city"),
+		State:     q.Get("state"),
+		Page:      page,
+		PageSize:  pageSize,
+	}
+
+	customers, total, err := h.service.ListCustomers(r.Context(), filter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

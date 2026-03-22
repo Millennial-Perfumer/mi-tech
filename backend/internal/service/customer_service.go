@@ -7,6 +7,7 @@ import (
 	"io"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,27 @@ import (
 type CustomerService struct {
 	repo      *repository.CustomerRepository
 	orderRepo repository.OrderRepository
+}
+
+type CustomerFilter struct {
+	Search    string
+	SortBy    string
+	SortOrder string
+	SourceID  string
+	MinSpent  float64
+	MaxSpent  float64
+	MinOrders int
+	City      string
+	State     string
+	// New fields for Query Style Search
+	FirstName      string
+	LastName       string
+	Email          string
+	FirstNameEmpty bool
+	LastNameEmpty  bool
+	EmailEmpty     bool
+	Page      int
+	PageSize  int
 }
 
 func NewCustomerService(repo *repository.CustomerRepository, orderRepo repository.OrderRepository) *CustomerService {
@@ -248,13 +270,30 @@ func safeMerge(newCust, oldCust *entity.Customer) {
 	if newCust.ZipCode == nil { newCust.ZipCode = oldCust.ZipCode }
 }
 
-func (s *CustomerService) ListCustomers(ctx context.Context, search, sortBy, sortOrder string, page, pageSize int) ([]entity.Customer, int64, error) {
-	if page < 1 { page = 1 }
-	if pageSize < 1 { pageSize = 20 }
-	offset := (page - 1) * pageSize
+func (s *CustomerService) ListCustomers(ctx context.Context, f CustomerFilter) ([]entity.Customer, int64, error) {
+	if f.Page < 1 { f.Page = 1 }
+	if f.PageSize < 1 { f.PageSize = 20 }
+	offset := (f.Page - 1) * f.PageSize
+
+	if f.Search != "" {
+		parsed := s.parseSearchQuery(f.Search)
+		if parsed.MinSpent > 0 { f.MinSpent = parsed.MinSpent }
+		if parsed.MaxSpent > 0 { f.MaxSpent = parsed.MaxSpent }
+		if parsed.MinOrders > 0 { f.MinOrders = parsed.MinOrders }
+		if parsed.City != "" { f.City = parsed.City }
+		if parsed.State != "" { f.State = parsed.State }
+		if parsed.SourceID != "" { f.SourceID = parsed.SourceID }
+		if parsed.FirstName != "" { f.FirstName = parsed.FirstName }
+		if parsed.LastName != "" { f.LastName = parsed.LastName }
+		if parsed.Email != "" { f.Email = parsed.Email }
+		if parsed.FirstNameEmpty { f.FirstNameEmpty = true }
+		if parsed.LastNameEmpty { f.LastNameEmpty = true }
+		if parsed.EmailEmpty { f.EmailEmpty = true }
+		f.Search = parsed.Search
+	}
 
 	dbSortBy := "updated_at"
-	switch sortBy {
+	switch f.SortBy {
 	case "name":
 		dbSortBy = "first_name"
 	case "phone":
@@ -269,7 +308,60 @@ func (s *CustomerService) ListCustomers(ctx context.Context, search, sortBy, sor
 		dbSortBy = "updated_at"
 	}
 
-	return s.repo.List(ctx, search, dbSortBy, sortOrder, offset, pageSize)
+	return s.repo.List(ctx, f.Search, dbSortBy, f.SortOrder, f.SourceID, f.MinSpent, f.MaxSpent, f.MinOrders, f.City, f.State, f.FirstName, f.LastName, f.Email, f.FirstNameEmpty, f.LastNameEmpty, f.EmailEmpty, offset, f.PageSize)
+}
+
+func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
+	f := CustomerFilter{}
+	
+	// Support "field = ''" or "field = \"\""
+	emptyRegex := regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
+	matches := emptyRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		switch field {
+		case "first_name": f.FirstNameEmpty = true
+		case "last_name": f.LastNameEmpty = true
+		case "email": f.EmailEmpty = true
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	// Support "field > 1000" or "field < 5000"
+	rangeRegex := regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
+	matches = rangeRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		op := m[2]
+		val, _ := strconv.ParseFloat(m[3], 64)
+		switch field {
+		case "spent":
+			if op == ">" { f.MinSpent = val } else { f.MaxSpent = val }
+		case "orders":
+			if op == ">" { f.MinOrders = int(val) }
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	// Support "field:value" or "field=value"
+	kvRegex := regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
+	matches = kvRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		val := strings.Trim(m[2], `"'`)
+		switch field {
+		case "city": f.City = val
+		case "state": f.State = val
+		case "first_name": f.FirstName = val
+		case "last_name": f.LastName = val
+		case "email": f.Email = val
+		case "source": f.SourceID = val
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	f.Search = strings.TrimSpace(search)
+	return f
 }
 
 func (s *CustomerService) DeleteAllCustomers(ctx context.Context) error {

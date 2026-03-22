@@ -8,10 +8,14 @@ interface Customer {
     last_name: string;
     email: string;
     address1: string;
+    address2: string;
     city: string;
     state: string;
+    country: string;
+    zip_code: string;
     total_orders: number;
     total_spent: number;
+    created_at: string;
     updated_at: string;
     source_id: string;
 }
@@ -53,6 +57,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
     const [isLoading, setIsLoading] = useState(true);
     const [isImporting, setIsImporting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [selectedCustomerIDs, setSelectedCustomerIDs] = useState<Set<number>>(new Set());
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(() => {
         const saved = localStorage.getItem('customer_columns');
@@ -63,6 +69,13 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
     const [sources, setSources] = useState<Source[]>([]);
     const [selectedSource, setSelectedSource] = useState<string>('');
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterSource, setFilterSource] = useState('');
+    const [minSpent, setMinSpent] = useState('');
+    const [maxSpent, setMaxSpent] = useState('');
+    const [minOrders, setMinOrders] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('');
     const limit = 25;
 
     useEffect(() => {
@@ -88,7 +101,15 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
     const fetchCustomers = async () => {
         setIsLoading(true);
         try {
-            const response = await fetchWithAuth(`${API_BASE}/api/customers?page=${page}&pageSize=${limit}&search=${search}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
+            let url = `${API_BASE}/api/customers?page=${page}&pageSize=${limit}&search=${search}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+            if (filterSource) url += `&source_id=${filterSource}`;
+            if (minSpent) url += `&min_spent=${minSpent}`;
+            if (maxSpent) url += `&max_spent=${maxSpent}`;
+            if (minOrders) url += `&min_orders=${minOrders}`;
+            if (city) url += `&city=${encodeURIComponent(city)}`;
+            if (state) url += `&state=${encodeURIComponent(state)}`;
+
+            const response = await fetchWithAuth(url);
             const data = await response.json();
             setCustomers(data.customers || []);
             setTotal(data.total || 0);
@@ -129,7 +150,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
             fetchCustomers();
         }, 300);
         return () => clearTimeout(timer);
-    }, [page, search, sortBy, sortOrder]);
+    }, [page, search, sortBy, sortOrder, filterSource, minSpent, maxSpent, minOrders, city, state]);
 
     const handleImport = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -235,7 +256,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                         <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         <input 
                             type="text" 
-                            placeholder="Search by name, phone or email..." 
+                            placeholder="Search (e.g. city:Mumbai spent>1000 or first_name='')" 
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                             style={{ paddingLeft: '2.5rem', width: '100%' }}
@@ -262,6 +283,21 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                             {isDeleting ? 'Clearing...' : 'Clear All Customers'}
                         </button>
                     )}
+                        <button 
+                            className={`btn-secondary ${showFilters ? 'active' : ''}`} 
+                            onClick={() => setShowFilters(!showFilters)}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.5rem',
+                                color: showFilters ? '#3b82f6' : 'inherit',
+                                borderColor: showFilters ? '#3b82f6' : '#e2e8f0'
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                            Filters
+                        </button>
+
                         <button className="btn-secondary" onClick={() => setShowColumnPicker(!showColumnPicker)}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
                             Columns
@@ -316,10 +352,108 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                     </div>
                 </div>
 
+                {showFilters && (
+                    <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', animation: 'slideDown 0.3s ease-out' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>Origin Source</label>
+                                <select 
+                                    className="form-input" 
+                                    value={filterSource} 
+                                    onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}
+                                    style={{ width: '100%', height: '40px', background: 'white' }}
+                                >
+                                    <option value="">All Sources</option>
+                                    {sources.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>Total Spent (Min)</label>
+                                <input 
+                                    type="number" 
+                                    className="form-input" 
+                                    placeholder="e.g. 1000" 
+                                    value={minSpent} 
+                                    onChange={(e) => { setMinSpent(e.target.value); setPage(1); }} 
+                                    style={{ width: '100%', height: '40px', background: 'white' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>Min Orders</label>
+                                <input 
+                                    type="number" 
+                                    className="form-input" 
+                                    placeholder="e.g. 5" 
+                                    value={minOrders} 
+                                    onChange={(e) => { setMinOrders(e.target.value); setPage(1); }} 
+                                    style={{ width: '100%', height: '40px', background: 'white' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>City / State</label>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <input 
+                                        type="text" 
+                                        className="form-input" 
+                                        placeholder="City" 
+                                        value={city} 
+                                        onChange={(e) => { setCity(e.target.value); setPage(1); }} 
+                                        style={{ width: '50%', height: '40px', background: 'white' }}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        className="form-input" 
+                                        placeholder="State" 
+                                        value={state} 
+                                        onChange={(e) => { setState(e.target.value); setPage(1); }} 
+                                        style={{ width: '50%', height: '40px', background: 'white' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                            <button 
+                                className="btn-secondary" 
+                                style={{ fontSize: '0.85rem', color: '#64748b' }}
+                                onClick={() => {
+                                    setFilterSource('');
+                                    setMinSpent('');
+                                    setMaxSpent('');
+                                    setMinOrders('');
+                                    setCity('');
+                                    setState('');
+                                    setSearch('');
+                                    setPage(1);
+                                }}
+                            >
+                                Clear All Filters
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div style={{ overflowX: 'auto' }}>
                     <table>
                         <thead>
                             <tr>
+                                <th style={{ width: '40px', padding: '0 1rem' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={customers.length > 0 && customers.every(c => selectedCustomerIDs.has(c.id))}
+                                        onChange={(e) => {
+                                            const newSelection = new Set(selectedCustomerIDs);
+                                            if (e.target.checked) {
+                                                customers.forEach(c => newSelection.add(c.id));
+                                            } else {
+                                                customers.forEach(c => newSelection.delete(c.id));
+                                            }
+                                            setSelectedCustomerIDs(newSelection);
+                                        }}
+                                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                    />
+                                </th>
                                 {ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(col => (
                                     <th 
                                         key={col.key} 
@@ -345,7 +479,33 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                 <tr><td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No customers found.</td></tr>
                             ) : (
                                 customers.map((c) => (
-                                    <tr key={c.id}>
+                                    <tr 
+                                        key={c.id} 
+                                        onClick={() => setSelectedCustomer(c)}
+                                        style={{ 
+                                            cursor: 'pointer', 
+                                            transition: 'background 0.2s',
+                                            background: selectedCustomerIDs.has(c.id) ? '#f0f9ff' : 'transparent'
+                                        }}
+                                        onMouseEnter={(e) => !selectedCustomerIDs.has(c.id) && (e.currentTarget.style.background = '#f8fafc')}
+                                        onMouseLeave={(e) => !selectedCustomerIDs.has(c.id) && (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                        <td onClick={(e) => e.stopPropagation()} style={{ width: '40px', padding: '0 1rem' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedCustomerIDs.has(c.id)}
+                                                onChange={(e) => {
+                                                    const newSelection = new Set(selectedCustomerIDs);
+                                                    if (e.target.checked) {
+                                                        newSelection.add(c.id);
+                                                    } else {
+                                                        newSelection.delete(c.id);
+                                                    }
+                                                    setSelectedCustomerIDs(newSelection);
+                                                }}
+                                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                            />
+                                        </td>
                                         {visibleColumns.includes('name') && <td>{c.first_name || ''} {c.last_name || ''}</td>}
                                         {visibleColumns.includes('phone') && <td>{c.phone_number}</td>}
                                         {visibleColumns.includes('email') && <td>{c.email || 'N/A'}</td>}
@@ -382,6 +542,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
 
             {showImportModal && (
                 <div className="modal-overlay" onClick={() => !isImporting && setShowImportModal(false)}>
+                    {/* ... existing import modal content ... */}
                     <div className="premium-modal" onClick={e => e.stopPropagation()}>
                         <h2 style={{ marginBottom: '1rem' }}>Import Customers</h2>
                         <form onSubmit={handleImport}>
@@ -460,6 +621,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                             <p style={{ fontWeight: 700, color: '#065f46', marginBottom: '4px' }}>File Ready</p>
                                             <p style={{ fontSize: '0.875rem', color: '#059669', fontFamily: 'monospace' }}>{file.name}</p>
                                             <button 
+                                                type="button"
                                                 onClick={(e) => { e.stopPropagation(); setFile(null); }}
                                                 style={{ marginTop: '1rem', background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', zIndex: 20, position: 'relative' }}
                                             >
@@ -484,6 +646,140 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {selectedCustomer && (
+                <div className="modal-overlay" onClick={() => setSelectedCustomer(null)}>
+                    <div className="premium-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+                            <div style={{ 
+                                width: '64px', 
+                                height: '64px', 
+                                borderRadius: '50%', 
+                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: '1.5rem',
+                                fontWeight: 600,
+                                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                            }}>
+                                {(selectedCustomer.first_name?.[0] || '') + (selectedCustomer.last_name?.[0] || '') || '?'}
+                            </div>
+                            <div>
+                                <h2 style={{ margin: 0 }}>{selectedCustomer.first_name || 'Guest'} {selectedCustomer.last_name || 'Customer'}</h2>
+                                <p style={{ color: '#64748b', margin: '4px 0 0' }}>ID: {selectedCustomer.id.toString().substring(0, 8)}{selectedCustomer.id.toString().length > 8 ? '...' : ''}</p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedCustomer(null)}
+                                style={{ marginLeft: 'auto', background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Orders</p>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1e293b' }}>{selectedCustomer.total_orders || 0}</p>
+                            </div>
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Spent</p>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#10b981' }}>₹{(selectedCustomer.total_spent || 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '1.5rem' }}>
+                            <section>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>Contact Information</h3>
+                                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem' }}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                        <span>{selectedCustomer.phone_number}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem' }}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                        <span>{selectedCustomer.email || 'No email provided'}</span>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>Address</h3>
+                                <div style={{ color: '#475569', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                    {selectedCustomer.address1 ? (
+                                        <>
+                                            <div>{selectedCustomer.address1}</div>
+                                            {selectedCustomer.address2 && <div>{selectedCustomer.address2}</div>}
+                                            <div>{selectedCustomer.city || ''}{selectedCustomer.city && selectedCustomer.state ? ', ' : ''}{selectedCustomer.state || ''} {selectedCustomer.zip_code || ''}</div>
+                                            <div>{selectedCustomer.country || ''}</div>
+                                        </>
+                                    ) : (
+                                        <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No address information available</span>
+                                    )}
+                                </div>
+                            </section>
+
+                            <section style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', marginTop: '0.5rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                    <div>
+                                        <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Source</p>
+                                        <span className={`badge ${selectedCustomer.source_id === 'shopify' ? 'badge-primary' : 'badge-secondary'}`}>
+                                            {selectedCustomer.source_id || 'manual'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Member Since</p>
+                                        <p style={{ fontSize: '0.9rem', margin: 0, fontWeight: 500 }}>{selectedCustomer.created_at ? new Date(selectedCustomer.created_at).toLocaleDateString() : 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedCustomerIDs.size > 0 && (
+                <div style={{ 
+                    position: 'fixed', 
+                    bottom: '2rem', 
+                    left: '50%', 
+                    transform: 'translateX(-50%)', 
+                    background: '#1e293b', 
+                    color: 'white', 
+                    padding: '1rem 2rem', 
+                    borderRadius: '99px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '2rem', 
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    zIndex: 1000,
+                    animation: 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ background: '#38bdf8', color: '#0c4a6e', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
+                            {selectedCustomerIDs.size}
+                        </div>
+                        <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>Customers Selected</span>
+                    </div>
+                    <div style={{ height: '20px', width: '1px', background: '#334155' }}></div>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                        <button 
+                            className="btn-primary" 
+                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', background: '#38bdf8', color: '#0c4a6e', border: 'none' }}
+                            onClick={() => {/* TODO: Open Marketing Modal */}}
+                        >
+                            Send Marketing Message
+                        </button>
+                        <button 
+                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}
+                            onClick={() => setSelectedCustomerIDs(new Set())}
+                        >
+                            Clear Selection
+                        </button>
                     </div>
                 </div>
             )}

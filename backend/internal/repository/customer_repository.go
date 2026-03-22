@@ -49,7 +49,7 @@ func (r *CustomerRepository) GetByPhone(ctx context.Context, phone string) (*ent
 	return &customer, nil
 }
 
-func (r *CustomerRepository) List(ctx context.Context, search, sortBy, sortOrder string, offset, limit int) ([]entity.Customer, int64, error) {
+func (r *CustomerRepository) List(ctx context.Context, search, sortBy, sortOrder string, sourceID string, minSpent, maxSpent float64, minOrders int, city, state string, firstName, lastName, email string, firstNameEmpty, lastNameEmpty, emailEmpty bool, offset, limit int) ([]entity.Customer, int64, error) {
 	var customers []entity.Customer
 	var total int64
 
@@ -58,6 +58,47 @@ func (r *CustomerRepository) List(ctx context.Context, search, sortBy, sortOrder
 	if search != "" {
 		s := "%" + search + "%"
 		query = query.Where("phone_number LIKE ? OR first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?", s, s, s, s)
+	}
+
+	if sourceID != "" {
+		query = query.Where("source_id = ?", sourceID)
+	}
+	if minSpent > 0 {
+		query = query.Where("total_spent >= ?", minSpent)
+	}
+	if maxSpent > 0 {
+		query = query.Where("total_spent <= ?", maxSpent)
+	}
+	if minOrders > 0 {
+		query = query.Where("total_orders >= ?", minOrders)
+	}
+	if city != "" {
+		query = query.Where("city ILIKE ?", "%"+city+"%")
+	}
+	if state != "" {
+		query = query.Where("state ILIKE ?", "%"+state+"%")
+	}
+
+	// Exact matches
+	if firstName != "" {
+		query = query.Where("first_name = ?", firstName)
+	}
+	if lastName != "" {
+		query = query.Where("last_name = ?", lastName)
+	}
+	if email != "" {
+		query = query.Where("email = ?", email)
+	}
+
+	// Empty checks
+	if firstNameEmpty {
+		query = query.Where("(first_name IS NULL OR first_name = '')")
+	}
+	if lastNameEmpty {
+		query = query.Where("(last_name IS NULL OR last_name = '')")
+	}
+	if emailEmpty {
+		query = query.Where("(email IS NULL OR email = '')")
 	}
 
 	err := query.Count(&total).Error
