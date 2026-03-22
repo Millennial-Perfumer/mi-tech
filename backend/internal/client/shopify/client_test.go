@@ -34,31 +34,36 @@ func setupTestClient(b *testing.B, apiURL string) *Client {
 	return client
 }
 
+type mockShopifyHandler struct {
+	count    int32
+	maxPages int32
+}
+
+func (h *mockShopifyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	current := atomic.AddInt32(&h.count, 1)
+
+	resp := dto.GraphQLOrderResponse{}
+	if current < h.maxPages {
+		resp.Data.Orders.PageInfo.HasNextPage = true
+		resp.Data.Orders.PageInfo.EndCursor = "cursor"
+	} else {
+		resp.Data.Orders.PageInfo.HasNextPage = false
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 func BenchmarkFetchOrdersOptimized(b *testing.B) {
-	var count int32
-	maxPages := int32(5)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		current := atomic.AddInt32(&count, 1)
-
-		resp := dto.GraphQLOrderResponse{}
-		if current < maxPages {
-			resp.Data.Orders.PageInfo.HasNextPage = true
-			resp.Data.Orders.PageInfo.EndCursor = "cursor"
-		} else {
-			resp.Data.Orders.PageInfo.HasNextPage = false
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	}))
+	handler := &mockShopifyHandler{maxPages: 5}
+	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	client := setupTestClient(b, server.URL)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		atomic.StoreInt32(&count, 0)
+		atomic.StoreInt32(&handler.count, 0)
 		_, err := client.FetchOrders(context.Background(), time.Now().Add(-24*time.Hour), time.Now())
 		if err != nil {
 			b.Fatalf("FetchOrders failed: %v", err)
