@@ -27,9 +27,16 @@ func BenchmarkUpsertLineItems(b *testing.B) {
 	}
 
 	sqlDB, err := db.DB()
-	if err == nil {
-		defer sqlDB.Close()
+	if err != nil {
+		b.Fatalf("Failed to get underlying *sql.DB: %v", err)
 	}
+
+	// Ensure tables are cleaned up after the benchmark run
+	b.Cleanup(func() {
+		db.Exec("TRUNCATE TABLE order_line_items CASCADE")
+		db.Exec("TRUNCATE TABLE orders CASCADE")
+		sqlDB.Close()
+	})
 
 	repo := NewOrderRepository(db)
 
