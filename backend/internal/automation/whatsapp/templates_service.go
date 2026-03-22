@@ -177,9 +177,6 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 			switch b.Type {
 			case "custom":
 				btn["type"] = "QUICK_REPLY"
-				if b.Payload != "" {
-					btn["payload"] = b.Payload
-				}
 			case "visit_website":
 				btn["type"] = "URL"
 				url := b.URL

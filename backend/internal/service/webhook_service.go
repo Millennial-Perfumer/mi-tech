@@ -67,7 +67,13 @@ func (s *WebhookService) ProcessOrderUpdate(payload dto.ShopifyWebhookOrder, raw
 func (s *WebhookService) ProcessCustomerCreateUpdate(payload dto.ShopifyWebhookCustomer, raw *json.RawMessage) error {
 	customer := mapper.WebhookCustomerToEntity(payload, raw)
 	log.Printf("Processing customer webhook for Customer Phone: %s", customer.PhoneNumber)
-	return s.orderService.customerService.UpsertFromWebhook(context.Background(), customer)
+	return s.orderService.customerService.UpsertFromWebhook(context.Background(), &customer)
+}
+
+// ProcessCustomerDelete handles the customers/delete webhook topic.
+func (s *WebhookService) ProcessCustomerDelete(externalCustomerID string) error {
+	log.Printf("Processing customers/delete for Customer ID: %s", externalCustomerID)
+	return s.orderService.customerService.DeleteByExternalID(context.Background(), externalCustomerID)
 }
 
 // ProcessOrderPaid handles the orders/paid webhook topic.

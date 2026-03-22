@@ -24,7 +24,7 @@ func (r *CustomerRepository) UpsertByPhone(ctx context.Context, customer *entity
 		DoUpdates: clause.AssignmentColumns([]string{
 			"first_name", "last_name", "email", "address1", "address2", 
 			"city", "state", "country", "zip_code", "total_orders", 
-			"total_spent", "updated_at",
+			"total_spent", "updated_at", "deleted_at",
 		}),
 	}).Create(customer).Error
 }
@@ -40,9 +40,35 @@ func (r *CustomerRepository) UpdateStats(ctx context.Context, phoneNumber string
 		}).Error
 }
 
+func (r *CustomerRepository) Create(ctx context.Context, customer *entity.Customer) error {
+	return r.db.WithContext(ctx).Create(customer).Error
+}
+
+func (r *CustomerRepository) Update(ctx context.Context, customer *entity.Customer) error {
+	return r.db.WithContext(ctx).Save(customer).Error
+}
+
+func (r *CustomerRepository) GetByID(ctx context.Context, id int64) (*entity.Customer, error) {
+	var customer entity.Customer
+	err := r.db.WithContext(ctx).First(&customer, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &customer, nil
+}
+
 func (r *CustomerRepository) GetByPhone(ctx context.Context, phone string) (*entity.Customer, error) {
 	var customer entity.Customer
 	err := r.db.WithContext(ctx).Where("phone_number = ?", phone).First(&customer).Error
+	if err != nil {
+		return nil, err
+	}
+	return &customer, nil
+}
+
+func (r *CustomerRepository) GetByExternalID(ctx context.Context, externalID string) (*entity.Customer, error) {
+	var customer entity.Customer
+	err := r.db.WithContext(ctx).Where("external_id = ?", externalID).First(&customer).Error
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +160,26 @@ func (r *CustomerRepository) UpsertBatch(ctx context.Context, customers []entity
 		DoUpdates: clause.AssignmentColumns([]string{
 			"first_name", "last_name", "email", "address1", "address2", 
 			"city", "state", "country", "zip_code", "total_orders", 
-			"total_spent", "updated_at",
+			"total_spent", "updated_at", "deleted_at",
 		}),
 	}).CreateInBatches(customers, 100).Error
+}
+
+func (r *CustomerRepository) GetByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+	var customers []entity.Customer
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&customers).Error
+	return customers, err
+}
+
+func (r *CustomerRepository) Delete(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Delete(&entity.Customer{}, id).Error
+}
+
+func (r *CustomerRepository) BulkDelete(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Delete(&entity.Customer{}, ids).Error
 }
 
 func (r *CustomerRepository) DeleteAll(ctx context.Context) error {

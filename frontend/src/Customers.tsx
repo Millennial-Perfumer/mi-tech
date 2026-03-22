@@ -4,25 +4,35 @@ import { API_BASE } from './api';
 interface Customer {
     id: number;
     phone_number: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    address1: string;
-    address2: string;
-    city: string;
-    state: string;
-    country: string;
-    zip_code: string;
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    address1?: string;
+    address2?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    zip_code?: string;
     total_orders: number;
     total_spent: number;
     created_at: string;
     updated_at: string;
     source_id: string;
+    external_id?: string;
 }
 
 interface Source {
     id: string;
     name: string;
+}
+
+interface WhatsAppTemplate {
+    id: number;
+    template_name: string;
+    language: string;
+    category: string;
+    status: string;
+    body: string;
 }
 
 interface CustomersProps {
@@ -59,6 +69,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
     const [showImportModal, setShowImportModal] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [selectedCustomerIDs, setSelectedCustomerIDs] = useState<Set<number>>(new Set());
+    const [showBulkModal, setShowBulkModal] = useState(false);
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(() => {
         const saved = localStorage.getItem('customer_columns');
@@ -76,6 +87,11 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
     const [minOrders, setMinOrders] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [syncToShopify, setSyncToShopify] = useState(false);
+    const [customerForm, setCustomerForm] = useState<Partial<Customer>>({});
     const limit = 25;
 
     useEffect(() => {
@@ -96,6 +112,69 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
             setSortOrder('DESC');
         }
         setPage(1);
+    };
+
+    const handleSaveCustomer = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const url = isEditMode ? `${API_BASE}/api/customers/${customerForm.id}/` : `${API_BASE}/api/customers`;
+            const method = isEditMode ? 'PUT' : 'POST';
+            
+            const response = await fetchWithAuth(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...customerForm,
+                    sync_to_shopify: syncToShopify
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to save customer');
+
+            await fetchCustomers();
+            setShowAddModal(false);
+            setSelectedCustomer(null);
+            setIsEditMode(false);
+            setCustomerForm({});
+            alert(isEditMode ? 'Customer updated successfully' : 'Customer created successfully');
+        } catch (err: any) {
+            console.error('Save error:', err);
+            alert(err.message || 'An error occurred while saving');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const editExistingCustomer = (c: Customer) => {
+        setCustomerForm(c);
+        setIsEditMode(true);
+        setShowAddModal(true);
+        setSelectedCustomer(null);
+    };
+
+    const handleDeleteCustomer = async (id: number) => {
+        if (!window.confirm('Are you sure you want to delete this customer? This will also remove them from Shopify if linked.')) {
+            return;
+        }
+
+        try {
+            const response = await fetchWithAuth(`${API_BASE}/api/customers/${id}/`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to delete customer');
+            }
+
+            alert('Customer deleted successfully');
+            setSelectedCustomer(null);
+            fetchCustomers();
+        } catch (err: any) {
+            console.error('Delete error:', err);
+            alert(err.message || 'An error occurred while deleting');
+        }
     };
 
     const fetchCustomers = async () => {
@@ -181,6 +260,36 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
         }
     };
 
+    const handleBulkDelete = async () => {
+        if (selectedCustomerIDs.size === 0) return;
+        
+        if (!window.confirm(`Are you sure you want to delete ${selectedCustomerIDs.size} selected customers? This will also remove them from Shopify if linked.`)) {
+            return;
+        }
+
+        setIsDeleting(true);
+        try {
+            const response = await fetchWithAuth(`${API_BASE}/api/customers/bulk-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: Array.from(selectedCustomerIDs) }),
+            });
+            if (response.ok) {
+                alert('Selected customers deleted successfully.');
+                setSelectedCustomerIDs(new Set());
+                fetchCustomers();
+            } else {
+                const errorText = await response.text();
+                alert('Failed to delete customers: ' + errorText);
+            }
+        } catch (error) {
+            console.error('Error bulk deleting customers:', error);
+            alert('Error during bulk deletion.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const handleDeleteAll = async () => {
         if (!window.confirm('Are you absolutely sure? This will permanently delete ALL customers from the database.')) {
             return;
@@ -209,44 +318,200 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
         <div className="tab-pane active">
             <div style={{ 
                 display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
+                flexDirection: 'column',
+                gap: '1.5rem',
                 marginBottom: '2rem',
-                padding: '1.25rem 1.5rem',
-                background: 'white',
-                borderRadius: '16px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                border: '1px solid #f1f5f9'
+                padding: '2rem',
+                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                borderRadius: '20px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                border: '1px solid #f1f5f9',
+                borderTop: '4px solid var(--accent-color)',
+                position: 'relative',
+                overflow: 'hidden'
             }}>
-                <div>
-                    <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>Customer Directory</h1>
-                    <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>Manage and analyze your customer base</p>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Export Data
-                    </button>
-                    <button className="btn-secondary" onClick={handleDeleteAll} disabled={isDeleting} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626', borderColor: '#fee2e2', background: '#fff' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                        {isDeleting ? 'Clearing...' : 'Clear All'}
-                    </button>
-                    <button className="btn-primary" onClick={() => setShowImportModal(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Import Customers
-                    </button>
-                </div>
-            </div>
+                {/* Decorative background element */}
+                <div style={{ 
+                    position: 'absolute', 
+                    top: '-20px', 
+                    right: '-20px', 
+                    width: '120px', 
+                    height: '120px', 
+                    background: 'var(--accent-color)', 
+                    opacity: 0.03, 
+                    borderRadius: '50%',
+                    pointerEvents: 'none'
+                }}></div>
 
-            <div className="stats-grid" style={{ marginBottom: '2rem' }}>
-                <div className="stat-card">
-                    <div className="stat-icon-wrapper primary">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                            <div style={{ 
+                                padding: '0.6rem', 
+                                background: 'rgba(59, 130, 246, 0.1)', 
+                                borderRadius: '12px',
+                                color: 'var(--accent-color)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            </div>
+                            <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em' }}>
+                                Customer Directory
+                            </h1>
+                        </div>
+                        <p style={{ margin: 0, color: '#64748b', fontSize: '1rem', fontWeight: 500, paddingLeft: '3.2rem' }}>
+                            Manage and analyze your customer base across all sources
+                        </p>
                     </div>
-                    <div className="stat-content">
-                        <div className="stat-label">Total Customers</div>
-                        <div className="stat-value">{total || 0}</div>
+                    
+                    <div style={{ 
+                        background: 'white', 
+                        padding: '1rem 1.5rem', 
+                        borderRadius: '16px', 
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        minWidth: '180px'
+                    }}>
+                        <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '10px', 
+                            background: '#f1f5f9', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: '#64748b'
+                        }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Customers</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>{total.toLocaleString()}</div>
+                        </div>
                     </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.5rem' }}>
+                    <button 
+                        className="btn-primary" 
+                        onClick={() => { setCustomerForm({}); setIsEditMode(false); setShowAddModal(true); }} 
+                        style={{ 
+                            padding: '0.75rem 1.5rem', 
+                            fontSize: '0.875rem', 
+                            fontWeight: 600,
+                            background: '#0f172a', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '10px', 
+                            borderRadius: '12px',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)'
+                        }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Add Customer
+                    </button>
+                    <button 
+                        className="btn-secondary" 
+                        onClick={() => setShowImportModal(true)} 
+                        style={{ 
+                            padding: '0.75rem 1.5rem', 
+                            fontSize: '0.875rem', 
+                            fontWeight: 600,
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '10px', 
+                            borderRadius: '12px',
+                            background: 'white',
+                            border: '1px solid #e2e8f0',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Import
+                    </button>
+                    <button 
+                        className="btn-secondary" 
+                        style={{ 
+                            padding: '0.75rem 1.5rem', 
+                            fontSize: '0.875rem', 
+                            fontWeight: 600,
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '10px', 
+                            borderRadius: '12px',
+                            background: 'white',
+                            border: '1px solid #e2e8f0',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Export
+                    </button>
+                    
+                    <div style={{ flex: 1 }}></div>
+
+                    {selectedCustomerIDs.size > 0 && (
+                        <button 
+                            className="btn-danger-minimal" 
+                            onClick={handleBulkDelete}
+                            disabled={isDeleting}
+                            style={{ 
+                                padding: '0.75rem 1.5rem', 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600,
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '10px', 
+                                color: '#dc2626', 
+                                background: '#fef2f2',
+                                border: '1px solid #fee2e2',
+                                borderRadius: '12px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            {isDeleting ? 'Deleting...' : `Clear Selected (${selectedCustomerIDs.size})`}
+                        </button>
+                    )}
+
+                    {showClearButton && !isDeleting && selectedCustomerIDs.size === 0 && (
+                        <button 
+                            className="btn-secondary" 
+                            onClick={handleDeleteAll} 
+                            style={{ 
+                                padding: '0.75rem 1.5rem', 
+                                fontSize: '0.875rem', 
+                                fontWeight: 500,
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px', 
+                                color: '#94a3b8', 
+                                border: '1px solid transparent',
+                                background: 'transparent',
+                                borderRadius: '12px',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.color = '#dc2626';
+                                e.currentTarget.style.background = '#fef2f2';
+                                e.currentTarget.style.borderColor = '#fee2e2';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.color = '#94a3b8';
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            Clear All
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -262,27 +527,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                             style={{ paddingLeft: '2.5rem', width: '100%' }}
                         />
                     </div>
-                    
                     <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
-                        {showClearButton && (
-                        <button 
-                            className="btn-secondary" 
-                            style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.5rem', 
-                                backgroundColor: '#fef2f2', 
-                                color: '#ef4444', 
-                                borderColor: '#fee2e2',
-                                opacity: isDeleting ? 0.7 : 1
-                            }}
-                            onClick={handleDeleteAll}
-                            disabled={isDeleting}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                            {isDeleting ? 'Clearing...' : 'Clear All Customers'}
-                        </button>
-                    )}
                         <button 
                             className={`btn-secondary ${showFilters ? 'active' : ''}`} 
                             onClick={() => setShowFilters(!showFilters)}
@@ -302,7 +547,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
                             Columns
                         </button>
-                        
+
                         {showColumnPicker && (
                             <div className="premium-card" style={{ 
                                 position: 'absolute', 
@@ -674,8 +919,22 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                 <p style={{ color: '#64748b', margin: '4px 0 0' }}>ID: {selectedCustomer.id.toString().substring(0, 8)}{selectedCustomer.id.toString().length > 8 ? '...' : ''}</p>
                             </div>
                             <button 
+                                onClick={(e) => { e.stopPropagation(); editExistingCustomer(selectedCustomer); }}
+                                style={{ marginLeft: 'auto', background: '#f0f9ff', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1', fontWeight: 600, fontSize: '0.85rem' }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path></svg>
+                                Edit
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(selectedCustomer.id); }}
+                                style={{ background: '#fef2f2', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#b91c1c', fontWeight: 600, fontSize: '0.85rem' }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                Delete
+                            </button>
+                            <button 
                                 onClick={() => setSelectedCustomer(null)}
-                                style={{ marginLeft: 'auto', background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+                                style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
@@ -770,9 +1029,9 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                         <button 
                             className="btn-primary" 
                             style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', background: '#38bdf8', color: '#0c4a6e', border: 'none' }}
-                            onClick={() => {/* TODO: Open Marketing Modal */}}
-                        >
-                            Send Marketing Message
+                            onClick={() => setShowBulkModal(true)}
+>
+                            Send Bulk Message
                         </button>
                         <button 
                             style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}
@@ -783,6 +1042,449 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                     </div>
                 </div>
             )}
+
+            <BulkTemplateModal 
+                isOpen={showBulkModal}
+                onClose={() => setShowBulkModal(false)}
+                selectedCount={selectedCustomerIDs.size}
+                customerIDs={Array.from(selectedCustomerIDs)}
+                fetchWithAuth={fetchWithAuth}
+                onSuccess={() => setSelectedCustomerIDs(new Set())}
+            />
+
+            {showAddModal && (
+                <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+                    <div className="premium-modal" onClick={e => e.stopPropagation()} style={{ 
+                        maxWidth: '700px', 
+                        width: '95%', 
+                        maxHeight: '90vh', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        padding: 0,
+                        overflow: 'hidden'
+                    }}>
+                        {/* Sticky Header */}
+                        <div style={{ 
+                            padding: '1.5rem', 
+                            borderBottom: '1px solid #e2e8f0',
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            background: 'white',
+                            zIndex: 10
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ 
+                                    width: '40px', 
+                                    height: '40px', 
+                                    borderRadius: '10px', 
+                                    background: '#f1f5f9', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    color: '#0f172a'
+                                }}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                </div>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>{isEditMode ? 'Edit Customer' : 'Add New Customer'}</h2>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                                        {isEditMode ? 'Update existing customer details' : 'Create a new customer profile'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px', borderRadius: '6px' }} className="hover-bg">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <form onSubmit={handleSaveCustomer} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+                                
+                                {/* Section 1: Basic Info */}
+                                <div style={{ marginBottom: '2rem' }}>
+                                    <h3 style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }}></span>
+                                        Contact Information
+                                    </h3>
+                                    
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>First Name</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input"
+                                                value={customerForm.first_name || ''}
+                                                onChange={e => setCustomerForm({...customerForm, first_name: e.target.value})}
+                                                placeholder="John"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Last Name</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input"
+                                                value={customerForm.last_name || ''}
+                                                onChange={e => setCustomerForm({...customerForm, last_name: e.target.value})}
+                                                placeholder="Doe"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Phone Number</label>
+                                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                                <span style={{ 
+                                                    position: 'absolute', 
+                                                    left: '12px', 
+                                                    color: '#64748b', 
+                                                    fontWeight: 600,
+                                                    fontSize: '0.9rem',
+                                                    pointerEvents: 'none'
+                                                }}>+91</span>
+                                                <input 
+                                                    type="tel" 
+                                                    className="form-input"
+                                                    style={{ paddingLeft: '45px' }}
+                                                    value={customerForm.phone_number?.replace('+91', '') || ''}
+                                                    onChange={e => {
+                                                        const val = e.target.value.replace(/\D/g, '').substring(0, 10);
+                                                        setCustomerForm({...customerForm, phone_number: '+91' + val});
+                                                    }}
+                                                    placeholder="9876543210"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Email Address</label>
+                                            <input 
+                                                type="email" 
+                                                className="form-input"
+                                                value={customerForm.email || ''}
+                                                onChange={e => setCustomerForm({...customerForm, email: e.target.value})}
+                                                placeholder="john@example.com"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Customer Source</label>
+                                        <select 
+                                            className="form-input"
+                                            value={customerForm.source_id || ''}
+                                            onChange={e => {
+                                                const newSource = e.target.value;
+                                                setCustomerForm({...customerForm, source_id: newSource});
+                                                if (newSource === 'shopify') {
+                                                    setSyncToShopify(true);
+                                                }
+                                            }}
+                                            required
+                                        >
+                                            <option value="">Select Source</option>
+                                            {sources.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Section 2: Address */}
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <h3 style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></span>
+                                        Shipping Address
+                                    </h3>
+
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Address Line 1</label>
+                                        <input 
+                                            type="text" 
+                                            className="form-input"
+                                            value={customerForm.address1 || ''}
+                                            onChange={e => setCustomerForm({...customerForm, address1: e.target.value})}
+                                            placeholder="Apartment, Street Name"
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: '1.25rem' }}>
+                                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Address Line 2 (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            className="form-input"
+                                            value={customerForm.address2 || ''}
+                                            onChange={e => setCustomerForm({...customerForm, address2: e.target.value})}
+                                            placeholder="House No, Landmark, Area"
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>City</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input"
+                                                value={customerForm.city || ''}
+                                                onChange={e => setCustomerForm({...customerForm, city: e.target.value})}
+                                                placeholder="Mumbai"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>State</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input"
+                                                value={customerForm.state || ''}
+                                                onChange={e => setCustomerForm({...customerForm, state: e.target.value})}
+                                                placeholder="Maharashtra"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Country</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input"
+                                                value={customerForm.country || 'India'}
+                                                onChange={e => setCustomerForm({...customerForm, country: e.target.value})}
+                                                placeholder="India"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Zip / Postal Code</label>
+                                            <input 
+                                                type="text" 
+                                                className="form-input"
+                                                value={customerForm.zip_code || ''}
+                                                onChange={e => setCustomerForm({...customerForm, zip_code: e.target.value})}
+                                                placeholder="400001"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ 
+                                    padding: '1.25rem', 
+                                    background: '#f8fafc', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid #e2e8f0',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                                        <div style={{ 
+                                            position: 'relative',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={syncToShopify}
+                                                onChange={e => setSyncToShopify(e.target.checked)}
+                                                style={{ 
+                                                    width: '20px', 
+                                                    height: '20px',
+                                                    cursor: 'pointer',
+                                                    accentColor: '#0f172a'
+                                                }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>Sync with Shopify</span>
+                                            <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                                                {isEditMode 
+                                                    ? "Keep this customer updated on your Shopify store" 
+                                                    : "Automatically create this customer on your Shopify store"}
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Sticky Footer */}
+                            <div style={{ 
+                                padding: '1.25rem 1.5rem', 
+                                borderTop: '1px solid #e2e8f0', 
+                                display: 'flex', 
+                                gap: '1rem', 
+                                justifyContent: 'flex-end',
+                                background: '#f8fafc'
+                            }}>
+                                <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ minWidth: '100px' }}>Cancel</button>
+                                <button type="submit" className="btn-primary" disabled={isSaving} style={{ background: '#0f172a', minWidth: '140px' }}>
+                                    {isSaving ? 'Saving...' : (isEditMode ? 'Update Customer' : 'Create Customer')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function BulkTemplateModal({
+    isOpen,
+    onClose,
+    selectedCount,
+    customerIDs,
+    fetchWithAuth,
+    onSuccess
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    selectedCount: number;
+    customerIDs: number[];
+    fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+    onSuccess: () => void;
+}) {
+    const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
+    const [isSending, setIsSending] = useState(false);
+    const [result, setResult] = useState<{ sent: number; total: number } | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchTemplates();
+        } else {
+            setResult(null);
+            setSelectedTemplate(null);
+        }
+    }, [isOpen]);
+
+    const fetchTemplates = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetchWithAuth('/api/automation/whatsapp/templates');
+            const data = await response.json();
+            // Filter only bulk templates
+            const bulkTemplates = data.filter((t: WhatsAppTemplate) => 
+                t.template_name.endsWith('_bulk') && t.status === 'APPROVED'
+            );
+            setTemplates(bulkTemplates);
+        } catch (error) {
+            console.error('Error fetching templates:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSend = async () => {
+        if (!selectedTemplate) return;
+        setIsSending(true);
+        try {
+            const response = await fetchWithAuth('/api/automation/whatsapp/send-bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_ids: customerIDs,
+                    template_id: selectedTemplate.id
+                })
+            });
+            const data = await response.json();
+            setResult({ sent: data.sent, total: data.total });
+            if (data.success) {
+                setTimeout(() => {
+                    onSuccess();
+                    onClose();
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error sending bulk messages:', error);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
+                <div className="modal-header">
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>Send Bulk Messages</h2>
+                    <button className="close-button" onClick={onClose}>&times;</button>
+                </div>
+
+                <div className="modal-body" style={{ padding: '1.5rem' }}>
+                    {result ? (
+                        <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.5rem' }}>Messages Sent!</h3>
+                            <p style={{ color: '#64748b' }}>Successfully sent {result.sent} of {result.total} messages.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
+                                <p style={{ fontSize: '0.9rem', color: '#64748b', margin: 0 }}>
+                                    Targeting <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedCount}</span> selected customers.
+                                </p>
+                            </div>
+
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.75rem' }}>
+                                Select Bulk Template
+                            </label>
+
+                            {isLoading ? (
+                                <div style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</div>
+                            ) : templates.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', background: '#fef2f2', color: '#991b1b', borderRadius: '12px' }}>
+                                    No templates found ending with <code style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px' }}>_bulk</code> or none are approved yet.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                    {templates.map(t => (
+                                        <div 
+                                            key={t.id}
+                                            onClick={() => setSelectedTemplate(t)}
+                                            style={{ 
+                                                padding: '1rem', 
+                                                borderRadius: '12px', 
+                                                border: '2px solid',
+                                                borderColor: selectedTemplate?.id === t.id ? '#38bdf8' : '#e2e8f0',
+                                                background: selectedTemplate?.id === t.id ? '#f0f9ff' : 'white',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                <span style={{ fontWeight: 600, color: '#1e293b' }}>{t.template_name}</span>
+                                                <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{t.language}</span>
+                                            </div>
+                                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {t.body}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                    {!result && (
+                        <>
+                            <button className="btn-secondary" onClick={onClose} disabled={isSending}>Cancel</button>
+                            <button 
+                                className="btn-primary" 
+                                onClick={handleSend} 
+                                disabled={!selectedTemplate || isSending}
+                                style={{ background: '#38bdf8', color: '#0c4a6e', border: 'none' }}
+                            >
+                                {isSending ? 'Sending...' : `Send to ${selectedCount} Customers`}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

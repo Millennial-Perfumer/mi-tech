@@ -800,7 +800,6 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
                         </div>
                         <div className="form-row">
                           <div className="form-group"><label>Button Text</label><input type="text" value={btn.text} onChange={e => updateButton(idx, { text: e.target.value })} required /></div>
-                          {btn.type === 'custom' && <div className="form-group"><label>Payload</label><input type="text" value={btn.payload} onChange={e => updateButton(idx, { payload: e.target.value })} /></div>}
                           {btn.type === 'visit_website' && (
                             <div className="form-group">
                               <label>Website URL</label>

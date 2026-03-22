@@ -57,12 +57,26 @@ func RegisterRoutes(
 
 	// --- Customer Routes ---
 	mux.HandleFunc("/api/customers/import", protected(customerHandler.ImportCSV))
+	mux.HandleFunc("/api/customers/bulk-delete", protected(customerHandler.BulkDeleteCustomers))
 	mux.HandleFunc("/api/customers", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
+		case http.MethodPost:
+			customerHandler.CreateCustomer(w, r)
 		case http.MethodDelete:
 			customerHandler.DeleteAllCustomers(w, r)
 		default:
 			customerHandler.ListCustomers(w, r)
+		}
+	}))
+
+	mux.HandleFunc("/api/customers/", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			customerHandler.UpdateCustomer(w, r)
+		case http.MethodDelete:
+			customerHandler.DeleteCustomer(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
 
@@ -142,6 +156,7 @@ func RegisterRoutes(
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
 	mux.HandleFunc("/api/automation/whatsapp/send-manual", protected(automationHandler.SendManualMessage))
+	mux.HandleFunc("/api/automation/whatsapp/send-bulk", protected(automationHandler.SendBulkMarketing))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", protected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
 

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"mi-tech/internal/config"
+	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
 	"strconv"
@@ -54,15 +55,17 @@ type AutomationHandler struct {
 	messagesService  *MessagesService
 	mappingService   *WebhookMappingService
 	orderService     *service.OrderService
+	customerService  *service.CustomerService
 	settings         *config.SettingsProvider
 }
 
-func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, settings *config.SettingsProvider) *AutomationHandler {
+func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, customerService *service.CustomerService, settings *config.SettingsProvider) *AutomationHandler {
 	return &AutomationHandler{
 		templatesService: tService,
 		messagesService:  mService,
 		mappingService:   mappingService,
 		orderService:     orderService,
+		customerService:  customerService,
 		settings:         settings,
 	}
 }
@@ -496,4 +499,93 @@ func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		CustomerIDs []uint `json:"customer_ids"`
+		TemplateID  int    `json:"template_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.CustomerIDs) == 0 || req.TemplateID == 0 {
+		http.Error(w, "customer_ids and template_id are required", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Fetch template and verify name suffix
+	template, err := h.templatesService.repo.GetTemplateByID(req.TemplateID)
+	if err != nil || template == nil {
+		http.Error(w, "Template not found", http.StatusNotFound)
+		return
+	}
+
+	if !strings.HasSuffix(template.TemplateName, "_bulk") {
+		http.Error(w, "Only templates ending with _bulk are allowed for bulk selection", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Fetch customers
+	customers, err := h.customerService.GetCustomersByIDs(r.Context(), req.CustomerIDs)
+	if err != nil {
+		http.Error(w, "Failed to fetch customers", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Process sending (async or batch)
+	// For now, we'll do it sequentially but we could use a goroutine if it's too many
+	successCount := 0
+	for _, cust := range customers {
+		if cust.PhoneNumber == "" {
+			continue
+		}
+
+		// Simplified mapping for marketing: {{1}} is FirstName
+		cleanPhone := sanitizePhoneNumber(cust.PhoneNumber)
+		if len(cleanPhone) < 8 {
+			continue
+		}
+
+		firstName := entity.DerefStr(cust.FirstName)
+		if firstName == "" {
+			firstName = "Customer"
+		}
+
+		components := []interface{}{
+			map[string]interface{}{
+				"type": "body",
+				"parameters": []map[string]string{
+					{"type": "text", "text": firstName},
+				},
+			},
+		}
+
+		err := h.messagesService.SendTemplateMessage(
+			cust.SourceID, // Fallback to customer's source ID as store ID
+			template.ID,
+			0, // No specific order ID
+			cleanPhone,
+			template.TemplateName,
+			template.Language,
+			components,
+		)
+		if err == nil {
+			successCount++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true, 
+		"sent": successCount, 
+		"total": len(customers),
+	})
 }

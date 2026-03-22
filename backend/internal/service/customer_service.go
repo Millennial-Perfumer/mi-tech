@@ -5,17 +5,23 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
+	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type CustomerService struct {
-	repo      *repository.CustomerRepository
-	orderRepo repository.OrderRepository
+	repo          *repository.CustomerRepository
+	orderRepo     repository.OrderRepository
+	shopifyClient *shopify.Client
 }
 
 type CustomerFilter struct {
@@ -39,11 +45,36 @@ type CustomerFilter struct {
 	PageSize  int
 }
 
-func NewCustomerService(repo *repository.CustomerRepository, orderRepo repository.OrderRepository) *CustomerService {
+func NewCustomerService(repo *repository.CustomerRepository, orderRepo repository.OrderRepository, shopifyClient *shopify.Client) *CustomerService {
 	return &CustomerService{
-		repo:      repo,
-		orderRepo: orderRepo,
+		repo:          repo,
+		orderRepo:     orderRepo,
+		shopifyClient: shopifyClient,
 	}
+}
+
+func (s *CustomerService) normalizePhone(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return ""
+	}
+	// Remove all non-numeric characters except +
+	reg, _ := regexp.Compile(`[^0-9+]`)
+	phone = reg.ReplaceAllString(phone, "")
+
+	if !strings.HasPrefix(phone, "+") {
+		// If it's 10 digits, add +91
+		if len(phone) == 10 {
+			phone = "+91" + phone
+		} else if len(phone) == 12 && strings.HasPrefix(phone, "91") {
+			// If it's 91XXXXXXXXXX, add +
+			phone = "+" + phone
+		} else if !strings.HasPrefix(phone, "91") && len(phone) > 0 {
+			// Default to adding +91 for anything else that looks like a number
+			phone = "+91" + phone
+		}
+	}
+	return phone
 }
 
 // ImportFromCSV parses a Shopify customer export CSV and syncs it to the database.
@@ -198,7 +229,7 @@ func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Ord
 	}
 
 	customer := &entity.Customer{
-		PhoneNumber: phone,
+		PhoneNumber: s.normalizePhone(phone),
 		FirstName:   entity.StrPtr(s.toTitleCase(entity.DerefStr(order.CustomerFirstName))),
 		LastName:    entity.StrPtr(s.toTitleCase(entity.DerefStr(order.CustomerLastName))),
 		Email:       order.CustomerEmail,
@@ -227,35 +258,32 @@ func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Ord
 }
 
 // UpsertFromWebhook securely updates or creates a customer entirely from a customer webhook payload.
-func (s *CustomerService) UpsertFromWebhook(ctx context.Context, customer entity.Customer) error {
-	if customer.PhoneNumber == "" {
+func (s *CustomerService) UpsertFromWebhook(ctx context.Context, cust *entity.Customer) error {
+	if cust.PhoneNumber == "" {
 		return fmt.Errorf("phone number is required for customer webhook upsert")
 	}
 
-	if customer.FirstName != nil {
-		customer.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(customer.FirstName)))
-	}
-	if customer.LastName != nil {
-		customer.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(customer.LastName)))
-	}
+	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
 
-	existing, err := s.repo.GetByPhone(ctx, customer.PhoneNumber)
+	existing, err := s.repo.GetByPhone(ctx, cust.PhoneNumber)
 	if err == nil && existing != nil {
-		safeMerge(&customer, existing)
-		customer.CreatedAt = existing.CreatedAt
-		if customer.TotalOrders == 0 && existing.TotalOrders > 0 { customer.TotalOrders = existing.TotalOrders }
-		if customer.TotalSpent == 0 && existing.TotalSpent > 0 { customer.TotalSpent = existing.TotalSpent }
+		safeMerge(cust, existing)
+		cust.CreatedAt = existing.CreatedAt
+		if cust.TotalOrders == 0 && existing.TotalOrders > 0 { cust.TotalOrders = existing.TotalOrders }
+		if cust.TotalSpent == 0 && existing.TotalSpent > 0 { cust.TotalSpent = existing.TotalSpent }
 	} else {
-		if customer.CreatedAt.IsZero() {
-			customer.CreatedAt = time.Now()
+		if cust.CreatedAt.IsZero() {
+			cust.CreatedAt = time.Now()
 		}
 	}
 
-	if customer.UpdatedAt.IsZero() {
-		customer.UpdatedAt = time.Now()
+	if cust.UpdatedAt.IsZero() {
+		cust.UpdatedAt = time.Now()
 	}
 
-	return s.repo.UpsertByPhone(ctx, &customer)
+	return s.repo.UpsertByPhone(ctx, cust)
 }
 
 func safeMerge(newCust, oldCust *entity.Customer) {
@@ -263,6 +291,7 @@ func safeMerge(newCust, oldCust *entity.Customer) {
 	if newCust.LastName == nil { newCust.LastName = oldCust.LastName }
 	if newCust.Email == nil { newCust.Email = oldCust.Email }
 	if newCust.Address1 == nil { newCust.Address1 = oldCust.Address1 }
+	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
 	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
 	if newCust.City == nil { newCust.City = oldCust.City }
 	if newCust.State == nil { newCust.State = oldCust.State }
@@ -368,38 +397,6 @@ func (s *CustomerService) DeleteAllCustomers(ctx context.Context) error {
 	return s.repo.DeleteAll(ctx)
 }
 
-func (s *CustomerService) normalizePhone(p string) string {
-	p = strings.TrimPrefix(p, "'")
-	var sb strings.Builder
-	for _, r := range p {
-		if r >= '0' && r <= '9' {
-			sb.WriteRune(r)
-		}
-	}
-	digits := sb.String()
-	if digits == "" {
-		return ""
-	}
-
-	// Handle local prefix 0 (e.g., 06383173716 -> 6383173716)
-	if strings.HasPrefix(digits, "0") && len(digits) == 11 {
-		digits = digits[1:]
-	}
-
-	// Handle country code 91 (e.g., 916383173716 -> 6383173716)
-	if strings.HasPrefix(digits, "91") && len(digits) == 12 {
-		digits = digits[2:]
-	}
-
-	// If it's a 10-digit number, assume it's an Indian mobile number and add +91
-	if len(digits) == 10 {
-		return "+91" + digits
-	}
-
-	// Otherwise, return with a + prefix as it might already include a country code
-	return "+" + digits
-}
-
 func (s *CustomerService) toTitleCase(str string) string {
 	if str == "" {
 		return ""
@@ -411,4 +408,163 @@ func (s *CustomerService) toTitleCase(str string) string {
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+	return s.repo.GetByIDs(ctx, ids)
+}
+func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
+	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+	// Ensure DeletedAt is reset to reactive the customer if it was previously soft-deleted
+	cust.DeletedAt = gorm.DeletedAt{}
+
+	// 1. Use UpsertByPhone to handle reactive and conflict
+	err := s.repo.UpsertByPhone(ctx, cust)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync to Shopify if requested
+	if syncToShopify && s.shopifyClient != nil {
+		sc := dto.ShopifyRestCustomer{
+			FirstName: entity.DerefStr(cust.FirstName),
+			LastName:  entity.DerefStr(cust.LastName),
+			Email:     entity.DerefStr(cust.Email),
+			Phone:     cust.PhoneNumber,
+			Addresses: []dto.ShopifyRestAddress{
+				{
+					Address1: entity.DerefStr(cust.Address1),
+					Address2: entity.DerefStr(cust.Address2),
+					City:     entity.DerefStr(cust.City),
+					Province: entity.DerefStr(cust.State),
+					Country:  func() string { c := entity.DerefStr(cust.Country); if c == "" { return "India" }; return c }(),
+					Zip:      entity.DerefStr(cust.ZipCode),
+				},
+			},
+		}
+
+		resp, err := s.shopifyClient.CreateCustomer(sc)
+		if err == nil && resp != nil {
+			// Update local customer with shopify ID
+			extID := strconv.FormatInt(resp.ID, 10)
+			cust.ExternalID = &extID
+			cust.SourceID = "shopify"
+			s.repo.Update(ctx, cust)
+		} else if err != nil {
+			log.Printf("Failed to sync new customer to Shopify: %v", err)
+			// We continue because local creation succeeded
+		}
+	}
+
+	return nil
+}
+
+func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
+	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+
+	// 1. Update locally
+	err := s.repo.Update(ctx, cust)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync to Shopify if requested and it has an external ID
+	if syncToShopify && s.shopifyClient != nil && cust.ExternalID != nil && *cust.ExternalID != "" {
+		extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+		if extID > 0 {
+			// Fetch current customer from Shopify to find the address ID to update
+			var addressID int64
+			remoteCust, err := s.shopifyClient.GetCustomer(extID)
+			if err == nil && remoteCust != nil {
+				// Find the default address or just use the first one
+				for _, addr := range remoteCust.Addresses {
+					if addr.Default {
+						addressID = addr.ID
+						break
+					}
+				}
+				if addressID == 0 && len(remoteCust.Addresses) > 0 {
+					addressID = remoteCust.Addresses[0].ID
+				}
+			}
+
+			sc := dto.ShopifyRestCustomer{
+				FirstName: entity.DerefStr(cust.FirstName),
+				LastName:  entity.DerefStr(cust.LastName),
+				Email:     entity.DerefStr(cust.Email),
+				Phone:     cust.PhoneNumber,
+			}
+			
+			if cust.Address1 != nil {
+				sc.Addresses = []dto.ShopifyRestAddress{
+					{
+						ID:       addressID, // Use the ID if we found it
+						Address1: entity.DerefStr(cust.Address1),
+						Address2: entity.DerefStr(cust.Address2),
+						City:     entity.DerefStr(cust.City),
+						Province: entity.DerefStr(cust.State),
+						Country:  func() string { c := entity.DerefStr(cust.Country); if c == "" { return "India" }; return c }(),
+						Zip:      entity.DerefStr(cust.ZipCode),
+						Default:  true,
+					},
+				}
+			}
+
+			_, err = s.shopifyClient.UpdateCustomer(extID, sc)
+			if err != nil {
+				log.Printf("Failed to sync customer update to Shopify: %v", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *CustomerService) GetCustomerByID(ctx context.Context, id int64) (*entity.Customer, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *CustomerService) DeleteCustomer(ctx context.Context, id int64) error {
+	// 1. Get customer to check for Shopify ID
+	cust, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync deletion to Shopify if linked
+	if s.shopifyClient != nil && cust.ExternalID != nil && *cust.ExternalID != "" {
+		extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+		if extID > 0 {
+			err := s.shopifyClient.DeleteCustomer(extID)
+			if err != nil {
+				log.Printf("Failed to sync customer deletion to Shopify: %v", err)
+				// We still delete locally
+			}
+		}
+	}
+
+	// 3. Delete locally (Soft delete)
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID string) error {
+	cust, err := s.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, cust.ID)
+}
+
+func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
+	for _, id := range ids {
+		// Use DeleteCustomer to ensure Shopify sync per customer
+		if err := s.DeleteCustomer(ctx, id); err != nil {
+			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
+		}
+	}
+	return nil
 }

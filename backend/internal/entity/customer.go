@@ -2,6 +2,8 @@ package entity
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Customer represents a row in the "customers" table.
@@ -20,8 +22,10 @@ type Customer struct {
 	TotalOrders  int       `gorm:"column:total_orders;default:0" json:"total_orders"`
 	TotalSpent   float64   `gorm:"column:total_spent;default:0" json:"total_spent"`
 	SourceID     string    `gorm:"column:source_id" json:"source_id"`
-	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updated_at"`
+	ExternalID   *string   `gorm:"column:external_id" json:"external_id"`
+	CreatedAt    time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt    time.Time      `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (Customer) TableName() string { return "customers" }

@@ -475,3 +475,21 @@ func parseTimePtr(s *string) *time.Time {
 	}
 	return &t
 }
+func CustomerToShopifyRest(c entity.Customer) dto.ShopifyRestCustomer {
+	return dto.ShopifyRestCustomer{
+		FirstName: entity.DerefStr(c.FirstName),
+		LastName:  entity.DerefStr(c.LastName),
+		Email:     entity.DerefStr(c.Email),
+		Phone:     c.PhoneNumber,
+		Addresses: []dto.ShopifyRestAddress{
+			{
+				Address1: entity.DerefStr(c.Address1),
+				Address2: entity.DerefStr(c.Address2),
+				City:     entity.DerefStr(c.City),
+				Province: entity.DerefStr(c.State),
+				Country:  entity.DerefStr(c.Country),
+				Zip:      entity.DerefStr(c.ZipCode),
+			},
+		},
+	}
+}

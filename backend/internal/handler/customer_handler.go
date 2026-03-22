@@ -2,9 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type CustomerHandler struct {
@@ -91,4 +93,107 @@ func (h *CustomerHandler) DeleteAllCustomers(w http.ResponseWriter, r *http.Requ
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "All customers cleared successfully"})
+}
+func (h *CustomerHandler) CreateCustomer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		entity.Customer
+		SyncToShopify bool `json:"sync_to_shopify"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.CreateCustomer(r.Context(), &req.Customer, req.SyncToShopify)
+	if err != nil {
+		http.Error(w, "Failed to create customer: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(req.Customer)
+}
+
+func (h *CustomerHandler) UpdateCustomer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/customers/")
+	idStr = strings.TrimSuffix(idStr, "/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid customer ID: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		entity.Customer
+		SyncToShopify bool `json:"sync_to_shopify"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	req.Customer.ID = id
+	err = h.service.UpdateCustomer(r.Context(), &req.Customer, req.SyncToShopify)
+	if err != nil {
+		http.Error(w, "Failed to update customer: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(req.Customer)
+}
+
+func (h *CustomerHandler) DeleteCustomer(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/customers/")
+	idStr = strings.TrimSuffix(idStr, "/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.DeleteCustomer(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Failed to delete customer: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *CustomerHandler) BulkDeleteCustomers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := h.service.BulkDeleteCustomers(r.Context(), req.IDs)
+	if err != nil {
+		http.Error(w, "Failed to delete customers: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Bulk deletion completed"})
 }
