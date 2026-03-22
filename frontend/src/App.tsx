@@ -115,6 +115,7 @@ function App() {
   const [totalCount, setTotalCount] = useState(0);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
   const [appSettings, setAppSettings] = useState<Record<string, string>>({});
+  const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
   const limit = 25;
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
@@ -242,11 +243,29 @@ function App() {
     }
   };
 
+  const fetchAppConfigs = async () => {
+    if (!token) return;
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/configs`);
+      const data = await response.json();
+      if (data.success && Array.isArray(data.configs)) {
+        const configsMap: Record<string, string> = {};
+        data.configs.forEach((cfg: any) => {
+          configsMap[cfg.key] = cfg.value;
+        });
+        setAppConfigs(configsMap);
+      }
+    } catch (err) {
+      console.error('Failed to fetch app configs:', err);
+    }
+  };
+
 
   // Dedicated effect for settings - only on mount or token change
   useEffect(() => {
     if (token) {
       fetchAppSettings();
+      fetchAppConfigs();
     }
   }, [token]);
 
@@ -1030,6 +1049,7 @@ function App() {
           <Customers 
             fetchWithAuth={fetchWithAuth} 
             showClearButton={appSettings?.show_clear_customers_button === 'true'} 
+            bulkSuffix={appConfigs?.bulk_template_suffix || '_marketing'}
           />
         )}
       </main>

@@ -101,3 +101,11 @@ func (p *SettingsProvider) GetBusinessAddressLine2() string {
 func (p *SettingsProvider) GetBusinessPhone() string {
 	return p.get("business_phone")
 }
+
+func (p *SettingsProvider) GetBulkTemplateSuffix() string {
+	s := p.get("bulk_template_suffix")
+	if s == "" {
+		return "_marketing"
+	}
+	return s
+}

@@ -38,6 +38,7 @@ interface WhatsAppTemplate {
 interface CustomersProps {
     fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
     showClearButton?: boolean;
+    bulkSuffix?: string;
 }
 
 type ColumnKey = 'name' | 'phone' | 'email' | 'location' | 'orders' | 'spent' | 'activity' | 'source';
@@ -58,7 +59,7 @@ const ALL_COLUMNS: ColumnDef[] = [
     { key: 'source', label: 'Source' },
 ];
 
-export function Customers({ fetchWithAuth, showClearButton = false }: CustomersProps) {
+export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix = '_marketing' }: CustomersProps) {
     const [file, setFile] = useState<File | null>(null);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [total, setTotal] = useState(0);
@@ -1043,44 +1044,44 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                 </div>
             )}
 
-            <BulkTemplateModal 
+            <BulkTemplateModal
                 isOpen={showBulkModal}
                 onClose={() => setShowBulkModal(false)}
-                selectedCount={selectedCustomerIDs.size}
                 customerIDs={Array.from(selectedCustomerIDs)}
-                fetchWithAuth={fetchWithAuth}
                 onSuccess={() => setSelectedCustomerIDs(new Set())}
+                fetchWithAuth={fetchWithAuth}
+                bulkSuffix={bulkSuffix}
             />
 
             {showAddModal && (
                 <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-                    <div className="premium-modal" onClick={e => e.stopPropagation()} style={{ 
-                        maxWidth: '700px', 
-                        width: '95%', 
-                        maxHeight: '90vh', 
-                        display: 'flex', 
+                    <div className="premium-modal" onClick={e => e.stopPropagation()} style={{
+                        maxWidth: '700px',
+                        width: '95%',
+                        maxHeight: '90vh',
+                        display: 'flex',
                         flexDirection: 'column',
                         padding: 0,
                         overflow: 'hidden'
                     }}>
                         {/* Sticky Header */}
-                        <div style={{ 
-                            padding: '1.5rem', 
+                        <div style={{
+                            padding: '1.5rem',
                             borderBottom: '1px solid #e2e8f0',
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                             background: 'white',
                             zIndex: 10
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ 
-                                    width: '40px', 
-                                    height: '40px', 
-                                    borderRadius: '10px', 
-                                    background: '#f1f5f9', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '10px',
+                                    background: '#f1f5f9',
+                                    display: 'flex',
+                                    alignItems: 'center',
                                     justifyContent: 'center',
                                     color: '#0f172a'
                                 }}>
@@ -1101,19 +1102,19 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                         {/* Scrollable Content */}
                         <form onSubmit={handleSaveCustomer} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                             <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-                                
+
                                 {/* Section 1: Basic Info */}
                                 <div style={{ marginBottom: '2rem' }}>
                                     <h3 style={{ fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }}></span>
                                         Contact Information
                                     </h3>
-                                    
+
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>First Name</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 className="form-input"
                                                 value={customerForm.first_name || ''}
                                                 onChange={e => setCustomerForm({...customerForm, first_name: e.target.value})}
@@ -1123,8 +1124,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                         </div>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Last Name</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 className="form-input"
                                                 value={customerForm.last_name || ''}
                                                 onChange={e => setCustomerForm({...customerForm, last_name: e.target.value})}
@@ -1137,16 +1138,16 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Phone Number</label>
                                             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                                <span style={{ 
-                                                    position: 'absolute', 
-                                                    left: '12px', 
-                                                    color: '#64748b', 
+                                                <span style={{
+                                                    position: 'absolute',
+                                                    left: '12px',
+                                                    color: '#64748b',
                                                     fontWeight: 600,
                                                     fontSize: '0.9rem',
                                                     pointerEvents: 'none'
                                                 }}>+91</span>
-                                                <input 
-                                                    type="tel" 
+                                                <input
+                                                    type="tel"
                                                     className="form-input"
                                                     style={{ paddingLeft: '45px' }}
                                                     value={customerForm.phone_number?.replace('+91', '') || ''}
@@ -1161,8 +1162,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                         </div>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Email Address</label>
-                                            <input 
-                                                type="email" 
+                                            <input
+                                                type="email"
                                                 className="form-input"
                                                 value={customerForm.email || ''}
                                                 onChange={e => setCustomerForm({...customerForm, email: e.target.value})}
@@ -1173,7 +1174,7 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
 
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Customer Source</label>
-                                        <select 
+                                        <select
                                             className="form-input"
                                             value={customerForm.source_id || ''}
                                             onChange={e => {
@@ -1202,8 +1203,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
 
                                     <div style={{ marginBottom: '1.25rem' }}>
                                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Address Line 1</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             className="form-input"
                                             value={customerForm.address1 || ''}
                                             onChange={e => setCustomerForm({...customerForm, address1: e.target.value})}
@@ -1213,8 +1214,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
 
                                     <div style={{ marginBottom: '1.25rem' }}>
                                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Address Line 2 (Optional)</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             className="form-input"
                                             value={customerForm.address2 || ''}
                                             onChange={e => setCustomerForm({...customerForm, address2: e.target.value})}
@@ -1225,8 +1226,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>City</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 className="form-input"
                                                 value={customerForm.city || ''}
                                                 onChange={e => setCustomerForm({...customerForm, city: e.target.value})}
@@ -1235,8 +1236,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                         </div>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>State</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 className="form-input"
                                                 value={customerForm.state || ''}
                                                 onChange={e => setCustomerForm({...customerForm, state: e.target.value})}
@@ -1248,8 +1249,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Country</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 className="form-input"
                                                 value={customerForm.country || 'India'}
                                                 onChange={e => setCustomerForm({...customerForm, country: e.target.value})}
@@ -1258,8 +1259,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                         </div>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>Zip / Postal Code</label>
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 className="form-input"
                                                 value={customerForm.zip_code || ''}
                                                 onChange={e => setCustomerForm({...customerForm, zip_code: e.target.value})}
@@ -1269,26 +1270,26 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                     </div>
                                 </div>
 
-                                <div style={{ 
-                                    padding: '1.25rem', 
-                                    background: '#f8fafc', 
-                                    borderRadius: '12px', 
+                                <div style={{
+                                    padding: '1.25rem',
+                                    background: '#f8fafc',
+                                    borderRadius: '12px',
                                     border: '1px solid #e2e8f0',
                                     marginBottom: '0.5rem'
                                 }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                                        <div style={{ 
+                                        <div style={{
                                             position: 'relative',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center'
                                         }}>
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 checked={syncToShopify}
                                                 onChange={e => setSyncToShopify(e.target.checked)}
-                                                style={{ 
-                                                    width: '20px', 
+                                                style={{
+                                                    width: '20px',
                                                     height: '20px',
                                                     cursor: 'pointer',
                                                     accentColor: '#0f172a'
@@ -1298,8 +1299,8 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                                         <div>
                                             <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>Sync with Shopify</span>
                                             <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                                                {isEditMode 
-                                                    ? "Keep this customer updated on your Shopify store" 
+                                                {isEditMode
+                                                    ? "Keep this customer updated on your Shopify store"
                                                     : "Automatically create this customer on your Shopify store"}
                                             </p>
                                         </div>
@@ -1308,11 +1309,11 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
                             </div>
 
                             {/* Sticky Footer */}
-                            <div style={{ 
-                                padding: '1.25rem 1.5rem', 
-                                borderTop: '1px solid #e2e8f0', 
-                                display: 'flex', 
-                                gap: '1rem', 
+                            <div style={{
+                                padding: '1.25rem 1.5rem',
+                                borderTop: '1px solid #e2e8f0',
+                                display: 'flex',
+                                gap: '1rem',
                                 justifyContent: 'flex-end',
                                 background: '#f8fafc'
                             }}>
@@ -1329,21 +1330,15 @@ export function Customers({ fetchWithAuth, showClearButton = false }: CustomersP
     );
 }
 
-function BulkTemplateModal({
-    isOpen,
-    onClose,
-    selectedCount,
-    customerIDs,
-    fetchWithAuth,
-    onSuccess
-}: {
+
+const BulkTemplateModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    selectedCount: number;
-    customerIDs: number[];
-    fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+    customerIDs: (number | string)[];
     onSuccess: () => void;
-}) {
+    fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+    bulkSuffix?: string;
+}> = ({ isOpen, onClose, customerIDs, onSuccess, fetchWithAuth, bulkSuffix = '_marketing' }) => {
     const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
@@ -1362,13 +1357,17 @@ function BulkTemplateModal({
     const fetchTemplates = async () => {
         setIsLoading(true);
         try {
-            const response = await fetchWithAuth('/api/automation/whatsapp/templates');
+            const response = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates`);
             const data = await response.json();
             // Filter only bulk templates
-            const bulkTemplates = data.filter((t: WhatsAppTemplate) => 
-                t.template_name.endsWith('_bulk') && t.status === 'APPROVED'
-            );
-            setTemplates(bulkTemplates);
+            const filteredTemplates = data.filter((t: WhatsAppTemplate) => {
+                const name = (t.template_name || '').trim().toLowerCase();
+                const suffix = (bulkSuffix || '').trim().toLowerCase();
+                const status = (t.status || '').trim().toUpperCase();
+                
+                return name.endsWith(suffix) && status === 'APPROVED';
+            });
+            setTemplates(filteredTemplates);
         } catch (error) {
             console.error('Error fetching templates:', error);
         } finally {
@@ -1380,7 +1379,7 @@ function BulkTemplateModal({
         if (!selectedTemplate) return;
         setIsSending(true);
         try {
-            const response = await fetchWithAuth('/api/automation/whatsapp/send-bulk', {
+            const response = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/send-bulk`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1424,7 +1423,7 @@ function BulkTemplateModal({
                         <>
                             <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
                                 <p style={{ fontSize: '0.9rem', color: '#64748b', margin: 0 }}>
-                                    Targeting <span style={{ color: '#0f172a', fontWeight: 600 }}>{selectedCount}</span> selected customers.
+                                    Targeting <span style={{ color: '#0f172a', fontWeight: 600 }}>{customerIDs.length}</span> selected customers.
                                 </p>
                             </div>
 
@@ -1436,17 +1435,17 @@ function BulkTemplateModal({
                                 <div style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</div>
                             ) : templates.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '2rem', background: '#fef2f2', color: '#991b1b', borderRadius: '12px' }}>
-                                    No templates found ending with <code style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px' }}>_bulk</code> or none are approved yet.
+                                    No templates found ending with <code style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px' }}>{bulkSuffix}</code> or none are approved yet.
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                                     {templates.map(t => (
-                                        <div 
+                                        <div
                                             key={t.id}
                                             onClick={() => setSelectedTemplate(t)}
-                                            style={{ 
-                                                padding: '1rem', 
-                                                borderRadius: '12px', 
+                                            style={{
+                                                padding: '1rem',
+                                                borderRadius: '12px',
                                                 border: '2px solid',
                                                 borderColor: selectedTemplate?.id === t.id ? '#38bdf8' : '#e2e8f0',
                                                 background: selectedTemplate?.id === t.id ? '#f0f9ff' : 'white',
@@ -1473,14 +1472,14 @@ function BulkTemplateModal({
                     {!result && (
                         <>
                             <button className="btn-secondary" onClick={onClose} disabled={isSending}>Cancel</button>
-                            <button 
-                                className="btn-primary" 
-                                onClick={handleSend} 
-                                disabled={!selectedTemplate || isSending}
-                                style={{ background: '#38bdf8', color: '#0c4a6e', border: 'none' }}
-                            >
-                                {isSending ? 'Sending...' : `Send to ${selectedCount} Customers`}
-                            </button>
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={handleSend} 
+                                    disabled={!selectedTemplate || isSending}
+                                    style={{ background: '#38bdf8', color: '#0c4a6e', border: 'none' }}
+                                >
+                                    {isSending ? 'Sending...' : `Send to ${customerIDs.length} Customers`}
+                                </button>
                         </>
                     )}
                 </div>

@@ -528,8 +528,9 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if !strings.HasSuffix(template.TemplateName, "_bulk") {
-		http.Error(w, "Only templates ending with _bulk are allowed for bulk selection", http.StatusBadRequest)
+	suffix := h.settings.GetBulkTemplateSuffix()
+	if !strings.HasSuffix(template.TemplateName, suffix) {
+		http.Error(w, fmt.Sprintf("Only templates ending with %s are allowed for bulk selection", suffix), http.StatusBadRequest)
 		return
 	}
 
@@ -584,8 +585,8 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true, 
-		"sent": successCount, 
-		"total": len(customers),
+		"success": true,
+		"sent":    successCount,
+		"total":   len(customers),
 	})
 }
