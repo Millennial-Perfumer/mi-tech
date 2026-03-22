@@ -70,7 +70,9 @@ func BenchmarkFetchOrdersOptimized(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		atomic.StoreInt32(&handler.count, 0)
-		_, err := client.FetchOrders(context.Background(), time.Now().Add(-24*time.Hour), time.Now())
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		_, err := client.FetchOrders(ctx, time.Now().Add(-24*time.Hour), time.Now())
+		cancel()
 		if err != nil {
 			b.Fatalf("FetchOrders failed: %v", err)
 		}

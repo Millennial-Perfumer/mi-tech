@@ -27,13 +27,18 @@ func NewClient(settings *config.SettingsProvider) *Client {
 	limit := settings.GetShopifyRateLimit()
 	burst := settings.GetShopifyRateBurst()
 
+	var rLimit rate.Limit = rate.Inf // Default to no limit
+	if limit > 0 {
+		rLimit = rate.Limit(limit)
+	}
+
 	return &Client{
 		settings: settings,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		// Shopify's GraphQL API has a leaky bucket limit.
-		limiter: rate.NewLimiter(rate.Limit(limit), burst),
+		limiter: rate.NewLimiter(rLimit, burst),
 	}
 }
 
