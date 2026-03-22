@@ -25,6 +25,7 @@ func RegisterRoutes(
 	configsHandler *handler.ConfigsHandler,
 	redirectHandler *handler.RedirectHandler,
 	authHandler *handler.AuthHandler,
+	customerHandler *handler.CustomerHandler,
 	authService *service.AuthService,
 ) {
 	cors := CORSMiddleware
@@ -52,6 +53,18 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/orders", protected(orderHandler.GetOrders))
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
 	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
+	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))
+
+	// --- Customer Routes ---
+	mux.HandleFunc("/api/customers/import", protected(customerHandler.ImportCSV))
+	mux.HandleFunc("/api/customers", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			customerHandler.DeleteAllCustomers(w, r)
+		default:
+			customerHandler.ListCustomers(w, r)
+		}
+	}))
 
 	// --- Sync Routes ---
 	mux.HandleFunc("/api/shopify/sync", protected(syncHandler.SyncOrders))

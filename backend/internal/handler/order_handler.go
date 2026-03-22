@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -175,4 +176,20 @@ func (h *OrderHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) {
 	if err := h.invoiceService.GeneratePDF(order, items, w); err != nil {
 		http.Error(w, "Failed to generate PDF", http.StatusInternalServerError)
 	}
+}
+
+func (h *OrderHandler) GetSources(w http.ResponseWriter, r *http.Request) {
+	sources, err := h.orderService.ListSources()
+	if err != nil {
+		log.Printf("Error fetching sources: %v", err)
+		http.Error(w, "Failed to fetch sources", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("GetSources: returning %d sources", len(sources))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"sources": sources,
+	})
 }

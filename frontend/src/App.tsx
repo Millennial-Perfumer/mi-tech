@@ -9,6 +9,7 @@ import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
 import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import { SettingsTab } from './SettingsTab';
+import { Customers } from './Customers';
 import './App.css';
 
 
@@ -541,6 +542,10 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
             Orders
           </a>
+          <a href="#" className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Customers
+          </a>
           <a href="#" className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             Settings
@@ -555,14 +560,13 @@ function App() {
       <main className="main-content">
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
-          {activeTab !== 'automation' && (
+          {activeTab !== 'automation' && activeTab === 'settings' && (
             <div style={{display: 'flex', gap: '1rem'}}>
-              <button className="btn-secondary">Export Data</button>
               {appSettings?.show_reset_button === 'true' && (
                 <button 
                   className="btn-secondary" 
@@ -573,27 +577,11 @@ function App() {
                   {isResetting ? 'Resetting...' : 'Reset & Resync'}
                 </button>
               )}
-              {appSettings?.show_sync_button !== 'false' && (
-                <button 
-                  className="btn-primary" 
-                  title="Manually fetch orders from Shopify in case webhook delivery fails."
-                  style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
-                  onClick={() => {
-                    setSyncStartDate(startDate); // Use current dashboard start date
-                    setSyncEndDate(endDate);     // Use current dashboard end date
-                    setShowSyncModal(true);
-                  }}
-                  disabled={isSyncing || isResetting}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isSyncing ? 'spin' : ''}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  {isSyncing ? 'Syncing...' : 'Manual Sync'}
-                </button>
-              )}
             </div>
           )}
         </header>
-
-        {activeTab !== 'automation' && activeTab !== 'settings' && (
+        
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -607,21 +595,29 @@ function App() {
           }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
-                {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : 'Shopify Orders'}
+                {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'customers' ? 'Customer Directory' : 'Shopify Orders'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
-                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : 'Manage your Shopify store orders'}
+                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : activeTab === 'customers' ? 'Manage and analyze your customer base' : 'Manage your Shopify store orders'}
               </p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-              <div style={{ width: '1px', height: '40px', backgroundColor: '#e2e8f0' }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <button className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export Data
+              </button>
 
-              <CustomDatePicker 
-                startDate={startDate} 
-                endDate={endDate} 
-                onDateChange={handleUpdateDateRange} 
-              />
+              {(activeTab === 'dashboard' || activeTab === 'reports') && (
+                <>
+                  <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }}></div>
+                  <CustomDatePicker 
+                    startDate={startDate} 
+                    endDate={endDate} 
+                    onDateChange={handleUpdateDateRange} 
+                  />
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1027,6 +1023,13 @@ function App() {
         {activeTab === 'settings' && (
           <SettingsTab 
             fetchWithAuth={fetchWithAuth}
+          />
+        )}
+
+        {activeTab === 'customers' && (
+          <Customers 
+            fetchWithAuth={fetchWithAuth} 
+            showClearButton={appSettings?.show_clear_customers_button === 'true'} 
           />
         )}
       </main>

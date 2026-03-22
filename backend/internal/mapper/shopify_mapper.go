@@ -383,6 +383,50 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 	return order
 }
 
+// WebhookCustomerToEntity converts a Shopify REST customer webhook payload into a DB entity.
+func WebhookCustomerToEntity(payload dto.ShopifyWebhookCustomer, rawPayload *json.RawMessage) entity.Customer {
+	city, state, country, addr1, addr2, zip := "", "", "", "", "", ""
+
+	addr := payload.DefaultAddress
+	if addr == nil && len(payload.Addresses) > 0 {
+		addr = &payload.Addresses[0]
+	}
+
+	if addr != nil {
+		city = addr.City
+		state = addr.Province
+		country = addr.Country
+		addr1 = addr.Address1
+		addr2 = addr.Address2
+		zip = addr.Zip
+	}
+
+	// Normalize phone from payload or address
+	phone := payload.Phone
+	if phone == "" && addr != nil {
+		phone = addr.Phone
+	}
+
+	spent := parseFloat(payload.TotalSpent)
+
+	return entity.Customer{
+		PhoneNumber: phone,
+		FirstName:   strPtr(payload.FirstName),
+		LastName:    strPtr(payload.LastName),
+		Email:       strPtr(payload.Email),
+		Address1:    strPtr(addr1),
+		Address2:    strPtr(addr2),
+		City:        strPtr(city),
+		State:       strPtr(state),
+		Country:     strPtr(country),
+		ZipCode:     strPtr(zip),
+		TotalOrders: payload.OrdersCount,
+		TotalSpent:  spent,
+		CreatedAt:   parseTime(payload.CreatedAt),
+		UpdatedAt:   parseTime(payload.UpdatedAt),
+	}
+}
+
 // --- Helpers ---
 
 // strPtr returns a pointer to the string, or nil if empty.

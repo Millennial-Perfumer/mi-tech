@@ -35,4 +35,12 @@ func main() {
 	for _, f := range files {
 		fmt.Printf("- %s\n", f)
 	}
+
+	fmt.Println("\nChecking 'sources' table...")
+	var rawSources []map[string]interface{}
+	db.Table("sources").Find(&rawSources)
+	fmt.Printf("Total sources found: %d\n", len(rawSources))
+	for _, s := range rawSources {
+		fmt.Printf("- ID: %v, Name: %v, Enabled: %v\n", s["id"], s["name"], s["enabled"])
+	}
 }

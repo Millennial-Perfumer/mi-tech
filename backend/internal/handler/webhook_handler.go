@@ -117,6 +117,18 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				automationTopic = "fulfillments/update"
 				processErr = h.webhookService.ProcessFulfillmentUpdate(payload)
 			}
+		} else if strings.HasPrefix(topic, "customers/") {
+			var payload dto.ShopifyWebhookCustomer
+			if err := json.Unmarshal(body, &payload); err != nil {
+				log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+				return
+			}
+			externalID = strconv.FormatInt(payload.ID, 10)
+
+			switch topic {
+			case "customers/create", "customers/update":
+				processErr = h.webhookService.ProcessCustomerCreateUpdate(payload, &raw)
+			}
 		} else {
 			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
 			return

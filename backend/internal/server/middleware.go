@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -34,6 +35,7 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
+			log.Printf("AuthMiddleware: %s %s", r.Method, path)
 			if r.Method == "OPTIONS" ||
 			   strings.HasPrefix(path, "/api/webhooks") || 
 			   path == "/api/health" || 

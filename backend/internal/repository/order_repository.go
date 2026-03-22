@@ -354,6 +354,12 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 		Updates(updates).Error
 }
 
+func (r *gormOrderRepository) ListSources() ([]entity.Source, error) {
+	var sources []entity.Source
+	err := r.db.Where("enabled = ?", true).Order("name ASC").Find(&sources).Error
+	return sources, err
+}
+
 func (r *gormOrderRepository) TruncateAll() error {
 	if err := r.db.Exec("TRUNCATE TABLE order_line_items CASCADE").Error; err != nil {
 		return fmt.Errorf("failed to truncate order_line_items: %w", err)

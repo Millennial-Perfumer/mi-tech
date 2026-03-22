@@ -77,10 +77,10 @@ func (WebhookEvent) TableName() string { return "webhook_events" }
 
 // Source represents a row in the "sources" table.
 type Source struct {
-	ID        string    `gorm:"column:id;primaryKey"`
-	Name      string    `gorm:"column:name"`
-	Enabled   bool      `gorm:"column:enabled"`
-	CreatedAt time.Time `gorm:"column:created_at"`
+	ID        string    `gorm:"column:id;primaryKey" json:"id"`
+	Name      string    `gorm:"column:name" json:"name"`
+	Enabled   bool      `gorm:"column:enabled" json:"enabled"`
+	CreatedAt time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 func (Source) TableName() string { return "sources" }

@@ -49,6 +49,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
 	configsRepo := repository.NewConfigsRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
+	customerRepo := repository.NewCustomerRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -57,16 +58,17 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	shopifyClient := shopify.NewClient(settingsProvider)
 
 	// Services
+	authService := service.NewAuthService(db, settingsProvider)
+	metricsService := service.NewMetricsService(metricsRepo)
+	reportService := service.NewReportService(reportRepo)
+	customerService := service.NewCustomerService(customerRepo, orderRepo)
 	invoiceService := service.NewInvoiceService(settingsRepo)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo)
-	syncService := service.NewSyncService(shopifyClient, orderRepo)
+	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService)
+	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider)
 	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo)
-	authService := service.NewAuthService(db, settingsProvider)
-	metricsService := service.NewMetricsService(metricsRepo)
-	reportService := service.NewReportService(reportRepo)
 
 	// Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService)
@@ -79,6 +81,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	configsHandler := handler.NewConfigsHandler(configsRepo, db)
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
 	authHandler := handler.NewAuthHandler(authService)
+	customerHandler := handler.NewCustomerHandler(customerService)
 
 	RegisterRoutes(
 		mux,
@@ -92,6 +95,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		configsHandler,
 		redirectHandler,
 		authHandler,
+		customerHandler,
 		authService,
 	)
 
