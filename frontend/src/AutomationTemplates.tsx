@@ -66,6 +66,9 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
   const [headerFileName, setHeaderFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSyncingStatus, setIsSyncingStatus] = useState(false);
+  const [showFetchModal, setShowFetchModal] = useState(false);
+  const [fetchTemplateName, setFetchTemplateName] = useState('');
+  const [isFetchingFromMeta, setIsFetchingFromMeta] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
@@ -125,6 +128,57 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
       console.error('Error during status sync:', err);
     } finally {
       setIsSyncingStatus(false);
+    }
+  };
+
+  const handleFetchFromMeta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fetchTemplateName) return;
+
+    setIsFetchingFromMeta(true);
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates/fetch?name=${fetchTemplateName}`);
+      if (!resp.ok) {
+        throw new Error(await resp.text());
+      }
+
+      const data = await resp.json();
+      
+      // Pre-fill the form with fetched data
+      setFormData({
+        name: data.name,
+        category: data.category,
+        language: data.language,
+        body: data.body,
+        footer: data.footer || '',
+        header: data.header || { type: 'none', sample: '', location: { lat: '', lng: '', name: '', address: '' } },
+        buttons: data.buttons || [],
+        variableSamples: {} // We might want to parse variables from body
+      });
+
+      // Parse variables if any
+      const { count } = normalizeVariables(data.body);
+      const newSamples: Record<number, string> = {};
+      if (data.examples) {
+        const exampleParts = data.examples.split(',').map((s: string) => s.trim());
+        for (let i = 1; i <= count; i++) {
+          newSamples[i] = exampleParts[i-1] || '';
+        }
+      } else {
+        for (let i = 1; i <= count; i++) {
+          newSamples[i] = '';
+        }
+      }
+      setFormData(prev => ({ ...prev, variableSamples: newSamples }));
+
+      setShowFetchModal(false);
+      setFetchTemplateName('');
+      setShowForm(true);
+    } catch (err) {
+      console.error('Failed to fetch template from Meta:', err);
+      alert(`Failed to fetch template: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsFetchingFromMeta(false);
     }
   };
 
@@ -430,28 +484,51 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
         </div>
 
         {!showForm && (
-          <button 
-            className="btn-primary" 
-            onClick={() => setShowForm(true)}
-            style={{
-              backgroundColor: '#0ea5e9',
-              color: 'white',
-              border: 'none',
-              padding: '0.65rem 1.25rem',
-              borderRadius: '10px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Create New Template
-          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              className="btn-secondary" 
+              onClick={() => setShowFetchModal(true)}
+              style={{
+                backgroundColor: 'white',
+                color: '#475569',
+                border: '1px solid #e2e8f0',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '10px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Fetch from Meta
+            </button>
+            <button 
+              className="btn-primary" 
+              onClick={() => setShowForm(true)}
+              style={{
+                backgroundColor: '#0ea5e9',
+                color: 'white',
+                border: 'none',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '10px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Create New Template
+            </button>
+          </div>
         )}
       </div>
 
@@ -950,6 +1027,38 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
           </tbody>
         </table>
       </div>
+
+      {showFetchModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Fetch Template from Meta</h3>
+            </div>
+            <form onSubmit={handleFetchFromMeta}>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label>Template Name</label>
+                <input 
+                  type="text" 
+                  value={fetchTemplateName} 
+                  onChange={e => setFetchTemplateName(e.target.value.toLowerCase().trim())}
+                  placeholder="e.g. shipping_update_v1"
+                  required
+                  autoFocus
+                />
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.5rem' }}>
+                  Enter the exact name of the template as it appears in your Meta WhatsApp Manager.
+                </p>
+              </div>
+              <div className="modal-footer" style={{ borderTop: 'none', padding: 0, display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowFetchModal(false)} disabled={isFetchingFromMeta}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={isFetchingFromMeta || !fetchTemplateName}>
+                  {isFetchingFromMeta ? 'Fetching...' : 'Continue'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

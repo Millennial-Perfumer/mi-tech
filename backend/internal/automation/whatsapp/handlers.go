@@ -590,3 +590,21 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 		"total":   len(customers),
 	})
 }
+func (h *AutomationHandler) FetchTemplateFromMeta(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		http.Error(w, "Template name is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Handler: FetchTemplateFromMeta called for name: %s", name)
+	req, err := h.templatesService.FetchRemoteTemplate(name)
+	if err != nil {
+		log.Printf("FetchRemoteTemplate failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(req)
+}

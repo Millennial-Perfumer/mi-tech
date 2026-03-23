@@ -284,9 +284,12 @@ func (c *MetaClient) DeleteTemplate(templateName string) error {
 }
 
 type RemoteTemplate struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID         string                   `json:"id"`
+	Name       string                   `json:"name"`
+	Category   string                   `json:"category"`
+	Language   string                   `json:"language"`
+	Status     string                   `json:"status"`
+	Components []map[string]interface{} `json:"components"`
 }
 
 func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTemplate, error) {

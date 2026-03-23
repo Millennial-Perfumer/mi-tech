@@ -362,3 +362,83 @@ func (s *TemplatesService) UpdateTrigger(id int, storeID string, enabled bool) e
 func (s *TemplatesService) DeleteTrigger(id int, storeID string) error {
 	return s.repo.DeleteTrigger(id, storeID)
 }
+func (s *TemplatesService) FetchRemoteTemplate(templateName string) (*CreateTemplateRequest, error) {
+	remote, err := s.metaClient.GetRemoteTemplateByName(templateName)
+	if err != nil {
+		return nil, err
+	}
+	if remote == nil {
+		return nil, fmt.Errorf("template %s not found in Meta", templateName)
+	}
+
+	req := &CreateTemplateRequest{
+		Name:     remote.Name,
+		Category: remote.Category,
+		Language: remote.Language,
+	}
+
+	for _, comp := range remote.Components {
+		compType, _ := comp["type"].(string)
+		switch compType {
+		case "HEADER":
+			format, _ := comp["format"].(string)
+			req.Header = &TemplateHeader{
+				Type: strings.ToLower(format),
+			}
+			// Meta doesn't return the sample handle in GET, but might return examples
+			if example, ok := comp["example"].(map[string]interface{}); ok {
+				if handles, ok := example["header_handle"].([]interface{}); ok && len(handles) > 0 {
+					handle, _ := handles[0].(string)
+					sampleJSON, _ := json.Marshal(handle)
+					req.Header.Sample = sampleJSON
+				}
+			}
+		case "BODY":
+			req.Body, _ = comp["text"].(string)
+			if example, ok := comp["example"].(map[string]interface{}); ok {
+				if bodyTexts, ok := example["body_text"].([]interface{}); ok && len(bodyTexts) > 0 {
+					if firstRow, ok := bodyTexts[0].([]interface{}); ok {
+						var samples []string
+						for _, s := range firstRow {
+							samples = append(samples, fmt.Sprint(s))
+						}
+						req.Examples = strings.Join(samples, ", ")
+					}
+				}
+			}
+		case "FOOTER":
+			req.Footer, _ = comp["text"].(string)
+		case "BUTTONS":
+			if btns, ok := comp["buttons"].([]interface{}); ok {
+				for _, b := range btns {
+					btnMap, _ := b.(map[string]interface{})
+					bType, _ := btnMap["type"].(string)
+					bText, _ := btnMap["text"].(string)
+					
+					newBtn := TemplateButton{
+						Text: bText,
+					}
+					
+					switch bType {
+					case "QUICK_REPLY":
+						newBtn.Type = "custom"
+					case "URL":
+						newBtn.Type = "visit_website"
+						newBtn.URL, _ = btnMap["url"].(string)
+					case "PHONE_NUMBER":
+						newBtn.Type = "call_phone"
+						newBtn.PhoneNumber, _ = btnMap["phone_number"].(string)
+					case "FLOW":
+						newBtn.Type = "flow"
+						newBtn.FlowID, _ = btnMap["flow_id"].(string)
+					case "COPY_CODE":
+						newBtn.Type = "copy_code"
+					}
+					req.Buttons = append(req.Buttons, newBtn)
+				}
+			}
+		}
+	}
+
+	return req, nil
+}
