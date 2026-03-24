@@ -40,8 +40,10 @@ type Trigger struct {
 	WebhookTopic string    `json:"webhook_topic"`
 	TemplateID   int       `json:"template_id"`
 	Enabled      bool      `json:"enabled"`
-	TemplateName string    `json:"template_name,omitempty"` // Joined field
-	CreatedAt    time.Time `json:"created_at"`
+	TemplateName   string    `json:"template_name,omitempty"`   // Joined field
+	TemplateBody   string    `json:"template_body,omitempty"`   // Joined field
+	TemplateStatus string    `json:"template_status,omitempty"` // Joined field
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type AutomationTemplate struct {

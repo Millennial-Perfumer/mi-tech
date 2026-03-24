@@ -64,7 +64,7 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate *t
 			WHERE 1=1 %s
 			GROUP BY template_id
 		) m ON t.id = m.template_id
-		WHERE t.store_id = $1`, dateFilter)
+		WHERE t.store_id = $1 AND t.status != 'ARCHIVED'`, dateFilter)
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
@@ -116,7 +116,13 @@ func (r *TemplatesRepository) GetTriggerByTopic(storeID, topic string) (*Trigger
 }
 
 func (r *TemplatesRepository) GetTriggers(storeID string) ([]Trigger, error) {
-	query := `SELECT id, store_id, webhook_topic, template_id, enabled, created_at FROM automation_triggers WHERE store_id = $1`
+	query := `
+		SELECT 
+			tr.id, tr.store_id, tr.webhook_topic, tr.template_id, tr.enabled, tr.created_at,
+			t.template_name, t.body, t.status
+		FROM automation_triggers tr
+		JOIN automation_templates t ON tr.template_id = t.id
+		WHERE tr.store_id = $1`
 	rows, err := r.db.Query(query, storeID)
 	if err != nil {
 		return nil, err
@@ -126,7 +132,7 @@ func (r *TemplatesRepository) GetTriggers(storeID string) ([]Trigger, error) {
 	var triggers []Trigger
 	for rows.Next() {
 		var tr Trigger
-		err := rows.Scan(&tr.ID, &tr.StoreID, &tr.WebhookTopic, &tr.TemplateID, &tr.Enabled, &tr.CreatedAt)
+		err := rows.Scan(&tr.ID, &tr.StoreID, &tr.WebhookTopic, &tr.TemplateID, &tr.Enabled, &tr.CreatedAt, &tr.TemplateName, &tr.TemplateBody, &tr.TemplateStatus)
 		if err != nil {
 			return nil, err
 		}

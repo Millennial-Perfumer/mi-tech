@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 )
 
@@ -112,7 +113,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 func (s *Server) Run() error {
 	server := &http.Server{
 		Addr:              ":" + s.port,
-		Handler:           s.mux,
+		Handler:           otelhttp.NewHandler(s.mux, "mi-tech-api"),
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,

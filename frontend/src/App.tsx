@@ -409,7 +409,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTab, startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
   const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {
@@ -662,7 +662,7 @@ function App() {
                 Export Data
               </button>
 
-              {(activeTab === 'dashboard' || activeTab === 'reports') && (
+              {(activeTab === 'dashboard' || activeTab === 'reports' || activeTab === 'shopify') && (
                 <>
                   <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }}></div>
                   <CustomDatePicker 

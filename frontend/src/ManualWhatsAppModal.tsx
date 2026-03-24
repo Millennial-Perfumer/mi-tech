@@ -2,14 +2,25 @@ import { API_BASE } from './api';
 import React, { useState, useEffect } from 'react';
 import { useToast } from './ToastContext';
 
-interface Template {
+interface Trigger {
   id: number;
+  webhook_topic: string;
+  template_id: number;
   template_name: string;
-  language: string;
-  category: string;
-  body: string;
-  status: string;
+  template_body: string;
+  template_status: string;
 }
+
+const webhookLabels: Record<string, string> = {
+  'orders/create': 'Order Placed',
+  'orders/assigned': 'Order Assigned',
+  'orders/fulfilled': 'Order Dispatched',
+  'orders/out_for_delivery': 'Order Out for Delivery',
+  'orders/delivered': 'Order Delivered',
+  'orders/updated': 'Order Updated',
+  'orders/cancelled': 'Order Cancelled',
+  'orders/paid': 'Order Paid',
+};
 
 interface ManualWhatsAppModalProps {
   isOpen: boolean;
@@ -29,7 +40,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
   token
 }) => {
   const { success: toastSuccess, error: toastError } = useToast();
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
@@ -37,20 +48,21 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
 
   useEffect(() => {
     if (isOpen && token) {
-      fetchTemplates();
+      fetchTriggers();
     }
   }, [isOpen, token]);
 
-  const fetchTemplates = async () => {
+  const fetchTriggers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/automation/whatsapp/templates`, {
+      const response = await fetch(`${API_BASE}/api/automation/whatsapp/triggers`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      setTemplates(data || []);
+      // Only show triggers that have a template mapped and are not archived
+      setTriggers((data || []).filter((t: Trigger) => t.template_id > 0 && t.template_status !== 'ARCHIVED'));
     } catch (err) {
-      setError('Failed to load templates');
+      setError('Failed to load triggers');
     } finally {
       setLoading(false);
     }
@@ -97,7 +109,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
         <div className="modal-header">
-          <h3>Send WhatsApp Message</h3>
+          <h3>Send Webhook Notification</h3>
           <button className="close-btn" onClick={onClose}>&times;</button>
         </div>
         
@@ -108,35 +120,37 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
             <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Order #{orderNumber}</div>
           </div>
 
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Select Template</label>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Select Event to Trigger</label>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '1rem' }}>Loading templates...</div>
+            <div style={{ textAlign: 'center', padding: '1rem' }}>Loading events...</div>
           ) : (
             <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-              {templates.length === 0 ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No templates found.</div>
+              {triggers.length === 0 ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No automated triggers configured.</div>
               ) : (
-                templates.map(t => (
+                triggers.map(t => (
                   <div 
                     key={t.id}
-                    className={`template-option ${selectedTemplateId === t.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedTemplateId(t.id)}
+                    className={`template-option ${selectedTemplateId === t.template_id ? 'selected' : ''}`}
+                    onClick={() => setSelectedTemplateId(t.template_id)}
                     style={{
                       padding: '1rem',
                       borderBottom: '1px solid #f1f5f9',
                       cursor: 'pointer',
-                      background: selectedTemplateId === t.id ? '#f0f9ff' : 'transparent',
-                      borderColor: selectedTemplateId === t.id ? '#0ea5e9' : '#f1f5f9'
+                      background: selectedTemplateId === t.template_id ? '#f0f9ff' : 'transparent',
+                      borderColor: selectedTemplateId === t.template_id ? '#0ea5e9' : '#f1f5f9'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 600 }}>{t.template_name}</span>
-                      <span className={`status-badge status-${t.status.toLowerCase()}`} style={{ fontSize: '0.7rem' }}>
-                        {t.status}
+                      <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                        {webhookLabels[t.webhook_topic] || t.webhook_topic}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>
+                        {t.template_name}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {t.body}
+                    <div style={{ fontSize: '0.8rem', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.template_body}
                     </div>
                   </div>
                 ))

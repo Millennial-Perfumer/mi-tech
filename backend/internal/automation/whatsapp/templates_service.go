@@ -211,23 +211,7 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 }
 
 func (s *TemplatesService) GetTriggers(storeID string) ([]Trigger, error) {
-	triggers, err := s.repo.GetTriggers(storeID)
-	if err != nil {
-		return nil, err
-	}
-
-	// For other triggers, the TemplateName might come empty from the base GetTriggers
-	// Let's ensure name is joined if missing
-	for i := range triggers {
-		if triggers[i].TemplateName == "" {
-			t, err := s.repo.GetTemplateByID(triggers[i].TemplateID)
-			if err == nil && t != nil {
-				triggers[i].TemplateName = t.TemplateName
-			}
-		}
-	}
-
-	return triggers, nil
+	return s.repo.GetTriggers(storeID)
 }
 
 func (s *TemplatesService) SyncStatus(storeID string) error {

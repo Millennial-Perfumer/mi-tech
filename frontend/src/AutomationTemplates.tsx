@@ -4,7 +4,6 @@ import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
-import { CustomDatePicker } from './CustomDatePicker';
 import { TemplateMapper } from './TemplateMapper';
 
 const availableColumns: ColumnOption[] = [
@@ -37,9 +36,6 @@ export interface Template {
 
 interface AutomationTemplatesProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
-  startDate: string;
-  endDate: string;
-  onDateChange: (start: string, end: string) => void;
   userRole?: string;
 }
 
@@ -143,7 +139,7 @@ function MultiSelectFilter({ label, options, selectedOptions, onChange, icon }: 
   );
 }
 
-export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateChange, userRole = 'read' }: AutomationTemplatesProps) {
+export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: AutomationTemplatesProps) {
   const { success: toastSuccess, error: toastError } = useToast();
   const { confirm: customConfirm } = useConfirm();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -171,8 +167,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
   const fetchTemplates = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const queryParams = `?start_date=${startDate}&end_date=${endDate}`;
-      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates${queryParams}`);
+      const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates`);
       const data = await resp.json();
       const loadedTemplates = Array.isArray(data) ? data : [];
       setTemplates(loadedTemplates);
@@ -251,7 +246,7 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
     if (!selectedTemplate) {
       fetchTemplates();
     }
-  }, [startDate, endDate, selectedTemplate]);
+  }, [selectedTemplate]);
 
   if (selectedTemplate) {
     return (
@@ -393,11 +388,6 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
         </div>
         
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'nowrap' }}>
-          <CustomDatePicker 
-            startDate={startDate}
-            endDate={endDate}
-            onDateChange={onDateChange}
-          />
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <MultiSelectFilter 
               label="Status"

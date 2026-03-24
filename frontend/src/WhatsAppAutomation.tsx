@@ -62,7 +62,7 @@ export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateCh
 
       <div className="automation-content">
         {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} refreshTrigger={refreshTrigger} />}
-        {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} userRole={userRole} />}
+        {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} userRole={userRole} />}
         {activeSubTab === 'triggers' && <AutomationTriggers fetchWithAuth={fetchWithAuth} userRole={userRole} />}
         {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} refreshTrigger={refreshTrigger} />}
       </div>
