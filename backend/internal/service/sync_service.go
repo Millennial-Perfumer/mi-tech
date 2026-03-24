@@ -72,11 +72,10 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 		return 0, fmt.Errorf("failed to upsert batch: %w", err)
 	}
 
-	// Update customer metadata
+	// Update customer metadata in batch to avoid N+1 queries
 	if s.customerService != nil {
-		ctx := context.Background()
-		for _, order := range orderEntities {
-			_ = s.customerService.UpdateFromOrder(ctx, &order)
+		if err := s.customerService.UpdateFromOrdersBatch(context.Background(), orderEntities); err != nil {
+			log.Printf("Sync: failed to update customer metadata in batch: %v", err)
 		}
 	}
 
