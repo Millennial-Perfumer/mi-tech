@@ -1,5 +1,6 @@
 import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
 import { CustomDatePicker } from './CustomDatePicker';
 
 interface Metrics {
@@ -31,6 +32,7 @@ interface AutomationDashboardProps {
 }
 
 export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateChange, refreshTrigger }: AutomationDashboardProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(!metrics);
@@ -80,11 +82,14 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
       if (resp.ok) {
         const mData = await resp.json();
         setMetrics(mData);
+        toastSuccess('Metrics synced successfully from Meta');
       } else {
         console.error('Failed to sync metrics from Meta');
+        toastError('Failed to sync metrics from Meta');
       }
     } catch (err) {
       console.error('Error during metrics sync:', err);
+      toastError('Network error while syncing metrics');
     } finally {
       setIsSyncing(false);
     }

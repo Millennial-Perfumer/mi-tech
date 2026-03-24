@@ -20,7 +20,10 @@ func NewCustomerRepository(db *gorm.DB) *CustomerRepository {
 // If the customer exists, it updates the fields.
 func (r *CustomerRepository) UpsertByPhone(ctx context.Context, customer *entity.Customer) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "phone_number"}},
+		Columns: []clause.Column{{Name: "phone_number"}},
+		Where: clause.Where{Exprs: []clause.Expression{
+			clause.Expr{SQL: "deleted_at IS NULL"},
+		}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"first_name", "last_name", "email", "address1", "address2", 
 			"city", "state", "country", "zip_code", "total_orders", 
@@ -162,7 +165,10 @@ func (r *CustomerRepository) UpsertBatch(ctx context.Context, customers []entity
 		return nil
 	}
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "phone_number"}},
+		Columns: []clause.Column{{Name: "phone_number"}},
+		Where: clause.Where{Exprs: []clause.Expression{
+			clause.Expr{SQL: "deleted_at IS NULL"},
+		}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"first_name", "last_name", "email", "address1", "address2", 
 			"city", "state", "country", "zip_code", "total_orders", 

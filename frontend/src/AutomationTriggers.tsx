@@ -1,5 +1,7 @@
 import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface Trigger {
   id: number;
@@ -21,6 +23,8 @@ interface AutomationTriggersProps {
 }
 
 export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: AutomationTriggersProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm: customConfirm } = useConfirm();
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,12 +72,17 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
         })
       });
       if (resp.ok) {
+        toastSuccess('Trigger mapping registered successfully');
         setShowForm(false);
         setFormData({ topic: 'orders/create', templateID: '' });
         fetchData();
+      } else {
+        const errText = await resp.text();
+        toastError(`Failed to save trigger: ${errText}`);
       }
     } catch (err) {
       console.error('Failed to save trigger:', err);
+      toastError('Network error while saving trigger mapping.');
     } finally {
       setIsSaving(false);
     }
@@ -86,19 +95,39 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, enabled: !currentEnabled })
       });
-      if (resp.ok) fetchData();
+      if (resp.ok) {
+        toastSuccess(`Trigger ${!currentEnabled ? 'enabled' : 'disabled'} successfully`);
+        fetchData();
+      } else {
+        toastError('Failed to toggle trigger status.');
+      }
     } catch (err) {
       console.error('Failed to toggle trigger:', err);
+      toastError('Network error while toggling trigger.');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this trigger mapping?')) return;
+    const confirmed = await customConfirm({
+        title: 'Delete Trigger Mapping',
+        message: 'Are you sure you want to delete this trigger mapping? This will stop automated messages for this event.',
+        variant: 'danger',
+        confirmLabel: 'Delete'
+    });
+
+    if (!confirmed) return;
+
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/triggers?id=${id}`, { method: 'DELETE' });
-      if (resp.ok) fetchData();
+      if (resp.ok) {
+        toastSuccess('Trigger mapping deleted successfully');
+        fetchData();
+      } else {
+        toastError('Failed to delete trigger mapping.');
+      }
     } catch (err) {
       console.error('Failed to delete trigger:', err);
+      toastError('Network error while deleting trigger mapping.');
     }
   };
 

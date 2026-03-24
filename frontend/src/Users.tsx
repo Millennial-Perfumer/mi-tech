@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 
 interface User {
     id: number;
@@ -13,6 +14,7 @@ interface UsersProps {
 }
 
 export function Users({ fetchWithAuth }: UsersProps) {
+    const { success, error } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -62,7 +64,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
                 throw new Error(text || 'Failed to create user');
             }
 
-            alert('User created successfully');
+            success('User created successfully');
             setShowAddModal(false);
             setUsername('');
             setPassword('');
@@ -70,7 +72,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
             fetchUsers();
         } catch (err: any) {
             console.error('Save error:', err);
-            alert(err.message || 'An error occurred while creating the user');
+            error(err.message || 'An error occurred while creating the user');
         } finally {
             setIsSaving(false);
         }
