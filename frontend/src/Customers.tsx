@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
+import { ColumnSelector } from './ColumnSelector';
+import type { ColumnOption } from './ColumnSelector';
 
 interface Customer {
     id: number;
@@ -46,21 +48,18 @@ interface CustomersProps {
 
 type ColumnKey = 'name' | 'phone' | 'email' | 'location' | 'orders' | 'spent' | 'activity' | 'source';
 
-interface ColumnDef {
-    key: ColumnKey;
-    label: string;
-}
-
-const ALL_COLUMNS: ColumnDef[] = [
-    { key: 'name', label: 'Name' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email' },
-    { key: 'location', label: 'Location' },
-    { key: 'orders', label: 'Orders' },
-    { key: 'spent', label: 'Total Spent' },
-    { key: 'activity', label: 'Last Activity' },
-    { key: 'source', label: 'Source' },
+const CUSTOMER_COLUMN_OPTIONS: ColumnOption[] = [
+    { id: 'name', label: 'Name', category: 'Identity' },
+    { id: 'phone', label: 'Phone', category: 'Identity' },
+    { id: 'email', label: 'Email', category: 'Identity' },
+    { id: 'location', label: 'Location', category: 'Location' },
+    { id: 'orders', label: 'Orders', category: 'Engagement' },
+    { id: 'spent', label: 'Total Spent', category: 'Engagement' },
+    { id: 'activity', label: 'Last Activity', category: 'Engagement' },
+    { id: 'source', label: 'Source', category: 'System' },
 ];
+
+const DEFAULT_CUSTOMER_COLUMNS: ColumnKey[] = ['name', 'phone', 'location', 'orders', 'spent', 'activity'];
 
 export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix = '_marketing', userRole = 'read' }: CustomersProps) {
     const { success: toastSuccess, error: toastError } = useToast();
@@ -76,10 +75,9 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [selectedCustomerIDs, setSelectedCustomerIDs] = useState<Set<number>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
-    const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(() => {
         const saved = localStorage.getItem('customer_columns');
-        return saved ? JSON.parse(saved) : ['name', 'phone', 'location', 'orders', 'spent', 'activity'];
+        return saved ? JSON.parse(saved) : DEFAULT_CUSTOMER_COLUMNS;
     });
     const [sortBy, setSortBy] = useState<ColumnKey>('activity');
     const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
@@ -103,12 +101,6 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
     useEffect(() => {
         localStorage.setItem('customer_columns', JSON.stringify(visibleColumns));
     }, [visibleColumns]);
-
-    const toggleColumn = (key: ColumnKey) => {
-        setVisibleColumns(prev => 
-            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-        );
-    };
 
     const handleSort = (key: ColumnKey) => {
         if (sortBy === key) {
@@ -545,6 +537,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                         <input 
                             type="text" 
                             placeholder="Search (e.g. city:Mumbai spent>1000 or first_name='')" 
+                            aria-label="Search customers"
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                             style={{ paddingLeft: '2.5rem', width: '100%' }}
@@ -566,57 +559,12 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             Filters
                         </button>
 
-                        <button className="btn-secondary" onClick={() => setShowColumnPicker(!showColumnPicker)}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
-                            Columns
-                        </button>
-
-                        {showColumnPicker && (
-                            <div className="premium-card" style={{ 
-                                position: 'absolute', 
-                                top: '100%', 
-                                right: 0, 
-                                zIndex: 100, 
-                                marginTop: '8px', 
-                                padding: '16px',
-                                minWidth: '220px',
-                                background: '#ffffff',
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                                border: '1px solid #e2e8f0'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>Table Columns</div>
-                                    <button 
-                                        onClick={() => setVisibleColumns(['name', 'phone', 'location', 'orders', 'spent', 'activity'])}
-                                        style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
-                                    >
-                                        Reset
-                                    </button>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    {ALL_COLUMNS.map(col => (
-                                        <label key={col.key} className="column-toggle-item" style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            gap: '10px', 
-                                            padding: '6px 8px', 
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            transition: 'background 0.2s'
-                                        }}>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={visibleColumns.includes(col.key)} 
-                                                onChange={() => toggleColumn(col.key)}
-                                                style={{ cursor: 'pointer' }}
-                                            />
-                                            <span style={{ fontSize: '0.875rem', color: '#475569' }}>{col.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        <ColumnSelector
+                            columns={CUSTOMER_COLUMN_OPTIONS}
+                            visibleColumns={visibleColumns}
+                            onChange={(cols) => setVisibleColumns(cols as ColumnKey[])}
+                            onReset={() => setVisibleColumns(DEFAULT_CUSTOMER_COLUMNS)}
+                        />
                     </div>
                 </div>
 
@@ -722,15 +670,15 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                         style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                                     />
                                 </th>
-                                {ALL_COLUMNS.filter(c => visibleColumns.includes(c.key)).map(col => (
+                                {CUSTOMER_COLUMN_OPTIONS.filter(c => visibleColumns.includes(c.id as ColumnKey)).map(col => (
                                     <th 
-                                        key={col.key} 
-                                        onClick={() => handleSort(col.key)}
+                                        key={col.id}
+                                        onClick={() => handleSort(col.id as ColumnKey)}
                                         style={{ cursor: 'pointer', userSelect: 'none' }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             {col.label}
-                                            {sortBy === col.key && (
+                                            {sortBy === col.id && (
                                                 <span style={{ fontSize: '0.8rem' }}>
                                                     {sortOrder === 'ASC' ? '↑' : '↓'}
                                                 </span>
@@ -958,6 +906,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             <button 
                                 onClick={() => setSelectedCustomer(null)}
                                 style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+                                aria-label="Close customer details"
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
