@@ -27,7 +27,45 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("migration failure: %w", err)
 	}
 
+	if err := SeedDefaultUsers(db); err != nil {
+		return nil, fmt.Errorf("user seeding failure: %w", err)
+	}
+
 	return db, nil
+}
+
+// SeedDefaultUsers creates the initial admin and read users if they don't exist
+func SeedDefaultUsers(db *gorm.DB) error {
+	users := []struct {
+		Email string
+		Role  string
+		Pass  string
+	}{
+		{"admin@millennialperfumer.in", "admin", "admin123"},
+		{"mi-agents@millennialperfumer.in", "read", "agent123"},
+	}
+
+	for _, u := range users {
+		var hash string
+		if u.Pass == "admin123" {
+			hash = "$2a$10$TvklUXYlW7ysyiH9tIxJ6uejoEeftduQo7.sOue9dLbtyefSkmpZK" // admin123
+		} else {
+			hash = "$2a$10$4N5zIhXY3IG8h8Ax/z6fluoKbqoupMBdjstIDXNjeL6XZOJ6xs7Ru" // agent123
+		}
+
+		err := db.Exec(`
+			INSERT INTO users (username, password_hash, role, created_at, updated_at) 
+			VALUES (?, ?, ?, NOW(), NOW())
+			ON CONFLICT (username) DO UPDATE 
+			SET role = EXCLUDED.role, password_hash = EXCLUDED.password_hash, updated_at = NOW()
+		`, u.Email, hash, u.Role).Error
+		
+		if err != nil {
+			return err
+		}
+		log.Printf("Seeded and updated %s user: %s", u.Role, u.Email)
+	}
+	return nil
 }
 
 // ConnectDB initializes the GORM database connection without running migrations.

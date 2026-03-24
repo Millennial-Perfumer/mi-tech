@@ -59,6 +59,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Services
 	authService := service.NewAuthService(db, settingsProvider)
+	userService := service.NewUserService(db)
 	metricsService := service.NewMetricsService(metricsRepo)
 	reportService := service.NewReportService(reportRepo)
 	customerService := service.NewCustomerService(customerRepo, orderRepo, shopifyClient)
@@ -82,6 +83,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	customerHandler := handler.NewCustomerHandler(customerService)
+	userHandler := handler.NewUserHandler(userService)
 
 	RegisterRoutes(
 		mux,
@@ -96,6 +98,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		redirectHandler,
 		authHandler,
 		customerHandler,
+		userHandler,
 		authService,
 	)
 

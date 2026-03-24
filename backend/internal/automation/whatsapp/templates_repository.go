@@ -17,11 +17,11 @@ func NewTemplatesRepository(db *sql.DB) *TemplatesRepository {
 
 func (r *TemplatesRepository) SaveTemplate(t AutomationTemplate) (int, error) {
 	query := `
-		INSERT INTO automation_templates (store_id, template_name, language, category, body, header, footer, buttons, status, meta_template_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO automation_templates (store_id, template_name, language, category, body, header, footer, buttons, status, meta_template_id, variable_mappings)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id`
 	var id int
-	err := r.db.QueryRow(query, t.StoreID, t.TemplateName, t.Language, t.Category, t.Body, t.Header, t.Footer, t.Buttons, t.Status, t.MetaTemplateID).Scan(&id)
+	err := r.db.QueryRow(query, t.StoreID, t.TemplateName, t.Language, t.Category, t.Body, t.Header, t.Footer, t.Buttons, t.Status, t.MetaTemplateID, t.VariableMappings).Scan(&id)
 	if err != nil {
 		log.Printf("Repository: Error in SaveTemplate Query: %v", err)
 	} else {
@@ -49,7 +49,7 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate *t
 	query := fmt.Sprintf(`
 		SELECT 
 			t.id, t.store_id, t.template_name, t.language, t.category, t.body, t.header, t.footer, t.buttons, t.status, 
-			COALESCE(t.meta_template_id, ''), t.created_at, t.updated_at,
+			COALESCE(t.meta_template_id, ''), t.variable_mappings, t.created_at, t.updated_at,
 			COALESCE(m.sent_count, 0),
 			COALESCE(m.delivered_count, 0),
 			COALESCE(m.read_count, 0)
@@ -77,7 +77,7 @@ func (r *TemplatesRepository) GetTemplates(storeID string, startDate, endDate *t
 		var t AutomationTemplate
 		err := rows.Scan(
 			&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status,
-			&t.MetaTemplateID, &t.CreatedAt, &t.UpdatedAt, &t.SentCount, &t.DeliveredCount, &t.ReadCount,
+			&t.MetaTemplateID, &t.VariableMappings, &t.CreatedAt, &t.UpdatedAt, &t.SentCount, &t.DeliveredCount, &t.ReadCount,
 		)
 		if err != nil {
 			log.Printf("Error scanning template row: %v", err)
@@ -136,9 +136,9 @@ func (r *TemplatesRepository) GetTriggers(storeID string) ([]Trigger, error) {
 }
 
 func (r *TemplatesRepository) GetTemplateByID(id int) (*AutomationTemplate, error) {
-	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, '') FROM automation_templates WHERE id = $1`
+	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, ''), variable_mappings FROM automation_templates WHERE id = $1`
 	var t AutomationTemplate
-	err := r.db.QueryRow(query, id).Scan(&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, &t.MetaTemplateID)
+	err := r.db.QueryRow(query, id).Scan(&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, &t.MetaTemplateID, &t.VariableMappings)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -146,8 +146,8 @@ func (r *TemplatesRepository) GetTemplateByID(id int) (*AutomationTemplate, erro
 }
 
 func (r *TemplatesRepository) UpdateTemplate(t AutomationTemplate) error {
-	query := `UPDATE automation_templates SET template_name = $1, language = $2, category = $3, body = $4, header = $5, footer = $6, buttons = $7, status = $8 WHERE id = $9 AND store_id = $10`
-	_, err := r.db.Exec(query, t.TemplateName, t.Language, t.Category, t.Body, t.Header, t.Footer, t.Buttons, t.Status, t.ID, t.StoreID)
+	query := `UPDATE automation_templates SET template_name = $1, language = $2, category = $3, body = $4, header = $5, footer = $6, buttons = $7, status = $8, variable_mappings = $9 WHERE id = $10 AND store_id = $11`
+	_, err := r.db.Exec(query, t.TemplateName, t.Language, t.Category, t.Body, t.Header, t.Footer, t.Buttons, t.Status, t.VariableMappings, t.ID, t.StoreID)
 	return err
 }
 
@@ -174,3 +174,38 @@ func (r *TemplatesRepository) DeleteTriggersByTemplateID(templateID int, storeID
 	_, err := r.db.Exec(query, templateID, storeID)
 	return err
 }
+
+func (r *TemplatesRepository) UpsertMetaTemplate(t AutomationTemplate) (int, error) {
+	// First check if it exists
+	var existingID int
+	checkQuery := `SELECT id FROM automation_templates WHERE store_id = $1 AND template_name = $2`
+	err := r.db.QueryRow(checkQuery, t.StoreID, t.TemplateName).Scan(&existingID)
+
+	if err == sql.ErrNoRows {
+		// Insert
+		insertQuery := `
+			INSERT INTO automation_templates (store_id, template_name, language, category, body, header, footer, buttons, status, meta_template_id, variable_mappings)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			RETURNING id`
+		err = r.db.QueryRow(insertQuery, t.StoreID, t.TemplateName, t.Language, t.Category, t.Body, t.Header, t.Footer, t.Buttons, t.Status, t.MetaTemplateID, t.VariableMappings).Scan(&existingID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to insert meta template: %w", err)
+		}
+		return existingID, nil
+	} else if err != nil {
+		return 0, fmt.Errorf("failed to check existing template: %w", err)
+	}
+
+	// Update existing
+	updateQuery := `
+		UPDATE automation_templates 
+		SET language = $1, category = $2, body = $3, header = $4, footer = $5, buttons = $6, status = $7, meta_template_id = $8, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $9 AND store_id = $10`
+	_, err = r.db.Exec(updateQuery, t.Language, t.Category, t.Body, t.Header, t.Footer, t.Buttons, t.Status, t.MetaTemplateID, existingID, t.StoreID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to update meta template: %w", err)
+	}
+	
+	return existingID, nil
+}
+

@@ -39,6 +39,7 @@ interface CustomersProps {
     fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
     showClearButton?: boolean;
     bulkSuffix?: string;
+    userRole?: string;
 }
 
 type ColumnKey = 'name' | 'phone' | 'email' | 'location' | 'orders' | 'spent' | 'activity' | 'source';
@@ -59,7 +60,7 @@ const ALL_COLUMNS: ColumnDef[] = [
     { key: 'source', label: 'Source' },
 ];
 
-export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix = '_marketing' }: CustomersProps) {
+export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix = '_marketing', userRole = 'read' }: CustomersProps) {
     const [file, setFile] = useState<File | null>(null);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [total, setTotal] = useState(0);
@@ -397,71 +398,30 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.5rem' }}>
-                    <button 
-                        className="btn-primary" 
-                        onClick={() => { setCustomerForm({}); setIsEditMode(false); setShowAddModal(true); }} 
-                        style={{ 
-                            padding: '0.75rem 1.5rem', 
-                            fontSize: '0.875rem', 
-                            fontWeight: 600,
-                            background: '#0f172a', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '10px', 
-                            borderRadius: '12px',
-                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)'
-                        }}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Add Customer
-                    </button>
-                    <button 
-                        className="btn-secondary" 
-                        onClick={() => setShowImportModal(true)} 
-                        style={{ 
-                            padding: '0.75rem 1.5rem', 
-                            fontSize: '0.875rem', 
-                            fontWeight: 600,
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '10px', 
-                            borderRadius: '12px',
-                            background: 'white',
-                            border: '1px solid #e2e8f0',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Import
-                    </button>
-                    <button 
-                        className="btn-secondary" 
-                        style={{ 
-                            padding: '0.75rem 1.5rem', 
-                            fontSize: '0.875rem', 
-                            fontWeight: 600,
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '10px', 
-                            borderRadius: '12px',
-                            background: 'white',
-                            border: '1px solid #e2e8f0',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Export
-                    </button>
-                    
-                    <div style={{ flex: 1 }}></div>
-
-                    {selectedCustomerIDs.size > 0 && (
+                {userRole === 'admin' && (
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.5rem' }}>
                         <button 
-                            className="btn-danger-minimal" 
-                            onClick={handleBulkDelete}
-                            disabled={isDeleting}
+                            className="btn-primary" 
+                            onClick={() => { setCustomerForm({}); setIsEditMode(false); setShowAddModal(true); }} 
+                            style={{ 
+                                padding: '0.75rem 1.5rem', 
+                                fontSize: '0.875rem', 
+                                fontWeight: 600,
+                                background: '#0f172a', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '10px', 
+                                borderRadius: '12px',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)'
+                            }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Add Customer
+                        </button>
+                        <button 
+                            className="btn-secondary" 
+                            onClick={() => setShowImportModal(true)} 
                             style={{ 
                                 padding: '0.75rem 1.5rem', 
                                 fontSize: '0.875rem', 
@@ -469,51 +429,94 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: '10px', 
-                                color: '#dc2626', 
-                                background: '#fef2f2',
-                                border: '1px solid #fee2e2',
                                 borderRadius: '12px',
+                                background: 'white',
+                                border: '1px solid #e2e8f0',
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                            {isDeleting ? 'Deleting...' : `Clear Selected (${selectedCustomerIDs.size})`}
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Import
                         </button>
-                    )}
-
-                    {showClearButton && !isDeleting && selectedCustomerIDs.size === 0 && (
                         <button 
                             className="btn-secondary" 
-                            onClick={handleDeleteAll} 
                             style={{ 
                                 padding: '0.75rem 1.5rem', 
                                 fontSize: '0.875rem', 
-                                fontWeight: 500,
+                                fontWeight: 600,
                                 display: 'flex', 
                                 alignItems: 'center', 
-                                gap: '8px', 
-                                color: '#94a3b8', 
-                                border: '1px solid transparent',
-                                background: 'transparent',
+                                gap: '10px', 
                                 borderRadius: '12px',
+                                background: 'white',
+                                border: '1px solid #e2e8f0',
                                 transition: 'all 0.2s'
                             }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.color = '#dc2626';
-                                e.currentTarget.style.background = '#fef2f2';
-                                e.currentTarget.style.borderColor = '#fee2e2';
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.color = '#94a3b8';
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.borderColor = 'transparent';
-                            }}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                            Clear All
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            Export
                         </button>
-                    )}
-                </div>
+                        
+                        <div style={{ flex: 1 }}></div>
+
+                        {selectedCustomerIDs.size > 0 && (
+                            <button 
+                                className="btn-danger-minimal" 
+                                onClick={handleBulkDelete}
+                                disabled={isDeleting}
+                                style={{ 
+                                    padding: '0.75rem 1.5rem', 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: 600,
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '10px', 
+                                    color: '#dc2626', 
+                                    background: '#fef2f2',
+                                    border: '1px solid #fee2e2',
+                                    borderRadius: '12px',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                {isDeleting ? 'Deleting...' : `Clear Selected (${selectedCustomerIDs.size})`}
+                            </button>
+                        )}
+
+                        {showClearButton && !isDeleting && selectedCustomerIDs.size === 0 && (
+                            <button 
+                                className="btn-secondary" 
+                                onClick={handleDeleteAll} 
+                                style={{ 
+                                    padding: '0.75rem 1.5rem', 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: 500,
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '8px', 
+                                    color: '#94a3b8', 
+                                    border: '1px solid transparent',
+                                    background: 'transparent',
+                                    borderRadius: '12px',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.color = '#dc2626';
+                                    e.currentTarget.style.background = '#fef2f2';
+                                    e.currentTarget.style.borderColor = '#fee2e2';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.color = '#94a3b8';
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                Clear All
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="card">

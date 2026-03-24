@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"mi-tech/internal/config"
-	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
 	"strconv"
@@ -321,21 +320,23 @@ func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.
 }
 
 func (h *AutomationHandler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID int `json:"id"`
-		CreateTemplateRequest
+	storeID, ok := r.Context().Value("storeID").(string)
+	if !ok || storeID == "" {
+		storeID = "1"
 	}
+
+	var req AutomationTemplate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding update request: %v", err)
+		log.Printf("Error decoding update mappings request: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Handler: UpdateTemplate request received for ID: %d, Name: %s", req.ID, req.Name)
+	log.Printf("Handler: UpdateTemplateMappings request received for ID: %d", req.ID)
 
-	err := h.templatesService.UpdateTemplate("1", req.ID, req.CreateTemplateRequest)
+	err := h.templatesService.UpdateTemplateMappings(storeID, req.ID, req.VariableMappings)
 	if err != nil {
-		log.Printf("UpdateTemplate failed: %v", err)
+		log.Printf("UpdateTemplateMappings failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -549,35 +550,8 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 			continue
 		}
 
-		// Simplified mapping for marketing: {{1}} is FirstName
-		cleanPhone := sanitizePhoneNumber(cust.PhoneNumber)
-		if len(cleanPhone) < 8 {
-			continue
-		}
-
-		firstName := entity.DerefStr(cust.FirstName)
-		if firstName == "" {
-			firstName = "Customer"
-		}
-
-		components := []interface{}{
-			map[string]interface{}{
-				"type": "body",
-				"parameters": []map[string]string{
-					{"type": "text", "text": firstName},
-				},
-			},
-		}
-
-		err := h.messagesService.SendTemplateMessage(
-			cust.SourceID, // Fallback to customer's source ID as store ID
-			template.ID,
-			0, // No specific order ID
-			cleanPhone,
-			template.TemplateName,
-			template.Language,
-			components,
-		)
+		// Call the mapping service for marketing templates
+		err := h.mappingService.ExecuteMarketingSend(cust.SourceID, template, &cust)
 		if err == nil {
 			successCount++
 		}
@@ -607,4 +581,44 @@ func (h *AutomationHandler) FetchTemplateFromMeta(w http.ResponseWriter, r *http
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(req)
+}
+
+func (h *AutomationHandler) SyncAllTemplates(w http.ResponseWriter, r *http.Request) {
+	storeID, ok := r.Context().Value("storeID").(string)
+	if !ok || storeID == "" {
+		storeID = "1" // Fallback to primary store ID
+	}
+	
+	log.Printf("Handler: SyncAllTemplates called for store_id: %s", storeID)
+	err := h.templatesService.SyncAllTemplates(storeID)
+	if err != nil {
+		log.Printf("Handler: SyncAllTemplates service error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Successfully synced all templates from Meta"})
+}
+
+func (h *AutomationHandler) SyncSingleTemplate(w http.ResponseWriter, r *http.Request) {
+	storeID, ok := r.Context().Value("storeID").(string)
+	if !ok || storeID == "" {
+		storeID = "1"
+	}
+
+	templateName := r.URL.Query().Get("name")
+	if templateName == "" {
+		http.Error(w, "missing template name parameter", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.templatesService.SyncSingleTemplate(storeID, templateName); err != nil {
+		log.Printf("Handler: SyncSingleTemplate service error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Successfully imported template from Meta"})
 }

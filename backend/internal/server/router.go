@@ -26,12 +26,18 @@ func RegisterRoutes(
 	redirectHandler *handler.RedirectHandler,
 	authHandler *handler.AuthHandler,
 	customerHandler *handler.CustomerHandler,
+	userHandler *handler.UserHandler,
 	authService *service.AuthService,
 ) {
 	cors := CORSMiddleware
 	auth := AuthMiddleware(authService)
 
-	// Helper to wrap handlers with both CORS and Auth
+	// Helper to wrap handlers with both CORS, Auth, and RequireRole("admin")
+	adminProtected := func(h http.HandlerFunc) http.HandlerFunc {
+		return cors(auth(RequireRole("admin")(h)).ServeHTTP)
+	}
+
+	// Helper to wrap handlers with both CORS and Auth (for read/admin)
 	protected := func(h http.HandlerFunc) http.HandlerFunc {
 		return cors(auth(h).ServeHTTP)
 	}
@@ -49,6 +55,16 @@ func RegisterRoutes(
 	// --- Auth Routes ---
 	mux.HandleFunc("/api/auth/login", cors(authHandler.Login))
 
+	// --- User Routes ---
+	mux.HandleFunc("/api/users", adminProtected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			userHandler.CreateUser(w, r)
+		default:
+			userHandler.GetUsers(w, r)
+		}
+	}))
+
 	// --- Order Routes ---
 	mux.HandleFunc("/api/orders", protected(orderHandler.GetOrders))
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
@@ -56,14 +72,14 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))
 
 	// --- Customer Routes ---
-	mux.HandleFunc("/api/customers/import", protected(customerHandler.ImportCSV))
-	mux.HandleFunc("/api/customers/bulk-delete", protected(customerHandler.BulkDeleteCustomers))
+	mux.HandleFunc("/api/customers/import", adminProtected(customerHandler.ImportCSV))
+	mux.HandleFunc("/api/customers/bulk-delete", adminProtected(customerHandler.BulkDeleteCustomers))
 	mux.HandleFunc("/api/customers", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			customerHandler.CreateCustomer(w, r)
+			adminProtected(customerHandler.CreateCustomer)(w, r)
 		case http.MethodDelete:
-			customerHandler.DeleteAllCustomers(w, r)
+			adminProtected(customerHandler.DeleteAllCustomers)(w, r)
 		default:
 			customerHandler.ListCustomers(w, r)
 		}
@@ -72,17 +88,17 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/customers/", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
-			customerHandler.UpdateCustomer(w, r)
+			adminProtected(customerHandler.UpdateCustomer)(w, r)
 		case http.MethodDelete:
-			customerHandler.DeleteCustomer(w, r)
+			adminProtected(customerHandler.DeleteCustomer)(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
 
 	// --- Sync Routes ---
-	mux.HandleFunc("/api/shopify/sync", protected(syncHandler.SyncOrders))
-	mux.HandleFunc("/api/shopify/reset", protected(syncHandler.ResetOrders))
+	mux.HandleFunc("/api/shopify/sync", adminProtected(syncHandler.SyncOrders))
+	mux.HandleFunc("/api/shopify/reset", adminProtected(syncHandler.ResetOrders))
 
 	// --- Dashboard Metrics ---
 	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))
@@ -101,7 +117,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/settings", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
-			settingsHandler.UpdateSetting(w, r)
+			adminProtected(settingsHandler.UpdateSetting)(w, r)
 		default:
 			settingsHandler.GetAllSettings(w, r)
 		}
@@ -109,7 +125,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/settings/date-range", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
-			settingsHandler.SetDateRange(w, r)
+			adminProtected(settingsHandler.SetDateRange)(w, r)
 		default:
 			settingsHandler.GetDateRange(w, r)
 		}
@@ -119,26 +135,28 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/configs", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut:
-			configsHandler.UpdateConfig(w, r)
+			adminProtected(configsHandler.UpdateConfig)(w, r)
 		default:
 			configsHandler.GetAllConfigs(w, r)
 		}
 	}))
-	mux.HandleFunc("/api/configs/reveal", protected(configsHandler.RevealConfigs))
+	mux.HandleFunc("/api/configs/reveal", adminProtected(configsHandler.RevealConfigs))
 
 	// --- WhatsApp Automation Routes ---
 	mux.HandleFunc("/api/automation/whatsapp/metrics", protected(automationHandler.GetAutomationMetrics))
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync", protected(automationHandler.SyncTemplateStatus))
-	mux.HandleFunc("/api/automation/whatsapp/templates/fetch", protected(automationHandler.FetchTemplateFromMeta))
-	mux.HandleFunc("/api/automation/whatsapp/templates/upload", protected(automationHandler.UploadTemplateMedia))
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync", adminProtected(automationHandler.SyncTemplateStatus))
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync-all", adminProtected(automationHandler.SyncAllTemplates))
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync-single", adminProtected(automationHandler.SyncSingleTemplate))
+	mux.HandleFunc("/api/automation/whatsapp/templates/fetch", adminProtected(automationHandler.FetchTemplateFromMeta))
+	mux.HandleFunc("/api/automation/whatsapp/templates/upload", adminProtected(automationHandler.UploadTemplateMedia))
 	mux.HandleFunc("/api/automation/whatsapp/templates", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			automationHandler.CreateTemplate(w, r)
+			adminProtected(automationHandler.CreateTemplate)(w, r)
 		case http.MethodPut:
-			automationHandler.UpdateTemplate(w, r)
+			adminProtected(automationHandler.UpdateTemplate)(w, r)
 		case http.MethodDelete:
-			automationHandler.DeleteTemplate(w, r)
+			adminProtected(automationHandler.DeleteTemplate)(w, r)
 		default:
 			automationHandler.GetTemplates(w, r)
 		}
@@ -146,19 +164,19 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/automation/whatsapp/triggers", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			automationHandler.CreateTrigger(w, r)
+			adminProtected(automationHandler.CreateTrigger)(w, r)
 		case http.MethodPut:
-			automationHandler.UpdateTrigger(w, r)
+			adminProtected(automationHandler.UpdateTrigger)(w, r)
 		case http.MethodDelete:
-			automationHandler.DeleteTrigger(w, r)
+			adminProtected(automationHandler.DeleteTrigger)(w, r)
 		default:
 			automationHandler.GetTriggers(w, r)
 		}
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
-	mux.HandleFunc("/api/automation/whatsapp/send-manual", protected(automationHandler.SendManualMessage))
-	mux.HandleFunc("/api/automation/whatsapp/send-bulk", protected(automationHandler.SendBulkMarketing))
-	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", protected(automationHandler.SyncAutomationMetrics))
+	mux.HandleFunc("/api/automation/whatsapp/send-manual", adminProtected(automationHandler.SendManualMessage))
+	mux.HandleFunc("/api/automation/whatsapp/send-bulk", adminProtected(automationHandler.SendBulkMarketing))
+	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", adminProtected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
 
 	// --- Swagger ---
