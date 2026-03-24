@@ -66,6 +66,15 @@ button {
   outline: none;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 .btn-primary {
   background-color: var(--accent-color);
   color: white;
