@@ -787,6 +787,7 @@ function App() {
                   <input 
                     type="text" 
                     placeholder="Search orders or customers..." 
+                    aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                     style={{ paddingLeft: '2.5rem', fontSize: '0.875rem' }}

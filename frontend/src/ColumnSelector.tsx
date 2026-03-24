@@ -11,9 +11,10 @@ interface ColumnSelectorProps {
   columns: ColumnOption[];
   visibleColumns: string[];
   onChange: (visibleColumns: string[]) => void;
+  onReset?: () => void;
 }
 
-export const ColumnSelector: React.FC<ColumnSelectorProps> = ({ columns, visibleColumns, onChange }) => {
+export const ColumnSelector: React.FC<ColumnSelectorProps> = ({ columns, visibleColumns, onChange, onReset }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +90,15 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({ columns, visible
 
       {isOpen && (
         <div className="column-selector-dropdown" id="column-selector-dropdown" role="menu">
+          {onReset && (
+            <button
+              className="column-reset-btn"
+              onClick={() => { onReset(); setIsOpen(false); }}
+              role="menuitem"
+            >
+              Reset to default
+            </button>
+          )}
           {categories.map((category) => (
             <div key={category} className="column-category" role="group" aria-label={category}>
               <div className="column-category-title" aria-hidden="true">
@@ -97,7 +107,12 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({ columns, visible
               {columns
                 .filter((c) => c.category === category)
                 .map((col) => (
-                  <label key={col.id} className="column-option">
+                  <label
+                    key={col.id}
+                    className="column-option"
+                    role="menuitemcheckbox"
+                    aria-checked={visibleColumns.includes(col.id)}
+                  >
                     <input
                       type="checkbox"
                       checked={visibleColumns.includes(col.id)}
