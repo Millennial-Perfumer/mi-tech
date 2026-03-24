@@ -57,6 +57,12 @@ func (r *CustomerRepository) GetByID(ctx context.Context, id int64) (*entity.Cus
 	return &customer, nil
 }
 
+func (r *CustomerRepository) GetByPhones(ctx context.Context, phones []string) ([]entity.Customer, error) {
+	var customers []entity.Customer
+	err := r.db.WithContext(ctx).Where("phone_number IN ?", phones).Find(&customers).Error
+	return customers, err
+}
+
 func (r *CustomerRepository) GetByPhone(ctx context.Context, phone string) (*entity.Customer, error) {
 	var customer entity.Customer
 	err := r.db.WithContext(ctx).Where("phone_number = ?", phone).First(&customer).Error

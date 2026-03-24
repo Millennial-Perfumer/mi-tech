@@ -257,6 +257,88 @@ func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Ord
 	return s.repo.UpsertByPhone(ctx, customer)
 }
 
+// UpdateFromOrdersBatch aggregates customer data from a batch of orders and performs a batch upsert.
+// Optimization: Reduces database roundtrips from O(N) to O(1) by fetching existing customers
+// in a single query and performing a batch upsert.
+// Expected Impact: For a sync of 250 orders, this reduces database calls from ~500 to 2.
+func (s *CustomerService) UpdateFromOrdersBatch(ctx context.Context, orders []entity.Order) error {
+	if len(orders) == 0 {
+		return nil
+	}
+
+	// 1. Group orders by normalized phone number and aggregate PII
+	phoneToCustomer := make(map[string]*entity.Customer)
+	var phones []string
+	now := time.Now()
+
+	for i := range orders {
+		phone := s.normalizePhone(entity.DerefStr(orders[i].CustomerPhone))
+		if phone == "" {
+			continue
+		}
+
+		incoming := &entity.Customer{
+			PhoneNumber: phone,
+			FirstName:   entity.StrPtr(s.toTitleCase(entity.DerefStr(orders[i].CustomerFirstName))),
+			LastName:    entity.StrPtr(s.toTitleCase(entity.DerefStr(orders[i].CustomerLastName))),
+			Email:       orders[i].CustomerEmail,
+			Address1:    orders[i].CustomerAddress1,
+			Address2:    orders[i].CustomerAddress2,
+			City:        orders[i].CustomerCity,
+			State:       orders[i].CustomerState,
+			Country:     orders[i].CustomerCountry,
+			ZipCode:     orders[i].CustomerZip,
+			TotalOrders: 1,
+			TotalSpent:  orders[i].TotalPrice,
+			UpdatedAt:   now,
+		}
+
+		if existing, exists := phoneToCustomer[phone]; exists {
+			incoming.TotalOrders += existing.TotalOrders
+			incoming.TotalSpent += existing.TotalSpent
+			safeMerge(incoming, existing)
+			phoneToCustomer[phone] = incoming
+		} else {
+			phones = append(phones, phone)
+			phoneToCustomer[phone] = incoming
+		}
+	}
+
+	if len(phones) == 0 {
+		return nil
+	}
+
+	// 2. Fetch existing customers in batch to preserve totals and created_at
+	existingCustomers, err := s.repo.GetByPhones(ctx, phones)
+	if err != nil {
+		return fmt.Errorf("UpdateFromOrdersBatch: failed to fetch existing customers: %w", err)
+	}
+
+	existingMap := make(map[string]entity.Customer)
+	for _, c := range existingCustomers {
+		existingMap[c.PhoneNumber] = c
+	}
+
+	// 3. Merge with existing data
+	var customersToUpsert []entity.Customer
+	for _, phone := range phones {
+		customer := phoneToCustomer[phone]
+		if existing, found := existingMap[phone]; found {
+			// Add batch aggregated totals to existing database totals
+			customer.TotalOrders += existing.TotalOrders
+			customer.TotalSpent += existing.TotalSpent
+			customer.CreatedAt = existing.CreatedAt
+			safeMerge(customer, &existing)
+		} else {
+			customer.CreatedAt = now
+		}
+		customersToUpsert = append(customersToUpsert, *customer)
+	}
+
+	// 4. Batch Upsert
+	return s.repo.UpsertBatch(ctx, customersToUpsert)
+}
+
 // UpsertFromWebhook securely updates or creates a customer entirely from a customer webhook payload.
 func (s *CustomerService) UpsertFromWebhook(ctx context.Context, cust *entity.Customer) error {
 	if cust.PhoneNumber == "" {
