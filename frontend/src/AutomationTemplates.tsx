@@ -1,5 +1,7 @@
-import { API_BASE } from './api';
 import { useState, useEffect, useRef } from 'react';
+import { API_BASE } from './api';
+import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
 import { CustomDatePicker } from './CustomDatePicker';
@@ -142,6 +144,8 @@ function MultiSelectFilter({ label, options, selectedOptions, onChange, icon }: 
 }
 
 export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateChange, userRole = 'read' }: AutomationTemplatesProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm: customConfirm } = useConfirm();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -198,24 +202,30 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/templates/sync-single?name=${fetchTemplateName}`, { method: 'POST' });
       if (resp.ok) {
-        alert('Template successfully imported from Meta!');
+        toastSuccess('Template successfully imported from Meta!');
         fetchTemplates(true);
         setShowFetchModal(false);
         setFetchTemplateName('');
       } else {
         const err = await resp.text();
-        alert(`Failed to import template: ${err}`);
+        toastError(`Failed to import template: ${err}`);
       }
     } catch(err) {
       console.error('Failed to single sync', err);
-      alert('Network error while importing template.');
+      toastError('Network error while importing template.');
     } finally {
       setIsFetchingFromMeta(false);
     }
   };
 
   const handleSyncAll = async () => {
-    if (!confirm('This will fetch all templates from your Meta Business Account. Depending on the number of templates, this may take a few seconds. Do you want to continue?')) return;
+    const confirmed = await customConfirm({
+      title: 'Full Template Synchronization',
+      message: 'This will fetch all templates from your Meta Business Account. Depending on the number of templates, this may take a few seconds. Do you want to continue?',
+      confirmLabel: 'Sync All'
+    });
+
+    if (!confirmed) return;
     
     setIsSyncing(true);
     try {
@@ -223,15 +233,15 @@ export function AutomationTemplates({ fetchWithAuth, startDate, endDate, onDateC
         method: 'POST'
       });
       if (resp.ok) {
-        alert('Successfully synced all templates from Meta.');
+        toastSuccess('Successfully synced all templates from Meta.');
         fetchTemplates(true);
       } else {
         const errText = await resp.text();
-        alert(`Sync failed: ${errText}`);
+        toastError(`Sync failed: ${errText}`);
       }
     } catch (err) {
       console.error('Error syncing:', err);
-      alert('Network error while syncing templates.');
+      toastError('Network error while syncing templates.');
     } finally {
       setIsSyncing(false);
     }

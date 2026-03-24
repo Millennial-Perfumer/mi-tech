@@ -1,5 +1,6 @@
 import { API_BASE } from './api';
 import React, { useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
 
 interface Template {
   id: number;
@@ -27,6 +28,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
   customerName,
   token
 }) => {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -74,13 +76,16 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
 
       const data = await response.json();
       if (data.success) {
+        toastSuccess('Message sent successfully!');
         onClose();
-        alert('Message sent successfully!');
       } else {
-        setError(data.message || 'Failed to send message');
+        const errMsg = data.message || 'Failed to send message';
+        setError(errMsg);
+        toastError(errMsg);
       }
     } catch (err) {
       setError('Network error sending message');
+      toastError('Network error while sending WhatsApp message');
     } finally {
       setSending(false);
     }

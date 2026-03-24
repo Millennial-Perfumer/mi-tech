@@ -11,6 +11,8 @@ import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import { SettingsTab } from './SettingsTab';
 import { Customers } from './Customers';
 import { Users } from './Users';
+import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 import './App.css';
 
 
@@ -77,6 +79,9 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
 
 function App() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
+
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveTab') || 'dashboard';
@@ -232,15 +237,16 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
+        toastSuccess('Status updated successfully');
         // Refresh data
         fetchDashboardData();
         setEditingStatusId(null);
       } else {
-        alert(data.message || 'Failed to update status');
+        toastError(data.message || 'Failed to update status');
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Network error updating status');
+      toastError('Network error updating status');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -344,25 +350,32 @@ function App() {
           end_date: syncEndDate
         })
       });
-      const data = await response.json();      if (data.success) {
-        alert(`Successfully synced ${data.count} orders!`);
+      const data = await response.json();
+      if (data.success) {
+        toastSuccess(`Successfully synced ${data.count} orders!`);
         triggerRefresh();
         fetchDashboardData(false, true);
       } else {
-        alert(data.message || 'Failed to sync orders.');
+        toastError(data.message || 'Failed to sync orders.');
       }
     } catch (error) {
       console.error('Error syncing orders:', error);
-      alert('Error occurred while syncing.');
+      toastError('Error occurred while syncing.');
     } finally {
       setIsSyncing(false);
     }
   };
 
   const resetShopify = async () => {
-    if (!window.confirm("Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Full Database Reset',
+      message: 'Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.',
+      variant: 'danger',
+      confirmLabel: 'Reset Everything'
+    });
+
+    if (!confirmed) return;
+
     setIsResetting(true);
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/shopify/reset`, {
@@ -370,14 +383,14 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
-        alert(`Successfully wiped data and re-synced ${data.count} orders!`);
+        toastSuccess(`Successfully wiped data and re-synced ${data.count} orders!`);
         fetchDashboardData();
       } else {
-        alert('Failed to reset orders.');
+        toastError('Failed to reset orders.');
       }
     } catch (error) {
       console.error('Error resetting orders:', error);
-      alert('Error occurred while resetting.');
+      toastError('Error occurred while resetting.');
     } finally {
       setIsResetting(false);
     }
@@ -416,7 +429,7 @@ function App() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading invoice:', error);
-      alert('Failed to download invoice. Please try again.');
+      toastError('Failed to download invoice. Please try again.');
     }
   };
 
@@ -740,6 +753,30 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>Stored Orders</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+                    <button 
+                      className="btn-primary" 
+                      title="Manually fetch orders from Shopify"
+                      onClick={() => setShowSyncModal(true)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.85rem',
+                        height: '42px',
+                        borderRadius: '10px'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        <path d="M3 22v-6h6"></path>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                      </svg>
+                      Sync Shopify
+                    </button>
+                  )}
                   <ColumnSelector columns={AVAILABLE_COLUMNS} visibleColumns={visibleColumns} onChange={setVisibleColumns} />
                 </div>
               </div>

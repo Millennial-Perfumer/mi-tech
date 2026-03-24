@@ -1,5 +1,6 @@
 import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
+import { useToast } from './ToastContext';
 
 // Animation for collapsible sections
 const SLIDE_IN_ANIMATION = `
@@ -47,6 +48,7 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
 };
 
 export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
   // Configs state
   const [configs, setConfigs] = useState<AppConfig[]>([]);
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(true);
@@ -58,12 +60,6 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   const [editValue, setEditValue] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000);
-  };
 
   // Fetch configs on mount
   useEffect(() => {
@@ -78,11 +74,11 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
       if (data.success) {
         setConfigs(data.configs || []);
       } else {
-        showNotification(data.message || 'Failed to load configurations', 'error');
+        toastError(data.message || 'Failed to load configurations');
       }
     } catch (err) {
       console.error('Failed to fetch configs:', err);
-      showNotification('Failed to load configurations. Please check your connection.', 'error');
+      toastError('Failed to load configurations. Please check your connection.');
     } finally {
       setIsLoadingConfigs(false);
     }
@@ -138,13 +134,13 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
         setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
         setEditingKey(null);
         setEditValue('');
-        showNotification('Configuration updated successfully');
+        toastSuccess('Configuration updated successfully');
       } else {
-        showNotification(data.message || 'Failed to save configuration', 'error');
+        toastError(data.message || 'Failed to save configuration');
       }
     } catch (err) {
       console.error('Failed to save config:', err);
-      showNotification('Failed to save configuration. Network error.', 'error');
+      toastError('Failed to save configuration. Network error.');
     } finally {
       setIsSavingConfig(false);
     }
@@ -517,34 +513,6 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
               <button className="btn-primary" onClick={handleReveal} disabled={!password}>Unlock</button>
             </div>
           </div>
-        </div>
-      )}
-      {/* Notifications */}
-      {notification && (
-        <div style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          padding: '1rem 1.5rem',
-          background: notification.type === 'error' ? '#fef2f2' : '#f0fdf4',
-          border: notification.type === 'error' ? '1px solid #fee2e2' : '1px solid #dcfce7',
-          borderRadius: '12px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          color: notification.type === 'error' ? '#991b1b' : '#166534',
-          zIndex: 3000,
-          animation: 'slideIn 0.3s ease-out',
-          fontWeight: 600,
-          fontSize: '0.9rem'
-        }}>
-          {notification.type === 'error' ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          )}
-          {notification.message}
         </div>
       )}
     </div>

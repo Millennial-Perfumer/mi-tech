@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface Customer {
     id: number;
@@ -61,6 +63,8 @@ const ALL_COLUMNS: ColumnDef[] = [
 ];
 
 export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix = '_marketing', userRole = 'read' }: CustomersProps) {
+    const { success: toastSuccess, error: toastError } = useToast();
+    const { confirm } = useConfirm();
     const [file, setFile] = useState<File | null>(null);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [total, setTotal] = useState(0);
@@ -139,10 +143,10 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
             setSelectedCustomer(null);
             setIsEditMode(false);
             setCustomerForm({});
-            alert(isEditMode ? 'Customer updated successfully' : 'Customer created successfully');
+            toastSuccess(isEditMode ? 'Customer updated successfully' : 'Customer created successfully');
         } catch (err: any) {
             console.error('Save error:', err);
-            alert(err.message || 'An error occurred while saving');
+            toastError(err.message || 'An error occurred while saving');
         } finally {
             setIsSaving(false);
         }
@@ -156,9 +160,14 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
     };
 
     const handleDeleteCustomer = async (id: number) => {
-        if (!window.confirm('Are you sure you want to delete this customer? This will also remove them from Shopify if linked.')) {
-            return;
-        }
+        const confirmed = await confirm({
+            title: 'Delete Customer',
+            message: 'Are you sure you want to delete this customer? This will also remove them from Shopify if linked.',
+            variant: 'danger',
+            confirmLabel: 'Delete'
+        });
+
+        if (!confirmed) return;
 
         try {
             const response = await fetchWithAuth(`${API_BASE}/api/customers/${id}/`, {
@@ -170,12 +179,12 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 throw new Error(errorText || 'Failed to delete customer');
             }
 
-            alert('Customer deleted successfully');
+            toastSuccess('Customer deleted successfully');
             setSelectedCustomer(null);
             fetchCustomers();
         } catch (err: any) {
             console.error('Delete error:', err);
-            alert(err.message || 'An error occurred while deleting');
+            toastError(err.message || 'An error occurred while deleting');
         }
     };
 
@@ -246,17 +255,17 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 body: formData,
             });
             if (response.ok) {
-                alert('Import successful!');
+                toastSuccess('Import successful!');
                 setFile(null);
                 setShowImportModal(false);
                 fetchCustomers();
             } else {
                 const errorData = await response.json();
-                alert('Import failed: ' + (errorData.message || 'Unknown error'));
+                toastError('Import failed: ' + (errorData.message || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error importing customers:', error);
-            alert('Error during import.');
+            toastError('Error during import.');
         } finally {
             setIsImporting(false);
         }
@@ -265,9 +274,14 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
     const handleBulkDelete = async () => {
         if (selectedCustomerIDs.size === 0) return;
         
-        if (!window.confirm(`Are you sure you want to delete ${selectedCustomerIDs.size} selected customers? This will also remove them from Shopify if linked.`)) {
-            return;
-        }
+        const confirmed = await confirm({
+            title: 'Bulk Delete',
+            message: `Are you sure you want to delete ${selectedCustomerIDs.size} selected customers? This will also remove them from Shopify if linked.`,
+            variant: 'danger',
+            confirmLabel: `Delete ${selectedCustomerIDs.size} Customers`
+        });
+
+        if (!confirmed) return;
 
         setIsDeleting(true);
         try {
@@ -277,25 +291,30 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 body: JSON.stringify({ ids: Array.from(selectedCustomerIDs) }),
             });
             if (response.ok) {
-                alert('Selected customers deleted successfully.');
+                toastSuccess('Selected customers deleted successfully.');
                 setSelectedCustomerIDs(new Set());
                 fetchCustomers();
             } else {
                 const errorText = await response.text();
-                alert('Failed to delete customers: ' + errorText);
+                toastError('Failed to delete customers: ' + errorText);
             }
         } catch (error) {
             console.error('Error bulk deleting customers:', error);
-            alert('Error during bulk deletion.');
+            toastError('Error during bulk deletion.');
         } finally {
             setIsDeleting(false);
         }
     };
 
     const handleDeleteAll = async () => {
-        if (!window.confirm('Are you absolutely sure? This will permanently delete ALL customers from the database.')) {
-            return;
-        }
+        const confirmed = await confirm({
+            title: 'Clear All Customers',
+            message: 'Are you absolutely sure? This will permanently delete ALL customers from the database. This action cannot be undone.',
+            variant: 'danger',
+            confirmLabel: 'Clear All'
+        });
+
+        if (!confirmed) return;
 
         setIsDeleting(true);
         try {
@@ -303,14 +322,14 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 method: 'DELETE',
             });
             if (response.ok) {
-                alert('All customers cleared successfully.');
+                toastSuccess('All customers cleared successfully.');
                 fetchCustomers();
             } else {
-                alert('Failed to clear customers.');
+                toastError('Failed to clear customers.');
             }
         } catch (error) {
             console.error('Error deleting customers:', error);
-            alert('Error during deletion.');
+            toastError('Error during deletion.');
         } finally {
             setIsDeleting(false);
         }
