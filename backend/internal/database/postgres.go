@@ -9,15 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"mi-tech/internal/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
+// DBConfig is a subset of config.Config to avoid circular dependencies
+type DBConfig interface {
+	GetDBDSN() string
+}
+
 // InitDB initializes the database and runs migrations.
-func InitDB(cfg *config.Config) (*gorm.DB, error) {
+func InitDB(cfg DBConfig) (*gorm.DB, error) {
 	db, err := ConnectDB(cfg)
 	if err != nil {
 		return nil, err
@@ -69,8 +73,8 @@ func SeedDefaultUsers(db *gorm.DB) error {
 }
 
 // ConnectDB initializes the GORM database connection without running migrations.
-func ConnectDB(cfg *config.Config) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(cfg.DBDSN), &gorm.Config{
+func ConnectDB(cfg DBConfig) (*gorm.DB, error) {
+	db, err := gorm.Open(postgres.Open(cfg.GetDBDSN()), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {

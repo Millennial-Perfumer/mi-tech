@@ -13,6 +13,10 @@ type Config struct {
 	DBDSN string
 }
 
+func (c *Config) GetDBDSN() string {
+	return c.DBDSN
+}
+
 func Load() *Config {
 	err := godotenv.Load()
 	if err != nil {
