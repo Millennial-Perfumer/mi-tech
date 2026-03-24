@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/mapper"
@@ -9,15 +10,17 @@ import (
 
 // OrderService handles order CRUD business logic.
 type OrderService struct {
-	orderRepo    repository.OrderRepository
-	lineItemRepo repository.LineItemRepository
+	orderRepo       repository.OrderRepository
+	lineItemRepo    repository.LineItemRepository
+	customerService *CustomerService
 }
 
 // NewOrderService creates a new OrderService.
-func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo repository.LineItemRepository) *OrderService {
+func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo repository.LineItemRepository, customerService *CustomerService) *OrderService {
 	return &OrderService{
-		orderRepo:    orderRepo,
-		lineItemRepo: lineItemRepo,
+		orderRepo:       orderRepo,
+		lineItemRepo:    lineItemRepo,
+		customerService: customerService,
 	}
 }
 
@@ -91,7 +94,13 @@ func (s *OrderService) UpdateOrderStatus(id int64, status string) (int64, error)
 
 // UpsertOrder inserts or updates a single order (used by webhooks).
 func (s *OrderService) UpsertOrder(order entity.Order) error {
-	return s.orderRepo.Upsert(order)
+	if err := s.orderRepo.Upsert(order); err != nil {
+		return err
+	}
+	if s.customerService != nil {
+		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
+	}
+	return nil
 }
 
 // UpdatePaymentStatus updates the financial status of an order.
@@ -111,5 +120,17 @@ func (s *OrderService) UpdateTrackingInfo(externalOrderID string, trackingNumber
 
 // CancelOrder marks an order as cancelled.
 func (s *OrderService) CancelOrder(externalOrderID string, cancelledAt *string, reason string) error {
-	return s.orderRepo.CancelOrder(externalOrderID, cancelledAt, reason)
+	if err := s.orderRepo.CancelOrder(externalOrderID, cancelledAt, reason); err != nil {
+		return err
+	}
+	// Fetch full order to update customer stats
+	order, err := s.orderRepo.GetByExternalID(externalOrderID)
+	if err == nil && s.customerService != nil {
+		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
+	}
+	return nil
+}
+
+func (s *OrderService) ListSources() ([]entity.Source, error) {
+	return s.orderRepo.ListSources()
 }

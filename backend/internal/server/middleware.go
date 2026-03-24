@@ -1,25 +1,41 @@
 package server
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"mi-tech/internal/service"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 // CORSMiddleware adds CORS headers to all requests.
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		isAllowed := false
+
 		if origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			for _, allowed := range allowedOrigins {
+				if origin == strings.TrimSpace(allowed) {
+					isAllowed = true
+					break
+				}
+			}
 		}
-		
+
+		if isAllowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -34,6 +50,7 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
+			log.Printf("AuthMiddleware: %s %s", r.Method, path)
 			if r.Method == "OPTIONS" ||
 			   strings.HasPrefix(path, "/api/webhooks") || 
 			   path == "/api/health" || 
@@ -61,6 +78,50 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 				return
 			}
 
+			claims, ok := token.Claims.(jwt.MapClaims)
+			if !ok {
+				http.Error(w, "invalid token claims", http.StatusUnauthorized)
+				return
+			}
+			
+			role, _ := claims["role"].(string)
+			if role == "" {
+				role = "read" // default fallback
+			}
+
+			// Add role to context
+			log.Printf("AuthMiddleware: user=%s role=%s", claims["username"], role)
+			ctx := context.WithValue(r.Context(), "userRole", role)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// RequireRole enforces that the user has one of the allowed roles.
+func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role, ok := r.Context().Value("userRole").(string)
+			if !ok {
+				http.Error(w, "unauthorized: role not found in context", http.StatusUnauthorized)
+				return
+			}
+
+			isAllowed := false
+			for _, allowedRole := range allowedRoles {
+				if role == allowedRole {
+					isAllowed = true
+					break
+				}
+			}
+
+			if !isAllowed {
+				log.Printf("RequireRole: forbidden. role=%s, allowed=%v", role, allowedRoles)
+				http.Error(w, "forbidden: insufficient permissions", http.StatusForbidden)
+				return
+			}
+
+			log.Printf("RequireRole: success. role=%s, allowed=%v", role, allowedRoles)
 			next.ServeHTTP(w, r)
 		})
 	}

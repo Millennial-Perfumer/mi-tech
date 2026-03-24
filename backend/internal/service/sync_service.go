@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -13,15 +14,17 @@ import (
 
 // SyncService orchestrates fetching orders from Shopify and persisting them.
 type SyncService struct {
-	shopifyClient *shopify.Client
-	orderRepo     repository.OrderRepository
+	shopifyClient   *shopify.Client
+	orderRepo       repository.OrderRepository
+	customerService *CustomerService
 }
 
 // NewSyncService creates a new SyncService.
-func NewSyncService(shopifyClient *shopify.Client, orderRepo repository.OrderRepository) *SyncService {
+func NewSyncService(shopifyClient *shopify.Client, orderRepo repository.OrderRepository, customerService *CustomerService) *SyncService {
 	return &SyncService{
-		shopifyClient: shopifyClient,
-		orderRepo:     orderRepo,
+		shopifyClient:   shopifyClient,
+		orderRepo:       orderRepo,
+		customerService: customerService,
 	}
 }
 
@@ -67,6 +70,13 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 
 	if err := s.orderRepo.UpsertBatch(orderEntities); err != nil {
 		return 0, fmt.Errorf("failed to upsert batch: %w", err)
+	}
+
+	// Update customer metadata in batch to avoid N+1 queries
+	if s.customerService != nil {
+		if err := s.customerService.UpdateFromOrdersBatch(context.Background(), orderEntities); err != nil {
+			log.Printf("Sync: failed to update customer metadata in batch: %v", err)
+		}
 	}
 
 	log.Printf("Successfully synchronized %d orders and their items into PostgreSQL.", len(orderEntities))

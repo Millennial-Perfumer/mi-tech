@@ -117,6 +117,20 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				automationTopic = "fulfillments/update"
 				processErr = h.webhookService.ProcessFulfillmentUpdate(payload)
 			}
+		} else if strings.HasPrefix(topic, "customers/") {
+			var payload dto.ShopifyWebhookCustomer
+			if err := json.Unmarshal(body, &payload); err != nil {
+				log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+				return
+			}
+			externalID = strconv.FormatInt(payload.ID, 10)
+
+			switch topic {
+			case "customers/create", "customers/update":
+				processErr = h.webhookService.ProcessCustomerCreateUpdate(payload, &raw)
+			case "customers/delete":
+				processErr = h.webhookService.ProcessCustomerDelete(externalID)
+			}
 		} else {
 			log.Printf("Webhook Info: Topic %s not handled for ingestion", topic)
 			return
@@ -138,62 +152,61 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			log.Printf("Webhook Error: Failed to save webhook event log: %v", err)
 		}
 
-		// Post-processing: link webhook to order and trigger automation
-		order, err := h.webhookService.GetOrder(externalID)
-		if err != nil {
-			log.Printf("Automation Error: Failed to fetch order %s from DB for mapping: %v", externalID, err)
-			return
-		}
-
-		if order.ID == 0 {
-			log.Printf("Automation Warning: Order %s not found in DB after ingestion. Skipping automation.", externalID)
-			return
-		}
-
-		_ = h.webhookService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
-
-		if h.mappingService != nil && automationTopic != "" {
-
-			log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %d", automationTopic, order.ID)
-			// Re-verify granular status ONLY for fulfillment updates.
-			// Generic orders/updated will retain its topic to allow manual edit notifications (invoices).
-			if topic == "fulfillments/update" {
-				deliveryStatus := ""
-				if order.DeliveryStatus != nil {
-					deliveryStatus = strings.ToLower(*order.DeliveryStatus)
-				}
-
-				switch deliveryStatus {
-				case "delivered":
-					automationTopic = "orders/delivered"
-				case "out for delivery", "out_for_delivery":
-					automationTopic = "orders/out_for_delivery"
-				case "picked up", "in transit", "in_transit", "picked_up":
-					automationTopic = "orders/fulfilled"
-				case "confirmed":
-					log.Printf("Automation Info: Fulfillment status is 'confirmed' (Order %d). Skipping as assignment is handled by fulfillments/create.", order.ID)
-					return
-				}
-			}
-
-			// Guard 1: Skip ghost updates following order creation (30s window)
-			if automationTopic == "orders/updated" && time.Since(order.CreatedAt).Seconds() < 30 {
-				log.Printf("Automation Skip: Topic %s ignored for order %d (Created %v ago). Filtering ghost update.", automationTopic, order.ID, time.Since(order.CreatedAt))
+		// Post-processing: link webhook to order and trigger automation (Only for Order/Fulfillment topics)
+		if strings.HasPrefix(topic, "orders/") || strings.HasPrefix(topic, "fulfillments/") {
+			order, err := h.webhookService.GetOrder(externalID)
+			if err != nil {
+				log.Printf("Automation Error: Failed to fetch order %s from DB for mapping: %v", externalID, err)
 				return
 			}
 
-			// Guard 2: Skip generic updates following a specific status change/fulfillment (15s window)
-			// Shopify sends redundant generic 'orders/updated' right after more specific ones.
-			// We check the delivery status to see if it was RECENTLY changed by a specific hook.
-			if automationTopic == "orders/updated" && order.DeliveryStatus != nil && time.Since(order.UpdatedAt).Seconds() < 5 {
-				log.Printf("Automation Info: Topic %s detected for order %d. This might be a side-effect, but we will allow it if it is a manual edit.", automationTopic, order.ID)
+			if order.ID == 0 {
+				log.Printf("Automation Warning: Order %s not found in DB after ingestion. Skipping automation.", externalID)
+				return
 			}
 
-			err = h.mappingService.ExecuteMapping("1", automationTopic, order)
-			if err != nil {
-				log.Printf("Automation Error: Failed to execute mapping for order %d, topic %s: %v", order.ID, automationTopic, err)
-			} else {
-				log.Printf("Automation Success: Triggered %s for order %d", automationTopic, order.ID)
+			_ = h.webhookService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
+
+			if h.mappingService != nil && automationTopic != "" {
+				log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %d", automationTopic, order.ID)
+				
+				// Re-verify granular status ONLY for fulfillment updates.
+				if topic == "fulfillments/update" {
+					deliveryStatus := ""
+					if order.DeliveryStatus != nil {
+						deliveryStatus = strings.ToLower(*order.DeliveryStatus)
+					}
+
+					switch deliveryStatus {
+					case "delivered":
+						automationTopic = "orders/delivered"
+					case "out for delivery", "out_for_delivery":
+						automationTopic = "orders/out_for_delivery"
+					case "picked up", "in transit", "in_transit", "picked_up":
+						automationTopic = "orders/fulfilled"
+					case "confirmed":
+						log.Printf("Automation Info: Fulfillment status is 'confirmed' (Order %d). Skipping as assignment is handled by fulfillments/create.", order.ID)
+						return
+					}
+				}
+
+				// Guard 1: Skip ghost updates following order creation (30s window)
+				if automationTopic == "orders/updated" && time.Since(order.CreatedAt).Seconds() < 30 {
+					log.Printf("Automation Skip: Topic %s ignored for order %d (Created %v ago). Filtering ghost update.", automationTopic, order.ID, time.Since(order.CreatedAt))
+					return
+				}
+
+				// Guard 2: Skip generic updates following a specific status change/fulfillment (15s window)
+				if automationTopic == "orders/updated" && order.DeliveryStatus != nil && time.Since(order.UpdatedAt).Seconds() < 5 {
+					log.Printf("Automation Info: Topic %s detected for order %d. This might be a side-effect, but we will allow it if it is a manual edit.", automationTopic, order.ID)
+				}
+
+				err = h.mappingService.ExecuteMapping("1", automationTopic, order)
+				if err != nil {
+					log.Printf("Automation Error: Failed to execute mapping for order %d, topic %s: %v", order.ID, automationTopic, err)
+				} else {
+					log.Printf("Automation Success: Triggered %s for order %d", automationTopic, order.ID)
+				}
 			}
 		}
 	}()

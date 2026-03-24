@@ -34,7 +34,8 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 	}
 	if filter.Search != "" {
 		searchTerm := "%" + filter.Search + "%"
-		query = query.Where("order_number ILIKE ? OR customer_name ILIKE ?", searchTerm, searchTerm)
+		query = query.Where("order_number ILIKE ? OR customer_name ILIKE ? OR customer_email ILIKE ? OR customer_phone ILIKE ? OR tracking_number ILIKE ?", 
+			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 	if filter.Source != "" {
 		query = query.Where("source_id = ?", filter.Source)
@@ -352,6 +353,12 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 	return r.db.Model(&entity.Order{}).
 		Where("external_order_id = ?", externalOrderID).
 		Updates(updates).Error
+}
+
+func (r *gormOrderRepository) ListSources() ([]entity.Source, error) {
+	var sources []entity.Source
+	err := r.db.Where("enabled = ?", true).Order("name ASC").Find(&sources).Error
+	return sources, err
 }
 
 func (r *gormOrderRepository) TruncateAll() error {

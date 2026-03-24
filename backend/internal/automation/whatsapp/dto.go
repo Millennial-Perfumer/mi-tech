@@ -6,7 +6,8 @@ import (
 )
 
 type TemplateHeader struct {
-	Type     string          `json:"type"` // image, video, document, location, none
+	Type     string          `json:"type"` // text, image, video, document, location, none
+	Text     string          `json:"text,omitempty"`
 	Sample   json.RawMessage `json:"sample,omitempty"`
 	Location json.RawMessage `json:"location,omitempty"`
 }
@@ -39,8 +40,10 @@ type Trigger struct {
 	WebhookTopic string    `json:"webhook_topic"`
 	TemplateID   int       `json:"template_id"`
 	Enabled      bool      `json:"enabled"`
-	TemplateName string    `json:"template_name,omitempty"` // Joined field
-	CreatedAt    time.Time `json:"created_at"`
+	TemplateName   string    `json:"template_name,omitempty"`   // Joined field
+	TemplateBody   string    `json:"template_body,omitempty"`   // Joined field
+	TemplateStatus string    `json:"template_status,omitempty"` // Joined field
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type AutomationTemplate struct {
@@ -55,6 +58,7 @@ type AutomationTemplate struct {
 	Buttons        *json.RawMessage `json:"buttons,omitempty"`
 	Status         string           `json:"status"` // PENDING, APPROVED, REJECTED
 	MetaTemplateID string           `json:"meta_template_id"`
+	VariableMappings *json.RawMessage `json:"variable_mappings,omitempty"`
 	CreatedAt      time.Time        `json:"created_at"`
 	UpdatedAt      time.Time        `json:"updated_at"`
 	SentCount      int              `json:"sent_count"`

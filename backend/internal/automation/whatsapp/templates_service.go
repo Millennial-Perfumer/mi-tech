@@ -177,9 +177,6 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 			switch b.Type {
 			case "custom":
 				btn["type"] = "QUICK_REPLY"
-				if b.Payload != "" {
-					btn["payload"] = b.Payload
-				}
 			case "visit_website":
 				btn["type"] = "URL"
 				url := b.URL
@@ -214,23 +211,7 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 }
 
 func (s *TemplatesService) GetTriggers(storeID string) ([]Trigger, error) {
-	triggers, err := s.repo.GetTriggers(storeID)
-	if err != nil {
-		return nil, err
-	}
-
-	// For other triggers, the TemplateName might come empty from the base GetTriggers
-	// Let's ensure name is joined if missing
-	for i := range triggers {
-		if triggers[i].TemplateName == "" {
-			t, err := s.repo.GetTemplateByID(triggers[i].TemplateID)
-			if err == nil && t != nil {
-				triggers[i].TemplateName = t.TemplateName
-			}
-		}
-	}
-
-	return triggers, nil
+	return s.repo.GetTriggers(storeID)
 }
 
 func (s *TemplatesService) SyncStatus(storeID string) error {
@@ -267,9 +248,8 @@ func (s *TemplatesService) CreateTrigger(storeID, topic string, templateID int) 
 	return s.repo.SaveTrigger(trigger)
 }
 
-func (s *TemplatesService) UpdateTemplate(storeID string, id int, req CreateTemplateRequest) error {
-	log.Printf("Service: UpdateTemplate called for ID: %d", id)
-	// 1. Get current template
+func (s *TemplatesService) UpdateTemplateMappings(storeID string, id int, mappings *json.RawMessage) error {
+	log.Printf("Service: UpdateTemplateMappings called for ID: %d", id)
 	t, err := s.repo.GetTemplateByID(id)
 	if err != nil {
 		return err
@@ -278,56 +258,7 @@ func (s *TemplatesService) UpdateTemplate(storeID string, id int, req CreateTemp
 		return fmt.Errorf("template not found")
 	}
 
-	// 2. Map to Meta Components
-	components, err := s.mapToMetaComponents(req)
-	if err != nil {
-		return fmt.Errorf("failed to map components: %w", err)
-	}
-
-	// 3. Resubmit to Meta
-	if t.MetaTemplateID == "" {
-		log.Printf("Service: MetaTemplateID missing locally for %s. Attempting to resolve from Meta...", t.TemplateName)
-		remote, err := s.metaClient.GetRemoteTemplateByName(t.TemplateName)
-		if err != nil {
-			return fmt.Errorf("failed to resolve template from meta: %w", err)
-		}
-		if remote != nil {
-			log.Printf("Service: Resolved MetaTemplateID for %s: %s", t.TemplateName, remote.ID)
-			t.MetaTemplateID = remote.ID
-			// Update locally immediately so we don't have to fetch again
-			_ = s.repo.UpdateTemplate(*t)
-		}
-	}
-
-	if t.MetaTemplateID != "" {
-		log.Printf("Service: Updating existing Meta template %s (ID: %s)", t.TemplateName, t.MetaTemplateID)
-		err = s.metaClient.UpdateTemplate(t.MetaTemplateID, components)
-	} else {
-		log.Printf("Service: Template %s not found on Meta. Creating new one.", t.TemplateName)
-		metaReq := TemplateRequest{
-			Name:       t.TemplateName,
-			Category:   t.Category,
-			Language:   t.Language,
-			Components: components,
-		}
-		_, err = s.metaClient.CreateTemplate(metaReq)
-	}
-
-	if err != nil {
-		return fmt.Errorf("meta resubmission failed: %w", err)
-	}
-
-	// 4. Update local DB
-	headerJSON, _ := json.Marshal(req.Header)
-	buttonsJSON, _ := json.Marshal(req.Buttons)
-	headerPtr := json.RawMessage(headerJSON)
-	buttonsPtr := json.RawMessage(buttonsJSON)
-
-	t.Body = req.Body
-	t.Header = &headerPtr
-	t.Footer = &req.Footer
-	t.Buttons = &buttonsPtr
-	t.Status = "PENDING"
+	t.VariableMappings = mappings
 	return s.repo.UpdateTemplate(*t)
 }
 
@@ -364,4 +295,293 @@ func (s *TemplatesService) UpdateTrigger(id int, storeID string, enabled bool) e
 
 func (s *TemplatesService) DeleteTrigger(id int, storeID string) error {
 	return s.repo.DeleteTrigger(id, storeID)
+}
+func (s *TemplatesService) FetchRemoteTemplate(templateName string) (*CreateTemplateRequest, error) {
+	remote, err := s.metaClient.GetRemoteTemplateByName(templateName)
+	if err != nil {
+		return nil, err
+	}
+	if remote == nil {
+		return nil, fmt.Errorf("template %s not found in Meta", templateName)
+	}
+
+	req := &CreateTemplateRequest{
+		Name:     remote.Name,
+		Category: remote.Category,
+		Language: remote.Language,
+	}
+
+	for _, comp := range remote.Components {
+		compType, _ := comp["type"].(string)
+		switch compType {
+		case "HEADER":
+			format, _ := comp["format"].(string)
+			req.Header = &TemplateHeader{
+				Type: strings.ToLower(format),
+			}
+			// Meta doesn't return the sample handle in GET, but might return examples
+			if example, ok := comp["example"].(map[string]interface{}); ok {
+				if handles, ok := example["header_handle"].([]interface{}); ok && len(handles) > 0 {
+					handle, _ := handles[0].(string)
+					sampleJSON, _ := json.Marshal(handle)
+					req.Header.Sample = sampleJSON
+				}
+			}
+		case "BODY":
+			req.Body, _ = comp["text"].(string)
+			if example, ok := comp["example"].(map[string]interface{}); ok {
+				if bodyTexts, ok := example["body_text"].([]interface{}); ok && len(bodyTexts) > 0 {
+					if firstRow, ok := bodyTexts[0].([]interface{}); ok {
+						var samples []string
+						for _, s := range firstRow {
+							samples = append(samples, fmt.Sprint(s))
+						}
+						req.Examples = strings.Join(samples, ", ")
+					}
+				}
+			}
+		case "FOOTER":
+			req.Footer, _ = comp["text"].(string)
+		case "BUTTONS":
+			if btns, ok := comp["buttons"].([]interface{}); ok {
+				for _, b := range btns {
+					btnMap, _ := b.(map[string]interface{})
+					bType, _ := btnMap["type"].(string)
+					bText, _ := btnMap["text"].(string)
+					
+					newBtn := TemplateButton{
+						Text: bText,
+					}
+					
+					switch bType {
+					case "QUICK_REPLY":
+						newBtn.Type = "custom"
+					case "URL":
+						newBtn.Type = "visit_website"
+						newBtn.URL, _ = btnMap["url"].(string)
+					case "PHONE_NUMBER":
+						newBtn.Type = "call_phone"
+						newBtn.PhoneNumber, _ = btnMap["phone_number"].(string)
+					case "FLOW":
+						newBtn.Type = "flow"
+						newBtn.FlowID, _ = btnMap["flow_id"].(string)
+					case "COPY_CODE":
+						newBtn.Type = "copy_code"
+					}
+					req.Buttons = append(req.Buttons, newBtn)
+				}
+			}
+		}
+	}
+
+	return req, nil
+}
+
+func (s *TemplatesService) SyncAllTemplates(storeID string) error {
+	remoteTemplates, err := s.metaClient.GetAllRemoteTemplates()
+	if err != nil {
+		return fmt.Errorf("failed to fetch templates from Meta: %w", err)
+	}
+
+	existingTemplates, err := s.repo.GetTemplates(storeID, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to fetch local templates: %w", err)
+	}
+
+	remoteNames := make(map[string]bool)
+	for _, remote := range remoteTemplates {
+		remoteNames[remote.Name] = true
+		
+		localTpl := AutomationTemplate{
+			StoreID:        storeID,
+			TemplateName:   remote.Name,
+			Language:       remote.Language,
+			Category:       remote.Category,
+			Status:         remote.Status,
+			MetaTemplateID: remote.ID,
+		}
+
+		var header *TemplateHeader
+		var buttons []TemplateButton
+		var footer string
+
+		for _, comp := range remote.Components {
+			compType, _ := comp["type"].(string)
+			switch compType {
+			case "HEADER":
+				format, _ := comp["format"].(string)
+				header = &TemplateHeader{Type: strings.ToLower(format)}
+				if text, ok := comp["text"].(string); ok {
+					header.Text = text
+				}
+				if example, ok := comp["example"].(map[string]interface{}); ok {
+					if handles, ok := example["header_handle"].([]interface{}); ok && len(handles) > 0 {
+						handle, _ := handles[0].(string)
+						sampleJSON, _ := json.Marshal(handle)
+						header.Sample = sampleJSON
+					} else if texts, ok := example["header_text"].([]interface{}); ok && len(texts) > 0 {
+						// For text headers, the example is often in header_text
+						t, _ := texts[0].(string)
+						sampleJSON, _ := json.Marshal(t)
+						header.Sample = sampleJSON
+					}
+				}
+			case "BODY":
+				localTpl.Body, _ = comp["text"].(string)
+			case "FOOTER":
+				footer, _ = comp["text"].(string)
+			case "BUTTONS":
+				if btns, ok := comp["buttons"].([]interface{}); ok {
+					for _, b := range btns {
+						btnMap, _ := b.(map[string]interface{})
+						bType, _ := btnMap["type"].(string)
+						bText, _ := btnMap["text"].(string)
+						
+						newBtn := TemplateButton{Text: bText}
+						switch bType {
+						case "QUICK_REPLY":
+							newBtn.Type = "custom"
+						case "URL":
+							newBtn.Type = "visit_website"
+							newBtn.URL, _ = btnMap["url"].(string)
+						case "PHONE_NUMBER":
+							newBtn.Type = "call_phone"
+							newBtn.PhoneNumber, _ = btnMap["phone_number"].(string)
+						case "FLOW":
+							newBtn.Type = "flow"
+							newBtn.FlowID, _ = btnMap["flow_id"].(string)
+						case "COPY_CODE":
+							newBtn.Type = "copy_code"
+						}
+						buttons = append(buttons, newBtn)
+					}
+				}
+			}
+		}
+
+		if header != nil {
+			hb, _ := json.Marshal(header)
+			rawH := json.RawMessage(hb)
+			localTpl.Header = &rawH
+		}
+		if footer != "" {
+			localTpl.Footer = &footer
+		}
+		if len(buttons) > 0 {
+			bb, _ := json.Marshal(buttons)
+			rawB := json.RawMessage(bb)
+			localTpl.Buttons = &rawB
+		}
+
+		_, err = s.repo.UpsertMetaTemplate(localTpl)
+		if err != nil {
+			log.Printf("Failed to upsert template %s: %v", remote.Name, err)
+		}
+	}
+
+	for _, local := range existingTemplates {
+		if !remoteNames[local.TemplateName] && local.Status != "ARCHIVED" {
+			log.Printf("Template %s not found in Meta, marking as ARCHIVED", local.TemplateName)
+			s.repo.UpdateStatus(local.TemplateName, "ARCHIVED")
+		}
+	}
+
+	return nil
+}
+
+func (s *TemplatesService) SyncSingleTemplate(storeID, templateName string) error {
+	remote, err := s.metaClient.GetRemoteTemplateByName(templateName)
+	if err != nil {
+		return fmt.Errorf("failed to fetch template %s: %w", templateName, err)
+	}
+	if remote == nil {
+		return fmt.Errorf("template %s not found", templateName)
+	}
+
+	localTpl := AutomationTemplate{
+		StoreID:      storeID,
+		TemplateName: remote.Name,
+		Category:     remote.Category,
+		Language:     remote.Language,
+		Status:       remote.Status,
+	}
+
+	var header *TemplateHeader
+	var footer string
+	var buttons []TemplateButton
+
+	for _, comp := range remote.Components {
+		cType, _ := comp["type"].(string)
+		switch cType {
+		case "BODY":
+			if text, ok := comp["text"].(string); ok {
+				localTpl.Body = text
+			}
+		case "HEADER":
+			format, _ := comp["format"].(string)
+			header = &TemplateHeader{Type: strings.ToLower(format)}
+			if text, ok := comp["text"].(string); ok {
+				header.Text = text
+			}
+			if example, ok := comp["example"].(map[string]interface{}); ok {
+				if handles, ok := example["header_handle"].([]interface{}); ok && len(handles) > 0 {
+					handle, _ := handles[0].(string)
+					sampleJSON, _ := json.Marshal(handle)
+					header.Sample = sampleJSON
+				} else if texts, ok := example["header_text"].([]interface{}); ok && len(texts) > 0 {
+					t, _ := texts[0].(string)
+					sampleJSON, _ := json.Marshal(t)
+					header.Sample = sampleJSON
+				}
+			}
+		case "FOOTER":
+			footer, _ = comp["text"].(string)
+		case "BUTTONS":
+			if btns, ok := comp["buttons"].([]interface{}); ok {
+				for _, b := range btns {
+					btnMap, _ := b.(map[string]interface{})
+					bType, _ := btnMap["type"].(string)
+					bText, _ := btnMap["text"].(string)
+					
+					newBtn := TemplateButton{
+						Text: bText,
+					}
+					
+					switch bType {
+					case "QUICK_REPLY":
+						newBtn.Type = "custom"
+					case "URL":
+						newBtn.Type = "visit_website"
+						newBtn.URL, _ = btnMap["url"].(string)
+					case "PHONE_NUMBER":
+						newBtn.Type = "call_phone"
+						newBtn.PhoneNumber, _ = btnMap["phone_number"].(string)
+					case "FLOW":
+						newBtn.Type = "flow"
+						newBtn.FlowID, _ = btnMap["flow_id"].(string)
+					case "COPY_CODE":
+						newBtn.Type = "copy_code"
+					}
+					buttons = append(buttons, newBtn)
+				}
+			}
+		}
+	}
+
+	if header != nil {
+		hb, _ := json.Marshal(header)
+		rawH := json.RawMessage(hb)
+		localTpl.Header = &rawH
+	}
+	if footer != "" {
+		localTpl.Footer = &footer
+	}
+	if len(buttons) > 0 {
+		bb, _ := json.Marshal(buttons)
+		rawB := json.RawMessage(bb)
+		localTpl.Buttons = &rawB
+	}
+
+	_, err = s.repo.UpsertMetaTemplate(localTpl)
+	return err
 }

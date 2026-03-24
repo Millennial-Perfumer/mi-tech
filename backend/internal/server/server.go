@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +50,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
 	configsRepo := repository.NewConfigsRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
+	customerRepo := repository.NewCustomerRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -57,16 +59,18 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	shopifyClient := shopify.NewClient(settingsProvider)
 
 	// Services
+	authService := service.NewAuthService(db, settingsProvider)
+	userService := service.NewUserService(db)
+	metricsService := service.NewMetricsService(metricsRepo)
+	reportService := service.NewReportService(reportRepo)
+	customerService := service.NewCustomerService(customerRepo, orderRepo, shopifyClient)
 	invoiceService := service.NewInvoiceService(settingsRepo)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo)
-	syncService := service.NewSyncService(shopifyClient, orderRepo)
+	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService)
+	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider)
 	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo)
-	authService := service.NewAuthService(db, settingsProvider)
-	metricsService := service.NewMetricsService(metricsRepo)
-	reportService := service.NewReportService(reportRepo)
 
 	// Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService)
@@ -74,11 +78,13 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	reportHandler := handler.NewReportHandler(reportService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, settingsProvider)
-	automationHandler := whatsapp.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, settingsProvider)
+	automationHandler := whatsapp.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	configsHandler := handler.NewConfigsHandler(configsRepo, db)
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
 	authHandler := handler.NewAuthHandler(authService)
+	customerHandler := handler.NewCustomerHandler(customerService)
+	userHandler := handler.NewUserHandler(userService)
 
 	RegisterRoutes(
 		mux,
@@ -92,6 +98,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		configsHandler,
 		redirectHandler,
 		authHandler,
+		customerHandler,
+		userHandler,
 		authService,
 	)
 
@@ -105,7 +113,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 func (s *Server) Run() error {
 	server := &http.Server{
 		Addr:              ":" + s.port,
-		Handler:           s.mux,
+		Handler:           otelhttp.NewHandler(s.mux, "mi-tech-api"),
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,

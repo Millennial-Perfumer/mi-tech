@@ -1,0 +1,3 @@
+## 2025-05-15 - [Accessible Dropdown & Global Focus States]
+**Learning:** For apps with a custom design system that disables default focus outlines, a global `:focus-visible` style is a crucial accessibility win that doesn't compromise visual design for mouse users. Component-level accessibility for dropdowns requires both ARIA roles/attributes and keyboard event listeners (like Escape) to be truly inclusive.
+**Action:** Always check `index.css` for `outline: none` and ensure `:focus-visible` is implemented. When building popovers/dropdowns, use the `useEffect` hook to manage global keyboard listeners for the `Escape` key.

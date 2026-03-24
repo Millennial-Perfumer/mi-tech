@@ -355,3 +355,137 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 
 	return result.Data.Order, nil
 }
+// CreateCustomer creates a customer in Shopify using the REST API.
+func (c *Client) CreateCustomer(customer dto.ShopifyRestCustomer) (*dto.ShopifyRestCustomer, error) {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+	apiVersion := c.settings.GetShopifyAPIVersion()
+
+	if shopifyURL == "" || accessToken == "" {
+		return nil, fmt.Errorf("shopify credentials not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/customers.json", shopifyURL, apiVersion)
+	wrapper := dto.ShopifyCustomerWrapper{Customer: customer}
+	payload, _ := json.Marshal(wrapper)
+
+	req, _ := http.NewRequest("POST", apiURL, strings.NewReader(string(payload)))
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result dto.ShopifyCustomerWrapper
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	return &result.Customer, nil
+}
+
+// UpdateCustomer updates an existing customer in Shopify using the REST API.
+func (c *Client) UpdateCustomer(id int64, customer dto.ShopifyRestCustomer) (*dto.ShopifyRestCustomer, error) {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+	apiVersion := c.settings.GetShopifyAPIVersion()
+
+	if shopifyURL == "" || accessToken == "" {
+		return nil, fmt.Errorf("shopify credentials not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/customers/%d.json", shopifyURL, apiVersion, id)
+	wrapper := dto.ShopifyCustomerWrapper{Customer: customer}
+	payload, _ := json.Marshal(wrapper)
+
+	req, _ := http.NewRequest("PUT", apiURL, strings.NewReader(string(payload)))
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result dto.ShopifyCustomerWrapper
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	return &result.Customer, nil
+}
+
+// GetCustomer fetches a single customer from Shopify using the REST API.
+func (c *Client) GetCustomer(id int64) (*dto.ShopifyRestCustomer, error) {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+	apiVersion := c.settings.GetShopifyAPIVersion()
+
+	if shopifyURL == "" || accessToken == "" {
+		return nil, fmt.Errorf("shopify credentials not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/customers/%d.json", shopifyURL, apiVersion, id)
+	req, _ := http.NewRequest("GET", apiURL, nil)
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result dto.ShopifyCustomerWrapper
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	return &result.Customer, nil
+}
+
+// DeleteCustomer deletes a customer from Shopify using the REST API.
+func (c *Client) DeleteCustomer(id int64) error {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+	apiVersion := c.settings.GetShopifyAPIVersion()
+
+	if shopifyURL == "" || accessToken == "" {
+		return fmt.Errorf("shopify credentials not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/customers/%d.json", shopifyURL, apiVersion, id)
+	req, _ := http.NewRequest("DELETE", apiURL, nil)
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}

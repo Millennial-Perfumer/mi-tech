@@ -9,6 +9,10 @@ import fullLogo from './assets/full_logo.png';
 import { Login } from './Login';
 import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import { SettingsTab } from './SettingsTab';
+import { Customers } from './Customers';
+import { Users } from './Users';
+import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 import './App.css';
 
 
@@ -75,10 +79,28 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
 
 function App() {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
+
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveTab') || 'dashboard';
   });
+
+  const userRole = token ? (() => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      console.log('Current user payload:', payload);
+      return payload?.role || 'read';
+    } catch (err) {
+      console.error('Error parsing token:', err);
+      return 'read';
+    }
+  })() : 'read';
+  
+  useEffect(() => {
+    console.log('Current userRole:', userRole);
+  }, [userRole]);
 
   const handleLogin = (newToken: string) => {
     localStorage.setItem('token', newToken);
@@ -114,6 +136,7 @@ function App() {
   const [totalCount, setTotalCount] = useState(0);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
   const [appSettings, setAppSettings] = useState<Record<string, string>>({});
+  const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
   const limit = 25;
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
@@ -214,15 +237,16 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
+        toastSuccess('Status updated successfully');
         // Refresh data
         fetchDashboardData();
         setEditingStatusId(null);
       } else {
-        alert(data.message || 'Failed to update status');
+        toastError(data.message || 'Failed to update status');
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Network error updating status');
+      toastError('Network error updating status');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -241,11 +265,29 @@ function App() {
     }
   };
 
+  const fetchAppConfigs = async () => {
+    if (!token) return;
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/configs`);
+      const data = await response.json();
+      if (data.success && Array.isArray(data.configs)) {
+        const configsMap: Record<string, string> = {};
+        data.configs.forEach((cfg: any) => {
+          configsMap[cfg.key] = cfg.value;
+        });
+        setAppConfigs(configsMap);
+      }
+    } catch (err) {
+      console.error('Failed to fetch app configs:', err);
+    }
+  };
+
 
   // Dedicated effect for settings - only on mount or token change
   useEffect(() => {
     if (token) {
       fetchAppSettings();
+      fetchAppConfigs();
     }
   }, [token]);
 
@@ -308,25 +350,32 @@ function App() {
           end_date: syncEndDate
         })
       });
-      const data = await response.json();      if (data.success) {
-        alert(`Successfully synced ${data.count} orders!`);
+      const data = await response.json();
+      if (data.success) {
+        toastSuccess(`Successfully synced ${data.count} orders!`);
         triggerRefresh();
         fetchDashboardData(false, true);
       } else {
-        alert(data.message || 'Failed to sync orders.');
+        toastError(data.message || 'Failed to sync orders.');
       }
     } catch (error) {
       console.error('Error syncing orders:', error);
-      alert('Error occurred while syncing.');
+      toastError('Error occurred while syncing.');
     } finally {
       setIsSyncing(false);
     }
   };
 
   const resetShopify = async () => {
-    if (!window.confirm("Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Full Database Reset',
+      message: 'Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.',
+      variant: 'danger',
+      confirmLabel: 'Reset Everything'
+    });
+
+    if (!confirmed) return;
+
     setIsResetting(true);
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/shopify/reset`, {
@@ -334,14 +383,14 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
-        alert(`Successfully wiped data and re-synced ${data.count} orders!`);
+        toastSuccess(`Successfully wiped data and re-synced ${data.count} orders!`);
         fetchDashboardData();
       } else {
-        alert('Failed to reset orders.');
+        toastError('Failed to reset orders.');
       }
     } catch (error) {
       console.error('Error resetting orders:', error);
-      alert('Error occurred while resetting.');
+      toastError('Error occurred while resetting.');
     } finally {
       setIsResetting(false);
     }
@@ -360,7 +409,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTab, startDate, endDate, page, search, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
 
   const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {
@@ -380,7 +429,7 @@ function App() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading invoice:', error);
-      alert('Failed to download invoice. Please try again.');
+      toastError('Failed to download invoice. Please try again.');
     }
   };
 
@@ -541,10 +590,20 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
             Orders
           </a>
+          <a href="#" className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Customers
+          </a>
           <a href="#" className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             Settings
           </a>
+          {userRole === 'admin' && (
+            <a href="#" className={`nav-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              RBAC
+            </a>
+          )}
           <a href="#" className="nav-item" onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             Sign Out
@@ -555,14 +614,13 @@ function App() {
       <main className="main-content">
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
-          {activeTab !== 'automation' && (
+          {activeTab !== 'automation' && activeTab === 'settings' && userRole === 'admin' && (
             <div style={{display: 'flex', gap: '1rem'}}>
-              <button className="btn-secondary">Export Data</button>
               {appSettings?.show_reset_button === 'true' && (
                 <button 
                   className="btn-secondary" 
@@ -573,27 +631,11 @@ function App() {
                   {isResetting ? 'Resetting...' : 'Reset & Resync'}
                 </button>
               )}
-              {appSettings?.show_sync_button !== 'false' && (
-                <button 
-                  className="btn-primary" 
-                  title="Manually fetch orders from Shopify in case webhook delivery fails."
-                  style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isSyncing ? 0.7 : 1}}
-                  onClick={() => {
-                    setSyncStartDate(startDate); // Use current dashboard start date
-                    setSyncEndDate(endDate);     // Use current dashboard end date
-                    setShowSyncModal(true);
-                  }}
-                  disabled={isSyncing || isResetting}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isSyncing ? 'spin' : ''}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  {isSyncing ? 'Syncing...' : 'Manual Sync'}
-                </button>
-              )}
             </div>
           )}
         </header>
-
-        {activeTab !== 'automation' && activeTab !== 'settings' && (
+        
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -607,21 +649,29 @@ function App() {
           }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
-                {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : 'Shopify Orders'}
+                {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'customers' ? 'Customer Directory' : 'Shopify Orders'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
-                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : 'Manage your Shopify store orders'}
+                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : activeTab === 'customers' ? 'Manage and analyze your customer base' : 'Manage your Shopify store orders'}
               </p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-              <div style={{ width: '1px', height: '40px', backgroundColor: '#e2e8f0' }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <button className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export Data
+              </button>
 
-              <CustomDatePicker 
-                startDate={startDate} 
-                endDate={endDate} 
-                onDateChange={handleUpdateDateRange} 
-              />
+              {(activeTab === 'dashboard' || activeTab === 'reports' || activeTab === 'shopify') && (
+                <>
+                  <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }}></div>
+                  <CustomDatePicker 
+                    startDate={startDate} 
+                    endDate={endDate} 
+                    onDateChange={handleUpdateDateRange} 
+                  />
+                </>
+              )}
             </div>
           </div>
         )}
@@ -703,6 +753,30 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>Stored Orders</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+                    <button 
+                      className="btn-primary" 
+                      title="Manually fetch orders from Shopify"
+                      onClick={() => setShowSyncModal(true)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.85rem',
+                        height: '42px',
+                        borderRadius: '10px'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        <path d="M3 22v-6h6"></path>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                      </svg>
+                      Sync Shopify
+                    </button>
+                  )}
                   <ColumnSelector columns={AVAILABLE_COLUMNS} visibleColumns={visibleColumns} onChange={setVisibleColumns} />
                 </div>
               </div>
@@ -713,6 +787,7 @@ function App() {
                   <input 
                     type="text" 
                     placeholder="Search orders or customers..." 
+                    aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                     style={{ paddingLeft: '2.5rem', fontSize: '0.875rem' }}
@@ -1021,12 +1096,28 @@ function App() {
             endDate={endDate}
             onDateChange={handleUpdateDateRange}
             refreshTrigger={refreshTrigger}
+            userRole={userRole}
           />
         )}
 
         {activeTab === 'settings' && (
           <SettingsTab 
             fetchWithAuth={fetchWithAuth}
+          />
+        )}
+
+        {activeTab === 'customers' && (
+          <Customers 
+            fetchWithAuth={fetchWithAuth} 
+            showClearButton={appSettings?.show_clear_customers_button === 'true'} 
+            bulkSuffix={appConfigs?.bulk_template_suffix || '_marketing'}
+            userRole={userRole}
+          />
+        )}
+
+        {activeTab === 'users' && userRole === 'admin' && (
+          <Users 
+            fetchWithAuth={fetchWithAuth} 
           />
         )}
       </main>

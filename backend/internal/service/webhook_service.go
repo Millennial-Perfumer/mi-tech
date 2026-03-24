@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -60,6 +61,19 @@ func (s *WebhookService) ProcessOrderUpdate(payload dto.ShopifyWebhookOrder, raw
 	order := mapper.WebhookOrderToEntity(payload, raw)
 	log.Printf("Processing orders/updated for Order ID: %d", order.ID)
 	return s.orderService.UpsertOrder(order)
+}
+
+// ProcessCustomerCreateUpdate handles the customers/create and customers/update webhook topics.
+func (s *WebhookService) ProcessCustomerCreateUpdate(payload dto.ShopifyWebhookCustomer, raw *json.RawMessage) error {
+	customer := mapper.WebhookCustomerToEntity(payload, raw)
+	log.Printf("Processing customer webhook for Customer Phone: %s", customer.PhoneNumber)
+	return s.orderService.customerService.UpsertFromWebhook(context.Background(), &customer)
+}
+
+// ProcessCustomerDelete handles the customers/delete webhook topic.
+func (s *WebhookService) ProcessCustomerDelete(externalCustomerID string) error {
+	log.Printf("Processing customers/delete for Customer ID: %s", externalCustomerID)
+	return s.orderService.customerService.DeleteByExternalID(context.Background(), externalCustomerID)
 }
 
 // ProcessOrderPaid handles the orders/paid webhook topic.

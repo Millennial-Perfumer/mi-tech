@@ -83,7 +83,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           password: ${{ secrets.VM_PASSWORD }}
-          source: "docker-compose.prod.yml,nginx/,init-ssl.sh"
+          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,nginx/,monitoring/,init-ssl.sh"
           target: "~/mi-tech-app"
 
       - name: Deploy on VM
@@ -105,10 +105,10 @@ jobs:
             export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
 
             # Pull new images
-            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml pull
 
             # Recreate containers with new images
-            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
 
             # Remove old dangling images to save space
             docker image prune -af

@@ -85,3 +85,22 @@ type ShopifyLineItem struct {
 	} `json:"tax_lines"`
 	TotalDiscount string `json:"total_discount"`
 }
+
+// ShopifyWebhookCustomer represents the REST payload from Shopify customer webhooks.
+type ShopifyWebhookCustomer struct {
+	ID                  int64            `json:"id"`
+	Email               string           `json:"email"`
+	FirstName           string           `json:"first_name"`
+	LastName            string           `json:"last_name"`
+	Phone               string           `json:"phone"`
+	State               string           `json:"state"`
+	OrdersCount         int              `json:"orders_count"`
+	TotalSpent          string           `json:"total_spent"`
+	TaxExempt           bool             `json:"tax_exempt"`
+	Tags                string           `json:"tags"`
+	Currency            string           `json:"currency"`
+	CreatedAt           string           `json:"created_at"`
+	UpdatedAt           string           `json:"updated_at"`
+	DefaultAddress      *ShopifyAddress  `json:"default_address"`
+	Addresses           []ShopifyAddress `json:"addresses"`
+}

@@ -284,9 +284,12 @@ func (c *MetaClient) DeleteTemplate(templateName string) error {
 }
 
 type RemoteTemplate struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID         string                   `json:"id"`
+	Name       string                   `json:"name"`
+	Category   string                   `json:"category"`
+	Language   string                   `json:"language"`
+	Status     string                   `json:"status"`
+	Components []map[string]interface{} `json:"components"`
 }
 
 func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTemplate, error) {
@@ -323,6 +326,52 @@ func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTempla
 	}
 
 	return &result.Data[0], nil
+}
+
+func (c *MetaClient) GetAllRemoteTemplates() ([]RemoteTemplate, error) {
+	wabaID := c.settings.GetWhatsAppWABAID()
+	var allTemplates []RemoteTemplate
+	
+	urlStr := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?limit=100", c.apiVersion, wabaID)
+
+	for urlStr != "" {
+		httpReq, err := http.NewRequest("GET", urlStr, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
+
+		resp, err := http.DefaultClient.Do(httpReq)
+		if err != nil {
+			return nil, err
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode >= 400 {
+			return nil, fmt.Errorf("meta api error: status %d, body: %s", resp.StatusCode, string(respBody))
+		}
+
+		var result struct {
+			Data   []RemoteTemplate `json:"data"`
+			Paging struct {
+				Next     string `json:"next"`
+				Previous string `json:"previous"`
+			} `json:"paging"`
+		}
+		
+		if err := json.Unmarshal(respBody, &result); err != nil {
+			return nil, err
+		}
+
+		allTemplates = append(allTemplates, result.Data...)
+		
+		urlStr = result.Paging.Next
+	}
+
+	return allTemplates, nil
 }
 
 func (c *MetaClient) SendTemplateMessage(phoneNumber, templateName, languageCode string, components []interface{}) (string, error) {

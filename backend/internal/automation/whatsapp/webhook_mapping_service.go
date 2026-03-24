@@ -85,6 +85,50 @@ func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int
 	return s.executeWithTemplate(storeID, template, order, "manual")
 }
 
+func resolveVariable(field string, order entity.Order) string {
+	switch field {
+	case "customer_name":
+		name := entity.DerefStr(order.CustomerFirstName)
+		if name == "" {
+			name = entity.DerefStr(order.CustomerName)
+		}
+		if name == "" {
+			return "Customer"
+		}
+		return name
+	case "order_id":
+		return strings.TrimPrefix(order.OrderNumber, "#")
+	case "order_total":
+		return fmt.Sprintf("%.2f", order.TotalPrice)
+	case "tracking_link":
+		return entity.DerefStr(order.TrackingUrl)
+	case "tracking_number":
+		return entity.DerefStr(order.TrackingNumber)
+	case "shipping_company":
+		return entity.DerefStr(order.ShippingCompany)
+	case "customer_city":
+		return entity.DerefStr(order.CustomerCity)
+	case "customer_state":
+		return entity.DerefStr(order.CustomerState)
+	case "customer_country":
+		return entity.DerefStr(order.CustomerCountry)
+	case "customer_zip":
+		return entity.DerefStr(order.CustomerZip)
+	case "customer_address1":
+		return entity.DerefStr(order.CustomerAddress1)
+	case "customer_address2":
+		return entity.DerefStr(order.CustomerAddress2)
+	case "customer_email":
+		return entity.DerefStr(order.CustomerEmail)
+	case "customer_phone":
+		return entity.DerefStr(order.CustomerPhone)
+	case "internal_order_id":
+		return fmt.Sprintf("%d", order.ID)
+	default:
+		return "" // Unknown or empty mapping yields empty string (will fail if Meta requires it, which is correct behavior for unmapped vars)
+	}
+}
+
 func (s *WebhookMappingService) executeWithTemplate(storeID string, template *AutomationTemplate, order entity.Order, topic string) error {
 	// Deduplication Check (only for automated topics)
 	if topic != "manual" {
@@ -98,86 +142,57 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		}
 	}
 
-	// 3. Extract parameters based on template name or topic
+	var mappings map[string]string
+	if template.VariableMappings != nil {
+		json.Unmarshal(*template.VariableMappings, &mappings)
+	}
+	if mappings == nil {
+		mappings = make(map[string]string)
+	}
+
 	var components []interface{}
 
-	// Create body parameters based on common patterns
-	custName := entity.DerefStr(order.CustomerFirstName)
-	if custName == "" {
-		custName = entity.DerefStr(order.CustomerName)
-	}
-	if custName == "" {
-		custName = "Customer"
-	}
-
-	bodyParams := []map[string]string{
-		{"type": "text", "text": custName},
-		{"type": "text", "text": strings.TrimPrefix(order.OrderNumber, "#")},
-	}
-
-	// Dynamic Parameter Mapping: Match the exact number of placeholders in the template body
+	// 1. Body Mapping
 	requiredCount := s.countRequiredParams(template.Body)
-
-	// Template-specific mapping logic
-	if template.TemplateName == "order_dispatched_v3" || template.TemplateName == "out_for_delivery_v3" || template.TemplateName == "order_assigned_v3" {
-		shippingCo := entity.DerefStr(order.ShippingCompany)
-		trackingNum := entity.DerefStr(order.TrackingNumber)
-		trackingUrl := entity.DerefStr(order.TrackingUrl)
-
-		if shippingCo == "" || trackingNum == "" || trackingUrl == "" {
-			log.Printf("Automation Skip: Missing tracking info for template %s (Order: %d). ShippingCo: '%s', TrackingNum: '%s', TrackingUrl: '%s'",
-				template.TemplateName, order.ID, shippingCo, trackingNum, trackingUrl)
-			return nil
+	if requiredCount > 0 {
+		var bodyParams []map[string]string
+		for i := 1; i <= requiredCount; i++ {
+			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
+			fieldToMap := mappings[mapKey]
+			val := resolveVariable(fieldToMap, order)
+			
+			// Fallback logic for legacy templates that were not mapped yet
+			if val == "" {
+				if i == 1 {
+					val = resolveVariable("customer_name", order)
+				} else if i == 2 {
+					val = resolveVariable("order_id", order)
+				}
+			}
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": val})
 		}
-
-		if requiredCount >= 3 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": shippingCo})
-		}
-		if requiredCount >= 4 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": trackingNum})
-		}
-		if requiredCount >= 5 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": trackingUrl})
-		}
-	} else {
-		// Generic fallback
-		if requiredCount >= 3 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.ShippingCompany)})
-		}
-		if requiredCount >= 4 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingNumber)})
-		}
-		if requiredCount >= 5 {
-			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": entity.DerefStr(order.TrackingUrl)})
-		}
+		components = append(components, map[string]interface{}{
+			"type":       "body",
+			"parameters": bodyParams,
+		})
 	}
 
-	// Trim bodyParams if for some reason we have more than required (safety)
-	if len(bodyParams) > requiredCount && requiredCount > 0 {
-		bodyParams = bodyParams[:requiredCount]
-	}
-
-	components = append(components, map[string]interface{}{
-		"type":       "body",
-		"parameters": bodyParams,
-	})
-
-	// 3b. Handle Buttons (Dynamic URLs)
-	// If the template has a visit_website button, we pass the tracking URL as a parameter.
+	// 2. Buttons Mapping
 	if template.Buttons != nil && string(*template.Buttons) != "null" {
 		var buttons []map[string]interface{}
 		if err := json.Unmarshal(*template.Buttons, &buttons); err == nil {
 			for i, btn := range buttons {
-				// Meta dynamic URL buttons are of type "visit_website"
-				// IMPORTANT: Only send parameters if the URL in the template actually has a variable suffix {{1}}
 				if btn["type"] == "visit_website" {
 					url, _ := btn["url"].(string)
-					trackingURL := entity.DerefStr(order.TrackingUrl)
-
 					if strings.Contains(url, "{{1}}") {
-						// For our branded redirector (https://example.com/t/{{1}}),
-						// we pass the internal Order ID as the parameter.
-						buttonParam := order.ID
+						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
+						fieldToMap := mappings[mapKey]
+						
+						val := resolveVariable(fieldToMap, order)
+						if val == "" {
+							// Legacy fallback for embedded tracking loop
+							val = resolveVariable("internal_order_id", order)
+						}
 
 						components = append(components, map[string]interface{}{
 							"type":     "button",
@@ -186,70 +201,106 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 							"parameters": []map[string]interface{}{
 								{
 									"type": "text",
-									"text": buttonParam,
+									"text": val,
 								},
 							},
 						})
-						log.Printf("Automation Detail: Added tracking_url parameter to dynamic button %d (Param: %d)", i, buttonParam)
-						break // Usually only one tracking button per template
-					} else if trackingURL != "" {
-						log.Printf("Automation Info: Button %d is static (no {{1}}). Skipping parameter injection.", i)
 					}
 				}
+				// Advanced: Flow, Copy Code mapping can be added here
 			}
 		}
 	}
 
-	// 4. Handle Header (Media Attachments)
+	// 3. Header Mapping
 	if template.Header != nil && string(*template.Header) != "null" {
 		var hData struct {
 			Type string `json:"type"`
 		}
 		json.Unmarshal(*template.Header, &hData)
+		hType := strings.ToUpper(hData.Type)
 
-		if strings.ToUpper(hData.Type) == "DOCUMENT" {
-			// For DOCUMENT headers, we generate the actual PDF invoice and upload it to Meta
+		if hType == "TEXT" {
+			var hTextData struct {
+				Text string `json:"text"`
+			}
+			json.Unmarshal(*template.Header, &hTextData)
+			
+			reqCount := s.countRequiredParams(hTextData.Text)
+			if reqCount > 0 {
+				var headerParams []map[string]string
+				for i := 1; i <= reqCount; i++ {
+					mapKey := fmt.Sprintf("header_text_0_{{%d}}", i)
+					val := resolveVariable(mappings[mapKey], order)
+					headerParams = append(headerParams, map[string]string{"type": "text", "text": val})
+				}
+				components = append(components, map[string]interface{}{
+					"type": "header",
+					"parameters": headerParams,
+				})
+			}
+		} else if hType == "DOCUMENT" || hType == "IMAGE" || hType == "VIDEO" {
+			headerHandle := mappings["header_handle"]
+			
+			// Dynamic generation
+			if headerHandle == "Dynamic Invoice" && hType == "DOCUMENT" {
 				log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
-
-				// 1. Fetch line items (required for invoice generation)
 				items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
 				if err != nil {
 					log.Printf("Automation Error: Failed to fetch line items for invoice: %v", err)
 				} else {
-					// 2. Generate PDF bytes
 					var buf bytes.Buffer
 					if err := s.invoiceService.GeneratePDF(order, items, &buf); err != nil {
 						log.Printf("Automation Error: Failed to generate PDF: %v", err)
 					} else {
-						// 3. Upload to WhatsApp Media API to get a Media ID
 						filename := "Invoice_" + order.OrderNumber + ".pdf"
 						id, err := s.messagesService.metaClient.UploadWhatsAppMedia(buf.Bytes(), filename, "application/pdf")
-						if err != nil {
-							log.Printf("Automation Error: Failed to upload invoice to Meta: %v", err)
-							return fmt.Errorf("failed to upload invoice: %w", err)
-						}
-						log.Printf("Automation Success: Uploaded invoice, Media ID: %s", id)
+						if err == nil {
+							var idVal interface{} = id
+							if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
+								idVal = numericID
+							}
 
-						// Meta Cloud API often expects the ID as a numeric value in JSON
-						var idVal interface{} = id
-						if numericID, err := strconv.ParseInt(id, 10, 64); err == nil {
-							idVal = numericID
-						}
-
-						components = append(components, map[string]interface{}{
-							"type": "header",
-							"parameters": []map[string]interface{}{
-								{
-									"type": "document",
-									"document": map[string]interface{}{
-										"id":       idVal,
-										"filename": filename,
+							components = append(components, map[string]interface{}{
+								"type": "header",
+								"parameters": []map[string]interface{}{
+									{
+										"type": "document",
+										"document": map[string]interface{}{
+											"id":       idVal,
+											"filename": filename,
+										},
 									},
 								},
-							},
-						})
+							})
+						} else {
+							log.Printf("Automation Error: Failed to upload invoice to Meta: %v", err)
+						}
 					}
 				}
+			} else if headerHandle != "" {
+				// Static mapped media
+				var idVal interface{} = headerHandle
+				if numericID, err := strconv.ParseInt(headerHandle, 10, 64); err == nil {
+					idVal = numericID
+				}
+				paramType := strings.ToLower(hType)
+				
+				paramObj := map[string]interface{}{"id": idVal}
+				if paramType == "document" {
+					paramObj["filename"] = "Document" // generic fallback name
+				}
+
+				components = append(components, map[string]interface{}{
+					"type": "header",
+					"parameters": []map[string]interface{}{
+						{
+							"type": paramType,
+							paramType: paramObj,
+						},
+					},
+				})
+			}
 		}
 	}
 
@@ -293,4 +344,132 @@ func (s *WebhookMappingService) countRequiredParams(body string) int {
 		}
 	}
 	return max
+}
+
+func resolveCustomerVariable(field string, customer *entity.Customer) string {
+	switch field {
+	case "customer_name":
+		name := entity.DerefStr(customer.FirstName)
+		if name == "" {
+			name = entity.DerefStr(customer.LastName)
+		}
+		if name == "" {
+			return "Customer"
+		}
+		return name
+	case "customer_city":
+		return entity.DerefStr(customer.City)
+	case "customer_state":
+		return entity.DerefStr(customer.State)
+	case "customer_country":
+		return entity.DerefStr(customer.Country)
+	case "customer_zip":
+		return entity.DerefStr(customer.ZipCode)
+	case "customer_address1":
+		return entity.DerefStr(customer.Address1)
+	case "customer_address2":
+		return entity.DerefStr(customer.Address2)
+	case "customer_email":
+		return entity.DerefStr(customer.Email)
+	case "customer_phone":
+		return customer.PhoneNumber
+	case "customer_total_orders":
+		return fmt.Sprintf("%d", customer.TotalOrders)
+	case "customer_total_spent":
+		return fmt.Sprintf("%.2f", customer.TotalSpent)
+	default:
+		return ""
+	}
+}
+
+func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *AutomationTemplate, customer *entity.Customer) error {
+	var mappings map[string]string
+	if template.VariableMappings != nil {
+		json.Unmarshal(*template.VariableMappings, &mappings)
+	}
+	if mappings == nil {
+		mappings = make(map[string]string)
+	}
+
+	var components []interface{}
+
+	requiredCount := s.countRequiredParams(template.Body)
+	if requiredCount > 0 {
+		var bodyParams []map[string]string
+		for i := 1; i <= requiredCount; i++ {
+			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
+			fieldToMap := mappings[mapKey]
+			val := resolveCustomerVariable(fieldToMap, customer)
+			
+			if val == "" && i == 1 {
+				val = resolveCustomerVariable("customer_name", customer)
+			}
+			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": val})
+		}
+		components = append(components, map[string]interface{}{
+			"type":       "body",
+			"parameters": bodyParams,
+		})
+	}
+
+	if template.Buttons != nil && string(*template.Buttons) != "null" {
+		var buttons []map[string]interface{}
+		if err := json.Unmarshal(*template.Buttons, &buttons); err == nil {
+			for i, btn := range buttons {
+				if btn["type"] == "visit_website" {
+					url, _ := btn["url"].(string)
+					if strings.Contains(url, "{{1}}") {
+						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
+						fieldToMap := mappings[mapKey]
+						val := resolveCustomerVariable(fieldToMap, customer)
+						components = append(components, map[string]interface{}{
+							"type":     "button",
+							"sub_type": "url",
+							"index":    strconv.Itoa(i),
+							"parameters": []map[string]interface{}{{"type": "text", "text": val}},
+						})
+					}
+				}
+			}
+		}
+	}
+
+	if template.Header != nil && string(*template.Header) != "null" {
+		var hData struct {
+			Type string `json:"type"`
+		}
+		json.Unmarshal(*template.Header, &hData)
+		hType := strings.ToUpper(hData.Type)
+
+		if hType == "DOCUMENT" || hType == "IMAGE" || hType == "VIDEO" {
+			headerHandle := mappings["header_handle"]
+			if headerHandle != "" {
+				var idVal interface{} = headerHandle
+				if numericID, err := strconv.ParseInt(headerHandle, 10, 64); err == nil {
+					idVal = numericID
+				}
+				paramType := strings.ToLower(hType)
+				paramObj := map[string]interface{}{"id": idVal}
+				if paramType == "document" {
+					paramObj["filename"] = "Document"
+				}
+				components = append(components, map[string]interface{}{
+					"type": "header",
+					"parameters": []map[string]interface{}{
+						{
+							"type": paramType,
+							paramType: paramObj,
+						},
+					},
+				})
+			}
+		}
+	}
+
+	cleanPhone := sanitizePhoneNumber(customer.PhoneNumber)
+	if len(cleanPhone) < 8 {
+		return nil
+	}
+
+	return s.messagesService.SendTemplateMessage(storeID, template.ID, 0, cleanPhone, template.TemplateName, template.Language, components)
 }

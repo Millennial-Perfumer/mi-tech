@@ -1,0 +1,652 @@
+package service
+
+import (
+	"context"
+	"encoding/csv"
+	"fmt"
+	"io"
+	"log"
+	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
+	"mi-tech/internal/repository"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type CustomerService struct {
+	repo          *repository.CustomerRepository
+	orderRepo     repository.OrderRepository
+	shopifyClient *shopify.Client
+}
+
+type CustomerFilter struct {
+	Search    string
+	SortBy    string
+	SortOrder string
+	SourceID  string
+	MinSpent  float64
+	MaxSpent  float64
+	MinOrders int
+	City      string
+	State     string
+	// New fields for Query Style Search
+	FirstName      string
+	LastName       string
+	Email          string
+	FirstNameEmpty bool
+	LastNameEmpty  bool
+	EmailEmpty     bool
+	Page      int
+	PageSize  int
+}
+
+func NewCustomerService(repo *repository.CustomerRepository, orderRepo repository.OrderRepository, shopifyClient *shopify.Client) *CustomerService {
+	return &CustomerService{
+		repo:          repo,
+		orderRepo:     orderRepo,
+		shopifyClient: shopifyClient,
+	}
+}
+
+func (s *CustomerService) normalizePhone(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return ""
+	}
+	// Remove all non-numeric characters except +
+	reg, _ := regexp.Compile(`[^0-9+]`)
+	phone = reg.ReplaceAllString(phone, "")
+
+	if !strings.HasPrefix(phone, "+") {
+		// If it's 10 digits, add +91
+		if len(phone) == 10 {
+			phone = "+91" + phone
+		} else if len(phone) == 12 && strings.HasPrefix(phone, "91") {
+			// If it's 91XXXXXXXXXX, add +
+			phone = "+" + phone
+		} else if !strings.HasPrefix(phone, "91") && len(phone) > 0 {
+			// Default to adding +91 for anything else that looks like a number
+			phone = "+91" + phone
+		}
+	}
+	return phone
+}
+
+// ImportFromCSV parses a Shopify customer export CSV and syncs it to the database.
+func (s *CustomerService) ImportFromCSV(ctx context.Context, r io.Reader, sourceID string) error {
+	reader := csv.NewReader(r)
+	
+	// Read header
+	header, err := reader.Read()
+	if err != nil {
+		return err
+	}
+
+	headerMap := make(map[string]int)
+	for i, h := range header {
+		headerMap[h] = i
+	}
+
+	// Validate essential headers
+	required := []string{"Total Orders", "Total Spent", "First Name"}
+	for _, req := range required {
+		if _, ok := headerMap[req]; !ok {
+			return fmt.Errorf("missing required column: %s", req)
+		}
+	}
+	
+	hasPhone := false
+	if _, ok := headerMap["Phone"]; ok { hasPhone = true }
+	if _, ok := headerMap["Default Address Phone"]; ok { hasPhone = true }
+	if !hasPhone {
+		return fmt.Errorf("missing phone column (Phone or Default Address Phone)")
+	}
+
+	customersByPhone := make(map[string]*entity.Customer)
+	now := time.Now()
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if len(record) < len(header) {
+			continue
+		}
+
+		// Try to get phone number
+		phoneRaw := ""
+		if idx, ok := headerMap["Default Address Phone"]; ok && idx < len(record) {
+			phoneRaw = record[idx]
+		}
+		if phoneRaw == "" || strings.TrimSpace(phoneRaw) == "" {
+			if idx, ok := headerMap["Phone"]; ok && idx < len(record) {
+				phoneRaw = record[idx]
+			}
+		}
+
+		phone := s.normalizePhone(phoneRaw)
+		if phone == "" {
+			continue
+		}
+
+		// Parse stats
+		spent, _ := strconv.ParseFloat(record[headerMap["Total Spent"]], 64)
+		orders, _ := strconv.Atoi(record[headerMap["Total Orders"]])
+
+		customer, ok := customersByPhone[phone]
+		if !ok {
+			customer = &entity.Customer{
+				PhoneNumber: phone,
+				TotalSpent:   0,
+				TotalOrders:  0,
+				SourceID:     sourceID,
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			}
+			customersByPhone[phone] = customer
+		}
+
+		customer.SourceID = sourceID
+
+		customer.TotalSpent += spent
+		customer.TotalOrders += orders
+
+		// Update metadata if this record has more orders or if fields are currently empty
+		if !ok || orders > 0 {
+			s.updateMetadata(customer, record, headerMap)
+		}
+	}
+
+	if len(customersByPhone) == 0 {
+		return fmt.Errorf("no valid customer records found in CSV")
+	}
+
+	var batch []entity.Customer
+	for _, c := range customersByPhone {
+		batch = append(batch, *c)
+	}
+
+	return s.repo.UpsertBatch(ctx, batch)
+}
+
+func (s *CustomerService) updateMetadata(c *entity.Customer, record []string, headerMap map[string]int) {
+	setIfNotEmpty := func(target **string, key string) {
+		if idx, ok := headerMap[key]; ok && idx < len(record) {
+			val := strings.TrimSpace(record[idx])
+			if val != "" {
+				*target = entity.StrPtr(val)
+			}
+		}
+	}
+
+	if idx, ok := headerMap["First Name"]; ok && idx < len(record) {
+		val := s.toTitleCase(strings.TrimSpace(record[idx]))
+		if val != "" {
+			c.FirstName = entity.StrPtr(val)
+		}
+	}
+	if idx, ok := headerMap["Last Name"]; ok && idx < len(record) {
+		val := s.toTitleCase(strings.TrimSpace(record[idx]))
+		if val != "" {
+			c.LastName = entity.StrPtr(val)
+		}
+	}
+	setIfNotEmpty(&c.Email, "Email")
+	setIfNotEmpty(&c.Address1, "Default Address Address1")
+	setIfNotEmpty(&c.Address2, "Default Address Address2")
+	setIfNotEmpty(&c.City, "Default Address City")
+	setIfNotEmpty(&c.ZipCode, "Default Address Zip")
+	setIfNotEmpty(&c.Country, "Default Address Country Code")
+	
+	// State/Province
+	if idx, ok := headerMap["Default Address Province Code"]; ok && idx < len(record) {
+		val := strings.TrimSpace(record[idx])
+		if val != "" {
+			c.State = entity.StrPtr(val)
+		}
+	} else if idx, ok := headerMap["Default Address State"]; ok && idx < len(record) {
+		val := strings.TrimSpace(record[idx])
+		if val != "" {
+			c.State = entity.StrPtr(val)
+		}
+	}
+}
+
+func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Order) error {
+	phone := s.normalizePhone(entity.DerefStr(order.CustomerPhone))
+	if phone == "" {
+		return nil
+	}
+
+	customer := &entity.Customer{
+		PhoneNumber: s.normalizePhone(phone),
+		FirstName:   entity.StrPtr(s.toTitleCase(entity.DerefStr(order.CustomerFirstName))),
+		LastName:    entity.StrPtr(s.toTitleCase(entity.DerefStr(order.CustomerLastName))),
+		Email:       order.CustomerEmail,
+		Address1:    order.CustomerAddress1,
+		Address2:    order.CustomerAddress2,
+		City:        order.CustomerCity,
+		State:       order.CustomerState,
+		Country:     order.CustomerCountry,
+		ZipCode:     order.CustomerZip,
+		UpdatedAt:   time.Now(),
+	}
+
+	existing, err := s.repo.GetByPhone(ctx, phone)
+	if err == nil && existing != nil {
+		customer.TotalOrders = existing.TotalOrders
+		customer.TotalSpent = existing.TotalSpent
+		safeMerge(customer, existing)
+		// Inherit created at
+		customer.CreatedAt = existing.CreatedAt
+	} else {
+		customer.CreatedAt = time.Now()
+	}
+
+	// For now just upsert. In a more advanced version, we'd recalculate totals from orders table.
+	return s.repo.UpsertByPhone(ctx, customer)
+}
+
+// UpdateFromOrdersBatch aggregates customer data from a batch of orders and performs a batch upsert.
+// Optimization: Reduces database roundtrips from O(N) to O(1) by fetching existing customers
+// in a single query and performing a batch upsert.
+// Expected Impact: For a sync of 250 orders, this reduces database calls from ~500 to 2.
+func (s *CustomerService) UpdateFromOrdersBatch(ctx context.Context, orders []entity.Order) error {
+	if len(orders) == 0 {
+		return nil
+	}
+
+	// 1. Group orders by normalized phone number and aggregate PII
+	phoneToCustomer := make(map[string]*entity.Customer)
+	var phones []string
+	now := time.Now()
+
+	for i := range orders {
+		phone := s.normalizePhone(entity.DerefStr(orders[i].CustomerPhone))
+		if phone == "" {
+			continue
+		}
+
+		incoming := &entity.Customer{
+			PhoneNumber: phone,
+			FirstName:   entity.StrPtr(s.toTitleCase(entity.DerefStr(orders[i].CustomerFirstName))),
+			LastName:    entity.StrPtr(s.toTitleCase(entity.DerefStr(orders[i].CustomerLastName))),
+			Email:       orders[i].CustomerEmail,
+			Address1:    orders[i].CustomerAddress1,
+			Address2:    orders[i].CustomerAddress2,
+			City:        orders[i].CustomerCity,
+			State:       orders[i].CustomerState,
+			Country:     orders[i].CustomerCountry,
+			ZipCode:     orders[i].CustomerZip,
+			TotalOrders: 1,
+			TotalSpent:  orders[i].TotalPrice,
+			UpdatedAt:   now,
+		}
+
+		if existing, exists := phoneToCustomer[phone]; exists {
+			incoming.TotalOrders += existing.TotalOrders
+			incoming.TotalSpent += existing.TotalSpent
+			safeMerge(incoming, existing)
+			phoneToCustomer[phone] = incoming
+		} else {
+			phones = append(phones, phone)
+			phoneToCustomer[phone] = incoming
+		}
+	}
+
+	if len(phones) == 0 {
+		return nil
+	}
+
+	// 2. Fetch existing customers in batch to preserve totals and created_at
+	existingCustomers, err := s.repo.GetByPhones(ctx, phones)
+	if err != nil {
+		return fmt.Errorf("UpdateFromOrdersBatch: failed to fetch existing customers: %w", err)
+	}
+
+	existingMap := make(map[string]entity.Customer)
+	for _, c := range existingCustomers {
+		existingMap[c.PhoneNumber] = c
+	}
+
+	// 3. Merge with existing data
+	var customersToUpsert []entity.Customer
+	for _, phone := range phones {
+		customer := phoneToCustomer[phone]
+		if existing, found := existingMap[phone]; found {
+			// Add batch aggregated totals to existing database totals
+			customer.TotalOrders += existing.TotalOrders
+			customer.TotalSpent += existing.TotalSpent
+			customer.CreatedAt = existing.CreatedAt
+			safeMerge(customer, &existing)
+		} else {
+			customer.CreatedAt = now
+		}
+		customersToUpsert = append(customersToUpsert, *customer)
+	}
+
+	// 4. Batch Upsert
+	return s.repo.UpsertBatch(ctx, customersToUpsert)
+}
+
+// UpsertFromWebhook securely updates or creates a customer entirely from a customer webhook payload.
+func (s *CustomerService) UpsertFromWebhook(ctx context.Context, cust *entity.Customer) error {
+	if cust.PhoneNumber == "" {
+		return fmt.Errorf("phone number is required for customer webhook upsert")
+	}
+
+	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+
+	existing, err := s.repo.GetByPhone(ctx, cust.PhoneNumber)
+	if err == nil && existing != nil {
+		safeMerge(cust, existing)
+		cust.CreatedAt = existing.CreatedAt
+		if cust.TotalOrders == 0 && existing.TotalOrders > 0 { cust.TotalOrders = existing.TotalOrders }
+		if cust.TotalSpent == 0 && existing.TotalSpent > 0 { cust.TotalSpent = existing.TotalSpent }
+	} else {
+		if cust.CreatedAt.IsZero() {
+			cust.CreatedAt = time.Now()
+		}
+	}
+
+	if cust.UpdatedAt.IsZero() {
+		cust.UpdatedAt = time.Now()
+	}
+
+	return s.repo.UpsertByPhone(ctx, cust)
+}
+
+func safeMerge(newCust, oldCust *entity.Customer) {
+	if newCust.FirstName == nil { newCust.FirstName = oldCust.FirstName }
+	if newCust.LastName == nil { newCust.LastName = oldCust.LastName }
+	if newCust.Email == nil { newCust.Email = oldCust.Email }
+	if newCust.Address1 == nil { newCust.Address1 = oldCust.Address1 }
+	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
+	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
+	if newCust.City == nil { newCust.City = oldCust.City }
+	if newCust.State == nil { newCust.State = oldCust.State }
+	if newCust.Country == nil { newCust.Country = oldCust.Country }
+	if newCust.ZipCode == nil { newCust.ZipCode = oldCust.ZipCode }
+}
+
+func (s *CustomerService) ListCustomers(ctx context.Context, f CustomerFilter) ([]entity.Customer, int64, error) {
+	if f.Page < 1 { f.Page = 1 }
+	if f.PageSize < 1 { f.PageSize = 20 }
+	offset := (f.Page - 1) * f.PageSize
+
+	if f.Search != "" {
+		parsed := s.parseSearchQuery(f.Search)
+		if parsed.MinSpent > 0 { f.MinSpent = parsed.MinSpent }
+		if parsed.MaxSpent > 0 { f.MaxSpent = parsed.MaxSpent }
+		if parsed.MinOrders > 0 { f.MinOrders = parsed.MinOrders }
+		if parsed.City != "" { f.City = parsed.City }
+		if parsed.State != "" { f.State = parsed.State }
+		if parsed.SourceID != "" { f.SourceID = parsed.SourceID }
+		if parsed.FirstName != "" { f.FirstName = parsed.FirstName }
+		if parsed.LastName != "" { f.LastName = parsed.LastName }
+		if parsed.Email != "" { f.Email = parsed.Email }
+		if parsed.FirstNameEmpty { f.FirstNameEmpty = true }
+		if parsed.LastNameEmpty { f.LastNameEmpty = true }
+		if parsed.EmailEmpty { f.EmailEmpty = true }
+		f.Search = parsed.Search
+	}
+
+	dbSortBy := "updated_at"
+	switch f.SortBy {
+	case "name":
+		dbSortBy = "first_name"
+	case "phone":
+		dbSortBy = "phone_number"
+	case "email":
+		dbSortBy = "email"
+	case "orders":
+		dbSortBy = "total_orders"
+	case "spent":
+		dbSortBy = "total_spent"
+	case "activity":
+		dbSortBy = "updated_at"
+	}
+
+	return s.repo.List(ctx, f.Search, dbSortBy, f.SortOrder, f.SourceID, f.MinSpent, f.MaxSpent, f.MinOrders, f.City, f.State, f.FirstName, f.LastName, f.Email, f.FirstNameEmpty, f.LastNameEmpty, f.EmailEmpty, offset, f.PageSize)
+}
+
+func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
+	f := CustomerFilter{}
+	
+	// Support "field = ''" or "field = \"\""
+	emptyRegex := regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
+	matches := emptyRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		switch field {
+		case "first_name": f.FirstNameEmpty = true
+		case "last_name": f.LastNameEmpty = true
+		case "email": f.EmailEmpty = true
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	// Support "field > 1000" or "field < 5000"
+	rangeRegex := regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
+	matches = rangeRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		op := m[2]
+		val, _ := strconv.ParseFloat(m[3], 64)
+		switch field {
+		case "spent":
+			if op == ">" { f.MinSpent = val } else { f.MaxSpent = val }
+		case "orders":
+			if op == ">" { f.MinOrders = int(val) }
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	// Support "field:value" or "field=value"
+	kvRegex := regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
+	matches = kvRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		val := strings.Trim(m[2], `"'`)
+		switch field {
+		case "city": f.City = val
+		case "state": f.State = val
+		case "first_name": f.FirstName = val
+		case "last_name": f.LastName = val
+		case "email": f.Email = val
+		case "source": f.SourceID = val
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	f.Search = strings.TrimSpace(search)
+	return f
+}
+
+func (s *CustomerService) DeleteAllCustomers(ctx context.Context) error {
+	return s.repo.DeleteAll(ctx)
+}
+
+func (s *CustomerService) toTitleCase(str string) string {
+	if str == "" {
+		return ""
+	}
+	words := strings.Fields(strings.ToLower(str))
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+	return s.repo.GetByIDs(ctx, ids)
+}
+func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
+	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+	// Ensure DeletedAt is reset to reactive the customer if it was previously soft-deleted
+	cust.DeletedAt = gorm.DeletedAt{}
+
+	// 1. Use UpsertByPhone to handle reactive and conflict
+	err := s.repo.UpsertByPhone(ctx, cust)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync to Shopify if requested
+	if syncToShopify && s.shopifyClient != nil {
+		sc := dto.ShopifyRestCustomer{
+			FirstName: entity.DerefStr(cust.FirstName),
+			LastName:  entity.DerefStr(cust.LastName),
+			Email:     entity.DerefStr(cust.Email),
+			Phone:     cust.PhoneNumber,
+			Addresses: []dto.ShopifyRestAddress{
+				{
+					Address1: entity.DerefStr(cust.Address1),
+					Address2: entity.DerefStr(cust.Address2),
+					City:     entity.DerefStr(cust.City),
+					Province: entity.DerefStr(cust.State),
+					Country:  func() string { c := entity.DerefStr(cust.Country); if c == "" { return "India" }; return c }(),
+					Zip:      entity.DerefStr(cust.ZipCode),
+				},
+			},
+		}
+
+		resp, err := s.shopifyClient.CreateCustomer(sc)
+		if err == nil && resp != nil {
+			// Update local customer with shopify ID
+			extID := strconv.FormatInt(resp.ID, 10)
+			cust.ExternalID = &extID
+			cust.SourceID = "shopify"
+			s.repo.Update(ctx, cust)
+		} else if err != nil {
+			log.Printf("Failed to sync new customer to Shopify: %v", err)
+			// We continue because local creation succeeded
+		}
+	}
+
+	return nil
+}
+
+func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
+	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+
+	// 1. Update locally
+	err := s.repo.Update(ctx, cust)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync to Shopify if requested and it has an external ID
+	if syncToShopify && s.shopifyClient != nil && cust.ExternalID != nil && *cust.ExternalID != "" {
+		extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+		if extID > 0 {
+			// Fetch current customer from Shopify to find the address ID to update
+			var addressID int64
+			remoteCust, err := s.shopifyClient.GetCustomer(extID)
+			if err == nil && remoteCust != nil {
+				// Find the default address or just use the first one
+				for _, addr := range remoteCust.Addresses {
+					if addr.Default {
+						addressID = addr.ID
+						break
+					}
+				}
+				if addressID == 0 && len(remoteCust.Addresses) > 0 {
+					addressID = remoteCust.Addresses[0].ID
+				}
+			}
+
+			sc := dto.ShopifyRestCustomer{
+				FirstName: entity.DerefStr(cust.FirstName),
+				LastName:  entity.DerefStr(cust.LastName),
+				Email:     entity.DerefStr(cust.Email),
+				Phone:     cust.PhoneNumber,
+			}
+			
+			if cust.Address1 != nil {
+				sc.Addresses = []dto.ShopifyRestAddress{
+					{
+						ID:       addressID, // Use the ID if we found it
+						Address1: entity.DerefStr(cust.Address1),
+						Address2: entity.DerefStr(cust.Address2),
+						City:     entity.DerefStr(cust.City),
+						Province: entity.DerefStr(cust.State),
+						Country:  func() string { c := entity.DerefStr(cust.Country); if c == "" { return "India" }; return c }(),
+						Zip:      entity.DerefStr(cust.ZipCode),
+						Default:  true,
+					},
+				}
+			}
+
+			_, err = s.shopifyClient.UpdateCustomer(extID, sc)
+			if err != nil {
+				log.Printf("Failed to sync customer update to Shopify: %v", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *CustomerService) GetCustomerByID(ctx context.Context, id int64) (*entity.Customer, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *CustomerService) DeleteCustomer(ctx context.Context, id int64) error {
+	// 1. Get customer to check for Shopify ID
+	cust, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync deletion to Shopify if linked
+	if s.shopifyClient != nil && cust.ExternalID != nil && *cust.ExternalID != "" {
+		extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+		if extID > 0 {
+			err := s.shopifyClient.DeleteCustomer(extID)
+			if err != nil {
+				log.Printf("Failed to sync customer deletion to Shopify: %v", err)
+				// We still delete locally
+			}
+		}
+	}
+
+	// 3. Delete locally (Soft delete)
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID string) error {
+	cust, err := s.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, cust.ID)
+}
+
+func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
+	for _, id := range ids {
+		// Use DeleteCustomer to ensure Shopify sync per customer
+		if err := s.DeleteCustomer(ctx, id); err != nil {
+			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
+		}
+	}
+	return nil
+}

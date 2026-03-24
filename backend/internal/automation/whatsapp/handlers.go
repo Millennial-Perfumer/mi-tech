@@ -54,15 +54,17 @@ type AutomationHandler struct {
 	messagesService  *MessagesService
 	mappingService   *WebhookMappingService
 	orderService     *service.OrderService
+	customerService  *service.CustomerService
 	settings         *config.SettingsProvider
 }
 
-func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, settings *config.SettingsProvider) *AutomationHandler {
+func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, customerService *service.CustomerService, settings *config.SettingsProvider) *AutomationHandler {
 	return &AutomationHandler{
 		templatesService: tService,
 		messagesService:  mService,
 		mappingService:   mappingService,
 		orderService:     orderService,
+		customerService:  customerService,
 		settings:         settings,
 	}
 }
@@ -318,21 +320,23 @@ func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.
 }
 
 func (h *AutomationHandler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID int `json:"id"`
-		CreateTemplateRequest
+	storeID, ok := r.Context().Value("storeID").(string)
+	if !ok || storeID == "" {
+		storeID = "1"
 	}
+
+	var req AutomationTemplate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding update request: %v", err)
+		log.Printf("Error decoding update mappings request: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("Handler: UpdateTemplate request received for ID: %d, Name: %s", req.ID, req.Name)
+	log.Printf("Handler: UpdateTemplateMappings request received for ID: %d", req.ID)
 
-	err := h.templatesService.UpdateTemplate("1", req.ID, req.CreateTemplateRequest)
+	err := h.templatesService.UpdateTemplateMappings(storeID, req.ID, req.VariableMappings)
 	if err != nil {
-		log.Printf("UpdateTemplate failed: %v", err)
+		log.Printf("UpdateTemplateMappings failed: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -496,4 +500,125 @@ func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		CustomerIDs []uint `json:"customer_ids"`
+		TemplateID  int    `json:"template_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.CustomerIDs) == 0 || req.TemplateID == 0 {
+		http.Error(w, "customer_ids and template_id are required", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Fetch template and verify name suffix
+	template, err := h.templatesService.repo.GetTemplateByID(req.TemplateID)
+	if err != nil || template == nil {
+		http.Error(w, "Template not found", http.StatusNotFound)
+		return
+	}
+
+	suffix := h.settings.GetBulkTemplateSuffix()
+	if !strings.HasSuffix(template.TemplateName, suffix) {
+		http.Error(w, fmt.Sprintf("Only templates ending with %s are allowed for bulk selection", suffix), http.StatusBadRequest)
+		return
+	}
+
+	// 2. Fetch customers
+	customers, err := h.customerService.GetCustomersByIDs(r.Context(), req.CustomerIDs)
+	if err != nil {
+		http.Error(w, "Failed to fetch customers", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Process sending (async or batch)
+	// For now, we'll do it sequentially but we could use a goroutine if it's too many
+	successCount := 0
+	for _, cust := range customers {
+		if cust.PhoneNumber == "" {
+			continue
+		}
+
+		// Call the mapping service for marketing templates
+		err := h.mappingService.ExecuteMarketingSend(cust.SourceID, template, &cust)
+		if err == nil {
+			successCount++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"sent":    successCount,
+		"total":   len(customers),
+	})
+}
+func (h *AutomationHandler) FetchTemplateFromMeta(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		http.Error(w, "Template name is required", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Handler: FetchTemplateFromMeta called for name: %s", name)
+	req, err := h.templatesService.FetchRemoteTemplate(name)
+	if err != nil {
+		log.Printf("FetchRemoteTemplate failed: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(req)
+}
+
+func (h *AutomationHandler) SyncAllTemplates(w http.ResponseWriter, r *http.Request) {
+	storeID, ok := r.Context().Value("storeID").(string)
+	if !ok || storeID == "" {
+		storeID = "1" // Fallback to primary store ID
+	}
+	
+	log.Printf("Handler: SyncAllTemplates called for store_id: %s", storeID)
+	err := h.templatesService.SyncAllTemplates(storeID)
+	if err != nil {
+		log.Printf("Handler: SyncAllTemplates service error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Successfully synced all templates from Meta"})
+}
+
+func (h *AutomationHandler) SyncSingleTemplate(w http.ResponseWriter, r *http.Request) {
+	storeID, ok := r.Context().Value("storeID").(string)
+	if !ok || storeID == "" {
+		storeID = "1"
+	}
+
+	templateName := r.URL.Query().Get("name")
+	if templateName == "" {
+		http.Error(w, "missing template name parameter", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.templatesService.SyncSingleTemplate(storeID, templateName); err != nil {
+		log.Printf("Handler: SyncSingleTemplate service error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Successfully imported template from Meta"})
 }

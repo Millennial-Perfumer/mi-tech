@@ -3,9 +3,8 @@
 -- This prevents duplication when the same order is reported with different source names (e.g. 'amazon' vs 'shopify').
 
 -- 1. Identify and remove any existing duplicates before applying the new constraint
--- (Optional but recommended for a clean migration)
--- DELETE FROM orders a USING orders b 
--- WHERE a.id > b.id AND a.external_order_id = b.external_order_id;
+DELETE FROM orders a USING orders b 
+WHERE a.id > b.id AND a.external_order_id = b.external_order_id;
 
 -- 2. Drop the old composite unique constraint
 -- Note: The name of the constraint might vary depending on how it was created. 
