@@ -38,6 +38,7 @@ type Order struct {
 	CustomerAddress1  *string          `gorm:"column:customer_address1"`
 	CustomerAddress2  *string          `gorm:"column:customer_address2"`
 	CustomerZip       *string          `gorm:"column:customer_zip"`
+	CustomerExternalID *string          `gorm:"column:customer_external_id"`
 	RawPayload        *json.RawMessage `gorm:"column:raw_payload;type:jsonb"`
 	LineItems         []LineItem       `gorm:"foreignKey:OrderID"`
 }
@@ -46,16 +47,16 @@ func (Order) TableName() string { return "orders" }
 
 // LineItem represents a row in the "order_line_items" table.
 type LineItem struct {
-	ID        string   `gorm:"column:id;primaryKey"`
-	OrderID   int64    `gorm:"column:order_id"`
-	ProductID *string  `gorm:"column:product_id"`
-	VariantID *string  `gorm:"column:variant_id"`
-	Title     *string  `gorm:"column:title"`
-	SKU       *string  `gorm:"column:sku"`
-	HSCode    *string  `gorm:"column:hs_code"`
-	Quantity  int      `gorm:"column:quantity"`
-	Price     float64  `gorm:"column:price"`
-	Discount  float64  `gorm:"column:discount"`
+	ID        string  `gorm:"column:id;primaryKey"`
+	OrderID   int64   `gorm:"column:order_id"`
+	ProductID *string `gorm:"column:product_id"`
+	VariantID *string `gorm:"column:variant_id"`
+	Title     *string `gorm:"column:title"`
+	SKU       *string `gorm:"column:sku"`
+	HSCode    *string `gorm:"column:hs_code"`
+	Quantity  int     `gorm:"column:quantity"`
+	Price     float64 `gorm:"column:price"`
+	Discount  float64 `gorm:"column:discount"`
 }
 
 func (LineItem) TableName() string { return "order_line_items" }

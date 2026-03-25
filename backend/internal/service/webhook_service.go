@@ -98,12 +98,12 @@ func (s *WebhookService) ProcessOrderCancelled(externalOrderID string, cancelled
 func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillment) error {
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
 	log.Printf("Processing fulfillments/create for Order ID: %s. Refreshing from Shopify API...", extOrderID)
-	
+
 	err := s.RefreshOrder(extOrderID)
 	if err != nil {
 		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
 		// Fallback: update tracking info from payload
-		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, "")
+		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, entity.DerefStr(f.ShipmentStatus))
 	}
 	return nil
 }
@@ -112,12 +112,12 @@ func (s *WebhookService) ProcessFulfillmentCreate(f dto.ShopifyWebhookFulfillmen
 func (s *WebhookService) ProcessFulfillmentUpdate(f dto.ShopifyWebhookFulfillment) error {
 	extOrderID := strconv.FormatInt(f.OrderID, 10)
 	log.Printf("Processing fulfillments/update for Order ID: %s. Refreshing from Shopify API...", extOrderID)
-	
+
 	err := s.RefreshOrder(extOrderID)
 	if err != nil {
 		log.Printf("Webhook Warning: Failed to refresh order %s from API: %v. Falling back to payload update.", extOrderID, err)
 		// Fallback: update tracking info from payload
-		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, "")
+		return s.orderService.UpdateTrackingInfo(extOrderID, f.TrackingNumber, f.TrackingCompany, f.TrackingUrl, entity.DerefStr(f.ShipmentStatus))
 	}
 	return nil
 }
@@ -134,7 +134,7 @@ func (s *WebhookService) RefreshOrder(externalOrderID string) error {
 
 	order := mapper.GraphQLOrderToEntity(*so)
 	order.LineItems = mapper.GraphQLLineItemsToEntities(order.ID, so.LineItems)
-	
+
 	return s.orderService.UpsertOrder(order)
 }
 

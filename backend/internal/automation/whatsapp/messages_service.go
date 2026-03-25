@@ -54,12 +54,16 @@ func (s *MessagesService) HandleStatusUpdate(messageID, status string) error {
 	return s.repo.UpdateMessageStatus(messageID, status)
 }
 
-func (s *MessagesService) GetMessages(storeID string, startDate, endDate *time.Time, search string, limit, offset int) ([]AutomationMessage, error) {
-	return s.repo.GetMessages(storeID, startDate, endDate, search, limit, offset)
+func (s *MessagesService) GetMessages(storeID string, startDate, endDate *time.Time, search string, templateName string, limit, offset int) ([]AutomationMessage, error) {
+	return s.repo.GetMessages(storeID, startDate, endDate, search, templateName, limit, offset)
 }
 
-func (s *MessagesService) GetMessagesCount(storeID string, startDate, endDate *time.Time, search string) (int, error) {
-	return s.repo.GetMessagesCount(storeID, startDate, endDate, search)
+func (s *MessagesService) GetActiveTemplateNamesForFilter(storeID string, startDate, endDate *time.Time, search string) ([]string, error) {
+	return s.repo.GetActiveTemplateNamesForFilter(storeID, startDate, endDate, search)
+}
+
+func (s *MessagesService) GetMessagesCount(storeID string, startDate, endDate *time.Time, search string, templateName string) (int, error) {
+	return s.repo.GetMessagesCount(storeID, startDate, endDate, search, templateName)
 }
 
 func (s *MessagesService) GetAutomationMetrics(storeID string, startDate, endDate *time.Time) (map[string]interface{}, error) {

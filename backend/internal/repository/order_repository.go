@@ -34,7 +34,7 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 	}
 	if filter.Search != "" {
 		searchTerm := "%" + filter.Search + "%"
-		query = query.Where("order_number ILIKE ? OR customer_name ILIKE ? OR customer_email ILIKE ? OR customer_phone ILIKE ? OR tracking_number ILIKE ?", 
+		query = query.Where("order_number ILIKE ? OR customer_name ILIKE ? OR customer_email ILIKE ? OR customer_phone ILIKE ? OR tracking_number ILIKE ?",
 			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 	if filter.Source != "" {
@@ -168,6 +168,24 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			r.mergePII(&existing, &order)
 		}
 
+		// 1.5 Auto-Link Customer PII if phone is missing but external_id is present
+		if r.isWeak(order.CustomerPhone) && !r.isWeak(order.CustomerExternalID) {
+			var cust entity.Customer
+			if err := tx.Where("external_id = ?", *order.CustomerExternalID).First(&cust).Error; err == nil {
+				if cust.PhoneNumber != "" {
+					order.CustomerPhone = &cust.PhoneNumber
+					log.Printf("Repository: Order %s auto-linked to customer %s to restore phone.", order.OrderNumber, cust.PhoneNumber)
+
+					// Also restore other fields if possible
+					if r.isWeak(order.CustomerFirstName) { order.CustomerFirstName = cust.FirstName }
+					if r.isWeak(order.CustomerLastName) { order.CustomerLastName = cust.LastName }
+					if r.isWeak(order.CustomerEmail) { order.CustomerEmail = cust.Email }
+					if r.isWeak(order.CustomerCity) { order.CustomerCity = cust.City }
+					if r.isWeak(order.CustomerState) { order.CustomerState = cust.State }
+				}
+			}
+		}
+
 		// 2. Upsert the order
 		if err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "external_order_id"}},
@@ -178,7 +196,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 				"total_tax", "customer_name", "customer_email", "customer_phone",
 				"customer_city", "customer_state", "customer_country",
 				"customer_address1", "customer_address2", "customer_zip",
-				"customer_first_name", "customer_last_name", "raw_payload",
+				"customer_first_name", "customer_last_name", "raw_payload", "customer_external_id",
 			}),
 		}).Omit("LineItems").Create(&order).Error; err != nil {
 			return fmt.Errorf("failed to upsert order: %w", err)
@@ -260,7 +278,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "tracking_url",
 				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
-				"raw_payload",
+				"raw_payload", "customer_external_id",
 			}),
 		}).Omit("LineItems").Create(&orders).Error; err != nil {
 			return fmt.Errorf("failed to batch upsert orders: %w", err)

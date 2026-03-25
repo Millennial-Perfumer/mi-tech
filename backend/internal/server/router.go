@@ -9,6 +9,7 @@ import (
 	"mi-tech/internal/service"
 
 	_ "mi-tech/docs"
+
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 

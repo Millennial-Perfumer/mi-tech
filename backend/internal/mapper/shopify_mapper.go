@@ -12,13 +12,18 @@ import (
 
 // GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.
 func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
-	var custName, custEmail, custPhone, custCity, custState, custCountry string
+	var custName, custEmail, custPhone, custCity, custState, custCountry, addr1, addr2, zip string
 
 	custEmail = so.Email
+	var custExternalID string
 	if so.Customer != nil {
 		custName = strings.TrimSpace(so.Customer.DisplayName)
 		if custName == "" {
 			custName = strings.TrimSpace(so.Customer.FirstName + " " + so.Customer.LastName)
+		}
+		custExternalID = so.Customer.ID
+		if custPhone == "" {
+			custPhone = so.Customer.Phone
 		}
 	}
 
@@ -150,6 +155,10 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		CustomerCity:      strPtr(custCity),
 		CustomerState:     strPtr(custState),
 		CustomerCountry:   strPtr(custCountry),
+		CustomerAddress1:  strPtr(addr1),
+		CustomerAddress2:  strPtr(addr2),
+		CustomerZip:       strPtr(zip),
+		CustomerExternalID: strPtr(custExternalID),
 	}
 }
 
