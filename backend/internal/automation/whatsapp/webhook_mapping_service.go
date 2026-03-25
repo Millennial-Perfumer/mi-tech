@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var phoneRegex = regexp.MustCompile(`[^0-9]`)
@@ -42,31 +43,30 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 }
 
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
-	log.Printf("Automation Start: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
+	log.Printf("Automation Started: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
 
 	// 1. Find matching trigger
-	var template *AutomationTemplate
-	var err error
-
 	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
 	if err != nil {
+		log.Printf("Automation Error: Database error fetching trigger for topic %s: %v", topic, err)
 		return fmt.Errorf("error fetching trigger: %w", err)
 	}
 	if trigger == nil {
-		log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s)", topic, storeID)
+		log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s). Check triggers table.", topic, storeID)
 		return nil
 	}
-	template, err = s.templatesRepo.GetTemplateByID(trigger.TemplateID)
 
+	template, err := s.templatesRepo.GetTemplateByID(trigger.TemplateID)
 	if err != nil {
+		log.Printf("Automation Error: Database error fetching template %d: %v", trigger.TemplateID, err)
 		return fmt.Errorf("error fetching template: %w", err)
 	}
 	if template == nil {
-		log.Printf("Automation Error: Template not found for topic %s", topic)
+		log.Printf("Automation Error: Template %d not found for trigger on topic %s", trigger.TemplateID, topic)
 		return fmt.Errorf("template not found")
 	}
 
-	log.Printf("Automation Progress: Found template: %s (ID: %d)", template.TemplateName, template.ID)
+	log.Printf("Automation Progress: Found template: %s (ID: %d). Proceeding to execute.", template.TemplateName, template.ID)
 	return s.executeWithTemplate(storeID, template, order, topic)
 }
 
@@ -132,12 +132,22 @@ func resolveVariable(field string, order entity.Order) string {
 func (s *WebhookMappingService) executeWithTemplate(storeID string, template *AutomationTemplate, order entity.Order, topic string) error {
 	// Deduplication Check (only for automated topics)
 	if topic != "manual" {
-		allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/updated"
-		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
+		// Only allow multiple sends for final tracking-only updates if needed.
+		// For all other cases (creation, cancellation), if we already sent this template for this order, skip.
+		allowMultiple := topic == "orders/out_for_delivery" || topic == "orders/delivered"
+
+		// Use a time window for "Assigned" or "Dispatched" to allow for cancel+reassign by humans
+		// while blocking near-simultaneous redundant webhooks from Shopify.
+		var since time.Time
+		if topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/dispatched" {
+			since = time.Now().Add(-2 * time.Minute)
+		}
+
+		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID, since)
 		if err != nil {
 			log.Printf("Automation Error: Deduplication check failed for order %d: %v", order.ID, err)
 		} else if sent && !allowMultiple {
-			log.Printf("Automation Skip: Template %s already sent for order %d. Skipping duplicate.", template.TemplateName, order.ID)
+			log.Printf("Automation Skip: Template %s already sent for order %d (Topic: %s) within dedupe window. Skipping.", template.TemplateName, order.ID, topic)
 			return nil
 		}
 	}

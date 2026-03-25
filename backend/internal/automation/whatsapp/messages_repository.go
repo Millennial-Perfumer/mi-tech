@@ -47,9 +47,17 @@ func (r *MessagesRepository) SaveMessage(m AutomationMessage) (int, error) {
 	return id, err
 }
 
-func (r *MessagesRepository) HasSentTemplate(orderID int64, templateID int) (bool, error) {
+func (r *MessagesRepository) HasSentTemplate(orderID int64, templateID int, since time.Time) (bool, error) {
 	var count int
-	err := r.db.QueryRow("SELECT COUNT(*) FROM automation_messages WHERE order_id = $1 AND template_id = $2 AND status != 'failed'", orderID, templateID).Scan(&count)
+	query := "SELECT COUNT(*) FROM automation_messages WHERE order_id = $1 AND template_id = $2 AND status != 'failed'"
+	args := []interface{}{orderID, templateID}
+
+	if !since.IsZero() {
+		query += " AND sent_at > $3"
+		args = append(args, since)
+	}
+
+	err := r.db.QueryRow(query, args...).Scan(&count)
 	return count > 0, err
 }
 
