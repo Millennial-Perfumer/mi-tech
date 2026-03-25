@@ -43,7 +43,21 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 }
 
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
-	log.Printf("Automation Started: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
+	// 1. Acquire Advisory Lock to prevent simultaneous Race Conditions for the same order.
+	// We use pg_advisory_xact_lock which automatically releases at the end of the transaction.
+	tx, err := s.messagesService.repo.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	// Use a lock keyed to the internal order ID
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock(hashtext('automation_' || $1))", order.ID)
+	if err != nil {
+		return fmt.Errorf("failed to acquire advisory lock: %v", err)
+	}
+
+	log.Printf("Automation Started [Locked]: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
 
 	// 1. Find matching trigger
 	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
@@ -67,7 +81,12 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	}
 
 	log.Printf("Automation Progress: Found template: %s (ID: %d). Proceeding to execute.", template.TemplateName, template.ID)
-	return s.executeWithTemplate(storeID, template, order, topic)
+	err = s.executeWithTemplate(storeID, template, order, topic)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int, order entity.Order) error {
