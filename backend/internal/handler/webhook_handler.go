@@ -55,14 +55,13 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 	webhookDeliveryID := r.Header.Get("X-Shopify-Webhook-Id")
 	log.Printf("Received Webhook: %s (Delivery ID: %s)", topic, webhookDeliveryID)
 
-	// Record activity
-	h.webhookService.RecordActivity(topic)
-
 	// Return 200 immediately
 	w.WriteHeader(http.StatusOK)
 
 	// Process asynchronously
 	go func() {
+		log.Printf("Webhook background processing started for delivery %s", webhookDeliveryID)
+		h.webhookService.RecordActivity(topic)
 		// Duplicate check
 		processed, err := h.webhookService.IsProcessed(webhookDeliveryID)
 		if err != nil {
@@ -88,6 +87,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			}
 			externalID = strconv.FormatInt(payload.ID, 10)
 			automationTopic = topic
+			log.Printf("Webhook Processing: Handling topic %s for External ID %s", topic, externalID)
 
 			switch topic {
 			case "orders/create":
@@ -108,13 +108,20 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				return
 			}
 			externalID = strconv.FormatInt(payload.OrderID, 10)
+			log.Printf("Webhook Processing: Handling topic %s for Order External ID %s", topic, externalID)
 
 			switch topic {
 			case "fulfillments/create":
 				automationTopic = "orders/assigned"
 				processErr = h.webhookService.ProcessFulfillmentCreate(payload)
 			case "fulfillments/update":
-				automationTopic = "fulfillments/update"
+				// Granular status mapping for Automation
+				if payload.ShipmentStatus != nil && *payload.ShipmentStatus == "in_transit" {
+					automationTopic = "orders/dispatched"
+					log.Printf("Webhook Processing: Fulfillment In Transit -> Using topic: %s", automationTopic)
+				} else {
+					automationTopic = "fulfillments/update"
+				}
 				processErr = h.webhookService.ProcessFulfillmentUpdate(payload)
 			}
 		} else if strings.HasPrefix(topic, "customers/") {
@@ -124,6 +131,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				return
 			}
 			externalID = strconv.FormatInt(payload.ID, 10)
+			log.Printf("Webhook Processing: Handling topic %s for Customer External ID %s", topic, externalID)
 
 			switch topic {
 			case "customers/create", "customers/update":
@@ -138,6 +146,8 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 		if processErr != nil {
 			log.Printf("Webhook Error: Failed to process %s: %v", topic, processErr)
+		} else {
+			log.Printf("Webhook Success: Completed processing for topic %s and ID %s", topic, externalID)
 		}
 
 		// Save webhook event log
@@ -169,7 +179,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 			if h.mappingService != nil && automationTopic != "" {
 				log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %d", automationTopic, order.ID)
-				
+
 				// Re-verify granular status ONLY for fulfillment updates.
 				if topic == "fulfillments/update" {
 					deliveryStatus := ""
@@ -231,11 +241,13 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	secret := h.settings.GetShopifyWebhookSecret()
 	if secret == "" {
+		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Skipping validation.")
 		return true
 	}
 
 	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")
 	if hmacHeader == "" {
+		log.Printf("Webhook Error: Missing X-Shopify-Hmac-Sha256 header")
 		return false
 	}
 
@@ -243,5 +255,14 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
-	return hmacHeader == expectedHmac
+	isMatch := hmacHeader == expectedHmac
+	if !isMatch {
+		log.Printf("Webhook HMAC Mismatch!")
+		log.Printf("  Received: %s", hmacHeader)
+		log.Printf("  Expected: %s", expectedHmac)
+		log.Printf("  Body Length: %d", len(body))
+		log.Printf("  Secret Length: %d", len(secret))
+	}
+
+	return isMatch
 }

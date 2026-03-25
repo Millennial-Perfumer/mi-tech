@@ -134,7 +134,8 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
   const webhookOptions = [
     { value: 'orders/create', label: 'Order Placed' },
     { value: 'orders/assigned', label: 'Order Assigned' },
-    { value: 'orders/fulfilled', label: 'Order Dispatched' },
+    { value: 'orders/fulfilled', label: 'Order Packed / Fulfilled' },
+    { value: 'orders/dispatched', label: 'Order Dispatched / Picked Up' },
     { value: 'orders/out_for_delivery', label: 'Order Out for Delivery' },
     { value: 'orders/delivered', label: 'Order Delivered' },
     { value: 'orders/updated', label: 'Order Updated' },
@@ -258,7 +259,12 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
               triggers.map(tr => (
                 <tr key={tr.id} style={{ transition: 'background-color 0.2s' }} className="hover-row">
                   <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
-                    <code style={{ background: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>{tr.webhook_topic}</code>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>
+                        {webhookOptions.find(opt => opt.value === tr.webhook_topic)?.label || tr.webhook_topic}
+                      </span>
+                      <code style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{tr.webhook_topic}</code>
+                    </div>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', color: '#1e293b', fontWeight: 500 }}>
                     {templates.find(t => t.id === tr.template_id)?.template_name || `ID: ${tr.template_id}`}

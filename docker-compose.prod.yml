@@ -29,6 +29,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-tempo:4317}
       # Add other necessary backend environment variables here
@@ -73,6 +74,7 @@ services:
 
 networks:
   app-network:
+    name: app-network
     driver: bridge
 
 volumes:
