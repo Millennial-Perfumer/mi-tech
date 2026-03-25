@@ -1065,7 +1065,12 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px', borderRadius: '6px' }} className="hover-bg">
+                            <button
+                                onClick={() => setShowAddModal(false)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px', borderRadius: '6px' }}
+                                className="hover-bg"
+                                aria-label="Close modal"
+                            >
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
@@ -1380,7 +1385,7 @@ const BulkTemplateModal: React.FC<{
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
                 <div className="modal-header">
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>Send Bulk Messages</h2>
-                    <button className="close-button" onClick={onClose}>&times;</button>
+                    <button className="close-button" onClick={onClose} aria-label="Close modal">&times;</button>
                 </div>
 
                 <div className="modal-body" style={{ padding: '1.5rem' }}>
@@ -1409,10 +1414,17 @@ const BulkTemplateModal: React.FC<{
                                     No templates found ending with <code style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px' }}>{bulkSuffix}</code> or none are approved yet.
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                <div
+                                    role="listbox"
+                                    aria-label="Bulk message templates"
+                                    style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}
+                                >
                                     {templates.map(t => (
-                                        <div
+                                        <button
                                             key={t.id}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={selectedTemplate?.id === t.id}
                                             onClick={() => setSelectedTemplate(t)}
                                             style={{
                                                 padding: '1rem',
@@ -1421,7 +1433,10 @@ const BulkTemplateModal: React.FC<{
                                                 borderColor: selectedTemplate?.id === t.id ? '#38bdf8' : '#e2e8f0',
                                                 background: selectedTemplate?.id === t.id ? '#f0f9ff' : 'white',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.2s'
+                                                transition: 'all 0.2s',
+                                                textAlign: 'left',
+                                                width: '100%',
+                                                fontFamily: 'inherit'
                                             }}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -1431,7 +1446,7 @@ const BulkTemplateModal: React.FC<{
                                             <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                                 {t.body}
                                             </p>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
                             )}
