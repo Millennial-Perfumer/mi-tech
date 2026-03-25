@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -138,12 +139,26 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(challenge))
+
+		if mode != "" && token != "" {
+			expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+			if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
+				log.Printf("WhatsApp Webhook verified successfully")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(challenge))
+				return
+			}
+			log.Printf("WhatsApp Webhook verification failed: mode=%s", mode)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
+
+		log.Printf("WhatsApp Webhook verification failed: missing parameters")
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
