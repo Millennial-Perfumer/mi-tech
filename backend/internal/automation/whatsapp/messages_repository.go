@@ -95,7 +95,8 @@ func (r *MessagesRepository) GetMessagesByOrderID(orderID int64) ([]AutomationMe
 	}
 	return messages, nil
 }
-func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *time.Time, search string, limit, offset int) ([]AutomationMessage, error) {
+
+func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *time.Time, search string, templateName string, limit, offset int) ([]AutomationMessage, error) {
 	query := `
 		SELECT 
 			m.id, m.store_id, m.template_id, t.template_name, 
@@ -121,8 +122,13 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 	}
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		query += fmt.Sprintf(" AND (m.order_id ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
+		query += fmt.Sprintf(" AND (m.order_id::TEXT ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
 		args = append(args, searchTerm)
+		placeholderID++
+	}
+	if templateName != "" {
+		query += fmt.Sprintf(" AND t.template_name = $%d", placeholderID)
+		args = append(args, templateName)
 		placeholderID++
 	}
 
@@ -142,9 +148,9 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 	var messages []AutomationMessage
 	for rows.Next() {
 		var m AutomationMessage
-		var templateName, orderNumber, customerName, errorMsg sql.NullString
+		var templateNameVal, orderNumber, customerName, errorMsg sql.NullString
 		err := rows.Scan(
-			&m.ID, &m.StoreID, &m.TemplateID, &templateName,
+			&m.ID, &m.StoreID, &m.TemplateID, &templateNameVal,
 			&m.OrderID, &orderNumber, &customerName,
 			&m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt,
 			&m.DeliveredAt, &m.ReadAt, &errorMsg,
@@ -152,7 +158,7 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 		if err != nil {
 			return nil, err
 		}
-		m.TemplateName = templateName.String
+		m.TemplateName = templateNameVal.String
 		m.OrderNumber = orderNumber.String
 		m.CustomerName = customerName.String
 		m.ErrorMessage = errorMsg.String
@@ -161,11 +167,59 @@ func (r *MessagesRepository) GetMessages(storeID string, startDate, endDate *tim
 	return messages, nil
 }
 
-func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate *time.Time, search string) (int, error) {
+func (r *MessagesRepository) GetActiveTemplateNamesForFilter(storeID string, startDate, endDate *time.Time, search string) ([]string, error) {
+	query := `
+		SELECT DISTINCT t.template_name 
+		FROM automation_messages m
+		JOIN automation_templates t ON m.template_id = t.id
+		LEFT JOIN orders o ON m.order_id = o.id
+		WHERE m.store_id = $1`
+
+	args := []interface{}{storeID}
+	placeholderID := 2
+
+	if startDate != nil {
+		query += fmt.Sprintf(" AND m.sent_at >= $%d", placeholderID)
+		args = append(args, *startDate)
+		placeholderID++
+	}
+	if endDate != nil {
+		query += fmt.Sprintf(" AND m.sent_at <= $%d", placeholderID)
+		args = append(args, *endDate)
+		placeholderID++
+	}
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query += fmt.Sprintf(" AND (m.order_id::TEXT ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
+		args = append(args, searchTerm)
+		placeholderID++
+	}
+
+	query += " ORDER BY t.template_name"
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate *time.Time, search string, templateName string) (int, error) {
 	query := `
 		SELECT COUNT(*) 
 		FROM automation_messages m
 		LEFT JOIN orders o ON m.order_id = o.id
+		LEFT JOIN automation_templates t ON t.id = m.template_id
 		WHERE m.store_id = $1`
 	args := []interface{}{storeID}
 	placeholderID := 2
@@ -182,8 +236,13 @@ func (r *MessagesRepository) GetMessagesCount(storeID string, startDate, endDate
 	}
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		query += fmt.Sprintf(" AND (m.order_id ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
+		query += fmt.Sprintf(" AND (m.order_id::TEXT ILIKE $%d OR o.order_number ILIKE $%d OR m.phone_number ILIKE $%d)", placeholderID, placeholderID, placeholderID)
 		args = append(args, searchTerm)
+		placeholderID++
+	}
+	if templateName != "" {
+		query += fmt.Sprintf(" AND t.template_name = $%d", placeholderID)
+		args = append(args, templateName)
 		placeholderID++
 	}
 
@@ -260,6 +319,7 @@ func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *
 	}
 	return metrics["failed"].(int), nil
 }
+
 func (r *MessagesRepository) GetOrderLineItems(orderID int64) ([]entity.LineItem, error) {
 	query := `SELECT id, order_id, product_id, variant_id, title, sku, hs_code, quantity, price, discount FROM order_line_items WHERE order_id = $1`
 	rows, err := r.db.Query(query, orderID)

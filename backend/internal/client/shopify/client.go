@@ -355,6 +355,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 
 	return result.Data.Order, nil
 }
+
 // CreateCustomer creates a customer in Shopify using the REST API.
 func (c *Client) CreateCustomer(customer dto.ShopifyRestCustomer) (*dto.ShopifyRestCustomer, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
