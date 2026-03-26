@@ -777,7 +777,12 @@ function App() {
                       Sync Shopify
                     </button>
                   )}
-                  <ColumnSelector columns={AVAILABLE_COLUMNS} visibleColumns={visibleColumns} onChange={setVisibleColumns} />
+                  <ColumnSelector
+                    columns={AVAILABLE_COLUMNS}
+                    visibleColumns={visibleColumns}
+                    onChange={setVisibleColumns}
+                    onReset={() => setVisibleColumns(DEFAULT_VISIBLE_COLUMNS)}
+                  />
                 </div>
               </div>
 
@@ -997,6 +1002,7 @@ function App() {
                             <button 
                               className="btn-icon-minimal" 
                               title="Send WhatsApp Message"
+                              aria-label="Send WhatsApp Message"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setWhatsappOrder(order);
@@ -1170,6 +1176,8 @@ function App() {
                   </a>
                   <button 
                     className="copy-btn-minimal"
+                    title="Copy tracking number"
+                    aria-label="Copy tracking number"
                     onClick={(e) => {
                       navigator.clipboard.writeText(trackingOrder.tracking_number);
                       const btn = e.currentTarget;
