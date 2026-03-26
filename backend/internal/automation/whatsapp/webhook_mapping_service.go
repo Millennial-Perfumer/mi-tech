@@ -51,8 +51,9 @@ func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order enti
 	}
 	defer tx.Rollback()
 
-	// Use a lock keyed to the internal order ID
-	_, err = tx.Exec("SELECT pg_advisory_xact_lock(hashtext('automation_' || $1))", order.ID)
+	// Use a 2-argument lock: (constant_namespace_hash, order_id)
+	// Postgres expects (int32, int32) for the 2-argument version.
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock(hashtext('automation'), $1::int)", order.ID)
 	if err != nil {
 		return fmt.Errorf("failed to acquire advisory lock: %v", err)
 	}
