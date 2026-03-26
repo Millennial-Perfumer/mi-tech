@@ -374,7 +374,6 @@ func safeMerge(newCust, oldCust *entity.Customer) {
 	if newCust.Email == nil { newCust.Email = oldCust.Email }
 	if newCust.Address1 == nil { newCust.Address1 = oldCust.Address1 }
 	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
-	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
 	if newCust.City == nil { newCust.City = oldCust.City }
 	if newCust.State == nil { newCust.State = oldCust.State }
 	if newCust.Country == nil { newCust.Country = oldCust.Country }
