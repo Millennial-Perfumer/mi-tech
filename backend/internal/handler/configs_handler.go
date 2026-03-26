@@ -51,16 +51,23 @@ func (h *ConfigsHandler) RevealConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate password against the users table (same as login)
+	// Get username from context
+	username, ok := r.Context().Value("username").(string)
+	if !ok || username == "" {
+		http.Error(w, "Unauthorized: user identity not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate password against the users table for the CURRENT user
 	var user struct {
 		PasswordHash string `gorm:"column:password_hash"`
 	}
-	if err := h.db.Table("users").Select("password_hash").First(&user).Error; err != nil {
+	if err := h.db.Table("users").Select("password_hash").Where("username = ?", username).First(&user).Error; err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"message": "No admin user found",
+			"message": "User not found",
 		})
 		return
 	}
