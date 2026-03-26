@@ -6,6 +6,7 @@ import (
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CustomerRepository struct {
@@ -179,21 +180,28 @@ func (r *CustomerRepository) List(ctx context.Context, search, sortBy, sortOrder
 }
 
 // UpsertBatch performs a batch upsert of customers.
-// Uses a transaction and individual raw SQL upserts to ensure reliability.
+// Optimization: Replaces iterative raw SQL calls with a single GORM batch create.
+// Expected Impact: Reduces database roundtrips from O(N) to O(1).
 func (r *CustomerRepository) UpsertBatch(ctx context.Context, customers []entity.Customer) error {
 	if len(customers) == 0 {
 		return nil
 	}
 
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		repo := &CustomerRepository{db: tx}
-		for i := range customers {
-			if err := repo.UpsertByPhone(ctx, &customers[i]); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	// We use clause.OnConflict to handle the upsert logic.
+	// The partial unique index 'idx_customers_phone_unique_active' is targeted via TargetWhere.
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		TargetWhere: clause.Where{
+			Exprs: []clause.Expression{
+				clause.Expr{SQL: "deleted_at IS NULL"},
+			},
+		},
+		Columns: []clause.Column{{Name: "phone_number"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"first_name", "last_name", "email", "address1", "address2",
+			"city", "state", "country", "zip_code", "total_orders", "total_spent",
+			"updated_at",
+		}),
+	}).Create(&customers).Error
 }
 
 func (r *CustomerRepository) GetByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
