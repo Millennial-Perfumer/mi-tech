@@ -193,7 +193,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 					case "out for delivery", "out_for_delivery":
 						automationTopic = "orders/out_for_delivery"
 					case "picked up", "in transit", "in_transit", "picked_up":
-						automationTopic = "orders/fulfilled"
+						automationTopic = "orders/dispatched"
 					case "confirmed":
 						log.Printf("Automation Info: Fulfillment status is 'confirmed' (Order %d). Skipping as assignment is handled by fulfillments/create.", order.ID)
 						return
