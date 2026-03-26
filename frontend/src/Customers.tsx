@@ -1409,12 +1409,17 @@ const BulkTemplateModal: React.FC<{
                                     No templates found ending with <code style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px' }}>{bulkSuffix}</code> or none are approved yet.
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                <div role="listbox" aria-label="Select bulk WhatsApp template" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                                     {templates.map(t => (
-                                        <div
+                                        <button
                                             key={t.id}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={selectedTemplate?.id === t.id}
                                             onClick={() => setSelectedTemplate(t)}
                                             style={{
+                                                width: '100%',
+                                                textAlign: 'left',
                                                 padding: '1rem',
                                                 borderRadius: '12px',
                                                 border: '2px solid',
@@ -1431,7 +1436,7 @@ const BulkTemplateModal: React.FC<{
                                             <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                                 {t.body}
                                             </p>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
                             )}
