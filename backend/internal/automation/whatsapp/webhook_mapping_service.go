@@ -152,15 +152,17 @@ func resolveVariable(field string, order entity.Order) string {
 func (s *WebhookMappingService) executeWithTemplate(storeID string, template *AutomationTemplate, order entity.Order, topic string) error {
 	// Deduplication Check (only for automated topics)
 	if topic != "manual" {
-		// Only allow multiple sends for final tracking-only updates if needed.
-		// For all other cases (creation, cancellation), if we already sent this template for this order, skip.
-		allowMultiple := topic == "orders/out_for_delivery" || topic == "orders/delivered"
+		// For most automated cases (creation, cancellation, delivery), keep it strictly once per order.
+		allowMultiple := false
 
-		// Use a time window for "Assigned" or "Dispatched" to allow for cancel+reassign by humans
-		// while blocking near-simultaneous redundant webhooks from Shopify.
+		// Use a time window for status updates to block near-simultaneous redundant webhooks from Shopify
+		// while still allowing for legitimate retries (e.g., re-dispatching later).
 		var since time.Time
 		if topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/dispatched" {
 			since = time.Now().Add(-2 * time.Minute)
+		} else if topic == "orders/out_for_delivery" || topic == "orders/delivered" {
+			// 1-hour window for delivery tracking status
+			since = time.Now().Add(-1 * time.Hour)
 		}
 
 		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID, since)

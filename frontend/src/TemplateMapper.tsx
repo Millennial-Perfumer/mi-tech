@@ -102,13 +102,13 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
   };
 
   return (
-    <div className="template-mapper" style={{ padding: '2rem', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+    <div className="template-mapper" style={{ padding: '2rem', backgroundColor: 'var(--bg-color)', minHeight: '100vh' }}>
       <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e293b', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
             Map Variables: {template.template_name}
           </h2>
-          <p style={{ color: '#64748b', fontSize: '1rem' }}>Map your local system data to Meta's dynamic parameters.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>Map your local system data to Meta's dynamic parameters.</p>
         </div>
         <button className="btn-secondary" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -119,13 +119,13 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '2.5rem', alignItems: 'start' }}>
         
         {/* Mapping Form */}
-        <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <div style={{ backgroundColor: 'var(--surface-color)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <form onSubmit={handleSave}>
             
             {/* Header Mapping Section */}
             {isHeaderDynamic && (
               <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Header ({headerType})</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Header ({headerType})</h3>
                 
                 {headerType === 'TEXT' && headerTextCount > 0 && Array.from({ length: headerTextCount }).map((_, i) => (
                   <div key={`header_${i+1}`} className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -144,7 +144,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                   <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <label style={{ margin: 0 }}>Dynamic Allocation</label>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>Provide a static Media ID, or select Dynamic Invoice to auto-generate.</p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Provide a static Media ID, or select Dynamic Invoice to auto-generate.</p>
                     </div>
                     {/* The handle maps to either a Media ID string or predefined handle like 'Dynamic Invoice' */}
                     {headerType === 'DOCUMENT' ? (
@@ -174,7 +174,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
             {/* Body Mapping Section */}
             {bodyVarCount > 0 && (
               <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Body Parameters</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Body Parameters</h3>
                 {Array.from({ length: bodyVarCount }).map((_, i) => (
                   <div key={`body_${i+1}`} className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <label style={{ margin: 0, fontWeight: 600, color: '#0ea5e9' }}>{`{{${i+1}}}`}</label>
@@ -194,14 +194,14 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
             {/* Buttons Mapping Section */}
             {buttons.length > 0 && buttons.some(b => b.type === 'visit_website' && (b.url || '').includes('{{1}}')) && (
               <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Dynamic Buttons</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Dynamic Buttons</h3>
                 {buttons.map((btn, i) => {
                   if (btn.type === 'visit_website' && (btn.url || '').includes('{{1}}')) {
                     return (
                       <div key={`btn_${i}`} className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <label style={{ margin: 0 }}>URL Loop Variable (Button {i+1})</label>
-                          <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>{btn.url}</p>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{btn.url}</p>
                         </div>
                         <select 
                           value={mappings[`button_url_${i}_{{1}}`] || ''}
@@ -229,7 +229,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
               <button type="button" className="btn-secondary" onClick={onBack} disabled={isSaving}>
                 {hasVariables ? 'Cancel' : 'Back'}
               </button>

@@ -200,7 +200,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
                           (String(a.order_number).startsWith('#') ? a.order_number : `#${a.order_number}`) : 
                           (a.order_id ? (String(a.order_id).startsWith('#') ? a.order_id : `#${a.order_id}`) : '-')}
                       </div>
-                      {a.customer_name && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{a.customer_name}</div>}
+                      {a.customer_name && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{a.customer_name}</div>}
                     </td>
                     <td><code>{a.template_name}</code></td>
                     <td>{formatPhoneNumber(a.phone_number)}</td>

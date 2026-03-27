@@ -148,7 +148,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
-          <div style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8' }}>
+          <div style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-tertiary)' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="m6 9 6 6 6-6"/>
             </svg>
@@ -198,7 +198,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
                 Loading message logs...
               </td></tr>
             ) : messages.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '4rem', color: '#64748b' }}>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
                 No messages found for this period.
               </td></tr>
             ) : (
@@ -214,7 +214,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
                           (String(m.order_number).startsWith('#') ? m.order_number : `#${m.order_number}`) : 
                           (m.order_id ? (String(m.order_id).startsWith('#') ? m.order_id : `#${m.order_id}`) : 'Bulk/Test')}
                       </span>
-                      {m.customer_name && <span style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>{m.customer_name}</span>}
+                      {m.customer_name && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.customer_name}</span>}
                     </div>
                   </td>
                   <td style={{ fontWeight: 500 }}>{formatPhoneNumber(m.phone_number)}</td>

@@ -6,6 +6,7 @@ import type { ColumnOption } from './ColumnSelector';
 import { GSTReports } from './GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
+import fullLogoDark from './assets/full_logo_dark_theme.png';
 import { Login } from './Login';
 import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import { SettingsTab } from './SettingsTab';
@@ -86,6 +87,17 @@ function App() {
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('gstAppActiveTab') || 'dashboard';
   });
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('appTheme') as 'light' | 'dark') || 'light';
+  });
+
+  // Apply theme to <html> element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('appTheme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
   const userRole = token ? (() => {
     try {
@@ -570,7 +582,7 @@ function App() {
       )}
       <aside className="sidebar">
         <div className="sidebar-brand" style={{ justifyContent: 'flex-start', paddingLeft: '1rem', marginBottom: '2rem' }}>
-          <img src={fullLogo} alt="Mi Tech" style={{ width: '140px', height: 'auto', objectFit: 'contain' }} />
+          <img src={theme === 'dark' ? fullLogoDark : fullLogo} alt="Mi Tech" style={{ width: '140px', height: 'auto', objectFit: 'contain' }} />
         </div>
         
         <nav className="sidebar-nav">
@@ -600,15 +612,43 @@ function App() {
           </a>
           {userRole === 'admin' && (
             <a href="#" className={`nav-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               RBAC
             </a>
           )}
-          <a href="#" className="nav-item" onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            Sign Out
-          </a>
         </nav>
+
+        <div className="sidebar-footer">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0.25rem 0.5rem' }}>
+            <div className="sidebar-user">
+              <div className="sidebar-user-avatar">{userRole === 'admin' ? 'A' : 'U'}</div>
+              <div className="sidebar-user-info">
+                <div className="sidebar-user-name">{userRole === 'admin' ? 'Admin' : 'User'}</div>
+                <div className="sidebar-user-role">{userRole}</div>
+              </div>
+            </div>
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
+          </div>
+          <button
+            className="nav-item"
+            onClick={handleLogout}
+            style={{ color: '#ef4444', width: '100%', textAlign: 'left' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            Sign Out
+          </button>
+        </div>
       </aside>
 
       <main className="main-content">
@@ -642,16 +682,16 @@ function App() {
             alignItems: 'center', 
             marginBottom: '2rem',
             padding: '1.25rem 1.5rem',
-            background: 'white',
+            background: 'var(--surface-color)',
             borderRadius: '16px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-            border: '1px solid #f1f5f9'
+            boxShadow: 'var(--shadow-sm)',
+            border: '1px solid var(--border-color)'
           }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
                 {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'customers' ? 'Customer Directory' : 'Shopify Orders'}
               </h1>
-              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: 500 }}>
+              <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>
                 {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : activeTab === 'customers' ? 'Manage and analyze your customer base' : 'Manage your Shopify store orders'}
               </p>
             </div>
@@ -664,7 +704,7 @@ function App() {
 
               {(activeTab === 'dashboard' || activeTab === 'reports' || activeTab === 'shopify') && (
                 <>
-                  <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0' }}></div>
+                  <div style={{ width: '1px', height: '32px', backgroundColor: 'var(--border-color)' }}></div>
                   <CustomDatePicker 
                     startDate={startDate} 
                     endDate={endDate} 
@@ -676,60 +716,90 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'dashboard' && (
-          <>
-            <section className="dashboard-grid">
-              <div className="card">
-                <h3 className="card-title">Total Revenue</h3>
-                <div className="card-value">₹{metrics?.total_revenue?.toLocaleString('en-IN') || '0'}</div>
-              </div>
-              <div className="card">
-                <h3 className="card-title">Total Invoices</h3>
-                <div className="card-value">{metrics?.total_invoices?.toLocaleString('en-IN') || '0'}</div>
-              </div>
-              <div className="card">
-                <h3 className="card-title">Total GST Collected</h3>
-                <div className="card-value">₹{metrics?.total_gst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</div>
-              </div>
-              <div className="card" style={{gridColumn: 'span 3'}}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 className="card-title" style={{ fontSize: '0.75rem', color: 'var(--accent-color)' }}>CGST Collected</h3>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>₹{metrics?.cgst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</div>
-                  </div>
-                  <div style={{ flex: 1, borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
-                    <h3 className="card-title" style={{ fontSize: '0.75rem', color: 'var(--accent-color)' }}>SGST Collected</h3>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>₹{metrics?.sgst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</div>
-                  </div>
-                  <div style={{ flex: 1, borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
-                    <h3 className="card-title" style={{ fontSize: '0.75rem', color: 'var(--accent-color)' }}>IGST Collected</h3>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>₹{metrics?.igst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</div>
-                  </div>
+        {activeTab === 'dashboard' && metrics && (
+          <section className="page-enter">
+            {/* Hero Row: Revenue + GST */}
+            <div className="metrics-hero-grid">
+              <div className="metric-card metric-card-hero">
+                <div className="metric-icon metric-icon-1">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div className="metric-label">Total Revenue</div>
+                <div className="metric-value">₹{metrics?.total_revenue?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</div>
+                <div className="metric-sub">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  {metrics?.total_invoices?.toLocaleString('en-IN') || '0'} invoices
                 </div>
               </div>
-              <div className="card" style={{ borderColor: 'var(--border-color)' }}>
-                <h3 className="card-title">Total Orders</h3>
-                <div className="card-value">{metrics?.total_orders?.toLocaleString() || '0'}</div>
+              <div className="metric-card metric-card-hero">
+                <div className="metric-icon metric-icon-2">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div className="metric-label">Total GST Collected</div>
+                <div className="metric-value">₹{metrics?.total_gst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</div>
+                <div className="gst-breakdown">
+                  <span className="gst-pill">CGST ₹{metrics?.cgst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</span>
+                  <span className="gst-pill">SGST ₹{metrics?.sgst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</span>
+                  <span className="gst-pill">IGST ₹{metrics?.igst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</span>
+                </div>
               </div>
-              <div className="card" style={{ borderColor: '#fee2e2' }}>
-                <h3 className="card-title" style={{ color: '#991b1b' }}>Cancelled Orders</h3>
-                <div className="card-value" style={{ color: '#991b1b' }}>{metrics?.cancelled_orders?.toLocaleString() || '0'}</div>
+            </div>
+
+            {/* Order Metrics Grid */}
+            <div className="metrics-grid">
+              <div className="metric-card">
+                <div className="metric-icon metric-icon-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                </div>
+                <div className="metric-label">Total Orders</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="card" style={{ borderColor: '#dcfce7' }}>
-                <h3 className="card-title" style={{ color: '#166534' }}>Fulfilled Orders</h3>
-                <div className="card-value" style={{ color: '#166534' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
+              <div className="metric-card">
+                <div className="metric-icon metric-icon-2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div className="metric-label">Fulfilled</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: '#10b981' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="card" style={{ borderColor: '#fef9c3' }}>
-                <h3 className="card-title" style={{ color: '#854d0e' }}>Unfulfilled Orders</h3>
-                <div className="card-value" style={{ color: '#854d0e' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
+              <div className="metric-card">
+                <div className="metric-icon metric-icon-3">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div className="metric-label">Unfulfilled</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: '#f59e0b' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-            </section>
-          </>
+              <div className="metric-card">
+                <div className="metric-icon metric-icon-4">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                </div>
+                <div className="metric-label">Cancelled</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: '#ef4444' }}>{metrics?.cancelled_orders?.toLocaleString() || '0'}</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-icon metric-icon-5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div className="metric-label">Avg. Order Value</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'dashboard' && isLoading && (
+          <section className="metrics-hero-grid">
+            {[1,2].map(i => (
+              <div key={i} className="metric-card metric-card-hero" style={{ minHeight: 130 }}>
+                <div style={{ width: 80, height: 12, borderRadius: 6, background: 'var(--border-color)', marginBottom: 8 }} />
+                <div style={{ width: 140, height: 28, borderRadius: 6, background: 'var(--border-color)' }} />
+              </div>
+            ))}
+          </section>
         )}
 
         {activeTab === 'shopify' && (
           <section className="table-container">
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.025em', marginBottom: '0.25rem' }}>Webhook Status</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -786,7 +856,7 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'white', padding: '0.5rem', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-input)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
                   <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                   <input 
@@ -795,7 +865,14 @@ function App() {
                     aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                    style={{ paddingLeft: '2.5rem', fontSize: '0.875rem' }}
+                    style={{ 
+                      paddingLeft: '2.5rem', 
+                      fontSize: '0.875rem', 
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      width: '100%'
+                    }}
                   />
                 </div>
                 
