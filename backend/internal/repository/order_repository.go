@@ -202,18 +202,22 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			return fmt.Errorf("failed to upsert order: %w", err)
 		}
 
-		// 3. Explicitly synchronize line items
+		// 3. Explicitly synchronize line items in batch
 		// We delete all and re-create to ensure quantities and titles are fresh.
 		if err := tx.Where("order_id = ?", order.ID).Delete(&entity.LineItem{}).Error; err != nil {
 			return fmt.Errorf("failed to clean old line items: %w", err)
 		}
 
-		for _, item := range order.LineItems {
-			item.OrderID = order.ID
+		if len(order.LineItems) > 0 {
+			// Optimization: Set OrderID by index to update original slice elements.
+			for i := range order.LineItems {
+				order.LineItems[i].OrderID = order.ID
+			}
+			// Optimization: Batch insert line items in a single O(1) roundtrip.
 			if err := tx.Clauses(clause.OnConflict{
 				UpdateAll: true,
-			}).Create(&item).Error; err != nil {
-				return fmt.Errorf("failed to insert line item %s: %w", item.ID, err)
+			}).Create(&order.LineItems).Error; err != nil {
+				return fmt.Errorf("failed to batch insert line items: %w", err)
 			}
 		}
 
