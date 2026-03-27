@@ -93,10 +93,10 @@ function MultiSelectFilter({ label, options, selectedOptions, onChange, icon }: 
           fontWeight: 600,
           height: '42px',
           borderRadius: '10px',
-          border: '1px solid #e2e8f0',
-          backgroundColor: isOpen ? '#f1f5f9' : 'white',
+          border: '1px solid var(--border-color)',
+          backgroundColor: isOpen ? 'var(--bg-hover)' : 'var(--surface-color)',
           transition: 'all 0.2s ease',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          boxShadow: 'var(--shadow-sm)',
           whiteSpace: 'nowrap'
         }}
       >
@@ -111,8 +111,8 @@ function MultiSelectFilter({ label, options, selectedOptions, onChange, icon }: 
       {isOpen && (
         <div className="column-selector-dropdown" style={{ right: 0, minWidth: '180px', zIndex: 100 }}>
           <div className="column-category">
-            <div className="column-category-title">{label}</div>
-            <label className="column-option" style={{ borderBottom: '1px solid #f1f5f9', marginBottom: '8px', paddingBottom: '8px' }}>
+            <div className="column-category-title" style={{ color: 'var(--text-primary)' }}>{label}</div>
+            <label className="column-option" style={{ borderBottom: '1px solid var(--border-color)', marginBottom: '8px', paddingBottom: '8px' }}>
               <input
                 type="checkbox"
                 checked={selectedOptions.length === options.length}
@@ -306,14 +306,14 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
   };
 
   return (
-    <div className="automation-section" style={{ padding: '2rem', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+    <div className="automation-section" style={{ padding: '2rem', backgroundColor: 'var(--bg-color)', minHeight: '100vh' }}>
       {/* Header Area */}
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 850, color: '#1e293b', letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>
             WhatsApp Templates
           </h2>
-          <p style={{ color: '#64748b', fontSize: '1.05rem', maxWidth: '600px', lineHeight: '1.5' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', maxWidth: '600px', lineHeight: '1.5' }}>
             Centralized hub for managing your Meta WhatsApp templates. Sync directly from Meta and map variables to your local data.
           </p>
         </div>
@@ -357,11 +357,11 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
         justifyContent: 'space-between', 
         alignItems: 'center', 
         marginBottom: '1.5rem', 
-        backgroundColor: 'white', 
+        backgroundColor: 'var(--surface-color)', 
         padding: '0.75rem 1rem', 
         borderRadius: '16px', 
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        border: '1px solid #e2e8f0'
+        boxShadow: 'var(--shadow-sm)',
+        border: '1px solid var(--border-color)'
       }}>
         <div style={{ position: 'relative', width: '350px' }}>
           <svg 
@@ -378,11 +378,12 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
             style={{ 
               paddingLeft: '42px', 
               borderRadius: '10px', 
-              border: '1px solid #e2e8f0',
+              border: '1px solid var(--border-color)',
               fontSize: '0.95rem',
               width: '100%',
               height: '42px',
-              backgroundColor: '#f8fafc'
+              backgroundColor: 'var(--bg-input)',
+              color: 'var(--text-primary)'
             }}
           />
         </div>
@@ -419,14 +420,14 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
       </div>
 
       <div className="table-container" style={{ 
-        backgroundColor: 'white', 
+        backgroundColor: 'var(--surface-color)', 
         borderRadius: '16px', 
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+        border: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-sm)',
         overflow: 'hidden'
       }}>
         <table style={{ minWidth: '1000px', borderCollapse: 'collapse' }}>
-          <thead style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+          <thead style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
             <tr style={{ textAlign: 'left' }}>
               {visibleColumns.includes('template_name') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Template Name</th>}
               {visibleColumns.includes('category') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</th>}
@@ -466,8 +467,8 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
                 })
                 .map(t => (
                   <tr key={t.id}>
-                  {visibleColumns.includes('template_name') && <td><strong>{t.template_name}</strong></td>}
-                  {visibleColumns.includes('category') && <td><span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#64748b' }}>{t.category}</span></td>}
+                  {visibleColumns.includes('template_name') && <td><strong style={{ color: 'var(--text-primary)' }}>{t.template_name}</strong></td>}
+                  {visibleColumns.includes('category') && <td><span className="badge" style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{t.category}</span></td>}
                   {visibleColumns.includes('language') && <td>{t.language}</td>}
                   {visibleColumns.includes('sent_count') && <td style={{ textAlign: 'center' }}><strong>{t.sent_count || 0}</strong></td>}
                   {visibleColumns.includes('delivered_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.delivered_count > 0 ? '#00a884' : 'inherit' }}>{t.delivered_count || 0}</span></td>}

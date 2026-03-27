@@ -335,10 +335,10 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 gap: '1.5rem',
                 marginBottom: '2rem',
                 padding: '2rem',
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                background: 'var(--surface-color)',
                 borderRadius: '20px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-                border: '1px solid #f1f5f9',
+                boxShadow: 'var(--shadow-md)',
+                border: '1px solid var(--border-color)',
                 borderTop: '4px solid var(--accent-color)',
                 position: 'relative',
                 overflow: 'hidden'
@@ -370,21 +370,21 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             }}>
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                             </div>
-                            <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em' }}>
+                            <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
                                 Customer Directory
                             </h1>
                         </div>
-                        <p style={{ margin: 0, color: '#64748b', fontSize: '1rem', fontWeight: 500, paddingLeft: '3.2rem' }}>
+                        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '1rem', fontWeight: 500, paddingLeft: '3.2rem' }}>
                             Manage and analyze your customer base across all sources
                         </p>
                     </div>
                     
                     <div style={{ 
-                        background: 'white', 
+                        background: 'var(--surface-color)', 
                         padding: '1rem 1.5rem', 
                         borderRadius: '16px', 
-                        border: '1px solid #e2e8f0',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)',
+                        border: '1px solid var(--border-color)',
+                        boxShadow: 'var(--shadow-sm)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '1rem',
@@ -394,17 +394,17 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             width: '40px', 
                             height: '40px', 
                             borderRadius: '10px', 
-                            background: '#f1f5f9', 
+                            background: 'var(--bg-hover)', 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center',
-                            color: '#64748b'
+                            color: 'var(--text-secondary)'
                         }}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
                         </div>
                         <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Customers</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>{total.toLocaleString()}</div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Customers</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>{total.toLocaleString()}</div>
                         </div>
                     </div>
                 </div>
@@ -441,8 +441,8 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 alignItems: 'center', 
                                 gap: '10px', 
                                 borderRadius: '12px',
-                                background: 'white',
-                                border: '1px solid #e2e8f0',
+                                background: 'var(--surface-color)',
+                                border: '1px solid var(--border-color)',
                                 transition: 'all 0.2s'
                             }}
                         >
@@ -459,8 +459,8 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 alignItems: 'center', 
                                 gap: '10px', 
                                 borderRadius: '12px',
-                                background: 'white',
-                                border: '1px solid #e2e8f0',
+                                background: 'var(--surface-color)',
+                                border: '1px solid var(--border-color)',
                                 transition: 'all 0.2s'
                             }}
                         >
@@ -569,15 +569,15 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 </div>
 
                 {showFilters && (
-                    <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', animation: 'slideDown 0.3s ease-out' }}>
+                    <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-input)', animation: 'slideDown 0.3s ease-out' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>Origin Source</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Origin Source</label>
                                 <select 
                                     className="form-input" 
                                     value={filterSource} 
                                     onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}
-                                    style={{ width: '100%', height: '40px', background: 'white' }}
+                                    style={{ width: '100%', height: '40px', background: 'var(--bg-input)' }}
                                 >
                                     <option value="">All Sources</option>
                                     {sources.map(s => (
@@ -586,29 +586,29 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>Total Spent (Min)</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Total Spent (Min)</label>
                                 <input 
                                     type="number" 
                                     className="form-input" 
                                     placeholder="e.g. 1000" 
                                     value={minSpent} 
                                     onChange={(e) => { setMinSpent(e.target.value); setPage(1); }} 
-                                    style={{ width: '100%', height: '40px', background: 'white' }}
+                                    style={{ width: '100%', height: '40px', background: 'var(--bg-input)' }}
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>Min Orders</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Min Orders</label>
                                 <input 
                                     type="number" 
                                     className="form-input" 
                                     placeholder="e.g. 5" 
                                     value={minOrders} 
                                     onChange={(e) => { setMinOrders(e.target.value); setPage(1); }} 
-                                    style={{ width: '100%', height: '40px', background: 'white' }}
+                                    style={{ width: '100%', height: '40px', background: 'var(--bg-input)' }}
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>City / State</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>City / State</label>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <input 
                                         type="text" 
@@ -616,7 +616,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                         placeholder="City" 
                                         value={city} 
                                         onChange={(e) => { setCity(e.target.value); setPage(1); }} 
-                                        style={{ width: '50%', height: '40px', background: 'white' }}
+                                        style={{ width: '50%', height: '40px', background: 'var(--bg-input)' }}
                                     />
                                     <input 
                                         type="text" 
@@ -624,7 +624,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                         placeholder="State" 
                                         value={state} 
                                         onChange={(e) => { setState(e.target.value); setPage(1); }} 
-                                        style={{ width: '50%', height: '40px', background: 'white' }}
+                                        style={{ width: '50%', height: '40px', background: 'var(--bg-input)' }}
                                     />
                                 </div>
                             </div>
@@ -701,9 +701,9 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                         style={{ 
                                             cursor: 'pointer', 
                                             transition: 'background 0.2s',
-                                            background: selectedCustomerIDs.has(c.id) ? '#f0f9ff' : 'transparent'
+                                            background: selectedCustomerIDs.has(c.id) ? 'var(--accent-subtle)' : 'transparent'
                                         }}
-                                        onMouseEnter={(e) => !selectedCustomerIDs.has(c.id) && (e.currentTarget.style.background = '#f8fafc')}
+                                        onMouseEnter={(e) => !selectedCustomerIDs.has(c.id) && (e.currentTarget.style.background = 'var(--bg-hover)')}
                                         onMouseLeave={(e) => !selectedCustomerIDs.has(c.id) && (e.currentTarget.style.background = 'transparent')}
                                     >
                                         <td onClick={(e) => e.stopPropagation()} style={{ width: '40px', padding: '0 1rem' }}>
@@ -889,23 +889,70 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 <h2 style={{ margin: 0 }}>{selectedCustomer.first_name || 'Guest'} {selectedCustomer.last_name || 'Customer'}</h2>
                                 <p style={{ color: '#64748b', margin: '4px 0 0' }}>ID: {selectedCustomer.id.toString().substring(0, 8)}{selectedCustomer.id.toString().length > 8 ? '...' : ''}</p>
                             </div>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); editExistingCustomer(selectedCustomer); }}
-                                style={{ marginLeft: 'auto', background: '#f0f9ff', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#0369a1', fontWeight: 600, fontSize: '0.85rem' }}
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path></svg>
-                                Edit
-                            </button>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(selectedCustomer.id); }}
-                                style={{ background: '#fef2f2', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: '#b91c1c', fontWeight: 600, fontSize: '0.85rem' }}
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                Delete
-                            </button>
+                            {userRole === 'admin' && (
+                                <>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); editExistingCustomer(selectedCustomer); }}
+                                        style={{ 
+                                            marginLeft: 'auto', 
+                                            background: 'transparent', 
+                                            border: '1px solid var(--accent-color)', 
+                                            padding: '0.5rem 1rem', 
+                                            borderRadius: '8px', 
+                                            cursor: 'pointer', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: '6px', 
+                                            color: 'var(--accent-color)', 
+                                            fontWeight: 600, 
+                                            fontSize: '0.85rem',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-subtle)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path></svg>
+                                        Edit
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(selectedCustomer.id); }}
+                                        style={{ 
+                                            background: 'transparent', 
+                                            border: '1px solid #ef4444', 
+                                            padding: '0.5rem 1rem', 
+                                            borderRadius: '8px', 
+                                            cursor: 'pointer', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: '6px', 
+                                            color: '#ef4444', 
+                                            fontWeight: 600, 
+                                            fontSize: '0.85rem',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        Delete
+                                    </button>
+                                </>
+                            )}
                             <button 
                                 onClick={() => setSelectedCustomer(null)}
-                                style={{ background: '#f1f5f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}
+                                style={{ 
+                                    marginLeft: userRole !== 'admin' ? 'auto' : '0',
+                                    background: 'var(--bg-hover)', 
+                                    border: 'none', 
+                                    width: '32px', 
+                                    height: '32px', 
+                                    borderRadius: '50%', 
+                                    cursor: 'pointer', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    color: 'var(--text-secondary)' 
+                                }}
                                 aria-label="Close customer details"
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -913,19 +960,19 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Orders</p>
-                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1e293b' }}>{selectedCustomer.total_orders || 0}</p>
+                            <div style={{ background: 'var(--bg-input)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Orders</p>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{selectedCustomer.total_orders || 0}</p>
                             </div>
-                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Spent</p>
+                            <div style={{ background: 'var(--bg-input)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Spent</p>
                                 <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#10b981' }}>₹{(selectedCustomer.total_spent || 0).toFixed(2)}</p>
                             </div>
                         </div>
 
                         <div style={{ display: 'grid', gap: '1.5rem' }}>
                             <section>
-                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>Contact Information</h3>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Contact Information</h3>
                                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.95rem' }}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
@@ -939,8 +986,8 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             </section>
 
                             <section>
-                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>Address</h3>
-                                <div style={{ color: '#475569', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Address</h3>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5' }}>
                                     {selectedCustomer.address1 ? (
                                         <>
                                             <div>{selectedCustomer.address1}</div>
@@ -954,16 +1001,16 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 </div>
                             </section>
 
-                            <section style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', marginTop: '0.5rem' }}>
+                            <section style={{ background: 'var(--bg-input)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                                     <div>
-                                        <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Source</p>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Source</p>
                                         <span className={`badge ${selectedCustomer.source_id === 'shopify' ? 'badge-primary' : 'badge-secondary'}`}>
                                             {selectedCustomer.source_id || 'manual'}
                                         </span>
                                     </div>
                                     <div>
-                                        <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Member Since</p>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Member Since</p>
                                         <p style={{ fontSize: '0.9rem', margin: 0, fontWeight: 500 }}>{selectedCustomer.created_at ? new Date(selectedCustomer.created_at).toLocaleDateString() : 'N/A'}</p>
                                     </div>
                                 </div>

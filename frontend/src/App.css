@@ -20,21 +20,17 @@
 }
 
 .premium-modal {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
   border-radius: 24px;
   width: 100%;
   max-width: 440px;
-  box-shadow: 
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-lg);
   padding: 2.5rem;
   position: relative;
   animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  transition: background-color var(--transition-slow);
 }
 
 .premium-modal.wide {
@@ -62,13 +58,13 @@
 .premium-modal h2 {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-primary);
   margin-bottom: 0.75rem;
   letter-spacing: -0.03em;
 }
 
 .premium-modal p {
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.95rem;
   line-height: 1.6;
   margin-bottom: 2rem;
@@ -85,7 +81,7 @@
   display: block;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-secondary);
   margin-bottom: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -100,27 +96,27 @@
 .sync-input-wrapper svg {
   position: absolute;
   left: 1rem;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   pointer-events: none;
-  transition: color 0.2s;
+  transition: color var(--transition-base);
 }
 
 .premium-date-input {
   width: 100%;
   padding: 0.875rem 1rem 0.875rem 2.75rem !important;
-  background: #f8fafc !important;
-  border: 2px solid #f1f5f9 !important;
+  background: var(--bg-input) !important;
+  border: 2px solid var(--border-color) !important;
   border-radius: 12px !important;
   font-family: inherit;
   font-size: 1rem !important;
-  color: #1e293b !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  color: var(--text-primary) !important;
+  transition: all var(--transition-base) !important;
 }
 
 .premium-date-input:focus {
-  background: #ffffff !important;
+  background: var(--surface-color) !important;
   border-color: var(--accent-color) !important;
-  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1) !important;
+  box-shadow: 0 0 0 4px var(--accent-subtle) !important;
 }
 
 .premium-date-input:focus + svg {
@@ -139,10 +135,10 @@
 }
 
 .confirm-box {
-  background: #f0f9ff;
+  background: var(--accent-subtle);
   border-radius: 16px;
   padding: 1.25rem;
-  border: 1px solid #e0f2fe;
+  border: 1px solid rgba(14, 165, 233, 0.15);
   margin-bottom: 2rem;
 }
 
@@ -153,13 +149,13 @@
 }
 
 .confirm-label {
-  color: #0369a1;
+  color: var(--accent-color);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .confirm-value {
-  color: #0c4a6e;
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -168,10 +164,10 @@
   display: flex;
   gap: 0.75rem;
   padding: 1rem;
-  background: #fffbeb;
+  background: rgba(245, 158, 11, 0.08);
   border-radius: 12px;
-  border: 1px solid #fef3c7;
-  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  color: var(--text-secondary);
   font-size: 0.85rem;
   line-height: 1.4;
 }
@@ -246,15 +242,15 @@
 }
 
 .stat-card {
-  background: white;
+  background: var(--surface-color);
   padding: 1.5rem;
   border-radius: 20px;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--transition-slow);
   position: relative;
   overflow: hidden;
 }
@@ -289,14 +285,14 @@
 .stat-label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-bottom: 2px;
 }
 
 .stat-value {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-primary);
   letter-spacing: -0.025em;
   line-height: 1.2;
 }
@@ -328,19 +324,17 @@
   pointer-events: auto;
   min-width: 300px;
   max-width: 400px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 1rem 1.25rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-lg);
   animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: transform var(--transition-base), opacity var(--transition-base);
 }
 
 .toast:hover {
@@ -365,7 +359,7 @@
 .toast-message {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 /* Success Toast */

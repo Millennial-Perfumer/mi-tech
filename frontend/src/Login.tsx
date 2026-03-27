@@ -1,6 +1,6 @@
 import { API_BASE } from './api';
 import React, { useState } from 'react';
-import fullLogo from './assets/full_logo.png';
+import fullLogoDark from './assets/full_logo_dark_theme.png';
 
 interface LoginProps {
   onLogin: (token: string) => void;
@@ -46,20 +46,33 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#fcfcfc',
-      padding: '2rem'
+      background: 'radial-gradient(circle at top right, #1e293b, #0f172a, #020617)',
+      padding: '2rem',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
+      {/* Decorative Blur Blobs */}
+      <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '40%', height: '40%', background: 'rgba(14, 165, 233, 0.05)', filter: 'blur(120px)', borderRadius: '50%', zIndex: 1 }}></div>
+      <div style={{ position: 'absolute', bottom: '-10%', left: '-10%', width: '30%', height: '30%', background: 'rgba(56, 189, 248, 0.03)', filter: 'blur(100px)', borderRadius: '50%', zIndex: 1 }}></div>
+
       <div className="card" style={{
-        maxWidth: '400px',
+        maxWidth: '420px',
         width: '100%',
-        padding: '2.5rem',
-        boxShadow: 'var(--shadow-lg)',
-        textAlign: 'center'
+        padding: '3rem 2.5rem',
+        background: 'rgba(255, 255, 255, 0.015)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '28px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        textAlign: 'center',
+        zIndex: 2,
+        animation: 'fadeIn 0.6s ease-out'
       }}>
-        <img src={fullLogo} alt="mi-tech" style={{ width: '180px', marginBottom: '2rem' }} />
+        <img src={fullLogoDark} alt="mi-tech" style={{ width: '200px', marginBottom: '2.5rem', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.1))' }} />
         
-        <h2 style={{ marginBottom: '0.5rem', fontSize: '1.5rem' }}>Welcome Back</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>
+        <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>Welcome Back</h2>
+        <p style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
           Please enter your credentials to continue.
         </p>
 
@@ -129,7 +142,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <button
             type="submit"
             className="btn-primary"
-            style={{ width: '100%', padding: '0.8rem', fontSize: '1rem' }}
+            style={{ 
+              width: '100%', 
+              padding: '1rem', 
+              fontSize: '1rem', 
+              fontWeight: 600,
+              borderRadius: '14px',
+              marginTop: '1rem',
+              background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+              border: 'none',
+              boxShadow: '0 8px 20px -4px rgba(14, 165, 233, 0.4)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
             disabled={loading}
           >
             {loading ? 'Authenticating...' : 'Sign In'}
@@ -137,7 +161,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </form>
       </div>
       
-      <p style={{ marginTop: '2rem', color: '#94a3b8', fontSize: '0.8rem' }}>
+      <p style={{ marginTop: '2.5rem', color: 'rgba(255, 255, 255, 0.3)', fontSize: '0.85rem', zIndex: 2 }}>
           &copy; {new Date().getFullYear()} mi-tech. All rights reserved.
       </p>
     </div>
