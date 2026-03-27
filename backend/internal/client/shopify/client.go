@@ -490,3 +490,60 @@ func (c *Client) DeleteCustomer(id int64) error {
 
 	return nil
 }
+
+// UpdateOrder updates an existing order in Shopify using the REST API.
+// It primarily supports updating the shipping address and customer email.
+func (c *Client) UpdateOrder(externalID string, updateData map[string]interface{}) error {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+	apiVersion := c.settings.GetShopifyAPIVersion()
+
+	if shopifyURL == "" || accessToken == "" {
+		return fmt.Errorf("shopify credentials not configured")
+	}
+
+	// Extract numeric ID if it's a GraphQL GID
+	numericID := c.extractNumericID(externalID)
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/orders/%s.json", shopifyURL, apiVersion, numericID)
+	
+	// Wrap in "order" key as required by Shopify REST API
+	payload := map[string]interface{}{
+		"order": updateData,
+	}
+	
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal update payload: %w", err)
+	}
+
+	req, err := http.NewRequest("PUT", apiURL, strings.NewReader(string(payloadBytes)))
+	if err != nil {
+		return err
+	}
+	
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute shopify request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("shopify update error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// extractNumericID converts a GID like "gid://shopify/Order/12345" to "12345"
+func (c *Client) extractNumericID(id string) string {
+	if strings.HasPrefix(id, "gid://shopify/") {
+		parts := strings.Split(id, "/")
+		return parts[len(parts)-1]
+	}
+	return id
+}

@@ -114,19 +114,19 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
         </div>
         
         <div className="modal-body">
-          <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '0.25rem' }}>Sending to</div>
-            <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{customerName}</div>
-            <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Order #{orderNumber}</div>
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Sending to</div>
+            <div style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)' }}>{customerName}</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>Order #{orderNumber}</div>
           </div>
 
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Select Event to Trigger</label>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-primary)' }}>Select Event to Trigger</label>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '1rem' }}>Loading events...</div>
+            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>Loading events...</div>
           ) : (
-            <div role="listbox" aria-label="Select WhatsApp template" style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+            <div role="listbox" aria-label="Select WhatsApp template" style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-color)' }}>
               {triggers.length === 0 ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>No automated triggers configured.</div>
+                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No automated triggers configured.</div>
               ) : (
                 triggers.map(t => (
                   <button
@@ -141,20 +141,20 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
                       textAlign: 'left',
                       padding: '1rem',
                       border: 'none',
-                      borderBottom: '1px solid #f1f5f9',
+                      borderBottom: '1px solid var(--border-color)',
                       cursor: 'pointer',
-                      background: selectedTemplateId === t.template_id ? '#f0f9ff' : 'transparent',
+                      background: selectedTemplateId === t.template_id ? 'var(--accent-subtle)' : 'transparent',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                         {webhookLabels[t.webhook_topic] || t.webhook_topic}
                       </span>
-                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
                         {t.template_name}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {t.template_body}
                     </div>
                   </button>

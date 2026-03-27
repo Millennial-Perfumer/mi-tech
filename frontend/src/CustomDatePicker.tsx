@@ -206,6 +206,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
                     direction="horizontal"
                     minDate={parsedMinDate} // Strict constraint
                     moveRangeOnFirstSelection={false}
+                    staticRanges={[]}
+                    inputRanges={[]}
                     showMonthAndYearPickers={false} // Shopify style usually hides year drop downs
                     showPreview={false} // clean look
                   />

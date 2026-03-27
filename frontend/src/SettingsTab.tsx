@@ -220,14 +220,14 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
         </div>
 
         {isLoadingConfigs ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Loading configurations...</div>
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>Loading configurations...</div>
         ) : configs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>No configurations found. Run the migration to initialize.</div>
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>No configurations found. Run the migration to initialize.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {sortedCategories.map(category => {
               const items = groupedConfigs[category];
-              const meta = CATEGORY_META[category] || { title: category, icon: null, color: '#64748b' };
+              const meta = CATEGORY_META[category] || { title: category, icon: null, color: 'var(--text-secondary)' };
               const isExpanded = !!expandedCategories[category];
 
               return (
@@ -266,7 +266,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                       height="18"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="#94a3b8"
+                      stroke="var(--text-tertiary)"
                       strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -318,7 +318,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                 width: '42px',
                                 height: '22px',
                                 borderRadius: '11px',
-                                backgroundColor: cfg.value === 'true' ? 'var(--accent-color)' : '#cbd5e1',
+                                backgroundColor: cfg.value === 'true' ? 'var(--accent-color)' : 'var(--border-color)',
                                 border: 'none',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
@@ -329,10 +329,10 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                 width: '18px',
                                 height: '18px',
                                 borderRadius: '50%',
-                                backgroundColor: 'white',
+                                backgroundColor: 'var(--text-primary)',
                                 transform: cfg.value === 'true' ? 'translateX(20px)' : 'translateX(0)',
                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                boxShadow: 'var(--shadow-sm)'
                               }} />
                             </button>
                           ) : editingKey === cfg.key ? (
@@ -366,7 +366,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                               whiteSpace: 'nowrap',
                               letterSpacing: cfg.is_secret && !isRevealed ? '0.1em' : 'normal'
                             }}>
-                              {cfg.value || <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>Not set</span>}
+                                {cfg.value || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}
                             </div>
                           )}
                         </div>
@@ -377,10 +377,10 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                               fontSize: '0.65rem',
                               fontWeight: 700,
                               color: '#ef4444',
-                              background: '#fef2f2',
+                              background: 'rgba(239, 68, 68, 0.15)',
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              border: '1px solid #fee2e2',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
                               textTransform: 'uppercase',
                               letterSpacing: '0.05em'
                             }}>
@@ -452,13 +452,13 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center',
-                            color: 'white'
+                            color: 'var(--text-primary)'
                           }}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0369a1' }}>Manual Order Synchronization</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
                           </div>
                         </div>
                         <button 
@@ -499,7 +499,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
               onChange={e => { setPassword(e.target.value); setPasswordError(''); }}
               placeholder="Admin password"
               autoFocus
-              style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid #ef4444' : '2px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s' }}
+               style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid #ef4444' : '2px solid var(--border-color)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
               onKeyDown={e => { if (e.key === 'Enter') handleReveal(); }}
             />
             {passwordError && (

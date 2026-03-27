@@ -62,6 +62,11 @@ func (m *MockOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 	return args.Error(0)
 }
 
+func (m *MockOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
+	args := m.Called(id, order)
+	return args.Error(0)
+}
+
 func (m *MockOrderRepository) ListSources() ([]entity.Source, error) {
 	args := m.Called()
 	return args.Get(0).([]entity.Source), args.Error(1)

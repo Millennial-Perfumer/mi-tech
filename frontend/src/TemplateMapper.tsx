@@ -105,9 +105,10 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
     <div className="template-mapper" style={{ padding: '2rem', backgroundColor: 'var(--bg-color)', minHeight: '100vh' }}>
       <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
-            Map Variables: {template.template_name}
-          </h2>
+          <h3 style={{ fontSize: '0.9rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Variables: {template.template_name}
+          </h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>Map your local system data to Meta's dynamic parameters.</p>
         </div>
         <button className="btn-secondary" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
@@ -220,10 +221,10 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
             )}
 
             {!hasVariables && (
-              <div style={{ padding: '4rem 2rem', textAlign: 'center', borderRadius: '16px', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px dashed #bae6fd' }}>
+              <div style={{ padding: '4rem 2rem', textAlign: 'center', borderRadius: '16px', background: 'var(--accent-subtle)', border: '1px dashed var(--border-color)' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✨</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0369a1', marginBottom: '0.5rem' }}>Ready to Send!</h3>
-                <p style={{ color: '#0ea5e9', fontSize: '0.95rem', maxWidth: '300px', margin: '0 auto' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-color)', marginBottom: '0.5rem' }}>Ready to Send!</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '300px', margin: '0 auto' }}>
                   This template contains only static content and doesn't require any variable mapping.
                 </p>
               </div>
@@ -245,11 +246,11 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
         {/* Read-Only Preview */}
         <div style={{ position: 'sticky', top: '2rem' }}>
           <div style={{ 
-            backgroundColor: '#111b21', 
+            backgroundColor: 'var(--bg-color)', 
             borderRadius: '32px', 
             padding: '12px', 
-            boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
-            border: '4px solid #334155'
+            boxShadow: 'var(--shadow-lg)',
+            border: '4px solid var(--border-color)'
           }}>
             {/* Status Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 20px 8px', color: 'white', fontSize: '0.7rem', fontWeight: 600 }}>
@@ -261,39 +262,40 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
             </div>
             
             <div style={{ 
-              backgroundColor: '#e5ddd5', 
-              borderRadius: '24px', 
-              padding: '1rem', 
-              backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', 
-              backgroundSize: 'cover',
-              minHeight: '400px'
-            }}>
-              <div style={{ position: 'relative', maxWidth: '90%' }}>
-                <div style={{ backgroundColor: 'white', borderRadius: '8px 8px 8px 0', overflow: 'hidden', boxShadow: '0 1px 1px rgba(0,0,0,0.15)' }}>
+              backgroundColor: '#0b141a', 
+            borderRadius: '24px', 
+            padding: '1rem', 
+            backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', 
+            backgroundSize: 'cover',
+            opacity: 0.95,
+            minHeight: '400px'
+          }}>
+            <div style={{ position: 'relative', maxWidth: '90%' }}>
+              <div style={{ backgroundColor: '#005c4b', borderRadius: '8px 8px 8px 0', overflow: 'hidden', boxShadow: '0 1px 1px rgba(0,0,0,0.15)' }}>
                   
                   {headerType !== 'NONE' && headerType !== 'TEXT' && (
-                    <div style={{ backgroundColor: '#f0f2f5', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', color: '#64748b', fontWeight: 600 }}>
+                    <div style={{ backgroundColor: 'var(--bg-input)', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', color: 'var(--text-secondary)', fontWeight: 600 }}>
                       [{headerType} ATTACHMENT]
                     </div>
                   )}
                   
                   <div style={{ padding: '8px 12px' }}>
                     {headerType === 'TEXT' && (
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px', color: '#111b21' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px', color: 'var(--text-tertiary)' }}>
                         {headerText.replace(/\{\{(\d+)\}\}/g, (match, id) => {
                           const mappedVar = mappings[`header_text_0_{{${id}}}`];
                           return mappedVar ? `[${availableVariables.find(v => v.value === mappedVar)?.label || mappedVar}]` : match;
                         })}
                       </div>
                     )}
-                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: '#111b21', lineHeight: '1.4' }}>
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: 'var(--text-tertiary)', lineHeight: '1.4' }}>
                       {template.body.replace(/\{\{(\d+)\}\}/g, (match, id) => {
                         const mappedVar = mappings[`body_text_0_{{${id}}}`];
                         return mappedVar ? `[${availableVariables.find(v => v.value === mappedVar)?.label || mappedVar}]` : match;
                       })}
                     </div>
-                    {template.footer && <div style={{ fontSize: '0.72rem', color: '#667781', marginTop: '4px' }}>{template.footer}</div>}
-                    <div style={{ textAlign: 'right', fontSize: '0.65rem', color: '#667781', marginTop: '2px' }}>12:45 PM</div>
+                    {template.footer && <div style={{ fontSize: '0.72rem', color: 'rgba(233, 237, 239, 0.6)', marginTop: '4px' }}>{template.footer}</div>}
+                    <div style={{ textAlign: 'right', fontSize: '0.65rem', color: 'rgba(233, 237, 239, 0.4)', marginTop: '2px' }}>12:45 PM</div>
                   </div>
 
                   {buttons.length > 0 && (
@@ -314,7 +316,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                   )}
                 </div>
                 {/* SVG Bubble Tail */}
-                <svg style={{ position: 'absolute', left: '-8px', bottom: '0', color: 'white' }} width="8" height="13" viewBox="0 0 8 13">
+                <svg style={{ position: 'absolute', left: '-8px', bottom: '0', color: '#005c4b' }} width="8" height="13" viewBox="0 0 8 13">
                   <path fill="currentColor" d="M1.533 3.568L8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
                 </svg>
               </div>

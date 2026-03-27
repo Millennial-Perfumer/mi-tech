@@ -93,8 +93,8 @@
 }
 
 .clear-search:hover {
-  background: #cbd5e1;
-  color: #334155;
+  background: var(--border-color);
+  color: var(--text-primary);
 }
 
 .select-wrapper {
@@ -220,7 +220,7 @@
 }
 
 .template-code {
-  font-family: 'JetBrains Mono', 'Monaco', monospace;
+  font-family: inherit;
   background-color: var(--bg-input);
   color: var(--text-primary);
   padding: 0.2rem 0.4rem;

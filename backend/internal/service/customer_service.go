@@ -543,61 +543,122 @@ func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Custo
 }
 
 func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
-	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
-	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
-	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+	// 1. Fetch existing customer to preserve statistics and metadata
+	existing, err := s.repo.GetByID(ctx, cust.ID)
+	if err != nil {
+		return fmt.Errorf("customer not found: %w", err)
+	}
 
-	// 1. Update locally
-	err := s.repo.Update(ctx, cust)
+	// 2. Patch only provided fields (preventing data loss of stats/metadata)
+	if cust.PhoneNumber != "" {
+		existing.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	}
+	if cust.FirstName != nil {
+		existing.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
+	}
+	if cust.LastName != nil {
+		existing.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
+	}
+	if cust.Email != nil {
+		existing.Email = cust.Email
+	}
+	if cust.Address1 != nil {
+		existing.Address1 = cust.Address1
+	}
+	if cust.Address2 != nil {
+		existing.Address2 = cust.Address2
+	}
+	if cust.City != nil {
+		existing.City = cust.City
+	}
+	if cust.State != nil {
+		existing.State = cust.State
+	}
+	if cust.Country != nil {
+		existing.Country = cust.Country
+	}
+	if cust.ZipCode != nil {
+		existing.ZipCode = cust.ZipCode
+	}
+	
+	existing.UpdatedAt = time.Now()
+
+	// 3. Update locally first
+	err = s.repo.Update(ctx, existing)
 	if err != nil {
 		return err
 	}
 
-	// 2. Sync to Shopify if requested and it has an external ID
-	if syncToShopify && s.shopifyClient != nil && cust.ExternalID != nil && *cust.ExternalID != "" {
-		extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
-		if extID > 0 {
-			// Fetch current customer from Shopify to find the address ID to update
-			var addressID int64
-			remoteCust, err := s.shopifyClient.GetCustomer(extID)
-			if err == nil && remoteCust != nil {
-				// Find the default address or just use the first one
-				for _, addr := range remoteCust.Addresses {
-					if addr.Default {
-						addressID = addr.ID
-						break
+	// 4. Sync to Shopify if requested
+	if syncToShopify && s.shopifyClient != nil {
+		sc := dto.ShopifyRestCustomer{
+			FirstName: entity.DerefStr(existing.FirstName),
+			LastName:  entity.DerefStr(existing.LastName),
+			Email:     entity.DerefStr(existing.Email),
+			Phone:     existing.PhoneNumber,
+		}
+
+		if existing.ExternalID != nil && *existing.ExternalID != "" {
+			// SYNC: Update existing Shopify customer
+			extID, _ := strconv.ParseInt(*existing.ExternalID, 10, 64)
+			if extID > 0 {
+				// Try to find address ID to update existing address instead of creating new one
+				var addressID int64
+				remoteCust, err := s.shopifyClient.GetCustomer(extID)
+				if err == nil && remoteCust != nil {
+					for _, addr := range remoteCust.Addresses {
+						if addr.Default {
+							addressID = addr.ID
+							break
+						}
+					}
+					if addressID == 0 && len(remoteCust.Addresses) > 0 {
+						addressID = remoteCust.Addresses[0].ID
 					}
 				}
-				if addressID == 0 && len(remoteCust.Addresses) > 0 {
-					addressID = remoteCust.Addresses[0].ID
+
+				if existing.Address1 != nil {
+					sc.Addresses = []dto.ShopifyRestAddress{
+						{
+							ID:       addressID,
+							Address1: entity.DerefStr(existing.Address1),
+							Address2: entity.DerefStr(existing.Address2),
+							City:     entity.DerefStr(existing.City),
+							Province: entity.DerefStr(existing.State),
+							Country:  func() string { c := entity.DerefStr(existing.Country); if c == "" { return "India" }; return c }(),
+							Zip:      entity.DerefStr(existing.ZipCode),
+							Default:  true,
+						},
+					}
+				}
+				_, err = s.shopifyClient.UpdateCustomer(extID, sc)
+				if err != nil {
+					log.Printf("Failed to sync customer update to Shopify: %v", err)
 				}
 			}
-
-			sc := dto.ShopifyRestCustomer{
-				FirstName: entity.DerefStr(cust.FirstName),
-				LastName:  entity.DerefStr(cust.LastName),
-				Email:     entity.DerefStr(cust.Email),
-				Phone:     cust.PhoneNumber,
-			}
-			
-			if cust.Address1 != nil {
+		} else {
+			// LINK: Create customer on Shopify if it doesn't exist yet
+			if existing.Address1 != nil {
 				sc.Addresses = []dto.ShopifyRestAddress{
 					{
-						ID:       addressID, // Use the ID if we found it
-						Address1: entity.DerefStr(cust.Address1),
-						Address2: entity.DerefStr(cust.Address2),
-						City:     entity.DerefStr(cust.City),
-						Province: entity.DerefStr(cust.State),
-						Country:  func() string { c := entity.DerefStr(cust.Country); if c == "" { return "India" }; return c }(),
-						Zip:      entity.DerefStr(cust.ZipCode),
+						Address1: entity.DerefStr(existing.Address1),
+						Address2: entity.DerefStr(existing.Address2),
+						City:     entity.DerefStr(existing.City),
+						Province: entity.DerefStr(existing.State),
+						Country:  func() string { c := entity.DerefStr(existing.Country); if c == "" { return "India" }; return c }(),
+						Zip:      entity.DerefStr(existing.ZipCode),
 						Default:  true,
 					},
 				}
 			}
-
-			_, err = s.shopifyClient.UpdateCustomer(extID, sc)
-			if err != nil {
-				log.Printf("Failed to sync customer update to Shopify: %v", err)
+			resp, err := s.shopifyClient.CreateCustomer(sc)
+			if err == nil && resp != nil {
+				extID := strconv.FormatInt(resp.ID, 10)
+				existing.ExternalID = &extID
+				existing.SourceID = "shopify"
+				s.repo.Update(ctx, existing)
+			} else if err != nil {
+				log.Printf("Failed to create new customer on Shopify during update: %v", err)
 			}
 		}
 	}

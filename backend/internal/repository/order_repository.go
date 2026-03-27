@@ -373,6 +373,23 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 		Updates(updates).Error
 }
 
+func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"customer_first_name": order.CustomerFirstName,
+		"customer_last_name":  order.CustomerLastName,
+		"customer_name":       order.CustomerName,
+		"customer_email":      order.CustomerEmail,
+		"customer_phone":      order.CustomerPhone,
+		"customer_address1":   order.CustomerAddress1,
+		"customer_address2":   order.CustomerAddress2,
+		"customer_city":       order.CustomerCity,
+		"customer_state":      order.CustomerState,
+		"customer_zip":        order.CustomerZip,
+		"customer_country":    order.CustomerCountry,
+		"updated_at":          time.Now(),
+	}).Error
+}
+
 func (r *gormOrderRepository) ListSources() ([]entity.Source, error) {
 	var sources []entity.Source
 	err := r.db.Where("enabled = ?", true).Order("name ASC").Find(&sources).Error

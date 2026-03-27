@@ -47,7 +47,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       justifyContent: 'center',
       minHeight: '100vh',
       background: 'radial-gradient(circle at top right, #1e293b, #0f172a, #020617)',
-      padding: '2rem',
+      padding: '1.5rem',
       position: 'relative',
       overflow: 'hidden'
     }}>
@@ -57,8 +57,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       <div className="card" style={{
         maxWidth: '420px',
-        width: '100%',
-        padding: '3rem 2.5rem',
+        width: 'min(420px, 92vw)',
+        padding: 'clamp(1.5rem, 5vw, 3rem) clamp(1.25rem, 5vw, 2.5rem)',
         background: 'rgba(255, 255, 255, 0.015)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
@@ -69,7 +69,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         zIndex: 2,
         animation: 'fadeIn 0.6s ease-out'
       }}>
-        <img src={fullLogoDark} alt="mi-tech" style={{ width: '200px', marginBottom: '2.5rem', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.1))' }} />
+        <img src={fullLogoDark} alt="mi-tech" style={{ width: 'min(180px, 60vw)', marginBottom: '2rem', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.1))' }} />
         
         <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>Welcome Back</h2>
         <p style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
@@ -126,14 +126,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           {error && (
             <div style={{
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: '#ef4444',
               padding: '0.75rem',
               borderRadius: '8px',
               fontSize: '0.875rem',
               marginBottom: '1.5rem',
               textAlign: 'center',
-              border: '1px solid #fecaca'
+              border: '1px solid rgba(239, 68, 68, 0.2)'
             }}>
               {error}
             </div>
