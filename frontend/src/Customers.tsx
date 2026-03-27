@@ -533,15 +533,42 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
             <div className="card">
                 <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ flex: 1, position: 'relative', marginRight: '2rem' }}>
-                        <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 1 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         <input 
                             type="text" 
                             placeholder="Search (e.g. city:Mumbai spent>1000 or first_name='')" 
                             aria-label="Search customers"
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                            style={{ paddingLeft: '2.5rem', width: '100%' }}
+                            style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem', width: '100%' }}
                         />
+                        {search && (
+                            <button
+                                onClick={() => { setSearch(''); setPage(1); }}
+                                aria-label="Clear search"
+                                style={{
+                                    position: 'absolute',
+                                    right: '0.75rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: '#e2e8f0',
+                                    color: '#64748b',
+                                    border: 'none',
+                                    width: '20px',
+                                    height: '20px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    zIndex: 1
+                                }}
+                            >
+                                &times;
+                            </button>
+                        )}
                     </div>
                     <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
                         <button 
