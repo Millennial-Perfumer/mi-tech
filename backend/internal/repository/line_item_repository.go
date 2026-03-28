@@ -28,14 +28,21 @@ func (r *gormLineItemRepository) GetByOrderID(orderID int64) ([]entity.LineItem,
 }
 
 func (r *gormLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items []entity.LineItem) error {
-	for _, item := range items {
-		item.OrderID = orderID
-		if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
-		}).Create(&item).Error; err != nil {
-			return fmt.Errorf("failed to upsert line item %s: %w", item.ID, err)
-		}
+	if len(items) == 0 {
+		return nil
+	}
+
+	// Optimization: Batch create line items with conflict handling in a single database roundtrip.
+	// We iterate by index to update the original slice elements with the orderID.
+	for i := range items {
+		items[i].OrderID = orderID
+	}
+
+	if err := tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
+	}).Create(&items).Error; err != nil {
+		return fmt.Errorf("failed to batch upsert line items for order %d: %w", orderID, err)
 	}
 	return nil
 }
