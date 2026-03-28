@@ -59,7 +59,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	shopifyClient := shopify.NewClient(settingsProvider)
 
 	// Services
-	authService := service.NewAuthService(db, settingsProvider)
 	userService := service.NewUserService(db)
 	metricsService := service.NewMetricsService(metricsRepo)
 	reportService := service.NewReportService(reportRepo)
@@ -70,6 +69,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider)
+	authService := service.NewAuthService(db, settingsProvider, messagesService)
 	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo)
 
 	// Handlers

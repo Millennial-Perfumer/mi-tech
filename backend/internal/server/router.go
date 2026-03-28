@@ -60,6 +60,7 @@ func RegisterRoutes(
 
 	// --- Auth Routes ---
 	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)
+	mux.HandleFunc("/api/auth/verify-otp", metrics(cors(authHandler.VerifyOTP)).ServeHTTP)
 	mux.HandleFunc("/api/auth/verify", metrics(protected(authHandler.VerifyAuth)).ServeHTTP)
 
 	// --- User Routes ---

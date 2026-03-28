@@ -21,7 +21,13 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token       string `json:"token,omitempty"`
+	Requires2FA bool   `json:"requires_2fa"`
+}
+
+type VerifyOTPRequest struct {
+	Username string `json:"username"`
+	OTP      string `json:"otp"`
 }
 
 // Login handles POST /api/auth/login.
@@ -32,7 +38,28 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.Login(req.Username, req.Password)
+	token, requires2FA, err := h.authService.Login(req.Username, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(LoginResponse{
+		Token:       token,
+		Requires2FA: requires2FA,
+	})
+}
+
+// VerifyOTP handles POST /api/auth/verify-otp.
+func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
+	var req VerifyOTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	token, err := h.authService.VerifyOTP(req.Username, req.OTP)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
