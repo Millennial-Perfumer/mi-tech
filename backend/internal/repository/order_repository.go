@@ -390,6 +390,42 @@ func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) e
 	}).Error
 }
 
+func (r *gormOrderRepository) GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error) {
+	row := r.db.Raw("SELECT COUNT(*), COALESCE(SUM(total_price), 0) FROM orders WHERE customer_phone = ? AND COALESCE(LOWER(status), '') != ?", phone, "cancelled").Row()
+	err = row.Scan(&totalOrders, &totalSpent)
+	return
+}
+
+func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error) {
+	if len(phones) == 0 {
+		return make(map[string]struct{ Count int; Sum float64 }), nil
+	}
+
+	type result struct {
+		Phone string
+		Count int
+		Sum   float64
+	}
+	var results []result
+	err := r.db.Model(&entity.Order{}).
+		Where("customer_phone IN ? AND COALESCE(LOWER(status), '') != ?", phones, "cancelled").
+		Select("customer_phone as phone, COUNT(*) as count, COALESCE(SUM(total_price), 0) as sum").
+		Group("customer_phone").
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	statsMap := make(map[string]struct{ Count int; Sum float64 })
+	for _, res := range results {
+		statsMap[res.Phone] = struct {
+			Count int
+			Sum   float64
+		}{Count: res.Count, Sum: res.Sum}
+	}
+	return statsMap, nil
+}
+
 func (r *gormOrderRepository) ListSources() ([]entity.Source, error) {
 	var sources []entity.Source
 	err := r.db.Where("enabled = ?", true).Order("name ASC").Find(&sources).Error

@@ -244,8 +244,6 @@ func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Ord
 
 	existing, err := s.repo.GetByPhone(ctx, phone)
 	if err == nil && existing != nil {
-		customer.TotalOrders = existing.TotalOrders
-		customer.TotalSpent = existing.TotalSpent
 		safeMerge(customer, existing)
 		// Inherit created at
 		customer.CreatedAt = existing.CreatedAt
@@ -253,7 +251,17 @@ func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Ord
 		customer.CreatedAt = time.Now()
 	}
 
-	// For now just upsert. In a more advanced version, we'd recalculate totals from orders table.
+	// Recalculate absolute totals from the orders table
+	if s.orderRepo != nil {
+		totalOrders, totalSpent, err := s.orderRepo.GetCustomerStats(phone)
+		if err == nil {
+			customer.TotalOrders = totalOrders
+			customer.TotalSpent = totalSpent
+		} else {
+			log.Printf("Warning: Failed to recalculate stats for customer %s: %v", phone, err)
+		}
+	}
+
 	return s.repo.UpsertByPhone(ctx, customer)
 }
 
@@ -319,19 +327,33 @@ func (s *CustomerService) UpdateFromOrdersBatch(ctx context.Context, orders []en
 		existingMap[c.PhoneNumber] = c
 	}
 
-	// 3. Merge with existing data
+	// 3. Fetch absolute totals from orders table for all phones in batch
+	var statsMap map[string]struct{ Count int; Sum float64 }
+	if s.orderRepo != nil {
+		statsMap, err = s.orderRepo.GetCustomersStats(phones)
+		if err != nil {
+			log.Printf("Warning: Failed to fetch bulk customer stats: %v", err)
+		}
+	}
+
 	var customersToUpsert []entity.Customer
 	for _, phone := range phones {
 		customer := phoneToCustomer[phone]
 		if existing, found := existingMap[phone]; found {
-			// Add batch aggregated totals to existing database totals
-			customer.TotalOrders += existing.TotalOrders
-			customer.TotalSpent += existing.TotalSpent
 			customer.CreatedAt = existing.CreatedAt
 			safeMerge(customer, &existing)
 		} else {
 			customer.CreatedAt = now
 		}
+
+		// Apply absolute totals if available
+		if statsMap != nil {
+			if stats, ok := statsMap[phone]; ok {
+				customer.TotalOrders = stats.Count
+				customer.TotalSpent = stats.Sum
+			}
+		}
+
 		customersToUpsert = append(customersToUpsert, *customer)
 	}
 

@@ -34,6 +34,8 @@ type OrderRepository interface {
 	UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error
 	UpdateOrderDetails(id int64, order entity.Order) error
 	ListSources() ([]entity.Source, error)
+	GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error)
+	GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error)
 	TruncateAll() error
 }
 
