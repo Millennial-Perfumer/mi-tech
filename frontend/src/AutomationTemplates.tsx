@@ -260,11 +260,11 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
 
   const getStatusBadgeStyle = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'APPROVED': return { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
-      case 'PENDING': return { backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fef08a' };
-      case 'REJECTED': return { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' };
-      case 'ARCHIVED': return { backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' };
-      default: return { backgroundColor: '#f1f5f9', color: '#475569' };
+      case 'APPROVED': return { backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.2)' };
+      case 'PENDING': return { backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.2)' };
+      case 'REJECTED': return { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' };
+      case 'ARCHIVED': return { backgroundColor: 'var(--bg-input)', color: 'var(--text-tertiary)', border: '1px solid var(--border-color)' };
+      default: return { backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' };
     }
   };
 
@@ -365,7 +365,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
       }}>
         <div style={{ position: 'relative', width: '350px' }}>
           <svg 
-            style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
+            style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}
             width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           >
             <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -429,15 +429,15 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
         <table style={{ minWidth: '1000px', borderCollapse: 'collapse' }}>
           <thead style={{ backgroundColor: 'var(--bg-input)', borderBottom: '1px solid var(--border-color)' }}>
             <tr style={{ textAlign: 'left' }}>
-              {visibleColumns.includes('template_name') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Template Name</th>}
-              {visibleColumns.includes('category') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</th>}
-              {visibleColumns.includes('language') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Language</th>}
-              {visibleColumns.includes('sent_count') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Sent</th>}
-              {visibleColumns.includes('delivered_count') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Deliv.</th>}
-              {visibleColumns.includes('read_count') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Read</th>}
-              {visibleColumns.includes('status') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>}
-              {visibleColumns.includes('created_at') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created</th>}
-              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
+              {visibleColumns.includes('template_name') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Template Name</th>}
+              {visibleColumns.includes('category') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</th>}
+              {visibleColumns.includes('language') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Language</th>}
+              {visibleColumns.includes('sent_count') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Sent</th>}
+              {visibleColumns.includes('delivered_count') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Deliv.</th>}
+              {visibleColumns.includes('read_count') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Read</th>}
+              {visibleColumns.includes('status') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>}
+              {visibleColumns.includes('created_at') && <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created</th>}
+              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -539,7 +539,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
                   required
                   autoFocus
                 />
-                <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.5rem' }}>
                   Enter the exact name of the template as it appears in your Meta WhatsApp Manager.
                 </p>
               </div>

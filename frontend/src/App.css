@@ -258,7 +258,7 @@
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.1);
-  border-color: #e2e8f0;
+  border-color: var(--border-color);
 }
 
 .stat-icon-wrapper {
@@ -367,7 +367,7 @@
   border-left: 4px solid #10b981;
 }
 .toast-success .toast-icon {
-  background: #ecfdf5;
+  background: rgba(16, 185, 129, 0.15);
   color: #10b981;
 }
 
@@ -376,7 +376,7 @@
   border-left: 4px solid #ef4444;
 }
 .toast-error .toast-icon {
-  background: #fef2f2;
+  background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
 
@@ -385,7 +385,7 @@
   border-left: 4px solid #3b82f6;
 }
 .toast-info .toast-icon {
-  background: #eff6ff;
+  background: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
 }
 
@@ -394,6 +394,75 @@
   border-left: 4px solid #f59e0b;
 }
 .toast-warning .toast-icon {
-  background: #fffbeb;
+  background: rgba(245, 158, 11, 0.15);
   color: #f59e0b;
+}
+
+/* ============================================================
+   APP.CSS — MOBILE RESPONSIVE ADDITIONS
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Inline filter bar (date + export row) wraps on mobile */
+  .main-content > div[style*="justify-content: space-between"][style*="marginBottom"] {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    padding: 1rem !important;
+  }
+
+  /* Modal buttons stack vertically */
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.75rem !important;
+  }
+
+  .modal-actions button {
+    width: 100% !important;
+    font-size: 0.9rem !important;
+    padding: 0.8rem !important;
+  }
+
+  /* Compact stat icon wrapper */
+  .stat-icon-wrapper {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  /* Confirm box inside sync modal */
+  .confirm-box {
+    padding: 0.875rem;
+  }
+
+  /* Premium modal h2 shrinks */
+  .premium-modal h2 {
+    font-size: 1.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Premium modal p text */
+  .premium-modal p {
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Stat cards: icon + content side by side needs more compact treatment */
+  .stat-card {
+    gap: 0.875rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  /* Info banners full-width */
+  .info-banner {
+    font-size: 0.8rem;
+  }
 }

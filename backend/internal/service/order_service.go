@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"mi-tech/internal/client/shopify"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/mapper"
@@ -13,14 +15,16 @@ type OrderService struct {
 	orderRepo       repository.OrderRepository
 	lineItemRepo    repository.LineItemRepository
 	customerService *CustomerService
+	shopifyClient   *shopify.Client
 }
 
 // NewOrderService creates a new OrderService.
-func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo repository.LineItemRepository, customerService *CustomerService) *OrderService {
+func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo repository.LineItemRepository, customerService *CustomerService, shopifyClient *shopify.Client) *OrderService {
 	return &OrderService{
 		orderRepo:       orderRepo,
 		lineItemRepo:    lineItemRepo,
 		customerService: customerService,
+		shopifyClient:   shopifyClient,
 	}
 }
 
@@ -133,4 +137,60 @@ func (s *OrderService) CancelOrder(externalOrderID string, cancelledAt *string, 
 
 func (s *OrderService) ListSources() ([]entity.Source, error) {
 	return s.orderRepo.ListSources()
+}
+
+// UpdateOrder updates an order locally and in Shopify.
+func (s *OrderService) UpdateOrder(id int64, req dto.OrderUpdateRequest) error {
+	// 1. Fetch current order to get external ID
+	order, err := s.orderRepo.GetByID(id)
+	if err != nil {
+		return fmt.Errorf("order not found: %w", err)
+	}
+
+	// 2. Prepare entity updates
+	order.CustomerFirstName = entity.StrPtr(req.CustomerFirstName)
+	order.CustomerLastName = entity.StrPtr(req.CustomerLastName)
+	order.CustomerEmail = entity.StrPtr(req.CustomerEmail)
+	order.CustomerPhone = entity.StrPtr(req.CustomerPhone)
+	order.CustomerAddress1 = entity.StrPtr(req.CustomerAddress1)
+	order.CustomerAddress2 = entity.StrPtr(req.CustomerAddress2)
+	order.CustomerCity = entity.StrPtr(req.CustomerCity)
+	order.CustomerState = entity.StrPtr(req.CustomerState)
+	order.CustomerZip = entity.StrPtr(req.CustomerZip)
+	order.CustomerCountry = entity.StrPtr(req.CustomerCountry)
+	
+	fullName := req.CustomerFirstName
+	if req.CustomerLastName != "" {
+		fullName += " " + req.CustomerLastName
+	}
+	order.CustomerName = entity.StrPtr(fullName)
+
+	// 3. Update local database
+	if err := s.orderRepo.UpdateOrderDetails(id, order); err != nil {
+		return fmt.Errorf("failed to update local database: %w", err)
+	}
+
+	// 4. Sync to Shopify if it's a Shopify order
+	if s.shopifyClient != nil && order.SourceID == "shopify" && order.ExternalOrderID != "" {
+		shopifyData := map[string]interface{}{
+			"email": req.CustomerEmail,
+			"shipping_address": map[string]interface{}{
+				"first_name": req.CustomerFirstName,
+				"last_name":  req.CustomerLastName,
+				"address1":   req.CustomerAddress1,
+				"address2":   req.CustomerAddress2,
+				"city":       req.CustomerCity,
+				"province":   req.CustomerState,
+				"zip":        req.CustomerZip,
+				"country":    req.CustomerCountry,
+				"phone":      req.CustomerPhone,
+			},
+		}
+
+		if err := s.shopifyClient.UpdateOrder(order.ExternalOrderID, shopifyData); err != nil {
+			return fmt.Errorf("failed to sync with Shopify: %w", err)
+		}
+	}
+
+	return nil
 }

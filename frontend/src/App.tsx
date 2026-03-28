@@ -7,11 +7,13 @@ import { GSTReports } from './GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
 import fullLogoDark from './assets/full_logo_dark_theme.png';
+import halfLogo from './assets/half_logo.png';
 import { Login } from './Login';
 import { ManualWhatsAppModal } from './ManualWhatsAppModal';
 import { SettingsTab } from './SettingsTab';
 import { Customers } from './Customers';
 import { Users } from './Users';
+import OrderDetailsModal from './OrderDetailsModal';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
 import './App.css';
@@ -90,6 +92,15 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('appTheme') as 'light' | 'dark') || 'light';
   });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Apply theme to <html> element
   useEffect(() => {
@@ -97,12 +108,17 @@ function App() {
     localStorage.setItem('appTheme', theme);
   }, [theme]);
 
+  // Sidebar persistence
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.toString());
+  }, [isSidebarCollapsed]);
+
+  const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
   const userRole = token ? (() => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log('Current user payload:', payload);
       return payload?.role || 'read';
     } catch (err) {
       console.error('Error parsing token:', err);
@@ -151,6 +167,7 @@ function App() {
   const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
   const limit = 25;
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+  const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
@@ -479,12 +496,12 @@ function App() {
                       style={{ 
                         padding: '0.5rem', 
                         fontSize: '0.85rem', 
-                        background: '#ffffff',
-                        borderColor: '#e2e8f0',
-                        color: '#475569'
+                        background: 'var(--surface-color)',
+                        borderColor: 'var(--border-color)',
+                        color: 'var(--text-secondary)'
                       }}
                       onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
-                      onMouseOut={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
                       onClick={() => {
                         const today = new Date();
                         if (preset.type === 'month') {
@@ -510,9 +527,9 @@ function App() {
                   ))}
                 </div>
                 
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#f8fafc', padding: '1.5rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                <div className="sync-date-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'var(--bg-input)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>From Date</label>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>From Date</label>
                     <input 
                       type="date" 
                       value={syncStartDate}
@@ -523,20 +540,21 @@ function App() {
                         padding: '0.75rem', 
                         borderRadius: '8px', 
                         border: '2px solid transparent', 
-                        boxShadow: '0 0 0 1px #cbd5e1',
+                        boxShadow: '0 0 0 1px var(--border-color)',
                         outline: 'none', 
                         fontFamily: 'inherit',
                         fontSize: '0.95rem',
-                        color: '#0f172a',
+                        background: 'var(--surface-color)',
+                        color: 'var(--text-primary)',
                         transition: 'all 0.2s'
                       }}
                       onFocus={(e) => e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-color)'}
-                      onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px #cbd5e1'}
+                      onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px var(--border-color)'}
                     />
                   </div>
-                  <div style={{ color: '#94a3b8', fontSize: '1.5rem', alignSelf: 'flex-end', paddingBottom: '0.5rem' }}>→</div>
+                  <div className="sync-date-arrow" style={{ color: 'var(--text-tertiary)', fontSize: '1.5rem', alignSelf: 'flex-end', paddingBottom: '0.5rem' }}>→</div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>To Date</label>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>To Date</label>
                     <input 
                       type="date" 
                       value={syncEndDate}
@@ -547,15 +565,16 @@ function App() {
                         padding: '0.75rem', 
                         borderRadius: '8px', 
                         border: '2px solid transparent', 
-                        boxShadow: '0 0 0 1px #cbd5e1',
+                        boxShadow: '0 0 0 1px var(--border-color)',
                         outline: 'none', 
                         fontFamily: 'inherit',
                         fontSize: '0.95rem',
-                        color: '#0f172a',
+                        background: 'var(--surface-color)',
+                        color: 'var(--text-primary)',
                         transition: 'all 0.2s'
                       }}
                       onFocus={(e) => e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-color)'}
-                      onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px #cbd5e1'}
+                      onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px var(--border-color)'}
                     />
                   </div>
                 </div>
@@ -580,40 +599,66 @@ function App() {
           </div>
         </div>
       )}
-      <aside className="sidebar">
-        <div className="sidebar-brand" style={{ justifyContent: 'flex-start', paddingLeft: '1rem', marginBottom: '2rem' }}>
-          <img src={theme === 'dark' ? fullLogoDark : fullLogo} alt="Mi Tech" style={{ width: '140px', height: 'auto', objectFit: 'contain' }} />
+      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-brand" style={{ justifyContent: 'space-between', paddingLeft: '1rem', paddingRight: '0.5rem', marginBottom: '2.5rem' }}>
+          <img 
+            src={isSidebarCollapsed ? halfLogo : (theme === 'dark' ? fullLogoDark : fullLogo)} 
+            alt="Mi Tech" 
+            style={{ 
+              width: isSidebarCollapsed ? '32px' : '140px', 
+              height: 'auto', 
+              objectFit: 'contain',
+              transition: 'width 0.3s ease'
+            }} 
+          />
+          <button 
+            onClick={toggleSidebar}
+            style={{ 
+              color: 'var(--text-secondary)', 
+              padding: '4px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              transform: isSidebarCollapsed ? 'rotate(180deg)' : 'none',
+              backgroundColor: isSidebarCollapsed ? 'transparent' : 'var(--bg-hover)'
+            }}
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
         </div>
         
         <nav className="sidebar-nav">
-          <a href="#" className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+          <a href="#" className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')} title={isSidebarCollapsed ? "Dashboard" : ""}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Dashboard
+            <span>Dashboard</span>
           </a>
-          <a href="#" className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
+          <a href="#" className={`nav-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')} title={isSidebarCollapsed ? "GST Reports" : ""}>
              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            GST Reports
+            <span>GST Reports</span>
           </a>
-          <a href="#" className={`nav-item ${activeTab === 'automation' ? 'active' : ''}`} onClick={() => setActiveTab('automation')}>
+          <a href="#" className={`nav-item ${activeTab === 'automation' ? 'active' : ''}`} onClick={() => setActiveTab('automation')} title={isSidebarCollapsed ? "Automation" : ""}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            Automation
+            <span>Automation</span>
           </a>
-          <a href="#" className={`nav-item ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')}>
+          <a href="#" className={`nav-item ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')} title={isSidebarCollapsed ? "Orders" : ""}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-            Orders
+            <span>Orders</span>
           </a>
-          <a href="#" className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+          <a href="#" className={`nav-item ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')} title={isSidebarCollapsed ? "Customers" : ""}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            Customers
+            <span>Customers</span>
           </a>
-          <a href="#" className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+          <a href="#" className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} title={isSidebarCollapsed ? "Settings" : ""}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            Settings
+            <span>Settings</span>
           </a>
           {userRole === 'admin' && (
-            <a href="#" className={`nav-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+            <a href="#" className={`nav-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')} title={isSidebarCollapsed ? "RBAC" : ""}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              RBAC
+              <span>RBAC</span>
             </a>
           )}
         </nav>
@@ -644,14 +689,82 @@ function App() {
             className="nav-item"
             onClick={handleLogout}
             style={{ color: '#ef4444', width: '100%', textAlign: 'left' }}
+            title={isSidebarCollapsed ? "Sign Out" : ""}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            Sign Out
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
 
+      {/* ---- MOBILE: Bottom Tab Bar ---- */}
+      <nav className="bottom-tab-bar">
+        <button className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Home</span>
+        </button>
+        <button className={`tab-btn ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span>Orders</span>
+        </button>
+        <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>GST</span>
+        </button>
+        <button className={`tab-btn ${activeTab === 'automation' ? 'active' : ''}`} onClick={() => setActiveTab('automation')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span>Auto</span>
+        </button>
+        <button className={`tab-btn ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People</span>
+        </button>
+        <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>More</span>
+        </button>
+      </nav>
+
       <main className="main-content">
+        {/* Mobile-only top header bar */}
+        {isMobile && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            paddingBottom: '0.75rem',
+            borderBottom: '1px solid var(--border-color)',
+          }}>
+            <img
+              src={theme === 'dark' ? fullLogoDark : fullLogo}
+              alt="Mi Tech"
+              style={{ width: '100px', height: 'auto', objectFit: 'contain' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className="theme-toggle"
+                onClick={toggleTheme}
+                title="Toggle theme"
+                style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}
+              >
+                {theme === 'dark' ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                title="Sign Out"
+                style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', color: '#ef4444' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <header className="page-header">
           <div>
             <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
@@ -676,7 +789,7 @@ function App() {
         </header>
         
         {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && (
-          <div style={{ 
+          <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center', 
@@ -799,11 +912,11 @@ function App() {
 
         {activeTab === 'shopify' && (
           <section className="table-container">
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div className="webhook-status-bar" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.025em', marginBottom: '0.25rem' }}>Webhook Status</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: webhookStatus?.status === 'active' ? '#10b981' : '#f43f5e' }}></div>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: webhookStatus?.status === 'active' ? 'var(--color-success)' : 'var(--color-danger)' }}></div>
                   <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{webhookStatus?.status === 'active' ? 'Active' : 'Inactive'}</span>
                 </div>
               </div>
@@ -856,9 +969,9 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-input)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div className="orders-filter-bar" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-input)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-                  <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                   <input 
                     type="text" 
                     placeholder="Search orders or customers..." 
@@ -867,6 +980,7 @@ function App() {
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                     style={{ 
                       paddingLeft: '2.5rem', 
+                      paddingRight: search ? '2.5rem' : '1rem',
                       fontSize: '0.875rem', 
                       background: 'transparent',
                       border: 'none',
@@ -874,6 +988,42 @@ function App() {
                       width: '100%'
                     }}
                   />
+                  {search && (
+                    <button
+                      onClick={() => { setSearch(''); setPage(1); }}
+                      aria-label="Clear search"
+                      title="Clear search"
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--text-tertiary)',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%',
+                        transition: 'all 0.2s',
+                        cursor: 'pointer',
+                        border: 'none',
+                        background: 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                        e.currentTarget.style.background = 'var(--bg-hover)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--text-tertiary)';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 
                 <select 
@@ -911,7 +1061,7 @@ function App() {
                   <button 
                     className="btn-secondary" 
                     onClick={() => { setSearch(''); setSourceFilter(''); setPaymentFilter(''); setFulfillmentFilter(''); setPage(1); }}
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', color: '#64748b' }}
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}
                   >
                     Clear Filters
                   </button>
@@ -978,7 +1128,20 @@ function App() {
                 ) : (
                   orders.map((order) => (
                     <tr key={order.id}>
-                      {visibleColumns.includes('order_id') && <td><a href="#">{order.order_number}</a></td>}
+                      {visibleColumns.includes('order_id') && (
+                        <td>
+                          <a 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setSelectedOrderDetailsId(order.id);
+                            }}
+                            style={{ fontWeight: 600, color: 'var(--accent-color)', textDecoration: 'none' }}
+                          >
+                            {order.order_number}
+                          </a>
+                        </td>
+                      )}
                       {visibleColumns.includes('customer_name') && <td>{order.customer_name}</td>}
                       {visibleColumns.includes('city') && <td>{order.customer_city || 'N/A'}</td>}
                       {visibleColumns.includes('state') && <td>{order.customer_state || 'N/A'}</td>}
@@ -1035,7 +1198,7 @@ function App() {
                       {visibleColumns.includes('delivery_status') && (
                         <td>
                           {order.status?.toUpperCase() === 'CANCELLED' ? (
-                            <span style={{color: '#94a3b8', fontSize: '0.8rem'}}>—</span>
+                            <span style={{color: 'var(--text-tertiary)', fontSize: '0.8rem'}}>—</span>
                           ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' && (order.delivery_status !== 'success' || order.tracking_number || order.tracking_url) ? (
                             <div 
                               className="delivery-status-collapsed"
@@ -1052,21 +1215,20 @@ function App() {
                               </span>
                             </div>
                           ) : (
-                            <span style={{color: '#94a3b8', fontSize: '0.8rem'}}>—</span>
+                            <span style={{color: 'var(--text-tertiary)', fontSize: '0.8rem'}}>—</span>
                           )}
                         </td>
                       )}
                       {visibleColumns.includes('source') && (
                         <td>
                           <span 
-                            className="badge" 
                             style={{ 
-                              backgroundColor: order.source_id === 'amazon' ? '#fff7ed' : 
-                                             order.source_id === 'pos' ? '#f0fdf4' : '#f1f5f9', 
-                              color: order.source_id === 'amazon' ? '#c2410c' : 
-                                     order.source_id === 'pos' ? '#166534' : '#64748b',
-                              border: `1px solid ${order.source_id === 'amazon' ? '#fdba74' : 
-                                                  order.source_id === 'pos' ? '#bbf7d0' : '#e2e8f0'}`
+                              background: order.source_id === 'amazon' ? 'rgba(249, 115, 22, 0.15)' : 
+                                          order.source_id === 'pos' ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-input)', 
+                              color: order.source_id === 'amazon' ? '#f97316' : 
+                                     order.source_id === 'pos' ? '#22c55e' : 'var(--text-secondary)',
+                              border: `1px solid ${order.source_id === 'amazon' ? 'rgba(249, 115, 22, 0.2)' : 
+                                                  order.source_id === 'pos' ? 'rgba(34, 197, 94, 0.2)' : 'var(--border-color)'}`
                             }}
                           >
                             {order.source_id?.charAt(0).toUpperCase() + order.source_id?.slice(1) || 'Shopify'}
@@ -1085,25 +1247,27 @@ function App() {
                                 setWhatsappOrder(order);
                               }}
                               style={{ 
-                                background: 'transparent', 
-                                color: '#25D366', 
-                                borderRadius: '6px', 
+                                background: 'var(--accent-color)', 
+                                color: 'white',
+                                borderRadius: '12px', 
                                 width: '32px', 
                                 height: '32px', 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 justifyContent: 'center',
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid var(--border-color)',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s',
                               }}
-                              onMouseOver={(e) => {
-                                e.currentTarget.style.background = '#f0fdf4';
-                                e.currentTarget.style.borderColor = '#25D366';
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--accent-color)';
+                                e.currentTarget.style.color = 'var(--accent-color)';
+                                e.currentTarget.style.background = 'var(--accent-subtle)';
                               }}
-                              onMouseOut={(e) => {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.borderColor = '#e2e8f0';
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--border-color)';
+                                e.currentTarget.style.color = 'var(--text-secondary)';
+                                e.currentTarget.style.background = 'var(--surface-color)';
                               }}
                             >
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1112,7 +1276,7 @@ function App() {
                               </svg>
                             </button>
                           ) : (
-                            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>No phone</span>
+                            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>No phone</span>
                           )}
                         </td>
                       )}
@@ -1285,6 +1449,18 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Order Details Modal */}
+      {selectedOrderDetailsId && (
+        <OrderDetailsModal
+          isOpen={!!selectedOrderDetailsId}
+          onClose={() => setSelectedOrderDetailsId(null)}
+          orderId={selectedOrderDetailsId}
+          fetchWithAuth={fetchWithAuth}
+          userRole={userRole}
+          onOrderUpdated={() => fetchDashboardData(true)}
+        />
       )}
     </div>
   );

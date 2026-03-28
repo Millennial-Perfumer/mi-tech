@@ -57,6 +57,20 @@ type OrderListResponse struct {
 	Limit      int             `json:"limit"`
 }
 
+// OrderUpdateRequest is the DTO for updating an order from the frontend.
+type OrderUpdateRequest struct {
+	CustomerFirstName string `json:"customer_first_name"`
+	CustomerLastName  string `json:"customer_last_name"`
+	CustomerEmail     string `json:"customer_email"`
+	CustomerPhone     string `json:"customer_phone"`
+	CustomerAddress1  string `json:"customer_address1"`
+	CustomerAddress2  string `json:"customer_address2"`
+	CustomerCity      string `json:"customer_city"`
+	CustomerState     string `json:"customer_state"`
+	CustomerZip       string `json:"customer_zip"`
+	CustomerCountry   string `json:"customer_country"`
+}
+
 // WebhookEventResponse is the DTO for webhook event log entries.
 type WebhookEventResponse struct {
 	ID                int    `json:"id"`

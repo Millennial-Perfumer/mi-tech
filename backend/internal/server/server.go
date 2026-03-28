@@ -65,7 +65,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	reportService := service.NewReportService(reportRepo)
 	customerService := service.NewCustomerService(customerRepo, orderRepo, shopifyClient)
 	invoiceService := service.NewInvoiceService(settingsRepo)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService)
+	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient)
 	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)

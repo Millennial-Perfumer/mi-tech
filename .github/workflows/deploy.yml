@@ -110,5 +110,8 @@ jobs:
             # Recreate containers with new images
             docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
 
+            # Reload Nginx to pick up configuration changes (e.g. new subdomains)
+            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml exec -T nginx nginx -s reload
+
             # Remove old dangling images to save space
             docker image prune -af

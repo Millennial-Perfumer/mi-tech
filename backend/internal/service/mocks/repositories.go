@@ -62,9 +62,24 @@ func (m *MockOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 	return args.Error(0)
 }
 
+func (m *MockOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
+	args := m.Called(id, order)
+	return args.Error(0)
+}
+
 func (m *MockOrderRepository) ListSources() ([]entity.Source, error) {
 	args := m.Called()
 	return args.Get(0).([]entity.Source), args.Error(1)
+}
+
+func (m *MockOrderRepository) GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error) {
+	args := m.Called(phone)
+	return args.Int(0), args.Get(1).(float64), args.Error(2)
+}
+
+func (m *MockOrderRepository) GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error) {
+	args := m.Called(phones)
+	return args.Get(0).(map[string]struct{ Count int; Sum float64 }), args.Error(1)
 }
 
 func (m *MockOrderRepository) TruncateAll() error {

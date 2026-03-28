@@ -202,18 +202,22 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			return fmt.Errorf("failed to upsert order: %w", err)
 		}
 
-		// 3. Explicitly synchronize line items
+		// 3. Explicitly synchronize line items in batch
 		// We delete all and re-create to ensure quantities and titles are fresh.
 		if err := tx.Where("order_id = ?", order.ID).Delete(&entity.LineItem{}).Error; err != nil {
 			return fmt.Errorf("failed to clean old line items: %w", err)
 		}
 
-		for _, item := range order.LineItems {
-			item.OrderID = order.ID
+		if len(order.LineItems) > 0 {
+			// Optimization: Set OrderID by index to update original slice elements.
+			for i := range order.LineItems {
+				order.LineItems[i].OrderID = order.ID
+			}
+			// Optimization: Batch insert line items in a single O(1) roundtrip.
 			if err := tx.Clauses(clause.OnConflict{
 				UpdateAll: true,
-			}).Create(&item).Error; err != nil {
-				return fmt.Errorf("failed to insert line item %s: %w", item.ID, err)
+			}).Create(&order.LineItems).Error; err != nil {
+				return fmt.Errorf("failed to batch insert line items: %w", err)
 			}
 		}
 
@@ -371,6 +375,59 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 	return r.db.Model(&entity.Order{}).
 		Where("external_order_id = ?", externalOrderID).
 		Updates(updates).Error
+}
+
+func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"customer_first_name": order.CustomerFirstName,
+		"customer_last_name":  order.CustomerLastName,
+		"customer_name":       order.CustomerName,
+		"customer_email":      order.CustomerEmail,
+		"customer_phone":      order.CustomerPhone,
+		"customer_address1":   order.CustomerAddress1,
+		"customer_address2":   order.CustomerAddress2,
+		"customer_city":       order.CustomerCity,
+		"customer_state":      order.CustomerState,
+		"customer_zip":        order.CustomerZip,
+		"customer_country":    order.CustomerCountry,
+		"updated_at":          time.Now(),
+	}).Error
+}
+
+func (r *gormOrderRepository) GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error) {
+	row := r.db.Raw("SELECT COUNT(*), COALESCE(SUM(total_price), 0) FROM orders WHERE customer_phone = ? AND COALESCE(LOWER(status), '') != ?", phone, "cancelled").Row()
+	err = row.Scan(&totalOrders, &totalSpent)
+	return
+}
+
+func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error) {
+	if len(phones) == 0 {
+		return make(map[string]struct{ Count int; Sum float64 }), nil
+	}
+
+	type result struct {
+		Phone string
+		Count int
+		Sum   float64
+	}
+	var results []result
+	err := r.db.Model(&entity.Order{}).
+		Where("customer_phone IN ? AND COALESCE(LOWER(status), '') != ?", phones, "cancelled").
+		Select("customer_phone as phone, COUNT(*) as count, COALESCE(SUM(total_price), 0) as sum").
+		Group("customer_phone").
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	statsMap := make(map[string]struct{ Count int; Sum float64 })
+	for _, res := range results {
+		statsMap[res.Phone] = struct {
+			Count int
+			Sum   float64
+		}{Count: res.Count, Sum: res.Sum}
+	}
+	return statsMap, nil
 }
 
 func (r *gormOrderRepository) ListSources() ([]entity.Source, error) {

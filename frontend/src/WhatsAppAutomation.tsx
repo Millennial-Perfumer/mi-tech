@@ -34,9 +34,11 @@ export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateCh
       <div className="sub-tabs-header" style={{ 
         borderBottom: '1px solid var(--border-color)', 
         marginBottom: '1rem',
-        paddingBottom: '0.5rem'
+        paddingBottom: '0.5rem',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch'
       }}>
-        <div className="sub-tabs" style={{ display: 'flex', gap: '2rem' }}>
+        <div className="sub-tabs" style={{ display: 'flex', gap: '1rem', minWidth: 'max-content' }}>
           {tabs.map(tab => (
             <button 
               key={tab.id}

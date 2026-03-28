@@ -252,6 +252,11 @@
   font-weight: 500;
 }
 
+/* Hide redundant library sidebar and input ranges */
+.rdrDefinedRangesWrapper, .rdrInputRanges {
+  display: none !important;
+}
+
 /* Preview and Hover states for Dark Mode */
 .rdrDayInPreview {
   background-color: var(--bg-hover) !important;

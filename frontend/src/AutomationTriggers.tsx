@@ -173,7 +173,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
               className="btn-primary" 
               onClick={() => setShowForm(!showForm)}
               style={{
-                backgroundColor: showForm ? '#475569' : '#0ea5e9',
+                backgroundColor: showForm ? 'var(--text-tertiary)' : '#0ea5e9',
                 color: 'white',
                 border: 'none',
                 padding: '0.65rem 1.25rem',
@@ -252,9 +252,9 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Loading triggers...</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Loading triggers...</td></tr>
             ) : triggers.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>No triggers found.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No triggers found.</td></tr>
             ) : (
               triggers.map(tr => (
                 <tr key={tr.id} style={{ transition: 'background-color 0.2s', borderBottom: '1px solid var(--border-color)' }} className="hover-row">
@@ -263,7 +263,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
                         {webhookOptions.find(opt => opt.value === tr.webhook_topic)?.label || tr.webhook_topic}
                       </span>
-                      <code style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{tr.webhook_topic}</code>
+                      <code style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{tr.webhook_topic}</code>
                     </div>
                   </td>
                   <td style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 500 }}>
@@ -284,7 +284,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
                         <button 
                           onClick={() => handleToggle(tr.id, tr.enabled)}
                           title={tr.enabled ? "Disable Trigger" : "Enable Trigger"}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: tr.enabled ? '#10b981' : '#94a3b8' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: tr.enabled ? '#10b981' : 'var(--text-tertiary)' }}
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
@@ -305,7 +305,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
                         </button>
                       </div>
                     ) : (
-                      <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>View Only</span>
+                      <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>View Only</span>
                     )}
                   </td>
                 </tr>

@@ -67,7 +67,18 @@ func RegisterRoutes(
 	}))
 
 	// --- Order Routes ---
-	mux.HandleFunc("/api/orders", protected(orderHandler.GetOrders))
+	mux.HandleFunc("/api/orders", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			adminProtected(orderHandler.UpdateOrder)(w, r)
+		default:
+			if r.URL.Query().Get("id") != "" {
+				orderHandler.GetOrder(w, r)
+			} else {
+				orderHandler.GetOrders(w, r)
+			}
+		}
+	}))
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
 	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
 	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))

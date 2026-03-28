@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"mi-tech/internal/dto"
 	"mi-tech/internal/service"
 )
 
@@ -191,5 +193,87 @@ func (h *OrderHandler) GetSources(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"sources": sources,
+	})
+}
+
+// GetOrder handles GET /api/orders/:id or GET /api/orders?id=
+func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		// Try to extract from path if using /api/orders/{id}
+		idStr = strings.TrimPrefix(r.URL.Path, "/api/orders/")
+		idStr = strings.TrimSuffix(idStr, "/")
+	}
+
+	if idStr == "" || idStr == "orders" {
+		http.Error(w, "Missing order id", http.StatusBadRequest)
+		return
+	}
+
+	// Try to parse as int64 first (internal ID)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		// If not an int, it might be an external ID string
+		order, err := h.orderService.GetOrderFlexible(idStr)
+		if err != nil {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+		id = order.ID
+	}
+
+	orderResp, err := h.orderService.GetOrder(id)
+	if err != nil {
+		http.Error(w, "Order not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"order":   orderResp,
+	})
+}
+
+// UpdateOrder handles PUT /api/orders?id=
+func (h *OrderHandler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		idStr = strings.TrimPrefix(r.URL.Path, "/api/orders/")
+		idStr = strings.TrimSuffix(idStr, "/")
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	var req dto.OrderUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.orderService.UpdateOrder(id, req); err != nil {
+		log.Printf("Error updating order %d: %v", id, err)
+		http.Error(w, "Failed to update order: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Order updated and synchronized with Shopify successfully",
 	})
 }
