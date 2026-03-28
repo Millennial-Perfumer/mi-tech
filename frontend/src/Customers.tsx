@@ -1435,8 +1435,10 @@ const BulkTemplateModal: React.FC<{
             const filteredTemplates = data.filter((t: WhatsAppTemplate) => {
                 const name = (t.template_name || '').trim().toLowerCase();
                 const suffix = (bulkSuffix || '').trim().toLowerCase();
+                const isMarketing = (t.category || '').toUpperCase() === 'MARKETING';
+                const status = (t.status || '').toUpperCase();
                 
-                return name.endsWith(suffix) && t.status === 'APPROVED';
+                return (isMarketing || (suffix && name.endsWith(suffix))) && status === 'APPROVED';
             });
             setTemplates(filteredTemplates);
         } catch (error) {
@@ -1506,7 +1508,8 @@ const BulkTemplateModal: React.FC<{
                                 <div style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</div>
                             ) : templates.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '2rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-                                    No templates found ending with <code style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '2px 4px', borderRadius: '4px', color: '#ef4444' }}>{bulkSuffix}</code> or none are approved yet.
+                                    No marketing templates found (or none are approved yet). 
+                                    <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.8 }}>Templates must be categorized as 'MARKETING' or end with '{bulkSuffix}'</p>
                                 </div>
                             ) : (
                                 <div role="listbox" aria-label="Select bulk WhatsApp template" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>

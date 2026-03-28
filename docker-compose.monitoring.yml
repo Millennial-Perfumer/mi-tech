@@ -90,8 +90,8 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
       - --collector.filesystem.ignored-mount-points
       - "^/(sys|proc|dev|host|etc)($$|/)"
     networks:
@@ -118,18 +118,6 @@ services:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-mi-tech}?sslmode=disable"
     networks:
       - app-network
-
-networks:
-  app-network:
-    name: app-network
-    external: true
-
-volumes:
-  grafana-data:
-  prometheus_data:
-  loki_data:
-  tempo_data:
-
 
 networks:
   app-network:

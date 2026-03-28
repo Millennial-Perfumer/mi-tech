@@ -4,40 +4,137 @@ import (
 	"errors"
 	"fmt"
 	"mi-tech/internal/config"
+	"mi-tech/internal/entity"
 	"time"
 
-	"mi-tech/internal/entity"
+	"crypto/rand"
+	"io"
 
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-type AuthService struct {
-	db       *gorm.DB
-	settings *config.SettingsProvider
+type Messenger interface {
+	SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}) error
 }
 
-func NewAuthService(db *gorm.DB, settings *config.SettingsProvider) *AuthService {
+type AuthService struct {
+	db              *gorm.DB
+	settings        *config.SettingsProvider
+	messagesService Messenger
+}
+
+func NewAuthService(db *gorm.DB, settings *config.SettingsProvider, messagesService Messenger) *AuthService {
 	return &AuthService{
-		db:       db,
-		settings: settings,
+		db:              db,
+		settings:        settings,
+		messagesService: messagesService,
 	}
 }
 
-// Login verifies credentials and returns a JWT token.
-func (s *AuthService) Login(username, password string) (string, error) {
+// Login verifies credentials. If 2FA is enabled, it sends an OTP and returns a special error.
+func (s *AuthService) Login(username, password string) (string, bool, error) {
 	var user entity.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", errors.New("invalid username or password")
+			return "", false, errors.New("invalid username or password")
 		}
-		return "", err
+		return "", false, err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", errors.New("invalid username or password")
+		return "", false, errors.New("invalid username or password")
 	}
+
+	if user.TwoFactorEnabled {
+		if user.PhoneNumber == "" {
+			return "", false, errors.New("2FA enabled but no phone number configured. Contact admin.")
+		}
+
+		err := s.SendOTP(&user)
+		if err != nil {
+			return "", false, fmt.Errorf("failed to send verification code: %v", err)
+		}
+		return "", true, nil
+	}
+
+	token, err := s.GenerateToken(user)
+	return token, false, err
+}
+
+func (s *AuthService) SendOTP(user *entity.User) error {
+	// Generate 6-digit OTP
+	otp := make([]byte, 6)
+	if _, err := io.ReadAtLeast(rand.Reader, otp, 6); err != nil {
+		return err
+	}
+	// Convert to digits 0-9
+	for i := 0; i < len(otp); i++ {
+		otp[i] = (otp[i] % 10) + '0'
+	}
+	otpStr := string(otp)
+
+	expiry := time.Now().Add(5 * time.Minute)
+	user.OTPCode = otpStr
+	user.OTPExpiry = &expiry
+
+	if err := s.db.Save(user).Error; err != nil {
+		return err
+	}
+
+	// Prepare WhatsApp components (Position 1 is the code)
+	components := []interface{}{
+		map[string]interface{}{
+			"type": "body",
+			"parameters": []interface{}{
+				map[string]interface{}{
+					"type": "text",
+					"text": otpStr,
+				},
+			},
+		},
+		map[string]interface{}{
+			"type":     "button",
+			"sub_type": "url",
+			"index":    "0",
+			"parameters": []interface{}{
+				map[string]interface{}{
+					"type": "text",
+					"text": otpStr,
+				},
+			},
+		},
+	}
+
+	// Find template ID for logging
+	var templateID int
+	s.db.Raw("SELECT id FROM automation_templates WHERE template_name = ?", "login_verification_template").Scan(&templateID)
+
+	// Send via WhatsApp using the specific template
+	// storeID "1", orderID 0
+	return s.messagesService.SendTemplateMessage("1", templateID, 0, user.PhoneNumber, "login_verification_template", "en", components)
+}
+
+func (s *AuthService) VerifyOTP(username, otp string) (string, error) {
+	var user entity.User
+	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
+		return "", errors.New("invalid session")
+	}
+
+	if user.OTPCode == "" || user.OTPExpiry == nil || time.Now().After(*user.OTPExpiry) {
+		return "", errors.New("verification code expired or not found")
+	}
+
+	if user.OTPCode != otp {
+		return "", errors.New("invalid verification code")
+	}
+
+	// Clear OTP after successful verification
+	s.db.Model(&user).Updates(map[string]interface{}{
+		"otp_code":   "",
+		"otp_expiry": nil,
+	})
 
 	return s.GenerateToken(user)
 }
