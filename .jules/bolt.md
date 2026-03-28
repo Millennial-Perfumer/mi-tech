@@ -5,3 +5,7 @@
 ## 2025-05-16 - [Efficient GORM Batch Upsert with Partial Indexes]
 **Learning:** To optimize $O(N)$ iterative upserts into a single $O(1)$ batch operation in GORM, `clause.OnConflict` is the standard approach. However, if the database uses a partial unique index (e.g., `WHERE deleted_at IS NULL`), GORM's `OnConflict` must explicitly target this index using `TargetWhere` (in GORM v1.2x) or `IndexConfig` (in newer versions) to avoid "there is no unique or exclusion constraint matching the ON CONFLICT specification" errors.
 **Action:** When performing batch upserts on tables with partial indexes, always use `TargetWhere` to match the index's condition in the `ON CONFLICT` clause.
+
+## 2025-05-17 - [Optimizing Reporting with Compound Indexes and Batch Inserts]
+**Learning:** Reporting queries frequently filtering by date ranges and performing JOINs between parent/child tables (e.g., Orders and Line Items) are major performance bottlenecks. Compound indexes on filter columns and foreign keys are essential. Additionally, iterative inserts of child entities (like Line Items for a single Order) cause significant overhead; batching these into a single database roundtrip using `tx.Create(&slice)` significantly improves write performance.
+**Action:** Always verify if frequently queried reporting fields have appropriate indexes. Prefer `tx.Create(&slice)` over iterative loops for child entity persistence to achieve O(1) database roundtrips.

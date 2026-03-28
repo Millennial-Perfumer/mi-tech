@@ -208,12 +208,17 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			return fmt.Errorf("failed to clean old line items: %w", err)
 		}
 
-		for _, item := range order.LineItems {
-			item.OrderID = order.ID
+		if len(order.LineItems) > 0 {
+			// Set correct OrderID for batch create
+			for i := range order.LineItems {
+				order.LineItems[i].OrderID = order.ID
+			}
+
+			// Perform O(1) batch upsert of line items
 			if err := tx.Clauses(clause.OnConflict{
 				UpdateAll: true,
-			}).Create(&item).Error; err != nil {
-				return fmt.Errorf("failed to insert line item %s: %w", item.ID, err)
+			}).Create(&order.LineItems).Error; err != nil {
+				return fmt.Errorf("failed to batch upsert line items: %w", err)
 			}
 		}
 
