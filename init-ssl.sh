@@ -58,14 +58,18 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   --agree-tos \
   --no-eff-email \
   -d $DOMAIN \
-  -d $API_DOMAIN \
-  -d mi-tech-monitoring.millennialperfumer.in
+  -d $API_DOMAIN
 
 echo "==> [5/5] Reloading Nginx with real certificate..."
 docker compose -f $COMPOSE_FILE exec nginx nginx -s reload
 
 echo ""
 echo "✅ SSL bootstrap complete!"
+echo "   https://$DOMAIN        → Frontend"
+echo "   https://$API_DOMAIN    → API"
+echo ""
+echo "   The certbot container will now handle renewals every 12 hours automatically."
+mplete!"
 echo "   https://$DOMAIN        → Frontend"
 echo "   https://$API_DOMAIN    → API"
 echo ""

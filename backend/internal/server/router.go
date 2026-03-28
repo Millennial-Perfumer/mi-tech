@@ -10,6 +10,7 @@ import (
 
 	_ "mi-tech/docs"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -32,6 +33,7 @@ func RegisterRoutes(
 ) {
 	cors := CORSMiddleware
 	auth := AuthMiddleware(authService)
+	metrics := MetricsMiddleware
 
 	// Helper to wrap handlers with both CORS, Auth, and RequireRole("admin")
 	adminProtected := func(h http.HandlerFunc) http.HandlerFunc {
@@ -43,18 +45,22 @@ func RegisterRoutes(
 		return cors(auth(h).ServeHTTP)
 	}
 
+	// Metrics endpoint (unprotected for scraping, but could be internal-only)
+	mux.Handle("/api/metrics", promhttp.Handler())
+
 	// Health check
-	mux.HandleFunc("/api/health", cors(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/health", metrics(cors(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "ok",
 			"message": "mi-tech API is running",
 		})
-	}))
+	})).ServeHTTP)
 
 	// --- Auth Routes ---
-	mux.HandleFunc("/api/auth/login", cors(authHandler.Login))
+	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)
+	mux.HandleFunc("/api/auth/verify", metrics(protected(authHandler.VerifyAuth)).ServeHTTP)
 
 	// --- User Routes ---
 	mux.HandleFunc("/api/users", adminProtected(func(w http.ResponseWriter, r *http.Request) {
