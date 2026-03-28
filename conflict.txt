@@ -1,0 +1,41 @@
+                                <div style={{ textAlign: 'center', padding: '2rem', background: '#fef2f2', color: '#991b1b', borderRadius: '12px' }}>
+                                    No templates found ending with <code style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px' }}>{bulkSuffix}</code> or none are approved yet.
+                                </div>
+                            ) : (
+<<<<<<< HEAD
+                                <div
+                                    role="listbox"
+                                    aria-label="Bulk message templates"
+                                    style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}
+                                >
+=======
+                                <div role="listbox" aria-label="Select bulk WhatsApp template" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+>>>>>>> main
+                                    {templates.map(t => (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={selectedTemplate?.id === t.id}
+                                            onClick={() => setSelectedTemplate(t)}
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '1rem',
+                                                borderRadius: '12px',
+                                                border: '2px solid',
+                                                borderColor: selectedTemplate?.id === t.id ? '#38bdf8' : '#e2e8f0',
+                                                background: selectedTemplate?.id === t.id ? '#f0f9ff' : 'white',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s',
+                                                textAlign: 'left',
+                                                width: '100%',
+                                                fontFamily: 'inherit'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                <span style={{ fontWeight: 600, color: '#1e293b' }}>{t.template_name}</span>
+                                                <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{t.language}</span>
+                                            </div>
+                                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {t.body}

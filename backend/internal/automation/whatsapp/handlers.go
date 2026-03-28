@@ -275,23 +275,29 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 	offset := (page - 1) * limit
 
 	search := r.URL.Query().Get("search")
+	templateName := r.URL.Query().Get("template_name")
 
-	messages, err := h.messagesService.GetMessages("1", start, end, search, limit, offset)
+	messages, err := h.messagesService.GetMessages("1", start, end, search, templateName, limit, offset)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
 	}
 
-	totalCount, err := h.messagesService.GetMessagesCount("1", start, end, search)
+	totalCount, err := h.messagesService.GetMessagesCount("1", start, end, search, templateName)
 	if err != nil {
 		log.Printf("Error fetching message count: %v", err)
-		// Non-blocking, continue with 0 count or let it fail gracefully
+	}
+
+	activeTemplates, err := h.messagesService.GetActiveTemplateNamesForFilter("1", start, end, search)
+	if err != nil {
+		log.Printf("Error fetching active templates: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"messages":    messages,
-		"total_count": totalCount,
+		"messages":         messages,
+		"total_count":      totalCount,
+		"active_templates": activeTemplates,
 	})
 }
 
@@ -588,7 +594,7 @@ func (h *AutomationHandler) SyncAllTemplates(w http.ResponseWriter, r *http.Requ
 	if !ok || storeID == "" {
 		storeID = "1" // Fallback to primary store ID
 	}
-	
+
 	log.Printf("Handler: SyncAllTemplates called for store_id: %s", storeID)
 	err := h.templatesService.SyncAllTemplates(storeID)
 	if err != nil {

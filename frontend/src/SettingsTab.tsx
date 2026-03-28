@@ -232,10 +232,10 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
 
               return (
                 <div key={category} style={{
-                  border: '1px solid #f1f5f9',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '12px',
                   overflow: 'hidden',
-                  background: '#ffffff'
+                  background: 'var(--surface-color)'
                 }}>
                   <div
                     onClick={() => toggleCategory(category)}
@@ -244,20 +244,20 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '1rem 1.25rem',
-                      background: !isExpanded ? '#ffffff' : '#f8fafc',
+                      background: !isExpanded ? 'var(--surface-color)' : 'var(--bg-hover)',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       userSelect: 'none'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                    onMouseLeave={e => e.currentTarget.style.background = !isExpanded ? '#ffffff' : '#f8fafc'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = !isExpanded ? 'var(--surface-color)' : 'var(--bg-hover)'}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span style={{ color: meta.color, display: 'flex', alignItems: 'center' }}>{meta.icon}</span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {meta.title}
                       </span>
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', background: 'var(--bg-hover)', padding: '1px 6px', borderRadius: '4px' }}>
                         {items.length}
                       </span>
                     </div>
@@ -285,7 +285,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                       flexDirection: 'column',
                       gap: '0.5rem',
                       padding: '1rem',
-                      borderTop: '1px solid #f1f5f9',
+                      borderTop: '1px solid var(--border-color)',
                       animation: 'slideIn 0.2s ease-out'
                     }}>
                     {items.map(cfg => (
@@ -297,15 +297,15 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           alignItems: 'center',
                           gap: '1rem',
                           padding: '0.75rem 1rem',
-                          background: editingKey === cfg.key ? '#f0f9ff' : '#f8fafc',
+                          background: editingKey === cfg.key ? 'var(--accent-subtle)' : 'var(--bg-input)',
                           borderRadius: '10px',
-                          border: editingKey === cfg.key ? '1px solid var(--accent-color)' : '1px solid #e2e8f0',
+                          border: editingKey === cfg.key ? '1px solid var(--accent-color)' : '1px solid var(--border-color)',
                           transition: 'all 0.2s'
                         }}
                       >
                         <div style={{ minWidth: '160px', flexShrink: 0 }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>{cfg.label}</div>
-                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace' }}>{cfg.key}</div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{cfg.key}</div>
                         </div>
                         
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -360,7 +360,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             <div style={{
                               fontSize: '0.85rem',
                               fontFamily: 'monospace',
-                              color: cfg.is_secret && !isRevealed ? '#94a3b8' : '#334155',
+                              color: cfg.is_secret && !isRevealed ? 'var(--text-tertiary)' : 'var(--text-secondary)',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -437,7 +437,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           justifyContent: 'space-between',
                           gap: '1rem',
                           padding: '1rem',
-                          background: 'linear-gradient(to right, #f0f9ff, #e0f2fe)',
+                          background: 'var(--accent-subtle)',
                           borderRadius: '10px',
                           border: '1px dashed #0ea5e9',
                           marginTop: '0.5rem'

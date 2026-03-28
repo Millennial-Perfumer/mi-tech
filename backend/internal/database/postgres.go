@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -63,7 +62,7 @@ func SeedDefaultUsers(db *gorm.DB) error {
 			ON CONFLICT (username) DO UPDATE 
 			SET role = EXCLUDED.role, password_hash = EXCLUDED.password_hash, updated_at = NOW()
 		`, u.Email, hash, u.Role).Error
-		
+
 		if err != nil {
 			return err
 		}

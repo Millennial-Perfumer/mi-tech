@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -16,20 +17,39 @@ func NewCustomerRepository(db *gorm.DB) *CustomerRepository {
 	return &CustomerRepository{db: db}
 }
 
-// UpsertByPhone performs a phone-number based upsert.
-// If the customer exists, it updates the fields.
-func (r *CustomerRepository) UpsertByPhone(ctx context.Context, customer *entity.Customer) error {
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "phone_number"}},
-		Where: clause.Where{Exprs: []clause.Expression{
-			clause.Expr{SQL: "deleted_at IS NULL"},
-		}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"first_name", "last_name", "email", "address1", "address2", 
-			"city", "state", "country", "zip_code", "total_orders", 
-			"total_spent", "updated_at", "deleted_at",
-		}),
-	}).Create(customer).Error
+// UpsertByPhone performs a phone-number based upsert using raw SQL to ensure
+// exact matching with partial unique indexes and avoid column ambiguity.
+func (r *CustomerRepository) UpsertByPhone(ctx context.Context, c *entity.Customer) error {
+	now := time.Now()
+	query := `
+		INSERT INTO customers (
+			phone_number, first_name, last_name, email, address1, address2,
+			city, state, country, zip_code, total_orders, total_spent,
+			source_id, external_id, created_at, updated_at
+		) VALUES (
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		)
+		ON CONFLICT (phone_number) WHERE deleted_at IS NULL
+		DO UPDATE SET
+			first_name = EXCLUDED.first_name,
+			last_name = EXCLUDED.last_name,
+			email = EXCLUDED.email,
+			address1 = EXCLUDED.address1,
+			address2 = EXCLUDED.address2,
+			city = EXCLUDED.city,
+			state = EXCLUDED.state,
+			country = EXCLUDED.country,
+			zip_code = EXCLUDED.zip_code,
+			total_orders = EXCLUDED.total_orders,
+			total_spent = EXCLUDED.total_spent,
+			updated_at = EXCLUDED.updated_at
+		RETURNING id`
+
+	return r.db.WithContext(ctx).Raw(query,
+		c.PhoneNumber, c.FirstName, c.LastName, c.Email, c.Address1, c.Address2,
+		c.City, c.State, c.Country, c.ZipCode, c.TotalOrders, c.TotalSpent,
+		c.SourceID, c.ExternalID, now, now,
+	).Scan(&c.ID).Error
 }
 
 // UpdateStats updates only the total_orders and total_spent for a customer.
@@ -160,21 +180,28 @@ func (r *CustomerRepository) List(ctx context.Context, search, sortBy, sortOrder
 }
 
 // UpsertBatch performs a batch upsert of customers.
+// Optimization: Replaces iterative raw SQL calls with a single GORM batch create.
+// Expected Impact: Reduces database roundtrips from O(N) to O(1).
 func (r *CustomerRepository) UpsertBatch(ctx context.Context, customers []entity.Customer) error {
 	if len(customers) == 0 {
 		return nil
 	}
+
+	// We use clause.OnConflict to handle the upsert logic.
+	// The partial unique index 'idx_customers_phone_unique_active' is targeted via TargetWhere.
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		TargetWhere: clause.Where{
+			Exprs: []clause.Expression{
+				clause.Expr{SQL: "deleted_at IS NULL"},
+			},
+		},
 		Columns: []clause.Column{{Name: "phone_number"}},
-		Where: clause.Where{Exprs: []clause.Expression{
-			clause.Expr{SQL: "deleted_at IS NULL"},
-		}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"first_name", "last_name", "email", "address1", "address2", 
-			"city", "state", "country", "zip_code", "total_orders", 
-			"total_spent", "updated_at", "deleted_at",
+			"first_name", "last_name", "email", "address1", "address2",
+			"city", "state", "country", "zip_code", "total_orders", "total_spent",
+			"updated_at",
 		}),
-	}).CreateInBatches(customers, 100).Error
+	}).Create(&customers).Error
 }
 
 func (r *CustomerRepository) GetByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {

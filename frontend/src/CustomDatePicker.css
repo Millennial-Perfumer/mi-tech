@@ -23,7 +23,7 @@
 
 .datepicker-trigger-btn:hover {
   border-color: var(--accent-color);
-  background-color: #fbfdff;
+  background-color: var(--bg-hover);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
@@ -46,7 +46,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: var(--surface-color);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -58,7 +58,7 @@
 
 /* Modal container */
 .datepicker-modal-container {
-  background-color: #ffffff;
+  background-color: var(--surface-color);
   border-radius: 20px;
   box-shadow: 
     0 20px 25px -5px rgba(0, 0, 0, 0.1),
@@ -69,7 +69,7 @@
   min-width: 850px;
   max-height: 90vh;
   animation: modalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
 }
 
 /* Modal Header */
@@ -85,7 +85,7 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .modal-close-btn {
@@ -127,7 +127,7 @@
   padding: 1rem 0;
   display: flex;
   flex-direction: column;
-  background-color: rgba(248, 250, 252, 0.5);
+  background-color: var(--bg-input);
 }
 
 .preset-btn {
@@ -141,12 +141,12 @@
 }
 
 .preset-btn:hover {
-  background-color: rgba(226, 232, 240, 0.5);
+  background-color: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .preset-btn.active {
-  background-color: #f0f9ff;
+  background-color: var(--accent-subtle);
   color: var(--accent-color);
   font-weight: 700;
   border-left: 4px solid var(--accent-color);
@@ -170,13 +170,13 @@
 }
 
 .date-display-input {
-  border: 2px solid #f1f5f9;
-  background-color: #f8fafc;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-input);
   border-radius: 10px;
   padding: 0.65rem 0.9rem;
   font-size: 0.9rem;
   width: 150px;
-  color: #1e293b;
+  color: var(--text-primary);
   font-weight: 600;
   outline: none;
   transition: all 0.2s;
@@ -184,7 +184,7 @@
 
 .date-display-input:focus {
   border-color: var(--accent-color);
-  background-color: #ffffff;
+  background-color: var(--surface-color);
   box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
 }
 
@@ -198,7 +198,7 @@
 }
 
 .rdrNextPrevButton {
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border-radius: 8px;
 }
 
@@ -210,6 +210,39 @@
   background: var(--accent-color) !important;
 }
 
+/* Force theme-aware backgrounds on library internals */
+.rdrCalendarWrapper {
+  background-color: var(--surface-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.rdrMonths, .rdrMonthsHorizontal, .rdrMonth {
+  background-color: var(--surface-color) !important;
+}
+
+.rdrDateRangePickerWrapper {
+  background-color: var(--surface-color) !important;
+  box-shadow: none;
+}
+
+/* Calendar Overrides */
+.rdrMonthName {
+  color: var(--text-primary) !important;
+}
+.rdrDayNumber span {
+  color: var(--text-primary) !important;
+}
+.rdrDayPassive .rdrDayNumber span {
+  color: var(--text-tertiary) !important;
+}
+.rdrDayDisabled .rdrDayNumber span {
+  color: var(--text-tertiary) !important;
+  opacity: 0.5;
+}
+.rdrWeekDay {
+  color: var(--text-secondary) !important;
+}
+
 .rdrInRange {
   background: rgba(14, 165, 233, 0.08) !important;
   color: var(--text-primary) !important;
@@ -219,6 +252,21 @@
   font-weight: 500;
 }
 
+/* Preview and Hover states for Dark Mode */
+.rdrDayInPreview {
+  background-color: var(--bg-hover) !important;
+  border: none !important;
+}
+
+.rdrDayHovered {
+  background-color: var(--bg-hover) !important;
+}
+
+.rdrDayEndPreview, .rdrDayStartPreview, .rdrDayInPreview {
+  border-color: var(--accent-color) !important;
+  background-color: var(--accent-subtle) !important;
+}
+
 /* Footer Action Bar */
 .datepicker-footer {
   display: flex;
@@ -226,7 +274,7 @@
   gap: 12px;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid var(--border-color);
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: var(--surface-color);
 }
 
 .datepicker-footer .btn-primary,
@@ -262,14 +310,14 @@
   padding: 8px 16px;
   text-align: left;
   font-size: 0.875rem;
-  color: #475569;
+  color: var(--text-secondary);
   background: transparent;
   transition: all 0.2s;
   cursor: pointer;
 }
 
 .datepicker-sidebar .preset-btn:hover {
-  background-color: rgba(226, 232, 240, 0.5);
+  background-color: var(--bg-hover);
 }
 
 .datepicker-sidebar .preset-btn.active {

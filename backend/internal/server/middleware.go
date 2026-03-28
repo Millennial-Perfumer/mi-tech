@@ -89,9 +89,12 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 				role = "read" // default fallback
 			}
 
-			// Add role to context
-			log.Printf("AuthMiddleware: user=%s role=%s", claims["username"], role)
+			username, _ := claims["username"].(string)
+
+			// Add role and username to context
+			log.Printf("AuthMiddleware: user=%s role=%s", username, role)
 			ctx := context.WithValue(r.Context(), "userRole", role)
+			ctx = context.WithValue(ctx, "username", username)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

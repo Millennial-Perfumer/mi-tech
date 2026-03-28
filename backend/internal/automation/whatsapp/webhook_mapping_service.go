@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var phoneRegex = regexp.MustCompile(`[^0-9]`)
@@ -42,32 +43,51 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 }
 
 func (s *WebhookMappingService) ExecuteMapping(storeID, topic string, order entity.Order) error {
-	log.Printf("Automation Start: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
+	// 1. Acquire Advisory Lock to prevent simultaneous Race Conditions for the same order.
+	// We use pg_advisory_xact_lock which automatically releases at the end of the transaction.
+	tx, err := s.messagesService.repo.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	// Use a 2-argument lock: (constant_namespace_hash, order_id)
+	// Postgres expects (int32, int32) for the 2-argument version.
+	_, err = tx.Exec("SELECT pg_advisory_xact_lock(hashtext('automation'), $1::int)", order.ID)
+	if err != nil {
+		return fmt.Errorf("failed to acquire advisory lock: %v", err)
+	}
+
+	log.Printf("Automation Started [Locked]: Executing mapping for Order %d (%s), Topic: %s", order.ID, order.OrderNumber, topic)
 
 	// 1. Find matching trigger
-	var template *AutomationTemplate
-	var err error
-
 	trigger, err := s.templatesRepo.GetTriggerByTopic(storeID, topic)
 	if err != nil {
+		log.Printf("Automation Error: Database error fetching trigger for topic %s: %v", topic, err)
 		return fmt.Errorf("error fetching trigger: %w", err)
 	}
 	if trigger == nil {
-		log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s)", topic, storeID)
+		log.Printf("Automation Skip: No enabled trigger found for topic %s (Store: %s). Check triggers table.", topic, storeID)
 		return nil
 	}
-	template, err = s.templatesRepo.GetTemplateByID(trigger.TemplateID)
 
+	template, err := s.templatesRepo.GetTemplateByID(trigger.TemplateID)
 	if err != nil {
+		log.Printf("Automation Error: Database error fetching template %d: %v", trigger.TemplateID, err)
 		return fmt.Errorf("error fetching template: %w", err)
 	}
 	if template == nil {
-		log.Printf("Automation Error: Template not found for topic %s", topic)
+		log.Printf("Automation Error: Template %d not found for trigger on topic %s", trigger.TemplateID, topic)
 		return fmt.Errorf("template not found")
 	}
 
-	log.Printf("Automation Progress: Found template: %s (ID: %d)", template.TemplateName, template.ID)
-	return s.executeWithTemplate(storeID, template, order, topic)
+	log.Printf("Automation Progress: Found template: %s (ID: %d). Proceeding to execute.", template.TemplateName, template.ID)
+	err = s.executeWithTemplate(storeID, template, order, topic)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int, order entity.Order) error {
@@ -132,12 +152,24 @@ func resolveVariable(field string, order entity.Order) string {
 func (s *WebhookMappingService) executeWithTemplate(storeID string, template *AutomationTemplate, order entity.Order, topic string) error {
 	// Deduplication Check (only for automated topics)
 	if topic != "manual" {
-		allowMultiple := topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/updated"
-		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID)
+		// For most automated cases (creation, cancellation, delivery), keep it strictly once per order.
+		allowMultiple := false
+
+		// Use a time window for status updates to block near-simultaneous redundant webhooks from Shopify
+		// while still allowing for legitimate retries (e.g., re-dispatching later).
+		var since time.Time
+		if topic == "orders/assigned" || topic == "orders/fulfilled" || topic == "orders/dispatched" {
+			since = time.Now().Add(-2 * time.Minute)
+		} else if topic == "orders/out_for_delivery" || topic == "orders/delivered" {
+			// 1-hour window for delivery tracking status
+			since = time.Now().Add(-1 * time.Hour)
+		}
+
+		sent, err := s.messagesService.repo.HasSentTemplate(order.ID, template.ID, since)
 		if err != nil {
 			log.Printf("Automation Error: Deduplication check failed for order %d: %v", order.ID, err)
 		} else if sent && !allowMultiple {
-			log.Printf("Automation Skip: Template %s already sent for order %d. Skipping duplicate.", template.TemplateName, order.ID)
+			log.Printf("Automation Skip: Template %s already sent for order %d (Topic: %s) within dedupe window. Skipping.", template.TemplateName, order.ID, topic)
 			return nil
 		}
 	}
