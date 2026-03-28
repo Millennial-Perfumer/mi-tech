@@ -1,0 +1,171 @@
+.settings-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.save-banner {
+  position: fixed;
+  top: var(--header-height);
+  left: 1rem;
+  right: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 700;
+  text-align: center;
+  z-index: 1001;
+  animation: slideDownFade 0.3s ease forwards;
+}
+
+.save-banner.success { background-color: #10b981; }
+.save-banner.error { background-color: #ef4444; }
+
+@keyframes slideDownFade {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(10px); }
+}
+
+.settings-group {
+  margin-bottom: 2.5rem;
+}
+
+.group-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem !important;
+  gap: 1.5rem;
+}
+
+.setting-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setting-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.setting-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Custom Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color);
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 24px;
+  width: 24px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--accent-color);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-card-small {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem !important;
+}
+
+.user-avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.u-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.u-role {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.danger-btn {
+  background-color: #fee2e2;
+  color: #ef4444;
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.danger-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
