@@ -536,10 +536,18 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 	}
 
 	suffix := h.settings.GetBulkTemplateSuffix()
-	if !strings.HasSuffix(template.TemplateName, suffix) {
-		http.Error(w, fmt.Sprintf("Only templates ending with %s are allowed for bulk selection", suffix), http.StatusBadRequest)
+	cat := strings.ToUpper(strings.TrimSpace(template.Category))
+	isMarketing := cat == "MARKETING"
+	
+	log.Printf("SendBulkMarketing: Validating template '%s' (Category: '%s', Suffix: '%s')", template.TemplateName, cat, suffix)
+
+	if !isMarketing && (suffix == "" || !strings.HasSuffix(strings.ToLower(template.TemplateName), strings.ToLower(suffix))) {
+		msg := fmt.Sprintf("Only templates with category 'MARKETING' or ending with '%s' are allowed for bulk selection (This template is '%s')", suffix, cat)
+		log.Printf("SendBulkMarketing: Validation FAILED: %s", msg)
+		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
+	log.Printf("SendBulkMarketing: Validation PASSED")
 
 	// 2. Fetch customers
 	customers, err := h.customerService.GetCustomersByIDs(r.Context(), req.CustomerIDs)
