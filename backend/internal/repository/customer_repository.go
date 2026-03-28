@@ -161,7 +161,14 @@ func (r *CustomerRepository) List(ctx context.Context, search, sortBy, sortOrder
 		return nil, 0, err
 	}
 
-	if sortBy != "" {
+	// Security: Use allowlist for sortBy to prevent SQL injection.
+	allowedSortColumns := map[string]bool{
+		"phone_number": true, "first_name": true, "last_name": true,
+		"email": true, "city": true, "state": true, "total_orders": true,
+		"total_spent": true, "updated_at": true, "created_at": true,
+	}
+
+	if sortBy != "" && allowedSortColumns[sortBy] {
 		order := sortBy
 		if sortOrder == "ASC" || sortOrder == "DESC" {
 			order += " " + sortOrder

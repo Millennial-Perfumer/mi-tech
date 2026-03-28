@@ -102,6 +102,27 @@ func (s *CustomerRepositoryTestSuite) TestListWithFilters() {
 	assert.Equal(s.T(), "Bob", *customers[0].FirstName)
 }
 
+func (s *CustomerRepositoryTestSuite) TestListSQLInjection() {
+	ctx := context.Background()
+	s.repo.UpsertByPhone(ctx, &entity.Customer{PhoneNumber: "111", FirstName: entity.StrPtr("Alice")})
+
+	// Attempting SQL injection via sortBy
+	// If vulnerable, this might be passed directly to the ORDER BY clause.
+	// In some databases, this could be used to extract data via error-based injection or timing attacks.
+	injection := "email, (SELECT CASE WHEN (1=1) THEN pg_sleep(0.1) ELSE pg_sleep(0) END)"
+
+	// We just want to see if it executes without error, which it shouldn't if we have an allowlist.
+	// Currently it might execute (and sleep briefly) or fail if the syntax is wrong for the specific DB.
+	// But the goal is that after the fix, this specific string should be rejected/ignored.
+	_, _, err := s.repo.List(ctx, "", injection, "ASC", "", 0, 0, 0, "", "", "", "", "", false, false, false, 0, 10)
+
+	// If there's an error from the DB, it confirms it's trying to execute it.
+	// If there's no error, it might still have executed it.
+	if err != nil {
+		s.T().Logf("List with injection returned error: %v", err)
+	}
+}
+
 func TestCustomerRepositorySuite(t *testing.T) {
 	suite.Run(t, new(CustomerRepositoryTestSuite))
 }
