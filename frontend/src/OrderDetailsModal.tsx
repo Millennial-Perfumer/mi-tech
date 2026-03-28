@@ -170,7 +170,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           <div style={{ padding: '2rem', textAlign: 'center' }}>Order not found.</div>
         ) : (
           <div className="modal-content-scroll" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               
               {/* Customer Info Section */}
               <div className="details-section">
@@ -190,7 +190,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="input-group">
                       <label>First Name</label>
                       <input 
@@ -257,7 +257,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
+                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
                     <div className="input-group">
                       <label>City</label>
                       <input 
@@ -280,7 +280,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="input-group">
                       <label>State</label>
                       <input 

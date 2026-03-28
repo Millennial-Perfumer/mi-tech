@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Invoice Manager - System Architecture</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --code-bg: #f1f1f1;
+            --border-color: #ddd;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+            color: var(--text-color);
+            background-color: #fff;
+        }
+        h1, h2, h3 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+        }
+        h1 { font-size: 2.5rem; text-align: center; border-bottom: 4px solid var(--accent-color); }
+        .tech-stack {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+            justify-content: center;
+        }
+        .tag {
+            background: var(--accent-color);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .container {
+            background: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        code {
+            background-color: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: var(--secondary-color);
+            color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        ul, ol { margin-bottom: 1rem; }
+        li { margin-bottom: 0.5rem; }
+        .workflow-card {
+            background: #fff;
+            border-left: 5px solid var(--accent-color);
+            padding: 1rem;
+            margin: 1rem 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .nav a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="#overview">Overview</a>
+        <a href="#stack">Tech Stack</a>
+        <a href="#structure">Structure</a>
+        <a href="#schema">Database</a>
+        <a href="#workflows">Workflows</a>
+        <a href="#api">API</a>
+    </div>
+
+    <h1>GST Invoice Manager</h1>
+    
+    <div class="tech-stack" id="stack">
+        <span class="tag">Go (Golang) 1.21+</span>
+        <span class="tag">React 18</span>
+        <span class="tag">TypeScript</span>
+        <span class="tag">PostgreSQL 15</span>
+        <span class="tag">Docker</span>
+        <span class="tag">Nginx</span>
+        <span class="tag">Shopify API</span>
+        <span class="tag">Meta WhatsApp API</span>
+        <span class="tag">Prometheus & Grafana</span>
+    </div>
+
+    <section id="overview">
+        <h2>1. System Overview</h2>
+        <p>The <strong>GST Invoice Manager</strong> is a comprehensive, production-ready web application designed for e-commerce automation. It bridges the gap between sales platforms (Shopify) and customer engagement (WhatsApp) while ensuring full GST tax compliance through automated reporting and invoice generation.</p>
+    </section>
+
+    <section id="structure">
+        <h2>2. Directory Structure</h2>
+        <div class="container">
+            <ul>
+                <li><code>/frontend/</code>: React SPA powered by Vite. Contains UI for dashboards, order management, and automation settings.</li>
+                <li><code>/backend/</code>: Go REST API.
+                    <ul>
+                        <li><code>cmd/</code>: Entry points (main application, seeders).</li>
+                        <li><code>internal/handler/</code>: HTTP transport layer and request parsing.</li>
+                        <li><code>internal/service/</code>: Core business logic (the engine of the app).</li>
+                        <li><code>internal/repository/</code>: Database abstraction using GORM.</li>
+                        <li><code>internal/entity/</code>: Database models and structural definitions.</li>
+                    </ul>
+                </li>
+                <li><code>/monitoring/</code>: Full observability stack configurations (Prometheus, Loki, Tempo, Grafana).</li>
+                <li><code>/nginx/</code>: High-performance reverse proxy and SSL termination.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section id="schema">
+        <h2>3. Database Schema</h2>
+        <p>Managed via migration files in <code>backend/internal/database/migrations/</code>. Core tables include:</p>
+        <ul>
+            <li><strong>Orders & Items:</strong> <code>orders</code>, <code>order_line_items</code> (Stores transaction and tax data).</li>
+            <li><strong>Customers:</strong> <code>customers</code> (Aggregated buyer profiles).</li>
+            <li><strong>Automation:</strong> <code>whatsapp_templates</code>, <code>whatsapp_triggers</code>, <code>whatsapp_messages_index</code>.</li>
+            <li><strong>System:</strong> <code>users</code> (Auth/RBAC), <code>app_configs</code> (Encrypted API keys/secrets).</li>
+        </ul>
+    </section>
+
+    <section id="workflows">
+        <h2>4. Core Workflows</h2>
+        
+        <div class="workflow-card">
+            <h3>A. Order Ingestion</h3>
+            <p><strong>Real-time:</strong> Shopify sends webhooks to <code>/api/webhooks/shopify</code>. The system verifies the HMAC signature, logs the raw event in <code>webhook_events</code>, and asynchronously processes it into the main order tables.</p>
+            <p><strong>Bulk Sync:</strong> Admins can trigger a historical fetch via the Shopify REST/GraphQL API to bring in past data.</p>
+        </div>
+
+        <div class="workflow-card">
+            <h3>B. WhatsApp Automation</h3>
+            <p>An event-driven engine listens for order status updates (e.g., <em>Paid</em>, <em>Fulfilled</em>, <em>Refunded</em>). If a status matches a pre-defined <strong>Trigger</strong>, the system selects the associated <strong>Template</strong>, hydrates it with customer data, and dispatches it via the Meta Cloud API.</p>
+        </div>
+
+        <div class="workflow-card">
+            <h3>C. GST Reporting</h3>
+            <p>Generates complex tax summaries including:</p>
+            <ul>
+                <li><strong>State-wise:</strong> Splitting IGST vs CGST/SGST based on shipping destination.</li>
+                <li><strong>HSN-wise:</strong> Aggregating sales by Harmonized System codes for tax filing.</li>
+                <li><strong>Document Summary:</strong> Tracking invoice number sequences and total counts.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section id="api">
+        <h2>5. API Routing Summary</h2>
+        <p>The backend routes are defined in <code>backend/internal/server/router.go</code>:</p>
+        <ul>
+            <li><code>/api/auth/login</code>: JWT Session management.</li>
+            <li><code>/api/orders</code>: Search, filter, and view specific order details.</li>
+            <li><code>/api/reports/...</code>: Endpoints for summary, state-wise, and HSN reports.</li>
+            <li><code>/api/automation/whatsapp/...</code>: Full CRUD for templates and triggers.</li>
+            <li><code>/api/configs/reveal</code>: Admin-only endpoint to view sensitive keys.</li>
+        </ul>
+    </section>
+
+    <section id="quickstart">
+        <h2>6. Quick Start</h2>
+        <pre><code># 1. Start Infrastructure
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# 2. Start Backend
+cd backend && go run cmd/main.go
+
+# 3. Start Frontend
+cd frontend && npm install && npm run dev</code></pre>
+    </section>
+
+    <footer style="margin-top: 5rem; text-align: center; color: #777; font-size: 0.9em;">
+        <p>Generated for GST Invoice Manager Repository Architecture Reference</p>
+    </footer>
+</body>
+</html>

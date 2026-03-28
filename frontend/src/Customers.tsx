@@ -577,7 +577,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
 
                 {showFilters && (
                     <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-input)', animation: 'slideDown 0.3s ease-out' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                        <div className="orders-filter-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Origin Source</label>
                                 <select 
@@ -616,14 +616,14 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>City / State</label>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <div className="form-row" style={{ display: 'flex', gap: '0.5rem' }}>
                                     <input 
                                         type="text" 
                                         className="form-input" 
                                         placeholder="City" 
                                         value={city} 
                                         onChange={(e) => { setCity(e.target.value); setPage(1); }} 
-                                        style={{ width: '50%', height: '40px', background: 'var(--bg-input)' }}
+                                        style={{ height: '40px', background: 'var(--bg-input)' }}
                                     />
                                     <input 
                                         type="text" 
@@ -631,7 +631,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                         placeholder="State" 
                                         value={state} 
                                         onChange={(e) => { setState(e.target.value); setPage(1); }} 
-                                        style={{ width: '50%', height: '40px', background: 'var(--bg-input)' }}
+                                        style={{ height: '40px', background: 'var(--bg-input)' }}
                                     />
                                 </div>
                             </div>

@@ -186,7 +186,16 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     <div className="gst-reports-container" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* Sub-navigation */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto', alignItems: 'center' }}>
+      <div className="sub-tabs-header" style={{ 
+        display: 'flex', 
+        gap: '0.5rem', 
+        borderBottom: '1px solid var(--border-color)', 
+        marginBottom: '1rem',
+        paddingBottom: '0.5rem', 
+        overflowX: 'auto', 
+        WebkitOverflowScrolling: 'touch',
+        alignItems: 'center' 
+      }}>
         {[
           { id: 'summary', label: 'Dashboard' },
           { id: 'state', label: 'B2C State-wise' },
@@ -233,7 +242,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
               <div className="card-value">₹{summary?.total_gst_collected.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</div>
             </div>
             <div className="card" style={{ gridColumn: 'span 3' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+              <div className="report-card-stats" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
                 <div style={{ flex: 1 }}>
                   <h3 className="card-title" style={{ fontSize: '0.75rem', color: 'var(--accent-color)' }}>IGST</h3>
                   <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>₹{summary?.total_igst.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0'}</div>

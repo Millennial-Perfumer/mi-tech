@@ -527,7 +527,7 @@ function App() {
                   ))}
                 </div>
                 
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'var(--bg-input)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <div className="sync-date-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'var(--bg-input)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ flex: 1 }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>From Date</label>
                     <input 
@@ -552,7 +552,7 @@ function App() {
                       onBlur={(e) => e.currentTarget.style.boxShadow = '0 0 0 1px var(--border-color)'}
                     />
                   </div>
-                  <div style={{ color: 'var(--text-tertiary)', fontSize: '1.5rem', alignSelf: 'flex-end', paddingBottom: '0.5rem' }}>→</div>
+                  <div className="sync-date-arrow" style={{ color: 'var(--text-tertiary)', fontSize: '1.5rem', alignSelf: 'flex-end', paddingBottom: '0.5rem' }}>→</div>
                   <div style={{ flex: 1 }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>To Date</label>
                     <input 
@@ -789,7 +789,7 @@ function App() {
         </header>
         
         {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && (
-          <div style={{ 
+          <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center', 
@@ -912,7 +912,7 @@ function App() {
 
         {activeTab === 'shopify' && (
           <section className="table-container">
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div className="webhook-status-bar" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.025em', marginBottom: '0.25rem' }}>Webhook Status</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -969,7 +969,7 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-input)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div className="orders-filter-bar" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-input)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
                   <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                   <input 
