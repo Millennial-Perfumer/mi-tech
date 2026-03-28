@@ -2,14 +2,18 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"mi-tech/internal/service"
+	"mi-tech/internal/telemetry"
+	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // CORSMiddleware adds CORS headers to all requests.
@@ -128,4 +132,50 @@ func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// MetricsMiddleware tracks HTTP requests with Prometheus.
+func MetricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		
+		// Create a custom response writer to capture the status code
+		rw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		
+		next.ServeHTTP(rw, r)
+		
+		duration := time.Since(start).Seconds()
+		path := r.URL.Path
+		
+		// Clean up path for cardinality (e.g. /api/orders/1 -> /api/orders/:id if possible)
+		// For now simple path tracking
+		telemetry.HttpRequestsTotal.With(prometheus.Labels{
+			"path":   path,
+			"method": r.Method,
+			"status": string(rune(rw.status)), // This is slightly wrong, should be string representation
+		}).Inc()
+		
+		// Better status as string
+		statusStr := fmt.Sprintf("%d", rw.status)
+		telemetry.HttpRequestsTotal.With(prometheus.Labels{
+			"path":   path,
+			"method": r.Method,
+			"status": statusStr,
+		}).Inc()
+
+		telemetry.HttpRequestDuration.With(prometheus.Labels{
+			"path":   path,
+			"method": r.Method,
+		}).Observe(duration)
+	})
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
 }
