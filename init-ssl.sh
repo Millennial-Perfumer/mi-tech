@@ -58,7 +58,8 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   --agree-tos \
   --no-eff-email \
   -d $DOMAIN \
-  -d $API_DOMAIN
+  -d $API_DOMAIN \
+  -d mi-tech-monitoring.millennialperfumer.in
 
 echo "==> [5/5] Reloading Nginx with real certificate..."
 docker compose -f $COMPOSE_FILE exec nginx nginx -s reload
