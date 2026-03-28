@@ -545,8 +545,44 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             aria-label="Search customers"
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                            style={{ paddingLeft: '2.5rem', width: '100%' }}
+                            style={{ paddingLeft: '2.5rem', paddingRight: search ? '2.5rem' : '1rem', width: '100%' }}
                         />
+                        {search && (
+                            <button
+                                onClick={() => { setSearch(''); setPage(1); }}
+                                aria-label="Clear search"
+                                title="Clear search"
+                                style={{
+                                    position: 'absolute',
+                                    right: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--text-tertiary)',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '50%',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    background: 'transparent'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = 'var(--text-primary)';
+                                    e.currentTarget.style.background = 'var(--bg-hover)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = 'var(--text-tertiary)';
+                                    e.currentTarget.style.background = 'transparent';
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        )}
                     </div>
                     <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
                         <button 
