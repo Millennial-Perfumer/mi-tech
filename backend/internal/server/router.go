@@ -55,6 +55,7 @@ func RegisterRoutes(
 
 	// --- Auth Routes ---
 	mux.HandleFunc("/api/auth/login", cors(authHandler.Login))
+	mux.HandleFunc("/api/auth/verify", protected(authHandler.VerifyAuth))
 
 	// --- User Routes ---
 	mux.HandleFunc("/api/users", adminProtected(func(w http.ResponseWriter, r *http.Request) {

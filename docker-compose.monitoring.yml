@@ -4,8 +4,8 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000" # Removed to avoid conflict; Nginx handles external access
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
@@ -14,6 +14,13 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=https://mi-tech-monitoring.millennialperfumer.in
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_AUTH_PROXY_ENABLED=true
+      - GF_AUTH_PROXY_HEADER_NAME=X-WEBAUTH-USER
+      - GF_AUTH_PROXY_HEADER_PROPERTY=username
+      - GF_AUTH_PROXY_AUTO_SIGN_UP=true
+      - GF_AUTH_PROXY_SYNC_TTL=60
+      - GF_AUTH_PROXY_ENABLE_ROLE_ATTRIBUTE_SYNC=true
+      - GF_AUTH_PROXY_HEADERS=Role:X-WEBAUTH-ROLE
     networks:
       - app-network
 
@@ -48,28 +55,29 @@ services:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     networks:
       - app-network
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.7.1
     container_name: tempo
-    command: [ "-config.file=/etc/tempo.yaml" ]
+    command: ["-config.file=/etc/tempo.yaml", "-target=all"]
     volumes:
       - ./monitoring/tempo/tempo.yaml:/etc/tempo.yaml
       - tempo_data:/tmp/tempo
     ports:
-      - "3200:3200"   # tempo
-      - "4317:4317"  # otlp grpc
-      - "4318:4318"  # otlp http
+      - "3200:3200" # tempo
+      - "4317:4317" # otlp grpc
+      - "4318:4318" # otlp http
     networks:
       - app-network
 
 networks:
   app-network:
-    name: app-network # Ensures it attaches to the same network as prod
+    name: app-network
+    external: true
 
 volumes:
   grafana-data:
