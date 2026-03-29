@@ -38,8 +38,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       } else {
         onLogin(data.token);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
@@ -64,8 +68,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       const data = await response.json();
       onLogin(data.token);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
@@ -112,8 +120,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
             <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label>Username</label>
+                <label htmlFor="login-username">Username</label>
                 <input
+                  id="login-username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -122,9 +131,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 />
               </div>
               <div className="form-group" style={{ marginBottom: '2rem' }}>
-                <label>Password</label>
+                <label htmlFor="login-password">Password</label>
                 <div style={{ position: 'relative' }}>
                   <input
+                    id="login-password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -135,6 +145,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     style={{
                       position: 'absolute',
                       right: '0.75rem',
@@ -203,9 +214,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
             <form onSubmit={handleOTPVerify} style={{ textAlign: 'left' }}>
               <div className="form-group" style={{ marginBottom: '2rem' }}>
-                <label>Verification Code</label>
+                <label htmlFor="otp-code">Verification Code</label>
                 <input
+                  id="otp-code"
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"
