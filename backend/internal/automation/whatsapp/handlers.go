@@ -136,17 +136,30 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 }
 
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
-	// 1. Hub Challenge for verification
+	// 1. Hub Challenge for verification (GET)
 	if r.Method == http.MethodGet {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+
+		if mode == "" || token == "" {
+			http.Error(w, "Missing hub.mode or hub.verify_token", http.StatusBadRequest)
+			return
+		}
+
+		if mode == "subscribe" && token == h.settings.GetWhatsAppWebhookVerifyToken() {
+			log.Printf("WhatsApp Webhook: Verification successful")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+
+		log.Printf("WhatsApp Webhook: Verification failed. Mode: %s", mode)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
-	// 2. Handle status updates
+	// 2. Handle status updates (POST)
 	if r.Method == http.MethodPost {
 		// Read body for both validation and unmarshaling
 		body, err := io.ReadAll(r.Body)

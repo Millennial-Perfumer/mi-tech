@@ -12,12 +12,12 @@ import (
 
 // ConfigsHandler handles the /api/configs endpoints.
 type ConfigsHandler struct {
-	configsRepo *repository.ConfigsRepository
+	configsRepo repository.ConfigsRepository
 	db          *gorm.DB
 }
 
 // NewConfigsHandler creates a new ConfigsHandler.
-func NewConfigsHandler(configsRepo *repository.ConfigsRepository, db *gorm.DB) *ConfigsHandler {
+func NewConfigsHandler(configsRepo repository.ConfigsRepository, db *gorm.DB) *ConfigsHandler {
 	return &ConfigsHandler{configsRepo: configsRepo, db: db}
 }
 

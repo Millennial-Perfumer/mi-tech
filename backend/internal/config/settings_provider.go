@@ -7,10 +7,10 @@ import (
 )
 
 type SettingsProvider struct {
-	configsRepo *repository.ConfigsRepository
+	configsRepo repository.ConfigsRepository
 }
 
-func NewSettingsProvider(configsRepo *repository.ConfigsRepository) *SettingsProvider {
+func NewSettingsProvider(configsRepo repository.ConfigsRepository) *SettingsProvider {
 	return &SettingsProvider{configsRepo: configsRepo}
 }
 

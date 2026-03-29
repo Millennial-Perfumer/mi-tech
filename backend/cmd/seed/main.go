@@ -19,7 +19,7 @@ func main() {
 	configsRepo := repository.NewConfigsRepository(db)
 	settingsProvider := config.NewSettingsProvider(configsRepo)
 
-	authService := service.NewAuthService(db, settingsProvider)
+	authService := service.NewAuthService(db, settingsProvider, nil)
 
 	username := os.Getenv("ADMIN_USERNAME")
 	if username == "" {

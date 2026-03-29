@@ -105,3 +105,27 @@ func (m *MockLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) err
 	args := m.Called(tx, orderID)
 	return args.Error(0)
 }
+
+type MockConfigsRepository struct {
+	mock.Mock
+}
+
+func (m *MockConfigsRepository) Get(key string) (string, error) {
+	args := m.Called(key)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockConfigsRepository) GetAll() ([]repository.AppConfig, error) {
+	args := m.Called()
+	return args.Get(0).([]repository.AppConfig), args.Error(1)
+}
+
+func (m *MockConfigsRepository) GetAllRevealed() ([]repository.AppConfig, error) {
+	args := m.Called()
+	return args.Get(0).([]repository.AppConfig), args.Error(1)
+}
+
+func (m *MockConfigsRepository) Set(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}

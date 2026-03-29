@@ -13,7 +13,7 @@ import (
 type ConfigsRepositoryTestSuite struct {
 	suite.Suite
 	db   *gorm.DB
-	repo *ConfigsRepository
+	repo ConfigsRepository
 }
 
 func (s *ConfigsRepositoryTestSuite) SetupSuite() {

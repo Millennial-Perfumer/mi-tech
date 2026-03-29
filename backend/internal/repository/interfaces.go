@@ -64,6 +64,14 @@ type MetricsRepository interface {
 	GetDashboardMetrics(startDate, endDate string) (totalRevenue, cgst, sgst, igst float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error)
 }
 
+// ConfigsRepository defines data access for app_configs table.
+type ConfigsRepository interface {
+	Get(key string) (string, error)
+	GetAll() ([]AppConfig, error)
+	GetAllRevealed() ([]AppConfig, error)
+	Set(key, value string) error
+}
+
 // ReportRepository defines data access for GST report queries.
 type ReportRepository interface {
 	GetGSTSummary(startDate, endDate string) (totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, paidOrders int, totalRevenue, totalTaxable, totalTax float64, err error)
