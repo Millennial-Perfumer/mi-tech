@@ -136,35 +136,32 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
+	// Optimization: Replaces global CTE with window function to avoid full table scan of order_line_items.
+	// We only calculate subtotals for the orders within the date range.
 	query := `
-		WITH OrderSubtotals AS (
-			SELECT order_id, SUM(price * quantity - discount) as line_sum
-			FROM order_line_items
-			GROUP BY order_id
-		),
-		LineItemShares AS (
+		WITH LineItemShares AS (
 			SELECT 
 				li.order_id,
 				COALESCE(li.hs_code, '33029019') as hs_code,
 				li.quantity,
 				(li.price * li.quantity - li.discount) as line_val,
-				os.line_sum,
+				SUM(li.price * li.quantity - li.discount) OVER (PARTITION BY li.order_id) as line_sum,
 				o.total_price,
 				COALESCE(o.customer_state, 'N/A') as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
-			JOIN OrderSubtotals os ON li.order_id = os.order_id
-			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled') AND os.line_sum > 0
+			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled')
 		)
 		SELECT 
 			hs_code as hsn_code,
 			COUNT(DISTINCT order_id) as product_count,
 			SUM(quantity) as qty_sold,
-			SUM(ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as taxable_value,
-			SUM(ROUND((line_val / line_sum) * total_price, 2) - ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as total_gst,
-			SUM(ROUND((line_val / line_sum) * total_price, 2)) as revenue,
+			SUM(ROUND((line_val / NULLIF(line_sum, 0)) * (total_price / 1.18), 2)) as taxable_value,
+			SUM(ROUND((line_val / NULLIF(line_sum, 0)) * total_price, 2) - ROUND((line_val / NULLIF(line_sum, 0)) * (total_price / 1.18), 2)) as total_gst,
+			SUM(ROUND((line_val / NULLIF(line_sum, 0)) * total_price, 2)) as revenue,
 			state
 		FROM LineItemShares
+		WHERE line_sum > 0
 		GROUP BY hs_code, state
 		ORDER BY revenue DESC
 	`

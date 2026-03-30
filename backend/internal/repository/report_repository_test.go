@@ -108,6 +108,56 @@ func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
 	}
 }
 
+func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
+	now := time.Now().Format(time.RFC3339)
+	tn := "Tamil Nadu"
+	hsn1 := "123456"
+	hsn2 := "789012"
+
+	// Order 1: TN, Total 118, 2 line items
+	o1 := entity.Order{
+		ExternalOrderID: "o1", TotalPrice: 118.0, CustomerState: &tn, CreatedAt: time.Now(),
+	}
+	s.db.Create(&o1)
+	s.db.Create(&entity.LineItem{ID: "li1", OrderID: o1.ID, HSCode: &hsn1, Quantity: 1, Price: 50.0})
+	s.db.Create(&entity.LineItem{ID: "li2", OrderID: o1.ID, HSCode: &hsn2, Quantity: 1, Price: 50.0})
+
+	// Order 2: TN, Total 236, 1 line item (same HSN as li1)
+	o2 := entity.Order{
+		ExternalOrderID: "o2", TotalPrice: 236.0, CustomerState: &tn, CreatedAt: time.Now(),
+	}
+	s.db.Create(&o2)
+	s.db.Create(&entity.LineItem{ID: "li3", OrderID: o2.ID, HSCode: &hsn1, Quantity: 2, Price: 100.0})
+
+	results, err := s.reportRepo.GetHSNSummary("", now)
+	assert.NoError(s.T(), err)
+
+	// Expectations:
+	// HSN 123456:
+	//   Order 1 share: line_val=50, line_sum=100. taxable = (50/100)*(118/1.18) = 50. revenue = (50/100)*118 = 59. qty = 1
+	//   Order 2 share: line_val=200, line_sum=200. taxable = (200/200)*(236/1.18) = 200. revenue = (200/200)*236 = 236. qty = 2
+	//   Total taxable = 250, Total revenue = 295, Total qty = 3, Product count = 2
+
+	// HSN 789012:
+	//   Order 1 share: line_val=50, line_sum=100. taxable = (50/100)*(118/1.18) = 50. revenue = (50/100)*118 = 59. qty = 1
+	//   Total taxable = 50, Total revenue = 59, Total qty = 1, Product count = 1
+
+	assert.Equal(s.T(), 2, len(results))
+	for _, r := range results {
+		if r.HSNCode == hsn1 {
+			assert.Equal(s.T(), 3, r.QtySold)
+			assert.Equal(s.T(), 2, r.ProductCount)
+			assert.InDelta(s.T(), 250.0, r.TaxableValue, 0.01)
+			assert.InDelta(s.T(), 295.0, r.Revenue, 0.01)
+		} else if r.HSNCode == hsn2 {
+			assert.Equal(s.T(), 1, r.QtySold)
+			assert.Equal(s.T(), 1, r.ProductCount)
+			assert.InDelta(s.T(), 50.0, r.TaxableValue, 0.01)
+			assert.InDelta(s.T(), 59.0, r.Revenue, 0.01)
+		}
+	}
+}
+
 func TestMetricsReportRepositorySuite(t *testing.T) {
 	suite.Run(t, new(MetricsReportRepositoryTestSuite))
 }
