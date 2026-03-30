@@ -136,17 +136,44 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 }
 
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
-	// 1. Hub Challenge for verification
+	// 1. Hub Challenge for verification (GET request)
 	if r.Method == http.MethodGet {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(challenge))
+
+		if mode == "" || token == "" {
+			log.Printf("WhatsApp Webhook: Missing verification parameters")
+			http.Error(w, "Missing verification parameters", http.StatusBadRequest)
 			return
 		}
+
+		if mode != "subscribe" {
+			log.Printf("WhatsApp Webhook: Invalid mode: %s", mode)
+			http.Error(w, "Invalid mode", http.StatusForbidden)
+			return
+		}
+
+		expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+		if expectedToken == "" {
+			log.Printf("WhatsApp Webhook ERROR: No whatsapp_webhook_verify_token configured in app_configs")
+			http.Error(w, "Verification not configured", http.StatusInternalServerError)
+			return
+		}
+
+		if token != expectedToken {
+			log.Printf("WhatsApp Webhook: Verify token mismatch") // Security: don't log the token itself
+			http.Error(w, "Invalid verify token", http.StatusForbidden)
+			return
+		}
+
+		log.Printf("WhatsApp Webhook: Verification successful")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(challenge))
+		return
 	}
 
-	// 2. Handle status updates
+	// 2. Handle status updates (POST request)
 	if r.Method == http.MethodPost {
 		// Read body for both validation and unmarshaling
 		body, err := io.ReadAll(r.Body)
