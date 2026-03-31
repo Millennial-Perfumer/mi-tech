@@ -27,6 +27,7 @@ type GraphQLOrderNode struct {
 	CurrentTotalPriceSet     MoneySet             `json:"currentTotalPriceSet"`
 	CurrentSubtotalPriceSet  MoneySet             `json:"currentSubtotalPriceSet"`
 	CurrentTotalTaxSet       MoneySet             `json:"currentTotalTaxSet"`
+	CurrentTotalDiscountsSet MoneySet             `json:"currentTotalDiscountsSet"`
 	TotalPriceSet            MoneySet             `json:"totalPriceSet"`
 	SourceName               string               `json:"sourceName"`
 	ProcessedAt              string               `json:"processedAt"`
@@ -130,6 +131,12 @@ type GraphQLLineItemNode struct {
 	TotalDiscountSet     MoneySet            `json:"totalDiscountSet"`
 	OriginalUnitPriceSet MoneySet            `json:"originalUnitPriceSet"`
 	Variant              *GraphQLLineVariant `json:"variant"`
+	DiscountAllocations  []DiscountAllocation `json:"discountAllocations"`
+}
+
+// DiscountAllocation represents an allocated portion of a discount (e.g., from a coupon).
+type DiscountAllocation struct {
+	AllocatedAmount MoneySet `json:"allocatedAmount"`
 }
 
 // GraphQLLineVariant holds variant-level data such as HS codes.

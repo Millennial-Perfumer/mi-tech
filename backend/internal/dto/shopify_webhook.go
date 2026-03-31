@@ -9,6 +9,7 @@ type ShopifyWebhookOrder struct {
 	TotalPrice        string               `json:"total_price"`
 	SubtotalPrice     string               `json:"subtotal_price"`
 	TotalTax          string               `json:"total_tax"`
+	TotalDiscounts    string               `json:"total_discounts"`
 	Currency          string               `json:"currency"`
 	FinancialStatus   string               `json:"financial_status"`
 	FulfillmentStatus string               `json:"fulfillment_status"`
@@ -84,7 +85,13 @@ type ShopifyLineItem struct {
 		Price string  `json:"price"`
 		Rate  float64 `json:"rate"`
 	} `json:"tax_lines"`
-	TotalDiscount string `json:"total_discount"`
+	TotalDiscount       string                     `json:"total_discount"`
+	DiscountAllocations []ShopifyDiscountAllocation `json:"discount_allocations"`
+}
+
+// ShopifyDiscountAllocation represents a discount allocation in the REST webhook payload.
+type ShopifyDiscountAllocation struct {
+	Amount string `json:"amount"`
 }
 
 // ShopifyWebhookCustomer represents the REST payload from Shopify customer webhooks.

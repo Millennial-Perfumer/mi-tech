@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -19,6 +20,39 @@ const (
 	DefaultBusinessPhone  = "7904769823"
 	DefaultFooterBusiness = "PARFUM TRADERS"
 )
+
+// InvoiceTotals holds the calculated breakdown for an invoice.
+type InvoiceTotals struct {
+	GrossSubtotal float64
+	OrderDiscount float64
+	TaxableValue  float64
+	TotalTax      float64
+	GrandTotal    float64
+}
+
+// CalculateInvoiceTotals performs the shared calculation logic for all order totals.
+func (s *InvoiceService) CalculateInvoiceTotals(items []entity.LineItem) InvoiceTotals {
+	var t InvoiceTotals
+	for _, item := range items {
+		qty := float64(item.Quantity)
+		lineGross := (item.Price * qty) - item.Discount
+		t.GrossSubtotal += lineGross
+		t.OrderDiscount += item.OrderDiscount
+
+		lineNet := lineGross - item.OrderDiscount
+		if lineNet < 0 {
+			lineNet = 0
+		}
+
+		lineTaxable := lineNet / 1.18
+		lineTax := lineNet - lineTaxable
+
+		t.TaxableValue += lineTaxable
+		t.TotalTax += lineTax
+	}
+	t.GrandTotal = t.TaxableValue + t.TotalTax
+	return t
+}
 
 // InvoiceService handles PDF invoice generation.
 type InvoiceService struct {
@@ -134,10 +168,11 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.Ln(4.8)
 
 	// -- Items Table --
-	calcTaxable, calcTax := s.renderItemsTable(pdf, items)
+	totals := s.CalculateInvoiceTotals(items)
+	s.renderItemsTable(pdf, items)
 
 	// -- Totals --
-	s.renderTotals(pdf, order, calcTaxable, calcTax)
+	s.renderTotals(pdf, order, items, totals)
 
 	// -- Footer Terms --
 	s.renderFooter(pdf)
@@ -145,7 +180,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	return pdf.Output(w)
 }
 
-func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem) (float64, float64) {
+func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem) {
 	pdf.SetFillColor(245, 245, 245)
 	pdf.SetFont("Montserrat", "I", 7.5)
 
@@ -178,9 +213,10 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 	for _, item := range items {
 		rawPrice := item.Price
 		itemDiscount := item.Discount
+		orderDiscount := item.OrderDiscount
 		qty := float64(item.Quantity)
 
-		lineTotal := (rawPrice * qty) - itemDiscount
+		lineTotal := (rawPrice * qty) - itemDiscount - orderDiscount
 		if lineTotal < 0 {
 			lineTotal = 0
 		}
@@ -222,7 +258,10 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		pdf.CellFormat(wHSN, h, hsCode, "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wQty, h, fmt.Sprintf("%d", item.Quantity), "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wPrice, h, fmt.Sprintf("%.2f", displayPrice), "1", 0, "R", false, 0, "")
-		pdf.CellFormat(wDiscount, h, fmt.Sprintf("%.2f", itemDiscount), "1", 0, "R", false, 0, "")
+		
+		totalItemDiscountForDisplay := itemDiscount + orderDiscount
+		pdf.CellFormat(wDiscount, h, fmt.Sprintf("%.2f", totalItemDiscountForDisplay), "1", 0, "R", false, 0, "")
+		
 		pdf.CellFormat(wTaxable, h, fmt.Sprintf("%.2f", lineTaxable), "1", 0, "R", false, 0, "")
 		pdf.CellFormat(wGSTPct, h, "18%", "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wGSTAmt, h, fmt.Sprintf("%.2f", lineTax), "1", 1, "R", false, 0, "")
@@ -232,11 +271,10 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		pdf.MultiCell(wName-4, 4.5, title, "0", "L", false)
 		pdf.SetXY(curX, curY+h)
 	}
-	return totalTaxable, totalTax
 }
 
-func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, calcTaxable, calcTax float64) {
-	oGrandTotal := calcTaxable + calcTax
+func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, items []entity.LineItem, totals InvoiceTotals) {
+	oGrandTotal := totals.GrandTotal
 
 	isInterState := true
 	custState := ns(order.CustomerState)
@@ -244,12 +282,51 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, calc
 		isInterState = false
 	}
 
+	totalGrossSubtotal := totals.GrossSubtotal
+	totalOrderDiscount := totals.OrderDiscount
+
 	pdf.Ln(5.8)
 	pdf.SetX(120)
 	pdf.SetFont("Montserrat", "B", 8.25)
-	pdf.CellFormat(40, 5, "Total Taxable:", "0", 0, "R", false, 0, "")
+	pdf.CellFormat(40, 5, "Subtotal (Gross):", "0", 0, "R", false, 0, "")
 	pdf.SetFont("Montserrat", "", 8.25)
-	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTaxable), "0", 1, "R", false, 0, "")
+	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totalGrossSubtotal), "0", 1, "R", false, 0, "")
+
+	discountLabel := "Discount"
+	if order.RawPayload != nil && len(*order.RawPayload) > 0 {
+		var raw map[string]interface{}
+		if err := json.Unmarshal([]byte(*order.RawPayload), &raw); err == nil {
+			if codes, ok := raw["discount_codes"].([]interface{}); ok && len(codes) > 0 {
+				if codeObj, ok := codes[0].(map[string]interface{}); ok {
+					if code, ok := codeObj["code"].(string); ok && code != "" {
+						discountLabel = "Discount (" + code + ")"
+					}
+				}
+			} else if apps, ok := raw["discount_applications"].([]interface{}); ok && len(apps) > 0 {
+				if app, ok := apps[0].(map[string]interface{}); ok {
+					if code, ok := app["code"].(string); ok && code != "" {
+						discountLabel = "Discount (" + code + ")"
+					}
+				}
+			}
+		}
+	}
+
+	if totalOrderDiscount > 0 {
+		pdf.Ln(1)
+		pdf.SetX(120)
+		pdf.SetFont("Montserrat", "B", 8.25)
+		pdf.CellFormat(40, 5, discountLabel+":", "0", 0, "R", false, 0, "")
+		pdf.SetFont("Montserrat", "", 8.25)
+		pdf.CellFormat(30, 5, fmt.Sprintf("-%.2f", totalOrderDiscount), "0", 1, "R", false, 0, "")
+	}
+
+	pdf.Ln(1)
+	pdf.SetX(120)
+	pdf.SetFont("Montserrat", "B", 8.25)
+	pdf.CellFormat(40, 5, "Net Taxable:", "0", 0, "R", false, 0, "")
+	pdf.SetFont("Montserrat", "", 8.25)
+	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TaxableValue), "0", 1, "R", false, 0, "")
 	pdf.Ln(1)
 
 	if !isInterState {
@@ -257,19 +334,19 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, calc
 		pdf.SetFont("Montserrat", "B", 8.25)
 		pdf.CellFormat(40, 5, "CGST (9%):", "0", 0, "R", false, 0, "")
 		pdf.SetFont("Montserrat", "", 8.25)
-		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTax/2), "0", 1, "R", false, 0, "")
+		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax/2), "0", 1, "R", false, 0, "")
 		pdf.Ln(1)
 		pdf.SetX(120)
 		pdf.SetFont("Montserrat", "B", 8.25)
 		pdf.CellFormat(40, 5, "SGST (9%):", "0", 0, "R", false, 0, "")
 		pdf.SetFont("Montserrat", "", 8.25)
-		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTax/2), "0", 1, "R", false, 0, "")
+		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax/2), "0", 1, "R", false, 0, "")
 	} else {
 		pdf.SetX(120)
 		pdf.SetFont("Montserrat", "B", 8.25)
 		pdf.CellFormat(40, 5, "IGST (18%):", "0", 0, "R", false, 0, "")
 		pdf.SetFont("Montserrat", "", 8.25)
-		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", calcTax), "0", 1, "R", false, 0, "")
+		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax), "0", 1, "R", false, 0, "")
 	}
 
 	pdf.Ln(2.6)

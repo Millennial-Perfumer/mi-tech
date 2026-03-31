@@ -39,8 +39,9 @@ type Order struct {
 	CustomerAddress2  *string          `gorm:"column:customer_address2"`
 	CustomerZip       *string          `gorm:"column:customer_zip"`
 	CustomerExternalID *string          `gorm:"column:customer_external_id"`
-	RawPayload        *json.RawMessage `gorm:"column:raw_payload;type:jsonb"`
-	LineItems         []LineItem       `gorm:"foreignKey:OrderID"`
+	TotalDiscount      float64          `gorm:"column:total_discount"`
+	RawPayload         *json.RawMessage `gorm:"column:raw_payload;type:jsonb"`
+	LineItems          []LineItem       `gorm:"foreignKey:OrderID"`
 }
 
 func (Order) TableName() string { return "orders" }
@@ -55,8 +56,9 @@ type LineItem struct {
 	SKU       *string `gorm:"column:sku"`
 	HSCode    *string `gorm:"column:hs_code"`
 	Quantity  int     `gorm:"column:quantity"`
-	Price     float64 `gorm:"column:price"`
-	Discount  float64 `gorm:"column:discount"`
+	Price         float64 `gorm:"column:price"`
+	Discount      float64 `gorm:"column:discount"`
+	OrderDiscount float64 `gorm:"column:order_discount"`
 }
 
 func (LineItem) TableName() string { return "order_line_items" }

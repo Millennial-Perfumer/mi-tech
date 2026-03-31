@@ -195,9 +195,6 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 				btn["flow_id"] = b.FlowID
 				btn["flow_action"] = "navigate" // default
 				btn["navigate_screen"] = "START"
-			case "copy_code":
-				btn["type"] = "COPY_CODE"
-				btn["example"] = b.OfferCode
 			}
 			metaButtons = append(metaButtons, btn)
 		}
@@ -365,8 +362,6 @@ func (s *TemplatesService) FetchRemoteTemplate(templateName string) (*CreateTemp
 					case "FLOW":
 						newBtn.Type = "flow"
 						newBtn.FlowID, _ = btnMap["flow_id"].(string)
-					case "COPY_CODE":
-						newBtn.Type = "copy_code"
 					}
 					req.Buttons = append(req.Buttons, newBtn)
 				}
@@ -450,8 +445,6 @@ func (s *TemplatesService) SyncAllTemplates(storeID string) error {
 						case "FLOW":
 							newBtn.Type = "flow"
 							newBtn.FlowID, _ = btnMap["flow_id"].(string)
-						case "COPY_CODE":
-							newBtn.Type = "copy_code"
 						}
 						buttons = append(buttons, newBtn)
 					}

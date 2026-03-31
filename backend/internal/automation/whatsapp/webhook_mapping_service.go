@@ -31,14 +31,16 @@ type WebhookMappingService struct {
 	messagesService *MessagesService
 	invoiceService  *service.InvoiceService
 	settingsRepo    *repository.SettingsRepository
+	lineItemRepo    repository.LineItemRepository
 }
 
-func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository) *WebhookMappingService {
+func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository, liRepo repository.LineItemRepository) *WebhookMappingService {
 	return &WebhookMappingService{
 		templatesRepo:   tRepo,
 		messagesService: mService,
 		invoiceService:  iService,
 		settingsRepo:    sRepo,
+		lineItemRepo:    liRepo,
 	}
 }
 
@@ -105,7 +107,25 @@ func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int
 	return s.executeWithTemplate(storeID, template, order, "manual")
 }
 
-func resolveVariable(field string, order entity.Order) string {
+func (s *WebhookMappingService) resolveVariable(field string, order entity.Order) string {
+	// If the field is a pricing variable, ensure we have line items and use the centralized calculation logic
+	switch field {
+	case "order_total", "order_grand_total", "order_subtotal", "order_discount", "order_tax":
+		if len(order.LineItems) > 0 {
+			totals := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
+			switch field {
+			case "order_total", "order_grand_total":
+				return fmt.Sprintf("%.2f", totals.GrandTotal)
+			case "order_subtotal":
+				return fmt.Sprintf("%.2f", totals.GrossSubtotal)
+			case "order_discount":
+				return fmt.Sprintf("%.2f", totals.OrderDiscount)
+			case "order_tax":
+				return fmt.Sprintf("%.2f", totals.TotalTax)
+			}
+		}
+	}
+
 	switch field {
 	case "customer_name":
 		name := entity.DerefStr(order.CustomerFirstName)
@@ -118,8 +138,16 @@ func resolveVariable(field string, order entity.Order) string {
 		return name
 	case "order_id":
 		return strings.TrimPrefix(order.OrderNumber, "#")
-	case "order_total":
+	case "order_total", "order_grand_total":
 		return fmt.Sprintf("%.2f", order.TotalPrice)
+	case "order_subtotal":
+		return fmt.Sprintf("%.2f", entity.DerefFloat64(order.SubtotalPrice))
+	case "order_discount":
+		return fmt.Sprintf("%.2f", order.TotalDiscount)
+	case "order_tax":
+		return fmt.Sprintf("%.2f", entity.DerefFloat64(order.TotalTax))
+	case "currency":
+		return entity.DerefStr(order.Currency)
 	case "tracking_link":
 		return entity.DerefStr(order.TrackingUrl)
 	case "tracking_number":
@@ -150,6 +178,13 @@ func resolveVariable(field string, order entity.Order) string {
 }
 
 func (s *WebhookMappingService) executeWithTemplate(storeID string, template *AutomationTemplate, order entity.Order, topic string) error {
+	// Ensure LineItems are loaded if needed for pricing variables
+	if len(order.LineItems) == 0 {
+		items, err := s.lineItemRepo.GetByOrderID(order.ID)
+		if err == nil {
+			order.LineItems = items
+		}
+	}
 	// Deduplication Check (only for automated topics)
 	if topic != "manual" {
 		// For most automated cases (creation, cancellation, delivery), keep it strictly once per order.
@@ -191,14 +226,14 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		for i := 1; i <= requiredCount; i++ {
 			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
 			fieldToMap := mappings[mapKey]
-			val := resolveVariable(fieldToMap, order)
+			val := s.resolveVariable(fieldToMap, order)
 			
 			// Fallback logic for legacy templates that were not mapped yet
 			if val == "" {
 				if i == 1 {
-					val = resolveVariable("customer_name", order)
+					val = s.resolveVariable("customer_name", order)
 				} else if i == 2 {
-					val = resolveVariable("order_id", order)
+					val = s.resolveVariable("order_id", order)
 				}
 			}
 			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": val})
@@ -220,10 +255,10 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
 						fieldToMap := mappings[mapKey]
 						
-						val := resolveVariable(fieldToMap, order)
+						val := s.resolveVariable(fieldToMap, order)
 						if val == "" {
 							// Legacy fallback for embedded tracking loop
-							val = resolveVariable("internal_order_id", order)
+							val = s.resolveVariable("internal_order_id", order)
 						}
 
 						components = append(components, map[string]interface{}{
@@ -263,7 +298,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 				var headerParams []map[string]string
 				for i := 1; i <= reqCount; i++ {
 					mapKey := fmt.Sprintf("header_text_0_{{%d}}", i)
-					val := resolveVariable(mappings[mapKey], order)
+					val := s.resolveVariable(mappings[mapKey], order)
 					headerParams = append(headerParams, map[string]string{"type": "text", "text": val})
 				}
 				components = append(components, map[string]interface{}{
@@ -277,9 +312,9 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 			// Dynamic generation
 			if headerHandle == "Dynamic Invoice" && hType == "DOCUMENT" {
 				log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
-				items, err := s.messagesService.repo.GetOrderLineItems(order.ID)
-				if err != nil {
-					log.Printf("Automation Error: Failed to fetch line items for invoice: %v", err)
+				items := order.LineItems
+				if len(items) == 0 {
+					log.Printf("Automation Error: No line items found for invoice generation")
 				} else {
 					var buf bytes.Buffer
 					if err := s.invoiceService.GeneratePDF(order, items, &buf); err != nil {
