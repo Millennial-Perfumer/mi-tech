@@ -70,7 +70,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider)
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
-	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo)
+	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo)
 
 	// Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService)

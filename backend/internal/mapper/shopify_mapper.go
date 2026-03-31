@@ -126,6 +126,7 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 	updatedAt := parseTime(so.UpdatedAt)
 
 	totalPrice := parseFloat(so.CurrentTotalPriceSet.ShopMoney.Amount)
+	totalDiscount := parseFloat(so.CurrentTotalDiscountsSet.ShopMoney.Amount)
 	taxableValue := totalPrice / 1.18
 	totalTax := totalPrice - taxableValue
 
@@ -135,6 +136,7 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		SourceID:          sourceID,
 		OrderNumber:       so.Name,
 		TotalPrice:        totalPrice,
+		TotalDiscount:     totalDiscount,
 		SubtotalPrice:     &taxableValue,
 		TotalTax:          &totalTax,
 		Currency:          &inr,
@@ -183,15 +185,22 @@ func GraphQLLineItemsToEntities(orderID int64, items dto.GraphQLLineItemWrap) []
 			continue
 		}
 
+		itemDiscount := parseFloat(li.TotalDiscountSet.ShopMoney.Amount)
+		orderDiscount := 0.0
+		for _, allocation := range li.DiscountAllocations {
+			orderDiscount += parseFloat(allocation.AllocatedAmount.ShopMoney.Amount)
+		}
+
 		result = append(result, entity.LineItem{
-			ID:       itemID,
-			OrderID:  orderID,
-			Title:    strPtr(li.Title),
-			SKU:      strPtr(li.SKU),
-			HSCode:   strPtrOr(hsCode, defaultHSN),
-			Quantity: qty,
-			Price:    parseFloat(li.OriginalTotalSet.ShopMoney.Amount),
-			Discount: parseFloat(li.TotalDiscountSet.ShopMoney.Amount),
+			ID:            itemID,
+			OrderID:       orderID,
+			Title:         strPtr(li.Title),
+			SKU:           strPtr(li.SKU),
+			HSCode:        strPtrOr(hsCode, defaultHSN),
+			Quantity:      qty,
+			Price:         parseFloat(li.OriginalUnitPriceSet.ShopMoney.Amount),
+			Discount:      itemDiscount,
+			OrderDiscount: orderDiscount,
 		})
 	}
 	return result
@@ -325,6 +334,7 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		SourceID:          sourceID,
 		OrderNumber:       orderNumber,
 		TotalPrice:        totalPrice,
+		TotalDiscount:     parseFloat(payload.TotalDiscounts),
 		SubtotalPrice:     &taxableValue,
 		TotalTax:          &totalTax,
 		Currency:          strPtr(payload.Currency),
@@ -362,10 +372,16 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		if price == "" {
 			price = "0.00"
 		}
-		discount := li.TotalDiscount
-		if discount == "" {
-			discount = "0.00"
+		orderDiscount := 0.0
+		for _, allocation := range li.DiscountAllocations {
+			orderDiscount += parseFloat(allocation.Amount)
 		}
+		totalDiscount := parseFloat(li.TotalDiscount)
+		itemDiscount := totalDiscount - orderDiscount
+		if itemDiscount < 0 {
+			itemDiscount = 0
+		}
+
 		qty := li.Quantity
 		if li.CurrentQuantity != nil {
 			qty = *li.CurrentQuantity
@@ -376,16 +392,17 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		}
 
 		order.LineItems = append(order.LineItems, entity.LineItem{
-			ID:        strconv.FormatInt(li.ID, 10),
-			OrderID:   0, // Will be linked in repository
-			ProductID: strPtr(strconv.FormatInt(li.ProductID, 10)),
-			VariantID: strPtr(strconv.FormatInt(li.VariantID, 10)),
-			Title:     strPtr(li.Title),
-			SKU:       strPtr(li.SKU),
-			HSCode:    &defaultHSN,
-			Quantity:  qty,
-			Price:     parseFloat(price),
-			Discount:  parseFloat(discount),
+			ID:            strconv.FormatInt(li.ID, 10),
+			OrderID:       0, // Will be linked in repository
+			ProductID:     strPtr(strconv.FormatInt(li.ProductID, 10)),
+			VariantID:     strPtr(strconv.FormatInt(li.VariantID, 10)),
+			Title:         strPtr(li.Title),
+			SKU:           strPtr(li.SKU),
+			HSCode:        &defaultHSN,
+			Quantity:      qty,
+			Price:         parseFloat(price),
+			Discount:      itemDiscount,
+			OrderDiscount: orderDiscount,
 		})
 	}
 

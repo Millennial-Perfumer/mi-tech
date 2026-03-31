@@ -83,6 +83,11 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 							amount
 						}
 					}
+					currentTotalDiscountsSet {
+						shopMoney {
+							amount
+						}
+					}
 					totalPriceSet {
 						shopMoney {
 							amount
@@ -142,6 +147,13 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 									}
 								}
 								currentQuantity
+								discountAllocations {
+									allocatedAmount {
+										shopMoney {
+											amount
+										}
+									}
+								}
 								variant {
 									inventoryItem {
 										harmonizedSystemCode
@@ -254,6 +266,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 			currentTotalPriceSet { shopMoney { amount } }
 			currentSubtotalPriceSet { shopMoney { amount } }
 			currentTotalTaxSet { shopMoney { amount } }
+			currentTotalDiscountsSet { shopMoney { amount } }
 			sourceName
 			billingAddress {
 				city
@@ -296,6 +309,13 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 						totalDiscountSet { shopMoney { amount } }
 						originalTotalSet { shopMoney { amount } }
 						currentQuantity
+						discountAllocations {
+							allocatedAmount {
+								shopMoney {
+									amount
+								}
+							}
+						}
 						variant {
 							inventoryItem {
 								harmonizedSystemCode

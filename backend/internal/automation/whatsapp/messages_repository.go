@@ -3,7 +3,7 @@ package whatsapp
 import (
 	"database/sql"
 	"fmt"
-	"mi-tech/internal/entity"
+
 	"time"
 )
 
@@ -326,24 +326,4 @@ func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *
 		return 0, err
 	}
 	return metrics["failed"].(int), nil
-}
-
-func (r *MessagesRepository) GetOrderLineItems(orderID int64) ([]entity.LineItem, error) {
-	query := `SELECT id, order_id, product_id, variant_id, title, sku, hs_code, quantity, price, discount FROM order_line_items WHERE order_id = $1`
-	rows, err := r.db.Query(query, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var items []entity.LineItem
-	for rows.Next() {
-		var li entity.LineItem
-		err := rows.Scan(&li.ID, &li.OrderID, &li.ProductID, &li.VariantID, &li.Title, &li.SKU, &li.HSCode, &li.Quantity, &li.Price, &li.Discount)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, li)
-	}
-	return items, nil
 }

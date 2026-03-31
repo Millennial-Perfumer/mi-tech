@@ -40,7 +40,7 @@ func (r *gormLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items [
 
 	if err := tx.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
+		DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount", "order_discount"}),
 	}).Create(&items).Error; err != nil {
 		return fmt.Errorf("failed to batch upsert line items for order %d: %w", orderID, err)
 	}
