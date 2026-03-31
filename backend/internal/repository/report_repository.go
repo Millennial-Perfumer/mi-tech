@@ -136,25 +136,24 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
+	// Optimization: Replaces a global CTE that aggregated the entire order_line_items table
+	// with a window function (SUM(...) OVER (PARTITION BY li.order_id)) applied
+	// within a date-filtered subquery.
+	// Expected Impact: Prevents full table scan of order_line_items, reducing query time from O(TotalItems) to O(FilteredItems).
 	query := `
-		WITH OrderSubtotals AS (
-			SELECT order_id, SUM(price * quantity - discount) as line_sum
-			FROM order_line_items
-			GROUP BY order_id
-		),
-		LineItemShares AS (
+		WITH LineItemShares AS (
 			SELECT 
 				li.order_id,
 				COALESCE(li.hs_code, '33029019') as hs_code,
 				li.quantity,
 				(li.price * li.quantity - li.discount) as line_val,
-				os.line_sum,
+				SUM(li.price * li.quantity - li.discount) OVER (PARTITION BY li.order_id) as line_sum,
 				o.total_price,
 				COALESCE(o.customer_state, 'N/A') as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
-			JOIN OrderSubtotals os ON li.order_id = os.order_id
-			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled') AND os.line_sum > 0
+			WHERE o.created_at >= ? AND o.created_at <= ?
+			  AND (o.status IS NULL OR LOWER(o.status) != 'cancelled')
 		)
 		SELECT 
 			hs_code as hsn_code,
@@ -165,6 +164,7 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 			SUM(ROUND((line_val / line_sum) * total_price, 2)) as revenue,
 			state
 		FROM LineItemShares
+		WHERE line_sum > 0
 		GROUP BY hs_code, state
 		ORDER BY revenue DESC
 	`
