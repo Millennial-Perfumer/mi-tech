@@ -20,35 +20,24 @@ func NewReportService(reportRepo repository.ReportRepository) *ReportService {
 
 // GetGSTSummary computes the full GST summary including CGST/SGST/IGST splits by state.
 func (s *ReportService) GetGSTSummary(startDate, endDate string) (dto.GSTSummaryResponse, error) {
-	totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, paidOrders,
-		totalRevenue, totalTaxable, totalTax, err := s.reportRepo.GetGSTSummary(startDate, endDate)
+	res, err := s.reportRepo.GetGSTSummary(startDate, endDate)
 	if err != nil {
 		return dto.GSTSummaryResponse{}, err
 	}
 
 	summary := dto.GSTSummaryResponse{
-		TotalOrders:       totalOrders,
-		CancelledOrders:   cancelledOrders,
-		InvoicesGenerated: totalOrders - cancelledOrders,
-		TotalRevenue:      totalRevenue,
-		TotalTaxableValue: totalTaxable,
-		TotalGSTCollected: totalTax,
-		FulfilledOrders:   fulfilledOrders,
-		UnfulfilledOrders: unfulfilledOrders,
-		PaidOrders:        paidOrders,
-	}
-
-	// Split tax by state: Tamil Nadu = CGST+SGST, others = IGST
-	taxByState, err := s.reportRepo.GetTaxByState(startDate, endDate)
-	if err == nil {
-		for _, st := range taxByState {
-			if isTamilNadu(st.State) {
-				summary.TotalCGST += st.Tax / 2
-				summary.TotalSGST += st.Tax / 2
-			} else {
-				summary.TotalIGST += st.Tax
-			}
-		}
+		TotalOrders:       res.TotalOrders,
+		CancelledOrders:   res.CancelledOrders,
+		InvoicesGenerated: res.TotalOrders - res.CancelledOrders,
+		TotalRevenue:      res.TotalRevenue,
+		TotalTaxableValue: res.TotalTaxable,
+		TotalGSTCollected: res.TotalTax,
+		TotalCGST:         res.CGST,
+		TotalSGST:         res.SGST,
+		TotalIGST:         res.IGST,
+		FulfilledOrders:   res.FulfilledOrders,
+		UnfulfilledOrders: res.UnfulfilledOrders,
+		PaidOrders:        res.PaidOrders,
 	}
 
 	return summary, nil

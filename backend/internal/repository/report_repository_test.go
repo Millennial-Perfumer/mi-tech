@@ -79,13 +79,16 @@ func (s *MetricsReportRepositoryTestSuite) TestGetGSTSummary() {
 		ExternalOrderID: "r1", TotalPrice: 118.0, CustomerState: &tn, FinancialStatus: entity.StrPtr("paid"), CreatedAt: time.Now(),
 	})
 
-	total, _, _, _, paid, rev, taxable, tax, err := s.reportRepo.GetGSTSummary("", now)
+	res, err := s.reportRepo.GetGSTSummary("", now)
 	assert.NoError(s.T(), err)
-	assert.Equal(s.T(), 1, total)
-	assert.Equal(s.T(), 1, paid)
-	assert.Equal(s.T(), 118.0, rev)
-	assert.Equal(s.T(), 100.0, taxable)
-	assert.Equal(s.T(), 18.0, tax)
+	assert.Equal(s.T(), 1, res.TotalOrders)
+	assert.Equal(s.T(), 1, res.PaidOrders)
+	assert.Equal(s.T(), 118.0, res.TotalRevenue)
+	assert.Equal(s.T(), 100.0, res.TotalTaxable)
+	assert.Equal(s.T(), 18.0, res.TotalTax)
+	assert.Equal(s.T(), 9.0, res.CGST)
+	assert.Equal(s.T(), 9.0, res.SGST)
+	assert.Equal(s.T(), 0.0, res.IGST)
 }
 
 func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
@@ -106,6 +109,44 @@ func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
 			assert.Equal(s.T(), 300.0, r.Revenue)
 		}
 	}
+}
+
+func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
+	now := time.Now().Format(time.RFC3339)
+	tn := "Tamil Nadu"
+
+	// Create order
+	order := entity.Order{
+		ExternalOrderID: "h1",
+		TotalPrice:      118.0,
+		CustomerState:   &tn,
+		CreatedAt:       time.Now(),
+	}
+	s.db.Create(&order)
+
+	// Create line items
+	s.db.Create(&entity.LineItem{
+		OrderID:  order.ID,
+		HSCode:   entity.StrPtr("123456"),
+		Price:    100.0,
+		Quantity: 1,
+		Discount: 0,
+	})
+
+	results, err := s.reportRepo.GetHSNSummary("", now)
+	assert.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), results)
+
+	found := false
+	for _, r := range results {
+		if r.HSNCode == "123456" {
+			found = true
+			assert.Equal(s.T(), 100.0, r.TaxableValue)
+			assert.Equal(s.T(), 18.0, r.TotalGST)
+			assert.Equal(s.T(), 118.0, r.Revenue)
+		}
+	}
+	assert.True(s.T(), found)
 }
 
 func TestMetricsReportRepositorySuite(t *testing.T) {

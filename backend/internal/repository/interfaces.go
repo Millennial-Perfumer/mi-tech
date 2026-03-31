@@ -66,14 +66,27 @@ type MetricsRepository interface {
 
 // ReportRepository defines data access for GST report queries.
 type ReportRepository interface {
-	GetGSTSummary(startDate, endDate string) (totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, paidOrders int, totalRevenue, totalTaxable, totalTax float64, err error)
+	GetGSTSummary(startDate, endDate string) (GSTSummaryResult, error)
 	GetStateSummary(startDate, endDate string) (results []StateSummaryResult, err error)
 	GetHSNSummary(startDate, endDate string) (results []HSNSummaryResult, err error)
 	GetDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
-	GetTaxByState(startDate, endDate string) (results []StateTaxResult, err error)
 }
 
 // --- Result structs used by ReportRepository ---
+
+type GSTSummaryResult struct {
+	TotalOrders       int
+	CancelledOrders   int
+	FulfilledOrders   int
+	UnfulfilledOrders int
+	PaidOrders        int
+	TotalRevenue      float64
+	TotalTaxable      float64
+	TotalTax          float64
+	CGST              float64
+	SGST              float64
+	IGST              float64
+}
 
 type StateSummaryResult struct {
 	State        string
@@ -93,7 +106,3 @@ type HSNSummaryResult struct {
 	Revenue      float64
 }
 
-type StateTaxResult struct {
-	State string
-	Tax   float64
-}
