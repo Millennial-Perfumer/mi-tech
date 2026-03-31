@@ -138,16 +138,35 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+
+		verifyToken := h.settings.GetWhatsAppWebhookVerifyToken()
+		// Security: Fail-closed if verify token is not configured
+		if verifyToken == "" {
+			log.Printf("WhatsApp Webhook Error: Verify token not configured")
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		if mode == "subscribe" && token == verifyToken {
+			log.Printf("WhatsApp Webhook Verified")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+
+		log.Printf("WhatsApp Webhook Verification Failed: mode=%s, token mismatch", mode)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
 	if r.Method == http.MethodPost {
+		// Security: Limit request body size to 1MB
+		r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
+
 		// Read body for both validation and unmarshaling
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
