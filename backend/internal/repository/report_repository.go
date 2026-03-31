@@ -66,7 +66,7 @@ func NewReportRepository(db *gorm.DB) ReportRepository {
 	return &gormReportRepository{db: db}
 }
 
-func (r *gormReportRepository) GetGSTSummary(startDate, endDate string) (totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, paidOrders int, totalRevenue, totalTaxable, totalTax float64, err error) {
+func (r *gormReportRepository) GetGSTSummary(startDate, endDate string) (GSTSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -78,36 +78,27 @@ func (r *gormReportRepository) GetGSTSummary(startDate, endDate string) (totalOr
 			COUNT(id) FILTER (WHERE LOWER(financial_status) = 'paid'),
 			COALESCE(SUM(total_price) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as revenue,
 			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as taxable,
-			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as tax
+			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as tax,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as cgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as sgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as igst
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ?
 	`
 
-	type summaryResult struct {
-		TotalOrders       int
-		CancelledOrders   int
-		FulfilledOrders   int
-		UnfulfilledOrders int
-		PaidOrders        int
-		Revenue           float64
-		Taxable           float64
-		Tax               float64
-	}
-
-	var result summaryResult
+	var result GSTSummaryResult
 	row := r.db.Raw(query, start, end).Row()
-	err = row.Scan(
+	err := row.Scan(
 		&result.TotalOrders, &result.CancelledOrders, &result.FulfilledOrders,
 		&result.UnfulfilledOrders, &result.PaidOrders,
-		&result.Revenue, &result.Taxable, &result.Tax,
+		&result.TotalRevenue, &result.TotalTaxable, &result.TotalTax,
+		&result.CGST, &result.SGST, &result.IGST,
 	)
 	if err != nil {
-		return
+		return GSTSummaryResult{}, err
 	}
 
-	return result.TotalOrders, result.CancelledOrders, result.FulfilledOrders,
-		result.UnfulfilledOrders, result.PaidOrders,
-		result.Revenue, result.Taxable, result.Tax, nil
+	return result, nil
 }
 
 func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]StateSummaryResult, error) {
@@ -137,24 +128,18 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
-		WITH OrderSubtotals AS (
-			SELECT order_id, SUM(price * quantity - discount) as line_sum
-			FROM order_line_items
-			GROUP BY order_id
-		),
-		LineItemShares AS (
+		WITH LineItemShares AS (
 			SELECT 
 				li.order_id,
 				COALESCE(li.hs_code, '33029019') as hs_code,
 				li.quantity,
 				(li.price * li.quantity - li.discount) as line_val,
-				os.line_sum,
+				SUM(li.price * li.quantity - li.discount) OVER (PARTITION BY li.order_id) as line_sum,
 				o.total_price,
 				COALESCE(o.customer_state, 'N/A') as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
-			JOIN OrderSubtotals os ON li.order_id = os.order_id
-			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled') AND os.line_sum > 0
+			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled')
 		)
 		SELECT 
 			hs_code as hsn_code,
@@ -165,6 +150,7 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 			SUM(ROUND((line_val / line_sum) * total_price, 2)) as revenue,
 			state
 		FROM LineItemShares
+		WHERE line_sum > 0
 		GROUP BY hs_code, state
 		ORDER BY revenue DESC
 	`
@@ -204,24 +190,6 @@ func (r *gormReportRepository) GetDocumentsIssued(startDate, endDate string) (mi
 	return
 }
 
-func (r *gormReportRepository) GetTaxByState(startDate, endDate string) ([]StateTaxResult, error) {
-	start, end := parseDateRange(startDate, endDate)
-
-	query := `
-		SELECT 
-			COALESCE(customer_state, 'N/A') as state,
-			SUM(total_price - ROUND(total_price / 1.18, 2)) as tax
-		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR LOWER(status) != 'cancelled')
-		GROUP BY customer_state
-	`
-
-	var results []StateTaxResult
-	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
-		return nil, fmt.Errorf("failed to query tax by state: %w", err)
-	}
-	return results, nil
-}
 
 // --- Shared helper ---
 
