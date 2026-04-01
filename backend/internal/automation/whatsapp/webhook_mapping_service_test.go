@@ -9,6 +9,7 @@ import (
 )
 
 func TestResolveVariable(t *testing.T) {
+	s := &WebhookMappingService{}
 	order := entity.Order{
 		OrderNumber:       "#1001",
 		TotalPrice:        500.50,
@@ -16,11 +17,11 @@ func TestResolveVariable(t *testing.T) {
 		CustomerCity:      entity.StrPtr("Mumbai"),
 	}
 
-	assert.Equal(t, "Alice", resolveVariable("customer_name", order))
-	assert.Equal(t, "1001", resolveVariable("order_id", order))
-	assert.Equal(t, "500.50", resolveVariable("order_total", order))
-	assert.Equal(t, "Mumbai", resolveVariable("customer_city", order))
-	assert.Equal(t, "", resolveVariable("unknown", order))
+	assert.Equal(t, "Alice", s.resolveVariable("customer_name", order))
+	assert.Equal(t, "1001", s.resolveVariable("order_id", order))
+	assert.Equal(t, "500.50", s.resolveVariable("order_total", order))
+	assert.Equal(t, "Mumbai", s.resolveVariable("customer_city", order))
+	assert.Equal(t, "", s.resolveVariable("unknown", order))
 }
 
 func TestSanitizePhoneNumber(t *testing.T) {

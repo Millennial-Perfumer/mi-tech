@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-03-30 - [Insecure Webhook Handlers]
+**Vulnerability:** Webhook handlers for Shopify and WhatsApp lacked essential security protections: fail-open logic on missing secrets, string comparison for HMACs (timing attacks), and no request body size limits (DoS).
+**Learning:** Webhook endpoints are publicly accessible and frequently targeted. "Fail-open" defaults for configuration are dangerous in production. Standard string comparison (`==`) for cryptographic hashes can leak information through timing differences. Reading the entire request body without limits can easily lead to memory exhaustion.
+**Prevention:** Implement "fail-closed" logic for all security checks. Use `hmac.Equal` for constant-time comparison of signatures. Always use `http.MaxBytesReader` to enforce strict limits on incoming request sizes before reading them into memory.

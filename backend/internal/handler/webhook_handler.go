@@ -37,10 +37,12 @@ func NewWebhookHandler(webhookService *service.WebhookService, mappingService *w
 
 // ShopifyWebhookHandler handles POST /api/webhooks/shopify.
 func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to 1MB to prevent DoS
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Webhook Error: Failed to read body: %v", err)
-		http.Error(w, "Failed to read body", http.StatusBadRequest)
+		http.Error(w, "Failed to read body or body too large", http.StatusBadRequest)
 		return
 	}
 
@@ -60,6 +62,10 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 	// Process asynchronously
 	go func() {
+		if h.webhookService == nil {
+			log.Printf("Webhook Error: webhookService is nil")
+			return
+		}
 		log.Printf("Webhook background processing started for delivery %s", webhookDeliveryID)
 		h.webhookService.RecordActivity(topic)
 		// Duplicate check
@@ -241,8 +247,9 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	secret := h.settings.GetShopifyWebhookSecret()
 	if secret == "" {
-		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Skipping validation.")
-		return true
+		// Security: Fail-closed logic. Reject if secret is not configured.
+		log.Printf("Webhook Error: No shopify_webhook_secret configured. Rejecting request.")
+		return false
 	}
 
 	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")
@@ -255,14 +262,6 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
-	isMatch := hmacHeader == expectedHmac
-	if !isMatch {
-		log.Printf("Webhook HMAC Mismatch!")
-		log.Printf("  Received: %s", hmacHeader)
-		log.Printf("  Expected: %s", expectedHmac)
-		log.Printf("  Body Length: %d", len(body))
-		log.Printf("  Secret Length: %d", len(secret))
-	}
-
-	return isMatch
+	// Security: Use hmac.Equal for constant-time comparison to prevent timing attacks.
+	return hmac.Equal([]byte(hmacHeader), []byte(expectedHmac))
 }
