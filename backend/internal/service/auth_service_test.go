@@ -17,9 +17,9 @@ func TestAuthService_Login(t *testing.T) {
 	}
 	defer testutil.CleanupTestDB(db)
 
-	service := NewAuthService(db, nil)
+	service := NewAuthService(db, nil, nil)
 
-	_, err = service.Login("admin@millennialperfumer.in", "admin123")
+	_, _, err = service.Login("admin@millennialperfumer.in", "admin123")
 
 	if err != nil {
 		// We expect an error about nil settings if it tries to GenerateToken
@@ -34,7 +34,7 @@ func TestAuthService_Register(t *testing.T) {
 	}
 	defer testutil.CleanupTestDB(db)
 
-	service := NewAuthService(db, nil)
+	service := NewAuthService(db, nil, nil)
 	err = service.Register("newuser@example.com", "password123")
 	assert.NoError(t, err)
 
