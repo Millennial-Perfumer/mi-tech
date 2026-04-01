@@ -136,7 +136,7 @@ type GraphQLLineItemNode struct {
 
 // DiscountAllocation represents an allocated portion of a discount (e.g., from a coupon).
 type DiscountAllocation struct {
-	AllocatedAmount MoneySet `json:"allocatedAmount"`
+	AllocatedAmount ShopMoney `json:"allocatedAmount"`
 }
 
 // GraphQLLineVariant holds variant-level data such as HS codes.
