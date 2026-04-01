@@ -140,8 +140,8 @@
 }
 
 .nav-card:active {
-  transform: scale(0.95);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px) scale(0.98);
+  box-shadow: var(--glow-accent);
   border-color: var(--accent-color);
 }
 

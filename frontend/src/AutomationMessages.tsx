@@ -78,7 +78,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'read': 
-        return <span className="badge-pill badge-pill-info"><span className="dot" style={{ backgroundColor: '#0ea5e9' }}></span>READ</span>;
+        return <span className="badge-pill badge-pill-info"><span className="dot" style={{ backgroundColor: '#10b981' }}></span>READ</span>;
       case 'delivered': 
         return <span className="badge-pill badge-pill-success"><span className="dot"></span>DELIVERED</span>;
       case 'sent': 

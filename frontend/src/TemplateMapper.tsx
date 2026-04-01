@@ -178,7 +178,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Body Parameters</h3>
                 {Array.from({ length: bodyVarCount }).map((_, i) => (
                   <div key={`body_${i+1}`} className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <label style={{ margin: 0, fontWeight: 600, color: '#0ea5e9' }}>{`{{${i+1}}}`}</label>
+                    <label style={{ margin: 0, fontWeight: 600, color: '#10b981' }}>{`{{${i+1}}}`}</label>
                     <select 
                       value={mappings[`body_text_0_{{${i+1}}}`] || ''}
                       onChange={(e) => handleMappingChange(`body_text_0_{{${i+1}}}`, e.target.value)}

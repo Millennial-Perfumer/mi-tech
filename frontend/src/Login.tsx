@@ -194,7 +194,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   fontWeight: 600,
                   borderRadius: '14px',
                   marginTop: '1rem',
-                  background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
                   border: 'none',
                   boxShadow: '0 8px 20px -4px rgba(14, 165, 233, 0.4)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'

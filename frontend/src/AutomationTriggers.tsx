@@ -173,7 +173,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
               className="btn-primary" 
               onClick={() => setShowForm(!showForm)}
               style={{
-                backgroundColor: showForm ? 'var(--text-tertiary)' : '#0ea5e9',
+                backgroundColor: showForm ? 'var(--text-tertiary)' : '#10b981',
                 color: 'white',
                 border: 'none',
                 padding: '0.65rem 1.25rem',
