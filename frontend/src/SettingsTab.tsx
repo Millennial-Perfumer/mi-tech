@@ -439,7 +439,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           padding: '1rem',
                           background: 'var(--accent-subtle)',
                           borderRadius: '10px',
-                          border: '1px dashed #0ea5e9',
+                          border: '1px dashed #10b981',
                           marginTop: '0.5rem'
                         }}
                       >
@@ -448,7 +448,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             width: '40px', 
                             height: '40px', 
                             borderRadius: '10px', 
-                            background: '#0ea5e9', 
+                            background: '#10b981', 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center',

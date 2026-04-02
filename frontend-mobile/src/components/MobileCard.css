@@ -17,7 +17,8 @@
 }
 
 .mobile-card.clickable:active {
-  transform: scale(0.98);
+  transform: translateY(-2px) scale(0.99);
   background-color: var(--bg-hover);
   border-color: var(--accent-color);
+  box-shadow: var(--glow-accent);
 }

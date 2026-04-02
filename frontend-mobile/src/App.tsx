@@ -77,7 +77,7 @@ const App = () => {
         </div>
       </header>
 
-      <main className="main-content">
+      <main className="main-content tab-content-fade" key={activeTab}>
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'orders' && <Orders />}
         {activeTab === 'customers' && <Customers />}
@@ -94,11 +94,12 @@ const App = () => {
               <button className="icon-btn" onClick={() => setIsNavOpen(false)}>✕</button>
             </div>
             <div className="nav-grid">
-              {navItems.map(item => (
+              {navItems.map((item, index) => (
                 <button
                   key={item.id}
-                  className={`nav-card ${activeTab === item.id ? 'active' : ''}`}
+                  className={`nav-card nav-item-stagger ${activeTab === item.id ? 'active' : ''}`}
                   onClick={() => handleNavClick(item.id)}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <span className="nav-card-icon">{item.icon}</span>
                   <span className="nav-card-label">{item.label}</span>

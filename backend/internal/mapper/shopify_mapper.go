@@ -188,7 +188,7 @@ func GraphQLLineItemsToEntities(orderID int64, items dto.GraphQLLineItemWrap) []
 		itemDiscount := parseFloat(li.TotalDiscountSet.ShopMoney.Amount)
 		orderDiscount := 0.0
 		for _, allocation := range li.DiscountAllocations {
-			orderDiscount += parseFloat(allocation.AllocatedAmount.ShopMoney.Amount)
+			orderDiscount += parseFloat(allocation.AllocatedAmount.Amount)
 		}
 
 		result = append(result, entity.LineItem{

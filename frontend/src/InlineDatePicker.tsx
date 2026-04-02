@@ -108,7 +108,7 @@ export const InlineDatePicker: React.FC<InlineDatePickerProps> = ({
             moveRangeOnFirstSelection={false}
             showMonthAndYearPickers={false}
             showPreview={false}
-            rangeColors={['#0ea5e9']}
+            rangeColors={['#10b981']}
           />
         </div>
       </div>

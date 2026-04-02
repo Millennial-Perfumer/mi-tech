@@ -149,9 +149,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 								currentQuantity
 								discountAllocations {
 									allocatedAmount {
-										shopMoney {
-											amount
-										}
+										amount
 									}
 								}
 								variant {
@@ -311,9 +309,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 						currentQuantity
 						discountAllocations {
 							allocatedAmount {
-								shopMoney {
-									amount
-								}
+								amount
 							}
 						}
 						variant {
