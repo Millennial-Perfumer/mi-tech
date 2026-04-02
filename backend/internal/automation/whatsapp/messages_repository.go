@@ -397,7 +397,7 @@ func (r *MessagesRepository) UpsertConversation(phoneNumber, contactName, lastMe
 		INSERT INTO whatsapp_conversations (phone_number, contact_name, last_message, last_message_at, updated_at)
 		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		ON CONFLICT (phone_number) DO UPDATE SET
-			contact_name = EXCLUDED.contact_name,
+			contact_name = CASE WHEN EXCLUDED.contact_name <> '' THEN EXCLUDED.contact_name ELSE whatsapp_conversations.contact_name END,
 			last_message = EXCLUDED.last_message,
 			last_message_at = EXCLUDED.last_message_at,
 			updated_at = EXCLUDED.updated_at
