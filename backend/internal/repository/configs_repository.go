@@ -20,18 +20,18 @@ type AppConfig struct {
 
 func (AppConfig) TableName() string { return "app_configs" }
 
-// ConfigsRepository handles app_configs CRUD.
-type ConfigsRepository struct {
+// gormConfigsRepository handles app_configs CRUD using GORM.
+type gormConfigsRepository struct {
 	db *gorm.DB
 }
 
 // NewConfigsRepository creates a new ConfigsRepository.
-func NewConfigsRepository(db *gorm.DB) *ConfigsRepository {
-	return &ConfigsRepository{db: db}
+func NewConfigsRepository(db *gorm.DB) ConfigsRepository {
+	return &gormConfigsRepository{db: db}
 }
 
 // GetAll returns all configs. Secret values are masked.
-func (r *ConfigsRepository) GetAll() ([]AppConfig, error) {
+func (r *gormConfigsRepository) GetAll() ([]AppConfig, error) {
 	var configs []AppConfig
 	if err := r.db.Order("category, sort_order").Find(&configs).Error; err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (r *ConfigsRepository) GetAll() ([]AppConfig, error) {
 }
 
 // GetAllRevealed returns all configs with values unmasked.
-func (r *ConfigsRepository) GetAllRevealed() ([]AppConfig, error) {
+func (r *gormConfigsRepository) GetAllRevealed() ([]AppConfig, error) {
 	var configs []AppConfig
 	if err := r.db.Order("category, sort_order").Find(&configs).Error; err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (r *ConfigsRepository) GetAllRevealed() ([]AppConfig, error) {
 }
 
 // Get retrieves a single config value by key (always unmasked for internal use).
-func (r *ConfigsRepository) Get(key string) (string, error) {
+func (r *gormConfigsRepository) Get(key string) (string, error) {
 	var config AppConfig
 	err := r.db.Where("key = ?", key).First(&config).Error
 	if err != nil {
@@ -66,7 +66,7 @@ func (r *ConfigsRepository) Get(key string) (string, error) {
 }
 
 // Set upserts a config value.
-func (r *ConfigsRepository) Set(key, value string) error {
+func (r *gormConfigsRepository) Set(key, value string) error {
 	return r.db.Exec(
 		`INSERT INTO app_configs (key, value, updated_at) VALUES (?, ?, ?)
 		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,

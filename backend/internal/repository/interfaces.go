@@ -72,6 +72,14 @@ type ReportRepository interface {
 	GetDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
 }
 
+// ConfigsRepository defines data access for the app_configs table.
+type ConfigsRepository interface {
+	GetAll() ([]AppConfig, error)
+	GetAllRevealed() ([]AppConfig, error)
+	Get(key string) (string, error)
+	Set(key, value string) error
+}
+
 // --- Result structs used by ReportRepository ---
 
 type GSTSummaryResult struct {

@@ -37,6 +37,8 @@ func NewWebhookHandler(webhookService *service.WebhookService, mappingService *w
 
 // ShopifyWebhookHandler handles POST /api/webhooks/shopify.
 func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	// Security: Limit request body to 1MB to prevent DoS/memory exhaustion
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Webhook Error: Failed to read body: %v", err)
@@ -60,6 +62,9 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 
 	// Process asynchronously
 	go func() {
+		if h.webhookService == nil {
+			return
+		}
 		log.Printf("Webhook background processing started for delivery %s", webhookDeliveryID)
 		h.webhookService.RecordActivity(topic)
 		// Duplicate check
@@ -241,8 +246,9 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	secret := h.settings.GetShopifyWebhookSecret()
 	if secret == "" {
-		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Skipping validation.")
-		return true
+		// Security: Fail closed if secret is not configured
+		log.Printf("Webhook Error: No shopify_webhook_secret configured. Rejecting.")
+		return false
 	}
 
 	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")
@@ -255,13 +261,12 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
-	isMatch := hmacHeader == expectedHmac
+	// Security: Use hmac.Equal for constant-time comparison to prevent timing attacks
+	isMatch := hmac.Equal([]byte(hmacHeader), []byte(expectedHmac))
 	if !isMatch {
 		log.Printf("Webhook HMAC Mismatch!")
-		log.Printf("  Received: %s", hmacHeader)
-		log.Printf("  Expected: %s", expectedHmac)
+		// Note: Avoid logging the expected HMAC in production to prevent leaking info
 		log.Printf("  Body Length: %d", len(body))
-		log.Printf("  Secret Length: %d", len(secret))
 	}
 
 	return isMatch
