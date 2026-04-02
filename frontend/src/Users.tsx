@@ -16,6 +16,7 @@ interface UsersProps {
 export function Users({ fetchWithAuth }: UsersProps) {
     const { success, error } = useToast();
     const [users, setUsers] = useState<User[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     
@@ -78,6 +79,11 @@ export function Users({ fetchWithAuth }: UsersProps) {
         }
     };
 
+    const filteredUsers = users.filter(user =>
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
         <div className="tab-pane active" style={{ animation: 'fadeIn 0.4s ease-out' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
@@ -87,8 +93,12 @@ export function Users({ fetchWithAuth }: UsersProps) {
                         <input 
                             type="text" 
                             placeholder="Search users..." 
+                            aria-label="Search users"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ 
                                 paddingLeft: '2.5rem', 
+                                paddingRight: searchTerm ? '2.5rem' : '1rem',
                                 width: '100%', 
                                 fontSize: '0.875rem',
                                 backgroundColor: 'var(--bg-input)',
@@ -97,6 +107,42 @@ export function Users({ fetchWithAuth }: UsersProps) {
                                 borderRadius: '8px'
                             }}
                         />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                aria-label="Clear search"
+                                title="Clear search"
+                                style={{
+                                    position: 'absolute',
+                                    right: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--text-tertiary)',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '50%',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer',
+                                    border: 'none',
+                                    background: 'transparent'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.color = 'var(--text-primary)';
+                                    e.currentTarget.style.background = 'var(--bg-hover)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = 'var(--text-tertiary)';
+                                    e.currentTarget.style.background = 'transparent';
+                                }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -141,14 +187,14 @@ export function Users({ fetchWithAuth }: UsersProps) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.length === 0 ? (
+                                {filteredUsers.length === 0 ? (
                                     <tr>
                                         <td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                            No users found.
+                                            {searchTerm ? `No users matching "${searchTerm}"` : 'No users found.'}
                                         </td>
                                     </tr>
                                 ) : (
-                                    users.map(user => (
+                                    filteredUsers.map(user => (
                                         <tr key={user.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s ease' }}>
                                             <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>#{user.id}</td>
                                             <td style={{ padding: '1rem', fontWeight: 500, color: 'var(--text-primary)' }}>{user.username}</td>
