@@ -175,6 +175,20 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 							ID     string `json:"id"`
 							Status string `json:"status"`
 						} `json:"statuses"`
+						Messages []struct {
+							From string `json:"from"`
+							ID   string `json:"id"`
+							Text struct {
+								Body string `json:"body"`
+							} `json:"text"`
+							Type string `json:"type"`
+						} `json:"messages"`
+						Contacts []struct {
+							Profile struct {
+								Name string `json:"name"`
+							} `json:"profile"`
+							WaID string `json:"wa_id"`
+						} `json:"contacts"`
 					} `json:"value"`
 				} `json:"changes"`
 			} `json:"entry"`
@@ -186,12 +200,38 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
+
 		for _, entry := range payload.Entry {
 			for _, change := range entry.Changes {
+				// Handle status updates
 				for _, status := range change.Value.Statuses {
 					err := h.messagesService.HandleStatusUpdate(status.ID, status.Status)
 					if err != nil {
 						log.Printf("Error updating message status for %s: %v", status.ID, err)
+					}
+				}
+
+				// Handle incoming messages
+				for _, msg := range change.Value.Messages {
+					contactName := ""
+					for _, contact := range change.Value.Contacts {
+						if contact.WaID == msg.From {
+							contactName = contact.Profile.Name
+							break
+						}
+					}
+
+					text := ""
+					if msg.Type == "text" {
+						text = msg.Text.Body
+					} else {
+						text = fmt.Sprintf("[%s message]", msg.Type)
+					}
+
+					valBytes, _ := json.Marshal(change.Value)
+					err := h.messagesService.HandleIncomingMessage(msg.From, contactName, msg.ID, text, msg.Type, valBytes)
+					if err != nil {
+						log.Printf("Error handling incoming message from %s: %v", msg.From, err)
 					}
 				}
 			}
@@ -635,4 +675,101 @@ func (h *AutomationHandler) SyncSingleTemplate(w http.ResponseWriter, r *http.Re
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Successfully imported template from Meta"})
+}
+
+func (h *AutomationHandler) GetConversations(w http.ResponseWriter, r *http.Request) {
+	conversations, err := h.messagesService.GetConversations()
+	if err != nil {
+		http.Error(w, "Failed to fetch conversations", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(conversations)
+}
+
+func (h *AutomationHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
+	convIDStr := r.URL.Query().Get("conversation_id")
+	convID, _ := strconv.Atoi(convIDStr)
+	if convID == 0 {
+		http.Error(w, "conversation_id is required", http.StatusBadRequest)
+		return
+	}
+
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 {
+		limit = 50
+	}
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	messages, err := h.messagesService.GetChatMessages(convID, limit, offset)
+	if err != nil {
+		http.Error(w, "Failed to fetch chat messages", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
+func (h *AutomationHandler) SendFreeTextMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		PhoneNumber string `json:"phone_number"`
+		Text        string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.PhoneNumber == "" || req.Text == "" {
+		http.Error(w, "phone_number and text are required", http.StatusBadRequest)
+		return
+	}
+
+	// Determine sender role from context/token if available, else default to 'human'
+	senderRole := "human"
+	
+	_, err := h.messagesService.SendFreeTextMessage(req.PhoneNumber, req.Text, senderRole)
+	if err != nil {
+		log.Printf("SendFreeTextMessage Error: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to send message: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+func (h *AutomationHandler) UpdateConversationMode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID   int    `json:"id"`
+		Mode string `json:"mode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID == 0 || (req.Mode != "auto" && req.Mode != "human") {
+		http.Error(w, "valid id and mode ('auto' or 'human') are required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.messagesService.UpdateConversationMode(req.ID, req.Mode)
+	if err != nil {
+		http.Error(w, "Failed to update mode", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }

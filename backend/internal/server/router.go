@@ -193,6 +193,10 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
+	mux.HandleFunc("/api/automation/whatsapp/conversations", protected(automationHandler.GetConversations))
+	mux.HandleFunc("/api/automation/whatsapp/chat", protected(automationHandler.GetChatMessages))
+	mux.HandleFunc("/api/automation/whatsapp/send-message", adminProtected(automationHandler.SendFreeTextMessage))
+	mux.HandleFunc("/api/automation/whatsapp/conversations/mode", adminProtected(automationHandler.UpdateConversationMode))
 	mux.HandleFunc("/api/automation/whatsapp/send-manual", adminProtected(automationHandler.SendManualMessage))
 	mux.HandleFunc("/api/automation/whatsapp/send-bulk", adminProtected(automationHandler.SendBulkMarketing))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", adminProtected(automationHandler.SyncAutomationMetrics))

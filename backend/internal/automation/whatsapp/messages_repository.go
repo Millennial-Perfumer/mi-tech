@@ -2,8 +2,9 @@ package whatsapp
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
-
+	"log"
 	"time"
 )
 
@@ -326,4 +327,119 @@ func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *
 		return 0, err
 	}
 	return metrics["failed"].(int), nil
+}
+
+func (r *MessagesRepository) GetConversations() ([]Conversation, error) {
+	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, created_at, updated_at 
+	          FROM whatsapp_conversations ORDER BY last_message_at DESC`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var conversations []Conversation
+	for rows.Next() {
+		var c Conversation
+		var contactName, lastMessage sql.NullString
+		err := rows.Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.CreatedAt, &c.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		c.ContactName = contactName.String
+		c.LastMessage = lastMessage.String
+		conversations = append(conversations, c)
+	}
+	return conversations, nil
+}
+
+func (r *MessagesRepository) GetChatMessages(conversationID int, limit, offset int) ([]ChatMessage, error) {
+	query := `SELECT id, conversation_id, message_id, text, type, direction, sender_role, status, sent_at, metadata 
+	          FROM whatsapp_chat_messages WHERE conversation_id = $1 ORDER BY sent_at DESC LIMIT $2 OFFSET $3`
+	rows, err := r.db.Query(query, conversationID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []ChatMessage
+	for rows.Next() {
+		var m ChatMessage
+		var messageID, text, senderRole sql.NullString
+		var metadata interface{}
+		err := rows.Scan(&m.ID, &m.ConversationID, &messageID, &text, &m.Type, &m.Direction, &senderRole, &m.Status, &m.SentAt, &metadata)
+		if err != nil {
+			log.Printf("Scan error in GetChatMessages: %v", err)
+			return nil, err
+		}
+		
+		m.MessageID = messageID.String
+		m.Text = text.String
+		m.SenderRole = senderRole.String
+		
+		if metadata != nil {
+			if bytes, ok := metadata.([]byte); ok {
+				m.Metadata = json.RawMessage(bytes)
+			}
+		}
+		
+		messages = append(messages, m)
+	}
+	// Return in chronological order
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+	return messages, nil
+}
+
+func (r *MessagesRepository) UpsertConversation(phoneNumber, contactName, lastMessage string) (int, error) {
+	query := `
+		INSERT INTO whatsapp_conversations (phone_number, contact_name, last_message, last_message_at, updated_at)
+		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (phone_number) DO UPDATE SET
+			contact_name = EXCLUDED.contact_name,
+			last_message = EXCLUDED.last_message,
+			last_message_at = EXCLUDED.last_message_at,
+			updated_at = EXCLUDED.updated_at
+		RETURNING id`
+	var id int
+	err := r.db.QueryRow(query, phoneNumber, contactName, lastMessage).Scan(&id)
+	return id, err
+}
+
+func (r *MessagesRepository) UpdateConversationMode(id int, mode string) error {
+	query := `UPDATE whatsapp_conversations SET mode = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
+	_, err := r.db.Exec(query, mode, id)
+	return err
+}
+
+func (r *MessagesRepository) SaveChatMessage(m ChatMessage) (int, error) {
+	query := `
+		INSERT INTO whatsapp_chat_messages (conversation_id, message_id, text, type, direction, sender_role, status, sent_at, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id`
+	var id int
+	sentAt := m.SentAt
+	if sentAt.IsZero() {
+		sentAt = time.Now().UTC()
+	}
+	err := r.db.QueryRow(query, m.ConversationID, m.MessageID, m.Text, m.Type, m.Direction, m.SenderRole, m.Status, sentAt, m.Metadata).Scan(&id)
+	return id, err
+}
+
+func (r *MessagesRepository) GetConversationByPhone(phoneNumber string) (*Conversation, error) {
+	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, created_at, updated_at 
+	          FROM whatsapp_conversations WHERE phone_number = $1`
+	var c Conversation
+	var contactName, lastMessage sql.NullString
+	err := r.db.QueryRow(query, phoneNumber).Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.CreatedAt, &c.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	c.ContactName = contactName.String
+	c.LastMessage = lastMessage.String
+	return &c, nil
 }

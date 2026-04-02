@@ -3,6 +3,7 @@ import { AutomationDashboard } from './AutomationDashboard';
 import { AutomationTemplates } from './AutomationTemplates';
 import { AutomationTriggers } from './AutomationTriggers';
 import { AutomationMessages } from './AutomationMessages';
+import { WhatsAppChat } from './WhatsAppChat';
 
 interface WhatsAppAutomationProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
@@ -24,6 +25,7 @@ export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateCh
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard' },
+    { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'templates', label: 'Templates' },
     { id: 'triggers', label: 'Triggers' },
     { id: 'messages', label: 'Message Logs' },
@@ -64,6 +66,7 @@ export function WhatsAppAutomation({ fetchWithAuth, startDate, endDate, onDateCh
 
       <div className="automation-content">
         {activeSubTab === 'dashboard' && <AutomationDashboard fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} refreshTrigger={refreshTrigger} />}
+        {activeSubTab === 'whatsapp' && <WhatsAppChat fetchWithAuth={fetchWithAuth} />}
         {activeSubTab === 'templates' && <AutomationTemplates fetchWithAuth={fetchWithAuth} userRole={userRole} />}
         {activeSubTab === 'triggers' && <AutomationTriggers fetchWithAuth={fetchWithAuth} userRole={userRole} />}
         {activeSubTab === 'messages' && <AutomationMessages fetchWithAuth={fetchWithAuth} startDate={startDate} endDate={endDate} onDateChange={onDateChange} refreshTrigger={refreshTrigger} />}
