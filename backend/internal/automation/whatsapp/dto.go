@@ -65,3 +65,27 @@ type AutomationTemplate struct {
 	DeliveredCount int              `json:"delivered_count"`
 	ReadCount      int              `json:"read_count"`
 }
+
+type Conversation struct {
+	ID            int       `json:"id"`
+	PhoneNumber   string    `json:"phone_number"`
+	ContactName   string    `json:"contact_name"`
+	LastMessage   string    `json:"last_message"`
+	LastMessageAt time.Time `json:"last_message_at"`
+	Mode          string    `json:"mode"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type ChatMessage struct {
+	ID             int             `json:"id"`
+	ConversationID int             `json:"conversation_id"`
+	MessageID      string          `json:"message_id"`
+	Text           string          `json:"text"`
+	Type           string          `json:"type"`
+	Direction      string          `json:"direction"`
+	SenderRole     string          `json:"sender_role"`
+	Status         string          `json:"status"`
+	SentAt         time.Time       `json:"sent_at"`
+	Metadata       json.RawMessage `json:"metadata,omitempty"`
+}

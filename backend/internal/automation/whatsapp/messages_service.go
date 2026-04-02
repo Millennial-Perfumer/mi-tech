@@ -123,3 +123,65 @@ func (s *MessagesService) SyncMetricsFromMeta(startDate, endDate string) (map[st
 		"failed":    failed,
 	}, nil
 }
+
+func (s *MessagesService) GetConversations() ([]Conversation, error) {
+	return s.repo.GetConversations()
+}
+
+func (s *MessagesService) GetChatMessages(conversationID int, limit, offset int) ([]ChatMessage, error) {
+	return s.repo.GetChatMessages(conversationID, limit, offset)
+}
+
+func (s *MessagesService) UpdateConversationMode(id int, mode string) error {
+	return s.repo.UpdateConversationMode(id, mode)
+}
+
+func (s *MessagesService) SendFreeTextMessage(phoneNumber, text string, senderRole string) (int, error) {
+	// 1. Send via Meta API
+	msgID, err := s.metaClient.SendTextMessage(phoneNumber, text)
+	if err != nil {
+		return 0, err
+	}
+
+	// 2. Upsert conversation
+	convID, err := s.repo.UpsertConversation(phoneNumber, "", text)
+	if err != nil {
+		return 0, err
+	}
+
+	// 3. Save chat message
+	chatMsg := ChatMessage{
+		ConversationID: convID,
+		MessageID:      msgID,
+		Text:           text,
+		Type:           "text",
+		Direction:      "outgoing",
+		SenderRole:     senderRole,
+		Status:         "sent",
+		SentAt:         time.Now().UTC(),
+	}
+	return s.repo.SaveChatMessage(chatMsg)
+}
+
+func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messageID, text, msgType string, metadata []byte) error {
+	// 1. Upsert conversation
+	convID, err := s.repo.UpsertConversation(phoneNumber, contactName, text)
+	if err != nil {
+		return err
+	}
+
+	// 2. Save chat message
+	chatMsg := ChatMessage{
+		ConversationID: convID,
+		MessageID:      messageID,
+		Text:           text,
+		Type:           msgType,
+		Direction:      "incoming",
+		SenderRole:     "user",
+		Status:         "received",
+		SentAt:         time.Now().UTC(),
+		Metadata:       metadata,
+	}
+	_, err = s.repo.SaveChatMessage(chatMsg)
+	return err
+}
