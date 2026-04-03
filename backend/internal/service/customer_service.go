@@ -53,29 +53,7 @@ func NewCustomerService(repo *repository.CustomerRepository, orderRepo repositor
 	}
 }
 
-func (s *CustomerService) normalizePhone(phone string) string {
-	phone = strings.TrimSpace(phone)
-	if phone == "" {
-		return ""
-	}
-	// Remove all non-numeric characters except +
-	reg, _ := regexp.Compile(`[^0-9+]`)
-	phone = reg.ReplaceAllString(phone, "")
 
-	if !strings.HasPrefix(phone, "+") {
-		// If it's 10 digits, add +91
-		if len(phone) == 10 {
-			phone = "+91" + phone
-		} else if len(phone) == 12 && strings.HasPrefix(phone, "91") {
-			// If it's 91XXXXXXXXXX, add +
-			phone = "+" + phone
-		} else if !strings.HasPrefix(phone, "91") && len(phone) > 0 {
-			// Default to adding +91 for anything else that looks like a number
-			phone = "+91" + phone
-		}
-	}
-	return phone
-}
 
 // ImportFromCSV parses a Shopify customer export CSV and syncs it to the database.
 func (s *CustomerService) ImportFromCSV(ctx context.Context, r io.Reader, sourceID string) error {
@@ -134,7 +112,7 @@ func (s *CustomerService) ImportFromCSV(ctx context.Context, r io.Reader, source
 			}
 		}
 
-		phone := s.normalizePhone(phoneRaw)
+		phone := entity.NormalizePhone(phoneRaw)
 		if phone == "" {
 			continue
 		}
@@ -223,13 +201,13 @@ func (s *CustomerService) updateMetadata(c *entity.Customer, record []string, he
 }
 
 func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Order) error {
-	phone := s.normalizePhone(entity.DerefStr(order.CustomerPhone))
+	phone := entity.NormalizePhone(entity.DerefStr(order.CustomerPhone))
 	if phone == "" {
 		return nil
 	}
 
 	customer := &entity.Customer{
-		PhoneNumber: s.normalizePhone(phone),
+		PhoneNumber: entity.NormalizePhone(phone),
 		FirstName:   entity.StrPtr(s.toTitleCase(entity.DerefStr(order.CustomerFirstName))),
 		LastName:    entity.StrPtr(s.toTitleCase(entity.DerefStr(order.CustomerLastName))),
 		Email:       order.CustomerEmail,
@@ -280,7 +258,7 @@ func (s *CustomerService) UpdateFromOrdersBatch(ctx context.Context, orders []en
 	now := time.Now()
 
 	for i := range orders {
-		phone := s.normalizePhone(entity.DerefStr(orders[i].CustomerPhone))
+		phone := entity.NormalizePhone(entity.DerefStr(orders[i].CustomerPhone))
 		if phone == "" {
 			continue
 		}
@@ -367,7 +345,7 @@ func (s *CustomerService) UpsertFromWebhook(ctx context.Context, cust *entity.Cu
 		return fmt.Errorf("phone number is required for customer webhook upsert")
 	}
 
-	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.PhoneNumber = entity.NormalizePhone(cust.PhoneNumber)
 	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
 	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
 
@@ -517,7 +495,7 @@ func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]
 	return s.repo.GetByIDs(ctx, ids)
 }
 func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
-	cust.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+	cust.PhoneNumber = entity.NormalizePhone(cust.PhoneNumber)
 	cust.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))
 	cust.LastName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.LastName)))
 	// Ensure DeletedAt is reset to reactive the customer if it was previously soft-deleted
@@ -573,7 +551,7 @@ func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Custo
 
 	// 2. Patch only provided fields (preventing data loss of stats/metadata)
 	if cust.PhoneNumber != "" {
-		existing.PhoneNumber = s.normalizePhone(cust.PhoneNumber)
+		existing.PhoneNumber = entity.NormalizePhone(cust.PhoneNumber)
 	}
 	if cust.FirstName != nil {
 		existing.FirstName = entity.StrPtr(s.toTitleCase(entity.DerefStr(cust.FirstName)))

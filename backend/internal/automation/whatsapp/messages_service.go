@@ -1,22 +1,26 @@
 package whatsapp
 
 import (
+	"context"
 	"mi-tech/internal/config"
+	"mi-tech/internal/repository"
 	"time"
 )
 
 type MessagesService struct {
-	repo       *MessagesRepository
-	metaClient *MetaClient
-	settings   *config.SettingsProvider
+	repo         *MessagesRepository
+	metaClient   *MetaClient
+	settings     *config.SettingsProvider
+	customerRepo *repository.CustomerRepository
 }
 
-func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvider) *MessagesService {
+func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvider, customerRepo *repository.CustomerRepository) *MessagesService {
 	metaClient := NewMetaClient(settings)
 	return &MessagesService{
-		repo:       repo,
-		metaClient: metaClient,
-		settings:   settings,
+		repo:         repo,
+		metaClient:   metaClient,
+		settings:     settings,
+		customerRepo: customerRepo,
 	}
 }
 
@@ -164,7 +168,29 @@ func (s *MessagesService) SendFreeTextMessage(phoneNumber, text string, senderRo
 }
 
 func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messageID, text, msgType string, metadata []byte) error {
-	// 1. Upsert conversation
+	// 1. Check if customer exists in our DB to get their preferred name
+	if s.customerRepo != nil {
+		// Using a background context for the lookup; we can refine this if a request-scoped context is available.
+		if cust, err := s.customerRepo.GetByPhone(context.Background(), phoneNumber); err == nil && cust != nil {
+			var dbName string
+			if cust.FirstName != nil && *cust.FirstName != "" {
+				dbName = *cust.FirstName
+			}
+			if cust.LastName != nil && *cust.LastName != "" {
+				if dbName != "" {
+					dbName += " "
+				}
+				dbName += *cust.LastName
+			}
+
+			// If we found a name in the DB, override the profile name from WhatsApp
+			if dbName != "" {
+				contactName = dbName
+			}
+		}
+	}
+
+	// 2. Upsert conversation
 	convID, err := s.repo.UpsertConversation(phoneNumber, contactName, text)
 	if err != nil {
 		return err

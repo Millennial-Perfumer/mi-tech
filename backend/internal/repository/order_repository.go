@@ -155,6 +155,10 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 }
 
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
+	if order.CustomerPhone != nil {
+		normalized := entity.NormalizePhone(*order.CustomerPhone)
+		order.CustomerPhone = &normalized
+	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
@@ -197,6 +201,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 				"customer_city", "customer_state", "customer_country",
 				"customer_address1", "customer_address2", "customer_zip",
 				"customer_first_name", "customer_last_name", "raw_payload", "customer_external_id",
+				"total_discount",
 			}),
 		}).Omit("LineItems").Create(&order).Error; err != nil {
 			return fmt.Errorf("failed to upsert order: %w", err)
@@ -228,6 +233,13 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 	if len(orders) == 0 {
 		return nil
+	}
+
+	for i := range orders {
+		if orders[i].CustomerPhone != nil {
+			normalized := entity.NormalizePhone(*orders[i].CustomerPhone)
+			orders[i].CustomerPhone = &normalized
+		}
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
@@ -282,7 +294,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "tracking_url",
 				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
-				"raw_payload", "customer_external_id",
+				"raw_payload", "customer_external_id", "total_discount",
 			}),
 		}).Omit("LineItems").Create(&orders).Error; err != nil {
 			return fmt.Errorf("failed to batch upsert orders: %w", err)

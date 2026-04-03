@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"mi-tech/internal/automation/whatsapp"
@@ -29,8 +30,11 @@ func RegisterRoutes(
 	authHandler *handler.AuthHandler,
 	customerHandler *handler.CustomerHandler,
 	userHandler *handler.UserHandler,
+	marketingHandler *handler.MarketingHandler,
+	marketingWebhookHandler *handler.MarketingWebhookHandler,
 	authService *service.AuthService,
 ) {
+	log.Println("DEBUG: Registering API Routes...")
 	cors := CORSMiddleware
 	auth := AuthMiddleware(authService)
 	metrics := MetricsMiddleware
@@ -44,6 +48,14 @@ func RegisterRoutes(
 	protected := func(h http.HandlerFunc) http.HandlerFunc {
 		return cors(auth(h).ServeHTTP)
 	}
+
+	// Force-register marketing routes early to prevent potential shadowing
+	mux.HandleFunc("/api/marketing/meta/overview", protected(marketingHandler.GetMetaOverview))
+	mux.HandleFunc("/api/marketing/meta/campaigns", protected(marketingHandler.GetMetaCampaigns))
+	mux.HandleFunc("/api/marketing/meta/adsets", protected(marketingHandler.GetMetaAdSets))
+	mux.HandleFunc("/api/marketing/meta/ads", protected(marketingHandler.GetMetaAds))
+	mux.HandleFunc("/api/marketing/meta/webhook", marketingWebhookHandler.MetaWebhook)
+	log.Println("DEBUG: Marketing Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
 	mux.Handle("/api/metrics", promhttp.Handler())
@@ -201,6 +213,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/automation/whatsapp/send-bulk", adminProtected(automationHandler.SendBulkMarketing))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", adminProtected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
+	// Marketing routes moved to top
 
 	// --- Swagger ---
 	mux.Handle("/api/swagger/", httpSwagger.WrapHandler)

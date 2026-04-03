@@ -7,6 +7,7 @@ import (
 	"mi-tech/internal/config"
 	"mi-tech/internal/database"
 	"mi-tech/internal/handler"
+	"mi-tech/internal/marketing"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
 	"net/http"
@@ -68,8 +69,11 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
-	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider)
+	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo)
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
+	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
+	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
+	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo)
 
 	// Handlers
@@ -100,6 +104,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		authHandler,
 		customerHandler,
 		userHandler,
+		marketingHandler,
+		marketingWebhookHandler,
 		authService,
 	)
 

@@ -1,0 +1,26 @@
+{
+  "skill_name": "sa-skill",
+  "evals": [
+    {
+      "id": 1,
+      "name": "high-load-notification-design",
+      "prompt": "Our notification system is currently processing emails and SMS synchronously within the order flow. This causes slow response times for users when third-party providers are slow. We need to handle 10,000 notifications per hour. Design a scalable solution.",
+      "expected_output": "The response should include a move to an asynchronous, message-queue-based architecture (e.g., RabbitMQ, Kafka, or Redis Streams), decoupling the order flow from notification dispatching. It must include an ADR, a sequence diagram (Mermaid), and specific observability metrics (SLIs/SLOs) for the new system.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "legacy-auth-refactor",
+      "prompt": "The current authentication logic is scattered across multiple middleware functions and services. We need to centralize this into a dedicated AuthService that can support OAuth2 and JWT. Analyze the current state and propose a plan.",
+      "expected_output": "The response must first perform a codebase search to identify all authentication-related logic, call out the current 'scattered logic' pattern as an anti-pattern, and propose a centralized service with a clear data flow. It must also include a zero-downtime migration plan.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "idempotent-payment-processing",
+      "prompt": "We are seeing duplicate charges for some orders because retries are happening on the frontend and backend without a unique identifier. Propose a system-wide strategy for ensuring idempotent payment processing.",
+      "expected_output": "The architect should propose an idempotency key strategy, detailing how keys are generated, stored (e.g., in Redis with TTL), and checked. The response must follow the full mandatory structure, including risks and mitigation for race conditions.",
+      "files": []
+    }
+  ]
+}

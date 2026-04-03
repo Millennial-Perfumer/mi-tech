@@ -1,0 +1,23 @@
+{
+  "skill_name": "technical-manager",
+  "evals": [
+    {
+      "id": 1,
+      "name": "notification-system-design",
+      "prompt": "We need to build a real-time notification system for our platform. It should support in-app and email alerts. Design the architecture, implement the backend, and ensure it's tested. Coordinate the work across your team.",
+      "expected_output": "The manager should break the request into: 1. `sa-skill` for high-level Pub/Sub architecture. 2. `go-skill` for backend implementation and DB. 3. `qa-sk` for unit and integration testing. It must show a clear dependency graph."
+    },
+    {
+      "id": 2,
+      "name": "profile-refresh-secure-auth",
+      "prompt": "Refresh our 'User Profile' UI with a modern glassmorphic look. Also, add a secure password update flow with email confirmation. Ensure it aligns with our design system and is ready for production.",
+      "expected_output": "The manager should assign: 1. `ui-sk` for the glassmorphic UI. 2. `go-skill` for the password update logic and email triggers. 3. `sa-skill` for a quick security review of the flow. 4. `qa-sk` for E2E user journey testing."
+    },
+    {
+      "id": 3,
+      "name": "search-performance-bottleneck",
+      "prompt": "Our 'Order Search' API is slow under load. We need to identify the bottleneck, fix it, and ensure no regressions. Coordinate the fix and the review.",
+      "expected_output": "The manager must assign: 1. `go-skill` to identify the bottleneck (e.g., missing index) and implement the fix. 2. `code-review-sk` to critically review the diff. 3. `qa-sk` to verify the fix with performance and regression tests."
+    }
+  ]
+}
