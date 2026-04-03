@@ -117,3 +117,7 @@ func (p *SettingsProvider) GetMetaMarketingAccessToken() string {
 func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
 	return p.get("meta_marketing_ad_account_id")
 }
+
+func (p *SettingsProvider) GetMetaMarketingWebhookVerifyToken() string {
+	return p.get("meta_marketing_webhook_verify_token")
+}
