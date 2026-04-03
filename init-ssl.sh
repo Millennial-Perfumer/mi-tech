@@ -8,7 +8,7 @@ set -e
 
 DOMAIN="mi-tech.millennialperfumer.in"
 API_DOMAIN="mi-tech-api.millennialperfumer.in"
-EMAIL="millennialperfumer.cc@gmail.com"   # ← Change this to your real email
+EMAIL="${LETSENCRYPT_EMAIL:-millennialperfumer.cc@gmail.com}"   # ← Change this to your real email in .env or via ENV var
 CERT_PATH="./certbot/conf/live/$DOMAIN"
 COMPOSE_FILE="docker-compose.prod.yml"
 
@@ -65,11 +65,6 @@ docker compose -f $COMPOSE_FILE exec nginx nginx -s reload
 
 echo ""
 echo "✅ SSL bootstrap complete!"
-echo "   https://$DOMAIN        → Frontend"
-echo "   https://$API_DOMAIN    → API"
-echo ""
-echo "   The certbot container will now handle renewals every 12 hours automatically."
-mplete!"
 echo "   https://$DOMAIN        → Frontend"
 echo "   https://$API_DOMAIN    → API"
 echo ""
