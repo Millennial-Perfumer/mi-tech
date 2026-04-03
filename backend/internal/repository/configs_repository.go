@@ -74,6 +74,8 @@ func (r *ConfigsRepository) Set(key, value string) error {
 	).Error
 }
 
+
+
 // maskValue shows only the last 4 characters behind dots.
 func maskValue(val string) string {
 	if len(val) <= 4 {

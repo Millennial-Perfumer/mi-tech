@@ -1,0 +1,26 @@
+{
+  "skill_name": "ui-sk",
+  "evals": [
+    {
+      "id": 1,
+      "name": "glassmorphic-card-tokens",
+      "prompt": "Create a new 'ProductCard' component for an ecommerce dashboard. It should look modern, use glassmorphism for the background, and strictly use the existing design tokens (CSS variables). The font must be Montserrat.",
+      "expected_output": "The component should use `backdrop-filter: blur`, `background: rgba(...)`, and `font-family: 'Montserrat'`. It must also reference CSS variables like `var(--primary)` or `var(--card-bg)` instead of hardcoded hex values.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "responsive-settings-panel",
+      "prompt": "Build a responsive settings panel with three tabs: 'General', 'Security', and 'Notifications'. Use the system's existing design tokens and ensure smooth transitions between tabs. Use Montserrat.",
+      "expected_output": "The response should include a functional tabbed interface, media queries for responsiveness, and `transition` properties for smooth UI state changes. All text must use Montserrat and colors must be from CSS variables.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "design-token-audit-refactor",
+      "prompt": "Analyze the current CSS variables in the project and use them to style a new 'UserLogin' modal. If 'Montserrat' is missing, add it to the body. Ensure the modal feels 'Plain' and 'Clean'.",
+      "expected_output": "The skill must perform an initial search for CSS variables, incorporate them into the modal styling, and ensure the resulting UI follows the 'Plain' and 'Clean' aesthetic (whitespace, minimal borders). It must also confirm Montserrat is correctly applied.",
+      "files": []
+    }
+  ]
+}

@@ -109,3 +109,11 @@ func (p *SettingsProvider) GetBulkTemplateSuffix() string {
 	}
 	return s
 }
+
+func (p *SettingsProvider) GetMetaMarketingAccessToken() string {
+	return p.get("meta_marketing_access_token")
+}
+
+func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
+	return p.get("meta_marketing_ad_account_id")
+}

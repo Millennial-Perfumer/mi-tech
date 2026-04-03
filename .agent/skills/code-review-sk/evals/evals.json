@@ -1,0 +1,23 @@
+{
+  "skill_name": "code-review-sk",
+  "evals": [
+    {
+      "id": 1,
+      "name": "logic-bug-in-diff",
+      "prompt": "Review this Git diff for a new billing function. It should handle multiple currencies but has a potential for a race condition when updating the balance. Fetch the context and provide a structured review.",
+      "expected_output": "The skill must fetch the actual diff, identify the race condition (e.g., missing locks or atomic updates), and provide a 'REQUEST CHANGES' verdict. It should prioritize the business logic error as a 'Critical Issue'."
+    },
+    {
+      "id": 2,
+      "name": "non-indexed-query-performance",
+      "prompt": "A PR adds a 'SearchOrders' endpoint that uses a raw SQL query. It looks correct, but it includes a join on 'OrderLines' without an index on 'OrderID'. Fetch the schema and evaluate the performance impact.",
+      "expected_output": "The response should identify the missing index as a major performance bottleneck, evaluate the risk of system-wide slow-down, and request changes. It must follow the mandatory review structure."
+    },
+    {
+      "id": 3,
+      "name": "refactor-coverage-gap",
+      "prompt": "Review a PR that refactors the 'AuthService' to support JWT. The code looks clean, but it removes several legacy unit tests without adding new ones for the token validation logic. Analyze the risk and provide a verdict.",
+      "expected_output": "The reviewer must identify the lack of test coverage for a critical path (auth), highlight this as a 'Critical Issue', and request changes. It should acknowledge the code quality but prioritize testing reliability."
+    }
+  ]
+}

@@ -12,8 +12,6 @@ import (
 )
 
 func TestCustomerService_NormalizePhone(t *testing.T) {
-	service := NewCustomerService(nil, nil, nil)
-
 	tests := []struct {
 		input    string
 		expected string
@@ -26,7 +24,7 @@ func TestCustomerService_NormalizePhone(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		assert.Equal(t, tc.expected, service.normalizePhone(tc.input))
+		assert.Equal(t, tc.expected, entity.NormalizePhone(tc.input))
 	}
 }
 

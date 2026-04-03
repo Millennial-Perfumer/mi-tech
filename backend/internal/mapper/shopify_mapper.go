@@ -153,14 +153,14 @@ func GraphQLOrderToEntity(so dto.GraphQLOrderNode) entity.Order {
 		CancelReason:      strPtr(so.CancelReason),
 		CustomerName:      strPtr(custName),
 		CustomerEmail:     strPtr(custEmail),
-		CustomerPhone:     strPtr(custPhone),
+		CustomerZip:       strPtr(zip),
+		CustomerExternalID: strPtr(custExternalID),
+		CustomerPhone:     strPtr(entity.NormalizePhone(custPhone)),
 		CustomerCity:      strPtr(custCity),
 		CustomerState:     strPtr(custState),
 		CustomerCountry:   strPtr(custCountry),
 		CustomerAddress1:  strPtr(addr1),
 		CustomerAddress2:  strPtr(addr2),
-		CustomerZip:       strPtr(zip),
-		CustomerExternalID: strPtr(custExternalID),
 	}
 }
 
@@ -349,13 +349,13 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 		CustomerFirstName: strPtr(firstName),
 		CustomerLastName:  strPtr(lastName),
 		CustomerEmail:     strPtr(email),
-		CustomerPhone:     strPtr(phone),
+		CustomerZip:       strPtr(zip),
+		CustomerPhone:     strPtr(entity.NormalizePhone(phone)),
 		CustomerCity:      strPtr(city),
 		CustomerState:     strPtr(state),
 		CustomerCountry:   strPtr(country),
 		CustomerAddress1:  strPtr(addr1),
 		CustomerAddress2:  strPtr(addr2),
-		CustomerZip:       strPtr(zip),
 		CreatedAt:         parseTime(payload.CreatedAt),
 		UpdatedAt:         parseTime(payload.UpdatedAt),
 		RawPayload:        rawPayload,
@@ -436,7 +436,7 @@ func WebhookCustomerToEntity(payload dto.ShopifyWebhookCustomer, rawPayload *jso
 	spent := parseFloat(payload.TotalSpent)
 
 	return entity.Customer{
-		PhoneNumber: phone,
+		PhoneNumber: entity.NormalizePhone(phone),
 		FirstName:   strPtr(payload.FirstName),
 		LastName:    strPtr(payload.LastName),
 		Email:       strPtr(payload.Email),

@@ -1,0 +1,23 @@
+{
+  "skill_name": "mobile-ui-sk",
+  "evals": [
+    {
+      "id": 1,
+      "name": "dashboard-sidebar-to-drawer",
+      "prompt": "Audit this Dashboard Sidebar component. It's fixed at 250px and currently stays visible on all screens, which breaks the mobile viewport. Propose a safe refactor to a drawer or hamburger menu.",
+      "expected_output": "The skill must perform a line-by-line audit of the fixed width, identify the responsive breakpoint, and provide a refactor that uses a drawer for mobile while maintaining the sidebar for desktop."
+    },
+    {
+      "id": 2,
+      "name": "order-table-to-card-refactor",
+      "prompt": "Refactor this large 6-column 'Orders' table for a 375px wide mobile screen. It currently causes significant horizontal scrolling. Convert it to a stackable card layout for small screens without breaking the desktop grid.",
+      "expected_output": "The skill should identify the 6-column horizontal scroll as a mobile blocker, propose a media-query-based approach to switch to cards, and ensure tap targets like 'View Order' are usable."
+    },
+    {
+      "id": 3,
+      "name": "form-spacing-audit",
+      "prompt": "Audit this 'Contact Form' for mobile usability. The inputs are small (14px), and the buttons are tightly packed (30px height). Propose improvements for tap targets, font sizes, and overall spacing.",
+      "expected_output": "The auditor should identify the small font size and cramped buttons as issues, suggest min 16px font and 44x44px buttons, and increase vertical spacing between form groups."
+    }
+  ]
+}

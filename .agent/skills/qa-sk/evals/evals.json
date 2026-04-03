@@ -1,0 +1,26 @@
+{
+  "skill_name": "qa-sk",
+  "evals": [
+    {
+      "id": 1,
+      "name": "go-unit-test-logic",
+      "prompt": "We have a new 'CalculateTax' function in our billing service. It handles different tax rates based on region and product type. Write a comprehensive set of Go unit tests covering normal, edge, and error cases. Use standard library or testify.",
+      "expected_output": "The response should include table-driven tests in Go. It must cover valid inputs, unknown regions, zero/negative amounts, and different product categories. Proper coverage for logic and error handling is mandatory.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "playwright-checkout-flow",
+      "prompt": "Automate the end-to-end checkout journey using Playwright. Start from searching for a product, adding to cart, and reaching the success page. Ensure the test is stable and maintainable using modern best practices.",
+      "expected_output": "The script should use robust selectors (e.g., `data-testid`), include proper assertions (e.g., `expect(page).toHaveURL(...)`), and demonstrate a clear flow from search to completion. Focus on the 'Critical Journey' only.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "api-test-strategy",
+      "prompt": "Design a test plan for our new 'UserSubscription' API. It handles payments, renewals, and cancellations. Propose a strategy for ensuring reliability, correctness, and quality without using UI automation.",
+      "expected_output": "The strategy should proactively identify edge cases (e.g., partial payments, network failures during external calls) and propose unit tests for logic, API contract tests, and integration tests with mocked payment providers.",
+      "files": []
+    }
+  ]
+}

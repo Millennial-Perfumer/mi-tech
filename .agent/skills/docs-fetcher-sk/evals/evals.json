@@ -1,0 +1,26 @@
+{
+  "skill_name": "docs-fetcher-sk",
+  "evals": [
+    {
+      "id": 1,
+      "name": "meta-marketing-insights",
+      "prompt": "Fetch the official documentation for Meta Marketing API 'insights' edge. I need to know the available fields, filtering options, and level-based querying (account, campaign, adset, ad).",
+      "expected_output": "A structured markdown report covering Meta Marketing Insights, including the 'level' parameter and 'fields' list (spend, impressions, etc.), auth requirements, and rate limits.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "shopify-graphql-orders",
+      "prompt": "Get the Shopify GraphQL API documentation for the 'Order' object. Specifically, I need the fields for pricing (including discounts and tax) and how to handle pagination for fetching a large volume of orders.",
+      "expected_output": "A structured markdown report for Shopify Orders GraphQL, including MoneyV2 fields, order-level discounts, and cursor-based pagination (hasNextPage, endCursor).",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "google-ads-reporting-auth",
+      "prompt": "Retrieve documentation for Google Ads API Reporting. Focus on the authentication flow required to run basic performance reports and the specific Developer Token and OAuth2 requirements.",
+      "expected_output": "A structured markdown report for Google Ads Reporting Auth, including Developer Token, Client ID, Client Secret, and Refresh Token flow.",
+      "files": []
+    }
+  ]
+}
