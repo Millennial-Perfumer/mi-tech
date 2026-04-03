@@ -41,7 +41,7 @@ func (h *MarketingWebhookHandler) verifyWebhook(w http.ResponseWriter, r *http.R
 	token := query.Get("hub.verify_token")
 	challenge := query.Get("hub.challenge")
 
-	expectedToken := h.settings.GetWhatsAppWebhookVerifyToken() // Sharing the same verify token for simplicity
+	expectedToken := h.settings.GetMetaMarketingWebhookVerifyToken()
 
 	if mode == "subscribe" && token == expectedToken {
 		fmt.Printf("Meta Marketing Webhook verified successfully!\n")
