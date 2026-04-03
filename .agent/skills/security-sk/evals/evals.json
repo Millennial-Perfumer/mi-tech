@@ -1,0 +1,23 @@
+{
+  "skill_name": "security-sk",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Conduct a security audit of the `CustomerRepository.List` method in `backend/internal/repository/customer_repository.go`. Specifically focus on the SQL-based filtering and sorting logic to ensure protection against SQL injection.",
+      "expected_output": "The analyst should identify the 'allowlist' for the sortBy column as a positive security practice but scrutinize any use of 'ILIKE' or raw string concatenation if present in other parts of the query.",
+      "files": ["backend/internal/repository/customer_repository.go"]
+    },
+    {
+      "id": 1,
+      "prompt": "Review the routing configurations in `backend/internal/server/router.go`. Identify any endpoints that might be overly permissive or missing necessary authentication/admin-role middleware.",
+      "expected_output": "The analyst should flag any endpoints that allow POST/PUT/DELETE actions without 'adminProtected' or similar strict gating, and verify the overall auth coverage.",
+      "files": ["backend/internal/server/router.go"]
+    },
+    {
+      "id": 2,
+      "prompt": "Perform a security assessment of the `MetaWebhook` verification logic in `backend/internal/handler/marketing_webhook_handler.go`. Focus on how sensitive verification tokens are retrieved and compared.",
+      "expected_output": "The analyst should highlight the security risk of sharing the WhatsApp verification token for Meta Marketing webhooks and suggest decoupling them for better isolation.",
+      "files": ["backend/internal/handler/marketing_webhook_handler.go"]
+    }
+  ]
+}
