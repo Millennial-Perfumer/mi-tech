@@ -120,7 +120,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
           <input
             type="text"
             className="search-input"
-            style={{ paddingLeft: '3.5rem' }}
+            style={{ paddingLeft: '3.5rem', paddingRight: searchQuery ? '2.5rem' : '1rem' }}
             placeholder="Search by Order ID or Customer Name..."
             aria-label="Search message logs"
             value={searchQuery}
@@ -137,7 +137,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
               aria-label="Clear search"
               title="Clear search"
             >
-              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
