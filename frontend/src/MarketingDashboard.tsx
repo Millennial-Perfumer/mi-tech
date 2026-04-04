@@ -281,7 +281,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-              Meta Intelligence {userRole === 'admin' && <span style={{ fontSize: '0.65rem', background: 'rgba(59, 130, 246, 0.1)', color: '#60A5FA', padding: '2px 8px', borderRadius: '6px', verticalAlign: 'middle', marginLeft: '8px' }}>Admin</span>}
+              Ads Intelligence {userRole === 'admin' && <span style={{ fontSize: '0.65rem', background: 'rgba(59, 130, 246, 0.1)', color: '#60A5FA', padding: '2px 8px', borderRadius: '6px', verticalAlign: 'middle', marginLeft: '8px' }}>Admin</span>}
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px' }}>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>{metaData.accounts.find(a => a.id === metaData.activeId)?.name || 'Ad Account'}</span>
@@ -327,7 +327,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
           </div>
           <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem' }}>API Sync Failed</h3>
           <p style={{ color: 'var(--text-tertiary)', marginBottom: '2rem', maxWidth: '500px', margin: '0 auto 2rem' }}>{error}</p>
-          <button className="btn-primary" onClick={() => fetchMetaOverview()} style={{ padding: '0.85rem 2rem' }}>Reconnect Meta Marketing</button>
+          <button className="btn-primary" onClick={() => fetchMetaOverview()} style={{ padding: '0.85rem 2rem' }}>Reconnect Ads Account</button>
         </div>
       ) : (
         <>

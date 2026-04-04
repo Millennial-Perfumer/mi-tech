@@ -697,7 +697,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                     <table>
                         <thead>
                             <tr>
-                                <th style={{ width: '40px', padding: '0 1rem' }}>
+                                <th style={{ width: '40px', padding: '1rem 1rem' }}>
                                     <input 
                                         type="checkbox" 
                                         checked={customers.length > 0 && customers.every(c => selectedCustomerIDs.has(c.id))}

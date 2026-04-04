@@ -121,3 +121,23 @@ func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
 func (p *SettingsProvider) GetMetaMarketingWebhookVerifyToken() string {
 	return p.get("meta_marketing_webhook_verify_token")
 }
+
+func (p *SettingsProvider) GetMetaAppID() string {
+	return p.get("meta_app_id")
+}
+
+func (p *SettingsProvider) GetMetaAppSecret() string {
+	return p.get("meta_app_secret")
+}
+
+func (p *SettingsProvider) GetFacebookPageID() string {
+	return p.get("facebook_page_id")
+}
+
+func (p *SettingsProvider) GetInstagramBusinessID() string {
+	return p.get("instagram_business_id")
+}
+
+func (p *SettingsProvider) GetThreadsUserID() string {
+	return p.get("threads_user_id")
+}

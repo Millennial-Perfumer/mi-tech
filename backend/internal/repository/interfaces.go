@@ -106,3 +106,14 @@ type HSNSummaryResult struct {
 	Revenue      float64
 }
 
+// SocialRepository defines all data access for social media persistence and history.
+type SocialRepository interface {
+	UpsertAccount(account entity.SocialAccount) error
+	GetAccount(platform string) (entity.SocialAccount, error)
+	UpsertPost(post entity.SocialPost) error
+	ListPosts(platform string, limit int) ([]entity.SocialPost, error)
+	UpsertMetricSnapshot(metric entity.SocialMetricHistory) error
+	GetHistoricalMetrics(platform string, postID string, days int) ([]entity.SocialMetricHistory, error)
+	GetPlatformSummary(platform string, startDate, endDate string) (map[string]interface{}, error)
+}
+
