@@ -1,16 +1,16 @@
-# GST Invoice Manager Documentation
+# GST Invoice Manager - Technical Documentation
 
-Welcome to the technical documentation for the GST Invoice Manager. This repository is a centralized platform for bridging e-commerce (Shopify) with automated customer communication (WhatsApp) and GST compliance reporting.
+This directory contains the complete technical reference for the GST Invoice Manager. It is designed to be browsed as Markdown files directly in the repository or on GitHub.
 
-## 🧭 Navigation
+## 🗂️ Documentation Sections
 
--   **[System Architecture](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/architecture/index.md)**: High-level design and component interaction.
--   **[API Reference](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/index.md)**: REST API endpoints and data models.
--   **[Database Schema](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/database/schema.md)**: PostgreSQL tables, relationships, and migrations.
--   **[Workflows](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/workflows/index.md)**: Core business logic (Order Sync, WhatsApp Automation).
--   **[Setup & Deployment](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/setup/index.md)**: Local development and production setup.
+- **[API Reference](api/index.md)** - All modules, endpoints, and data structures.
+- **[Workflows](workflows/index.md)** - Behind-the-scenes logic and orchestration.
+- **[Documentation Index](DOCS_INDEX.md)** - A full table of contents.
 
----
+## 🛠️ Maintenance Guideline
 
-> [!NOTE]
-> This documentation is maintained by `docs-sk` and is derived directly from the application source code.
+> [!IMPORTANT]
+> **Doc-as-Code Mandate**: Every API update or business logic change **MUST** be accompanied by a corresponding update to these Markdown files and the Swagger specifications.
+
+For more details on how to maintain this documentation, see the **[Repository Guidelines](../GEMINI.md)**.

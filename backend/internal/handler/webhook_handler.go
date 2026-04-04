@@ -36,6 +36,14 @@ func NewWebhookHandler(webhookService *service.WebhookService, mappingService *w
 }
 
 // ShopifyWebhookHandler handles POST /api/webhooks/shopify.
+// @Summary Shopify Webhook Ingestion
+// @Description Secure endpoint for Shopify to push real-time order, fulfillment, and customer updates.
+// @Tags webhooks
+// @Accept json
+// @Param X-Shopify-Topic header string true "Webhook Topic (e.g., orders/create)"
+// @Param X-Shopify-Hmac-Sha256 header string true "HMAC Signature"
+// @Success 200 {string} string "OK"
+// @Router /webhooks/shopify [post]
 func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -223,6 +231,13 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 }
 
 // GetWebhookStatus handles GET /api/webhook/status.
+// @Summary Webhook Health Status
+// @Description Check the status of the last received webhook and its processing state.
+// @Tags webhooks
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /webhook/status [get]
 func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request) {
 	topic, status, lastReceived, err := h.webhookService.GetWebhookStatus()
 	if err != nil {

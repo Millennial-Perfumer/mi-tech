@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { API_BASE } from './api';
 import { CustomDatePicker } from './CustomDatePicker';
 import { subDays, format } from 'date-fns';
@@ -43,6 +43,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
     adsets: any[];
     ads: any[];
     insights: any[];
+    summary: any[];
     activeId: string;
     accounts: any[];
   }>({
@@ -55,6 +56,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
     adsets: [],
     ads: [],
     insights: [],
+    summary: [],
     activeId: '',
     accounts: []
   });
@@ -91,6 +93,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
           metrics: aggregated,
           campaigns: campaignList,
           insights: data.insights || [],
+          summary: data.summary || [],
           activeId: data.active_id || prev.activeId,
           accounts: data.accounts || prev.accounts
         }));
@@ -251,6 +254,18 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
     return agg;
   };
 
+  const currentMetrics = useMemo(() => {
+    // If we are at the account level and have a ground-truth summary from Meta, use it.
+    if (viewLevel === 'CAMPAIGNS' && metaData.summary && metaData.summary.length > 0) {
+      return {
+        ...metaData.summary[0],
+        purchase_roas_val: metaData.summary[0].purchase_roas_val || metaData.summary[0].purchase_roas // Ensure fallback
+      };
+    }
+    // Otherwise fallback to manual aggregation of the current visible items
+    return aggregateMetrics(metaData.insights || []);
+  }, [metaData.insights, metaData.summary, viewLevel]);
+
   // Helper to get insight for a specific object ID
   const getInsightForId = (id: string) => {
     return metaData.insights?.find((ins: any) => ins.ad_id === id || ins.adset_id === id || ins.campaign_id === id);
@@ -361,10 +376,10 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
 
           {/* Metrics Grid (Dynamic based on level) */}
           <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-            <MetricCard label="Spend" value={formatCurrency(metaData.metrics.spend)} sub="Current Period" color="#1877F2" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>} />
-            <MetricCard label="ROAS" value={`${parseFloat(metaData.metrics.purchase_roas_val || '0').toFixed(2)}x`} sub="Return on spend" color="#6366F1" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>} />
-            <MetricCard label="Conv." value={formatNumber(metaData.metrics.conversions || 0)} sub="Total results" color="#10B981" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} />
-            <MetricCard label="Freq." value={parseFloat(metaData.metrics.frequency || '0').toFixed(1)} sub="Ad Saturation" color="#F59E0B" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
+            <MetricCard label="Spend" value={formatCurrency(currentMetrics.spend)} sub="Current Period" color="#1877F2" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>} />
+            <MetricCard label="ROAS" value={`${parseFloat(currentMetrics.purchase_roas_val || '0').toFixed(2)}x`} sub="Return on spend" color="#6366F1" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>} />
+            <MetricCard label="Conv." value={formatNumber(currentMetrics.conversions || 0)} sub="Total results" color="#10B981" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} />
+            <MetricCard label="Freq." value={parseFloat(currentMetrics.frequency || '0').toFixed(1)} sub="Ad Saturation" color="#F59E0B" icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
           </div>
 
           {/* Drill-down Intelligence Container */}

@@ -18,6 +18,14 @@ func NewSettingsHandler(settingsRepo *repository.SettingsRepository) *SettingsHa
 }
 
 // GetDateRange returns the persisted date range.
+// GetDateRange handles GET /api/settings/date-range.
+// @Summary Get global date range
+// @Description Retrieve the start and end dates used for filtering dashboard and report data.
+// @Tags settings
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /settings/date-range [get]
 func (h *SettingsHandler) GetDateRange(w http.ResponseWriter, r *http.Request) {
 	startDate, endDate, err := h.settingsRepo.GetDateRange()
 	if err != nil {
@@ -81,6 +89,16 @@ func (h *SettingsHandler) GetAllSettings(w http.ResponseWriter, r *http.Request)
 	})
 }
 // UpdateSetting updates a single setting value.
+// UpdateSetting handles PUT /api/settings.
+// @Summary Update application setting
+// @Description Update a specific setting key. Required 'admin' role.
+// @Tags settings
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Setting key-value"
+// @Success 200 {object} map[string]interface{}
+// @Router /settings [put]
 func (h *SettingsHandler) UpdateSetting(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

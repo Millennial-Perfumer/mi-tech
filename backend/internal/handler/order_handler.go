@@ -180,6 +180,14 @@ func (h *OrderHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetSources returns all unique order sources.
+// @Summary List order sources
+// @Description Retrieve a list of all unique platforms from which orders originated (e.g., Shopify, Amazon, POS).
+// @Tags orders
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/sources [get]
 func (h *OrderHandler) GetSources(w http.ResponseWriter, r *http.Request) {
 	sources, err := h.orderService.ListSources()
 	if err != nil {
@@ -197,6 +205,15 @@ func (h *OrderHandler) GetSources(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetOrder handles GET /api/orders/:id or GET /api/orders?id=
+// GetOrder handles GET /api/orders/{id}.
+// @Summary Get order details
+// @Description Retrieve full details for a specific order, including line items.
+// @Tags orders
+// @Security Bearer
+// @Produce json
+// @Param id query string true "Order ID (Internal or External)"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/detail [get]
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -241,6 +258,17 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateOrder handles PUT /api/orders?id=
+// UpdateOrder handles PUT /api/orders/{id}.
+// @Summary Update order
+// @Description Update order details and synchronize improvements back to Shopify.
+// @Tags orders
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param id query string true "Order ID"
+// @Param body body dto.OrderUpdateRequest true "Updated order data"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders [put]
 func (h *OrderHandler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -18,6 +18,16 @@ func NewMetricsHandler(metricsService *service.MetricsService) *MetricsHandler {
 }
 
 // GetDashboardMetrics handles GET /api/dashboard/metrics.
+// GetDashboardMetrics handles GET /api/metrics/dashboard.
+// @Summary Get dashboard metrics
+// @Description Retrieve real-time metrics including revenue, GST breakdown, and order counts.
+// @Tags dashboard
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /metrics/dashboard [get]
 func (h *MetricsHandler) GetDashboardMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

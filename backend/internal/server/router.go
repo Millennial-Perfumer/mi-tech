@@ -32,6 +32,7 @@ func RegisterRoutes(
 	userHandler *handler.UserHandler,
 	marketingHandler *handler.MarketingHandler,
 	marketingWebhookHandler *handler.MarketingWebhookHandler,
+	systemHandler *handler.SystemHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -220,4 +221,8 @@ func RegisterRoutes(
 
 	// --- Redirect Tracking ---
 	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
+
+	// --- Knowledge API (System Docs) ---
+	mux.HandleFunc("/api/system/docs", protected(systemHandler.ListDocs))
+	mux.HandleFunc("/api/system/docs/", protected(systemHandler.GetDoc))
 }

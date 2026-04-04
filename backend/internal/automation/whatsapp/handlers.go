@@ -69,6 +69,16 @@ func NewAutomationHandler(tService *TemplatesService, mService *MessagesService,
 	}
 }
 
+// CreateTemplate handles POST /api/automation/whatsapp/templates.
+// @Summary Create WhatsApp template
+// @Description Import a new template from Meta or create a custom one.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body CreateTemplateRequest true "Template data"
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/templates [post]
 func (h *AutomationHandler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -92,6 +102,16 @@ func (h *AutomationHandler) CreateTemplate(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(map[string]interface{}{"id": id, "success": true})
 }
 
+// GetTemplates handles GET /api/automation/whatsapp/templates.
+// @Summary List WhatsApp templates
+// @Description Retrieve all imported WhatsApp templates with optional date filtering.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {array} AutomationTemplate
+// @Router /automation/whatsapp/templates [get]
 func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request) {
 	startDateStr := r.URL.Query().Get("start_date")
 	endDateStr := r.URL.Query().Get("end_date")
@@ -122,6 +142,14 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(templates)
 }
 
+// SyncTemplateStatus handles POST /api/automation/whatsapp/templates/sync.
+// @Summary Sync template status
+// @Description Fetch latest approval statuses for all templates from Meta.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/templates/sync [post]
 func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Request) {
 	log.Printf("SyncTemplateStatus called for storeID: 1")
 	err := h.templatesService.SyncStatus("1")
@@ -135,6 +163,14 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "Template statuses synced with Meta"})
 }
 
+// WhatsAppWebhook handles Meta Webhooks.
+// @Summary WhatsApp Webhook
+// @Description Endpoint for Meta Cloud API to push delivery receipts and incoming customer messages.
+// @Tags automation
+// @Accept json
+// @Param X-Hub-Signature-256 header string true "HMAC Signature"
+// @Success 200 {string} string "OK"
+// @Router /automation/whatsapp/webhook [post]
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
@@ -259,6 +295,14 @@ func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature str
 	return hmac.Equal([]byte(actualHash), []byte(expectedHash))
 }
 
+// GetTriggers handles GET /api/automation/whatsapp/triggers.
+// @Summary List automation triggers
+// @Description Retrieve all configured Webhook-to-Template mappings.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Success 200 {array} Trigger
+// @Router /automation/whatsapp/triggers [get]
 func (h *AutomationHandler) GetTriggers(w http.ResponseWriter, r *http.Request) {
 	triggers, err := h.templatesService.GetTriggers("1")
 	if err != nil {
@@ -269,6 +313,16 @@ func (h *AutomationHandler) GetTriggers(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(triggers)
 }
 
+// CreateTrigger handles POST /api/automation/whatsapp/triggers.
+// @Summary Create automation trigger
+// @Description Link a Shopify webhook topic to a WhatsApp template.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Trigger data"
+// @Success 201 "Created"
+// @Router /automation/whatsapp/triggers [post]
 func (h *AutomationHandler) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Topic      string `json:"webhook_topic"`
@@ -286,6 +340,20 @@ func (h *AutomationHandler) CreateTrigger(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusCreated)
 }
 
+// GetMessages handles GET /api/automation/whatsapp/messages.
+// @Summary List message logs
+// @Description Retrieve a paginated list of all sent and received WhatsApp messages.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Param search query string false "Search term"
+// @Param template_name query string false "Filter by template"
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/messages [get]
 func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 	startDateStr := r.URL.Query().Get("start_date")
 	endDateStr := r.URL.Query().Get("end_date")
@@ -341,6 +409,16 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// GetAutomationMetrics handles GET /api/automation/whatsapp/metrics.
+// @Summary Get automation analytics
+// @Description Aggregate delivery, read, and failure rates for automated messages.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/metrics [get]
 func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.Request) {
 	startDateStr := r.URL.Query().Get("start_date")
 	endDateStr := r.URL.Query().Get("end_date")
@@ -365,6 +443,16 @@ func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.
 	json.NewEncoder(w).Encode(metrics)
 }
 
+// UpdateTemplate handles PUT /api/automation/whatsapp/templates.
+// @Summary Update template mapping
+// @Description Update the variable mappings for a WhatsApp template.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body AutomationTemplate true "Updated mapping"
+// @Success 200 "OK"
+// @Router /automation/whatsapp/templates [put]
 func (h *AutomationHandler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	storeID, ok := r.Context().Value("storeID").(string)
 	if !ok || storeID == "" {
@@ -389,6 +477,14 @@ func (h *AutomationHandler) UpdateTemplate(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 }
 
+// DeleteTemplate handles DELETE /api/automation/whatsapp/templates.
+// @Summary Delete WhatsApp template
+// @Description Remove a template from the local database.
+// @Tags automation
+// @Security Bearer
+// @Param id query int true "Template ID"
+// @Success 200 "OK"
+// @Router /automation/whatsapp/templates [delete]
 func (h *AutomationHandler) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	var id int
@@ -401,6 +497,16 @@ func (h *AutomationHandler) DeleteTemplate(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateTrigger handles PUT /api/automation/whatsapp/triggers.
+// @Summary Toggle automation trigger
+// @Description Enable or disable a specific Webhook-to-Template trigger.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Trigger toggle data"
+// @Success 200 "OK"
+// @Router /automation/whatsapp/triggers [put]
 func (h *AutomationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ID      int  `json:"id"`
@@ -430,6 +536,16 @@ func (h *AutomationHandler) DeleteTrigger(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
+// UploadTemplateMedia handles POST /api/automation/whatsapp/templates/upload.
+// @Summary Upload media to Meta
+// @Description Upload an image or PDF to Meta's servers for use in template headers.
+// @Tags automation
+// @Security Bearer
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "Media file"
+// @Success 200 {object} map[string]string
+// @Router /automation/whatsapp/templates/upload [post]
 func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -470,6 +586,16 @@ func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.R
 		"handle": handle,
 	})
 }
+// SyncAutomationMetrics handles POST /api/automation/whatsapp/metrics/sync.
+// @Summary Sync Meta insights
+// @Description Fetch delivery and read analytics directly from Meta's Insight API.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/metrics/sync [post]
 func (h *AutomationHandler) SyncAutomationMetrics(w http.ResponseWriter, r *http.Request) {
 	startDateStr := r.URL.Query().Get("start_date")
 	endDateStr := r.URL.Query().Get("end_date")
@@ -501,6 +627,16 @@ func (h *AutomationHandler) SyncAutomationMetrics(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(metrics)
 }
 
+// SendManualMessage handles POST /api/automation/whatsapp/send-manual.
+// @Summary Send manual template
+// @Description Trigger a specific template message for a given order manually.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Send request (order_id, template_id)"
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/send-manual [post]
 func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -548,6 +684,16 @@ func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
+// SendBulkMarketing handles POST /api/automation/whatsapp/send-bulk.
+// @Summary Send bulk marketing
+// @Description Dispatch a template message to multiple customers simultaneously.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Bulk send request"
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/send-bulk [post]
 func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -637,6 +783,14 @@ func (h *AutomationHandler) FetchTemplateFromMeta(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(req)
 }
 
+// SyncAllTemplates handles POST /api/automation/whatsapp/templates/sync-all.
+// @Summary Full template import
+// @Description Wipe and re-import all templates from the linked Meta WABA.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Success 200 "OK"
+// @Router /automation/whatsapp/templates/sync-all [post]
 func (h *AutomationHandler) SyncAllTemplates(w http.ResponseWriter, r *http.Request) {
 	storeID, ok := r.Context().Value("storeID").(string)
 	if !ok || storeID == "" {
@@ -677,6 +831,14 @@ func (h *AutomationHandler) SyncSingleTemplate(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(map[string]string{"message": "Successfully imported template from Meta"})
 }
 
+// GetConversations handles GET /api/automation/whatsapp/conversations.
+// @Summary List chat threads
+// @Description Retrieve all active customer chat conversations.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Success 200 {array} Conversation
+// @Router /automation/whatsapp/conversations [get]
 func (h *AutomationHandler) GetConversations(w http.ResponseWriter, r *http.Request) {
 	conversations, err := h.messagesService.GetConversations()
 	if err != nil {
@@ -687,6 +849,15 @@ func (h *AutomationHandler) GetConversations(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(conversations)
 }
 
+// GetChatMessages handles GET /api/automation/whatsapp/chat.
+// @Summary Get chat history
+// @Description Retrieve all messages for a specific conversation.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Param conversation_id query int true "Conv ID"
+// @Success 200 {array} ChatMessage
+// @Router /automation/whatsapp/chat [get]
 func (h *AutomationHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
 	convIDStr := r.URL.Query().Get("conversation_id")
 	convID, _ := strconv.Atoi(convIDStr)
@@ -710,6 +881,16 @@ func (h *AutomationHandler) GetChatMessages(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(messages)
 }
 
+// SendFreeTextMessage handles POST /api/automation/whatsapp/send-message.
+// @Summary Send free-text
+// @Description Send a non-template, free-text message to a customer (Human-to-Human).
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Message data"
+// @Success 200 "OK"
+// @Router /automation/whatsapp/send-message [post]
 func (h *AutomationHandler) SendFreeTextMessage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -744,6 +925,16 @@ func (h *AutomationHandler) SendFreeTextMessage(w http.ResponseWriter, r *http.R
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
+// UpdateConversationMode handles PUT /api/automation/whatsapp/conversations/mode.
+// @Summary Toggle chat mode
+// @Description Switch between 'auto' (bot) and 'human' (agent) mode for a chat thread.
+// @Tags automation
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Mode data"
+// @Success 200 "OK"
+// @Router /automation/whatsapp/conversations/mode [put]
 func (h *AutomationHandler) UpdateConversationMode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

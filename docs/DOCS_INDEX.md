@@ -1,20 +1,34 @@
-# Documentation Index (DOCS_INDEX.md)
+# GST Invoice Manager - Documentation Index
 
-This file tracks the status and coverage of all technical documentation within the `/docs` directory.
+Welcome to the technical documentation for the GST Invoice Manager. This repository serves as the single source of truth for the system's API, business logic, and operational workflows.
 
-## 📊 Documentation Status
+## 📖 Table of Contents
 
-| Module | Document | Status | Last Analyzed |
-| :--- | :--- | :--- | :--- |
-| **Global** | [index.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/index.md) | ✅ Up-to-Date | 2026-04-03 |
-| **Architecture** | [system_overview.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/architecture/system_overview.md) | ✅ Up-to-Date | 2026-04-03 |
-| **Infrastructure** | [infrastructure.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/architecture/infrastructure.md) | ✅ Up-to-Date | 2026-04-03 |
-| **API** | [orders.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/orders.md) | ✅ Up-to-Date | 2026-04-03 |
-| **Database** | [schema.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/database/schema.md) | ✅ Up-to-Date | 2026-04-03 |
-| **Workflows** | [whatsapp_automation.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/workflows/whatsapp_automation.md) | ✅ Up-to-Date | 2026-04-03 |
-| **Setup** | [setup_guide.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/setup/setup_guide.md) | ✅ Up-to-Date | 2026-04-03 |
+### 1. [API Reference](api/index.md)
+Detailed documentation for all backend endpoints, categorized by module.
+- [Authentication](api/auth.md) - Login, 2FA, and session validation.
+- [Users](api/users.md) - Admin-level user management.
+- [Customers](api/customers.md) - CRM and CSV import.
+- [Orders](api/orders.md) - Order management and tracking.
+- [Shopify Sync](api/sync.md) - Manual and automated order synchronization.
+- [Metrics & Dashboard](api/dashboard.md) - Real-time business insights.
+- [Reports](api/reports.md) - GST, State-wise, and HSN-wise summaries.
+- [WhatsApp Automation](api/automation.md) - Template and trigger management.
+- [Meta Marketing](api/marketing.md) - Ads performance and insights.
+- [Webhooks](api/webhooks.md) - Shopify and WhatsApp ingestion.
+- [Settings & Config](api/settings.md) - System-wide configurations.
 
-## 🛠 Documentation Rules
-- Every new feature MUST have a corresponding entry in `/docs/workflows/`.
-- Every DB migration MUST trigger an update to `/docs/database/schema.md`.
-- API changes MUST be reflected in `/docs/api/`.
+### 2. [Business Logic & Workflows](workflows/index.md)
+Deep dives into the core algorithms and multi-step processes.
+- [Order Sync Logic](workflows/order_sync.md) - How Shopify data is mapped and stored.
+- [GST Calculation Strategy](workflows/gst_calculation.md) - Tax distribution and inclusive pricing logic.
+- [WhatsApp Automation Flow](workflows/whatsapp_automation.md) - Event-driven messaging orchestration.
+
+### 3. [Developer Guides](../GEMINI.md)
+- [Project Architecture](../architecture.md)
+- [Maintenance Guidelines](../GEMINI.md#documentation-maintenance)
+
+---
+
+> [!TIP]
+> **Swagger UI**: For interactive API exploration, start the backend and visit `/swagger/index.html`.

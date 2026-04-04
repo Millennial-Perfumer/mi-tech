@@ -8,6 +8,7 @@ import (
 	"mi-tech/internal/config"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type MetaMarketingClient struct {
@@ -264,7 +265,21 @@ func (c *MetaMarketingClient) FetchInsights(id string, level string, startDate, 
 
 	params.Add("fields", "campaign_id,adset_id,ad_id,spend,reach,impressions,inline_link_clicks,ctr,cpc,cpm,purchase_roas,frequency,action_values,actions,quality_ranking,engagement_rate_ranking,conversion_rate_ranking,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions,video_avg_time_watched_actions")
 
-	u := fmt.Sprintf("%s/%s/%s/insights?%s", c.baseURL, c.version, id, params.Encode())
+	// Normalize ID if it's an ad account ID (entirely digits or missing act_)
+	normalizedID := id
+	if level == "account" || level == "campaign" || level == "adset" || level == "ad" {
+		// If we are calling insights on an account node, it must have 'act_'
+		// We can check if the ID provided is the configured account ID
+		if id == c.GetConfiguredAdAccountID() || !strings.HasPrefix(id, "act_") {
+			// Only prefix if it looks like it might be an account ID (long digit string)
+			// Actually, just use the helper
+			if level == "campaign" && id == c.GetConfiguredAdAccountID() {
+				normalizedID = c.normalizeAdAccountID(id)
+			}
+		}
+	}
+
+	u := fmt.Sprintf("%s/%s/%s/insights?%s", c.baseURL, c.version, normalizedID, params.Encode())
 	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err
@@ -272,7 +287,12 @@ func (c *MetaMarketingClient) FetchInsights(id string, level string, startDate, 
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-	log.Printf("DEBUG: Meta API Insights (%s) for %s: %s", level, id, string(body))
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("ERROR: Meta API Insights (%s) for %s returned %d: %s", level, normalizedID, resp.StatusCode, string(body))
+		return nil, fmt.Errorf("Meta API error (%d): %s", resp.StatusCode, string(body))
+	}
+	
+	log.Printf("DEBUG: Meta API Insights (%s) for %s: %s", level, normalizedID, string(body))
 
 	var result struct {
 		Data []Insight `json:"data"`

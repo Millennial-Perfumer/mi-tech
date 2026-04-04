@@ -20,8 +20,11 @@ Follow the language defaults already in the repo: Go should stay `gofmt`-formatt
 ## Testing Guidelines
 Backend tests use Go’s `testing` package with `stretchr/testify`. Prefer colocated tests next to the package they cover, and use descriptive names such as `TestWebhookService_ProcessesPaidOrder`. There is no established frontend test suite yet, so changes there should at minimum pass `npm run build` and `npm run lint`.
 
-## Commit & Pull Request Guidelines
-Recent history follows Conventional Commit style, especially `feat:` commits. Keep using prefixes like `feat:`, `fix:`, and `chore:` with a concise subject. Pull requests should explain the user-visible change, note any migration or config impact, link the relevant issue, and include screenshots for frontend changes. If you touch schema or automation flows, call that out explicitly in the PR description.
+## Documentation Maintenance
+This repository follows a strict **Doc-as-Code** mandate to ensure accuracy and reduce knowledge debt.
+- **Markdown Documentation**: Every new feature or API change **MUST** be documented in the `/docs` directory.
+- **Swagger / OpenAPI**: Maintain `swag` annotations in all handler files. After any change to API signatures or logic, run `swag init -g cmd/main.go --output docs/ --parseDependency --parseInternal --parseDepth 2` from the `backend/` directory.
+- **Workflows**: Any update to core business logic (e.g., tax calculation or order sync) must be reflected in the respective `/docs/workflows/` files.
 
 ## Security & Configuration Tips
 Do not commit secrets from `backend/.env`. Add new settings to `backend/.env.example` when needed, and prefer migration files over ad hoc database edits.

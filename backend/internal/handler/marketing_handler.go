@@ -18,6 +18,16 @@ func NewMarketingHandler(metaClient *marketing.MetaMarketingClient) *MarketingHa
 	}
 }
 
+// GetMetaOverview returns the marketing summary.
+// @Summary Meta Marketing Overview
+// @Description High-level summary of active campaigns, ad accounts, and performance insights.
+// @Tags marketing
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /marketing/meta/overview [get]
 func (h *MarketingHandler) GetMetaOverview(w http.ResponseWriter, r *http.Request) {
 	// 1. Get Configured Ad Account ID
 	configID := h.metaClient.GetConfiguredAdAccountID()
@@ -37,12 +47,14 @@ func (h *MarketingHandler) GetMetaOverview(w http.ResponseWriter, r *http.Reques
 	endDate := r.URL.Query().Get("end_date")
 
 	var insights []marketing.Insight
+	var summary []marketing.Insight
+
 	if configID != "" {
 		log.Printf("DEBUG: Fetching Overview Insights (level: campaign) for Account: %s (%s to %s)", configID, startDate, endDate)
 		var fetchErr error
 		insights, fetchErr = h.metaClient.FetchInsights(configID, "campaign", startDate, endDate)
 		if fetchErr != nil {
-			log.Printf("ERROR: FetchInsights failed: %v", fetchErr)
+			log.Printf("ERROR: FetchInsights (campaign) failed: %v", fetchErr)
 			// Return a 401 if it's a token error
 			if strings.Contains(fetchErr.Error(), "Error validating access token") || strings.Contains(fetchErr.Error(), "expired") {
 				w.Header().Set("Content-Type", "application/json")
@@ -54,6 +66,9 @@ func (h *MarketingHandler) GetMetaOverview(w http.ResponseWriter, r *http.Reques
 				return
 			}
 		}
+
+		// Also fetch account-level summary as a ground truth
+		summary, _ = h.metaClient.FetchInsights(configID, "account", startDate, endDate)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -61,10 +76,20 @@ func (h *MarketingHandler) GetMetaOverview(w http.ResponseWriter, r *http.Reques
 		"success":   true,
 		"accounts":  accounts,
 		"insights":  insights,
+		"summary":   summary,
 		"active_id": configID,
 	})
 }
 
+// GetMetaCampaigns returns all campaigns for an ad account.
+// @Summary List Meta campaigns
+// @Description Fetch all campaigns for a specific Meta Ad Account.
+// @Tags marketing
+// @Security Bearer
+// @Produce json
+// @Param ad_account_id query string true "Meta Ad Account ID"
+// @Success 200 {object} map[string]interface{}
+// @Router /marketing/meta/campaigns [get]
 func (h *MarketingHandler) GetMetaCampaigns(w http.ResponseWriter, r *http.Request) {
 	accountID := r.URL.Query().Get("ad_account_id")
 	if accountID == "" {
@@ -84,6 +109,17 @@ func (h *MarketingHandler) GetMetaCampaigns(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// GetMetaAdSets returns all adsets for a campaign.
+// @Summary List Meta adsets
+// @Description Fetch all adsets for a specific Meta Campaign, including insights.
+// @Tags marketing
+// @Security Bearer
+// @Produce json
+// @Param campaign_id query string true "Meta Campaign ID"
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /marketing/meta/adsets [get]
 func (h *MarketingHandler) GetMetaAdSets(w http.ResponseWriter, r *http.Request) {
 	campaignID := r.URL.Query().Get("campaign_id")
 	startDate := r.URL.Query().Get("start_date")
@@ -111,6 +147,17 @@ func (h *MarketingHandler) GetMetaAdSets(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// GetMetaAds returns all ads for an adset.
+// @Summary List Meta ads
+// @Description Fetch all individual ads for a specific Meta Adset, including insights.
+// @Tags marketing
+// @Security Bearer
+// @Produce json
+// @Param adset_id query string true "Meta Adset ID"
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /marketing/meta/ads [get]
 func (h *MarketingHandler) GetMetaAds(w http.ResponseWriter, r *http.Request) {
 	adsetID := r.URL.Query().Get("adset_id")
 	startDate := r.URL.Query().Get("start_date")
