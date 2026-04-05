@@ -261,7 +261,13 @@ func (c *MetaMarketingClient) GetPageAccessToken(pageID string) (string, error) 
 	c.cacheMu.Unlock()
 
 	if pageToken == "" {
-		return "", fmt.Errorf("page ID %s not found in user accounts", pageID)
+		// DIAGNOSTIC LOGGING: This helps the user identify which Pages DO have tokens
+		var foundIDs []string
+		for _, p := range result.Data {
+			foundIDs = append(foundIDs, p.ID)
+		}
+		log.Printf("ERROR: Page ID %s not found in user authorized accounts. Available Page IDs: %v", pageID, foundIDs)
+		return "", fmt.Errorf("page ID %s not found in user accounts. Check META_FACEBOOK_PAGE_ID in .env", pageID)
 	}
 
 	return pageToken, nil
@@ -795,7 +801,7 @@ func (c *MetaMarketingClient) FetchFacebookPageMedia(pageID string) ([]SocialPos
 }
 
 func (c *MetaMarketingClient) FetchFacebookPostInsights(postID string) (map[string]int, error) {
-	// For post-level insights, we can try to derive the Page ID from the post ID (pageID_postID)
+	// For post-level insights, we MUST use the Page ID to get a Page Access Token
 	parts := strings.Split(postID, "_")
 	var token string
 	if len(parts) > 0 {
@@ -803,6 +809,8 @@ func (c *MetaMarketingClient) FetchFacebookPostInsights(postID string) (map[stri
 		pageToken, err := c.GetPageAccessToken(pageID)
 		if err == nil {
 			token = pageToken
+		} else {
+			log.Printf("ERROR: FetchFacebookPostInsights could not get Page Token for %s: %v", pageID, err)
 		}
 	}
 
@@ -814,31 +822,73 @@ func (c *MetaMarketingClient) FetchFacebookPostInsights(postID string) (map[stri
 		token = master
 	}
 
-	u := fmt.Sprintf("%s/%s/%s/insights?metric=post_impressions_unique,post_engaged_users&access_token=%s", c.baseURL, c.version, postID, token)
-	resp, err := c.client.Get(u)
-	if err != nil {
-		return nil, err
+	// v22.0 Migration: Facebook 'New Pages Experience' deprecates legacy reach metrics.
+	// We iteratively try metric candidates until one succeeds.
+	candidates := []string{
+		"post_reach,post_engagements",               // Modern v22.0 standard
+		"post_impressions_unique,post_engaged_users", // Classic (fallback)
+		"impressions,reach",                          // Basic Metadata (last resort)
 	}
-	defer resp.Body.Close()
+	
+	var lastErr error
+	var finalMetrics map[string]int
 
-	var result []struct {
-		Name   string `json:"name"`
-		Values []struct {
-			Value int `json:"value"`
-		} `json:"values"`
-	}
-
-	if err := decodeResponse(resp, &result); err != nil {
-		return nil, err
-	}
-
-	metrics := make(map[string]int)
-	for _, d := range result {
-		if len(d.Values) > 0 {
-			metrics[d.Name] = d.Values[0].Value
+	for _, metricSet := range candidates {
+		u := fmt.Sprintf("%s/%s/%s/insights?metric=%s&access_token=%s", c.baseURL, c.version, postID, metricSet, token)
+		resp, err := c.client.Get(u)
+		if err != nil {
+			lastErr = err
+			continue
 		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		if strings.Contains(string(body), "\"error\"") {
+			// If it's a #100 'invalid metric' error, try the next set
+			if strings.Contains(string(body), "\"code\":100") {
+				log.Printf("DEBUG: Metric set [%s] rejected for %s, trying next candidate...", metricSet, postID)
+				continue
+			}
+			lastErr = fmt.Errorf("Meta API Error: %s", string(body))
+			continue
+		}
+
+		// Success! Parse results
+		var result struct {
+			Data []struct {
+				Name   string `json:"name"`
+				Values []struct {
+					Value int `json:"value"`
+				} `json:"values"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &result); err != nil {
+			lastErr = err
+			continue
+		}
+
+		log.Printf("DEBUG: Metric set [%s] successful for Facebook Post %s", metricSet, postID)
+		finalMetrics = make(map[string]int)
+		for _, d := range result.Data {
+			if len(d.Values) > 0 {
+				name := d.Name
+				// Map modern names to dashboard expectations
+				if name == "post_reach" || name == "reach" {
+					name = "post_impressions_unique"
+				}
+				if name == "post_engagements" {
+					name = "post_engaged_users"
+				}
+				finalMetrics[name] = d.Values[0].Value
+			}
+		}
+		break
 	}
-	return metrics, nil
+
+	if finalMetrics == nil {
+		return nil, fmt.Errorf("all metric sets failed for Facebook post %s: %v", postID, lastErr)
+	}
+	return finalMetrics, nil
 }
 
 func (c *MetaMarketingClient) FetchMediaInsights(mediaID string, mediaType string) (map[string]int, error) {
@@ -895,7 +945,9 @@ func (c *MetaMarketingClient) FetchMediaInsights(mediaID string, mediaType strin
 func (c *MetaMarketingClient) FetchPageInsights(pageID string, since, until string) (map[string]int, error) {
 	token, err := c.GetPageAccessToken(pageID)
 	if err != nil {
-		log.Printf("WARNING: GetPageAccessToken failed for %s, falling back to master: %v", pageID, err)
+		log.Printf("ERROR: Facebook Insights node restricted: %v", err)
+		// Facebook Insight metrics REQUIRE a page token. A User token will return 'subcode 33'.
+		// We still try master to check if the user has direct 'pages_read_engagement' scope but log it as error
 		master, ok := c.getToken()
 		if !ok {
 			return nil, fmt.Errorf("no tokens available")
@@ -903,11 +955,13 @@ func (c *MetaMarketingClient) FetchPageInsights(pageID string, since, until stri
 		token = master
 	}
 
-	u := fmt.Sprintf("%s/%s/%s/insights?metric=page_impressions,page_post_engagements&period=day&access_token=%s", c.baseURL, c.version, pageID, token)
+	// Fetch Daily Insights (Impressions, Engagements, Views)
+	u := fmt.Sprintf("%s/%s/%s/insights?metric=page_impressions,page_post_engagements,page_views_total&period=day&access_token=%s", c.baseURL, c.version, pageID, token)
 	if since != "" && until != "" {
 		sTime, _ := time.Parse("2006-01-02", since)
 		uTime, _ := time.Parse("2006-01-02", until)
-		u += fmt.Sprintf("&since=%d&until=%d", sTime.Unix(), uTime.Unix())
+		// Meta insights are exclusive on until. Add 24 hours to include the entire 'until' day.
+		u += fmt.Sprintf("&since=%d&until=%d", sTime.Unix(), uTime.Add(24*time.Hour).Unix())
 	}
 
 	resp, err := c.client.Get(u)
@@ -916,14 +970,31 @@ func (c *MetaMarketingClient) FetchPageInsights(pageID string, since, until stri
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+	// DISCOVERY MODE: Log the raw response and available metrics for this Page node
+	// If the user sees 0s, these logs will provide the definitive list of supported metric strings.
+	log.Printf("DEBUG: Facebook Page Insights v22.0 Raw Response: %s", string(body))
+	
+	if strings.Contains(string(body), "\"error\"") {
+		// Attempt a discovery call to list available metrics for this specific Page Node
+		uDiscovery := fmt.Sprintf("%s/%s/%s/insights?access_token=%s", c.baseURL, c.version, pageID, token)
+		if respDisc, err := c.client.Get(uDiscovery); err == nil {
+			defer respDisc.Body.Close()
+			discBody, _ := io.ReadAll(respDisc.Body)
+			log.Printf("DISCOVERY: Supported metrics for Page %s: %s", pageID, string(discBody))
+		}
+	}
+
 	var result []struct {
 		Name   string `json:"name"`
 		Values []struct {
 			Value int `json:"value"`
 		} `json:"values"`
 	}
-	if err := decodeResponse(resp, &result); err != nil {
-		return nil, err
+	
+	// Reset reader for decoding if needed, or just Unmarshal
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Printf("ERROR: JSON Unmarshal failed for Page Insights: %v", err)
 	}
 
 	metrics := make(map[string]int)
@@ -934,6 +1005,27 @@ func (c *MetaMarketingClient) FetchPageInsights(pageID string, since, until stri
 		}
 		metrics[d.Name] = total
 	}
+
+	// Fetch Lifetime Fans (Follower Count)
+	uFans := fmt.Sprintf("%s/%s/%s/insights?metric=page_fans&period=lifetime&access_token=%s", c.baseURL, c.version, pageID, token)
+	respF, err := c.client.Get(uFans)
+	if err == nil {
+		defer respF.Body.Close()
+		var resF []struct {
+			Values []struct {
+				Value int `json:"value"`
+			} `json:"values"`
+		}
+		if decodeResponse(respF, &resF) == nil && len(resF) > 0 && len(resF[0].Values) > 0 {
+			metrics["page_fans"] = resF[0].Values[len(resF[0].Values)-1].Value
+		}
+	}
+
+	// v22.0 Fallback Logic: Page Views vs Impressions
+	if metrics["page_views_total"] == 0 && metrics["page_impressions"] > 0 {
+		metrics["page_views_total"] = metrics["page_impressions"]
+	}
+
 	return metrics, nil
 }
 

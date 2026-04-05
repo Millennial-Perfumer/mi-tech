@@ -313,9 +313,14 @@ func (s *socialService) GetOverview(platform string, startDate, endDate string) 
 		}
 
 		return map[string]interface{}{
+			"account": map[string]interface{}{
+				"follower_count": pageInsights["page_fans"],
+				"total_reach":    pageInsights["page_impressions"],
+				"total_views":    pageInsights["page_views_total"],
+			},
 			"platform":         "facebook",
 			"total_reach":      pageInsights["page_impressions"],
-			"total_views":      pageInsights["page_impressions"], // FB uses impressions for reach-like views
+			"total_views":      pageInsights["page_views_total"],
 			"total_engagement": pageInsights["page_post_engagements"],
 			"posts":            filteredMedia,
 			"success":          true,

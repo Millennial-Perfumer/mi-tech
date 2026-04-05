@@ -173,14 +173,14 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
               className="btn-primary" 
               onClick={() => setShowForm(!showForm)}
               style={{
-                backgroundColor: showForm ? 'var(--text-tertiary)' : '#10b981',
+                backgroundColor: showForm ? 'var(--text-tertiary)' : 'var(--status-active)',
                 color: 'white',
                 border: 'none',
                 padding: '0.65rem 1.25rem',
                 borderRadius: '10px',
                 fontSize: '0.875rem',
                 fontWeight: 600,
-                boxShadow: showForm ? 'none' : '0 4px 6px -1px rgba(14, 165, 233, 0.2)',
+                boxShadow: showForm ? 'none' : 'var(--shadow-md)',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 display: 'flex',
@@ -284,7 +284,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
                         <button 
                           onClick={() => handleToggle(tr.id, tr.enabled)}
                           title={tr.enabled ? "Disable Trigger" : "Enable Trigger"}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: tr.enabled ? '#10b981' : 'var(--text-tertiary)' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: tr.enabled ? 'var(--status-active)' : 'var(--text-tertiary)' }}
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
@@ -294,7 +294,7 @@ export function AutomationTriggers({ fetchWithAuth, userRole = 'read' }: Automat
                         <button 
                           onClick={() => handleDelete(tr.id)} 
                           title="Delete Trigger"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: '#ef4444' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: 'var(--status-error)' }}
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6"></polyline>

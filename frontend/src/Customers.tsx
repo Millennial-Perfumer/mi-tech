@@ -487,7 +487,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                     display: 'flex', 
                                     alignItems: 'center', 
                                     gap: '10px', 
-                                    color: '#ef4444', 
+                                    color: 'var(--status-danger)', 
                                     background: 'rgba(239, 68, 68, 0.12)',
                                     border: '1px solid rgba(239, 68, 68, 0.2)',
                                     borderRadius: '12px',
@@ -501,31 +501,8 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
 
                         {showClearButton && !isDeleting && selectedCustomerIDs.size === 0 && (
                             <button 
-                                className="btn-secondary" 
                                 onClick={handleDeleteAll} 
-                                style={{ 
-                                    padding: '0.75rem 1.5rem', 
-                                    fontSize: '0.875rem', 
-                                    fontWeight: 500,
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '8px', 
-                                    color: 'var(--text-tertiary)', 
-                                    border: '1px solid transparent',
-                                    background: 'transparent',
-                                    borderRadius: '12px',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.color = '#ef4444';
-                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.color = 'var(--text-tertiary)';
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.borderColor = 'transparent';
-                                }}
+                                className="btn-danger-minimal"
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                 Clear All
@@ -845,11 +822,11 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
 
                                 <div 
                                     style={{ 
-                                        border: file ? '2px solid #10b981' : '2px dashed var(--border-color)', 
+                                        border: file ? '2px solid var(--accent-color)' : '2px dashed var(--border-color)', 
                                         borderRadius: '8px', 
                                         padding: '1.5rem', 
                                         textAlign: 'center',
-                                        background: file ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-input)',
+                                        background: file ? 'var(--accent-subtle)' : 'var(--bg-input)',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
                                         position: 'relative',
@@ -868,7 +845,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                             <div style={{ 
                                                 width: '48px', 
                                                 height: '48px', 
-                                                background: '#10b981', 
+                                                background: 'var(--accent-color)', 
                                                 borderRadius: '12px', 
                                                 display: 'flex', 
                                                 alignItems: 'center', 
@@ -878,22 +855,19 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                             }}>
                                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M16 13l-4 4-2-2"></path></svg>
                                             </div>
-                                            <p style={{ fontWeight: 700, color: '#065f46', marginBottom: '4px' }}>File Ready</p>
-                                            <p style={{ fontSize: '0.875rem', color: '#059669', fontFamily: 'monospace' }}>{file.name}</p>
+                                            <p style={{ fontWeight: 700, color: 'var(--status-active)', marginBottom: '4px' }}>File Ready</p>
+                                            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{file.name}</p>
                                             <button 
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                                                style={{ marginTop: '1rem', background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', zIndex: 20, position: 'relative' }}
+                                                style={{ marginTop: '1rem', background: 'none', border: 'none', color: 'var(--status-danger)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', zIndex: 20, position: 'relative' }}
                                             >
                                                 Remove File
                                             </button>
                                         </div>
                                     ) : (
                                         <>
-                                            <div style={{ color: 'var(--text-tertiary)', marginBottom: '1rem' }}>
-                                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                            </div>
-                                            <p style={{ fontWeight: 600, color: '#334155', marginBottom: '4px' }}>Click to upload or drag & drop</p>
+                                            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>Click to upload or drag & drop</p>
                                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Shopify Customer Export CSV only</p>
                                         </>
                                     )}
@@ -918,14 +892,14 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                 width: '64px', 
                                 height: '64px', 
                                 borderRadius: '50%', 
-                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                                background: 'linear-gradient(135deg, var(--accent-color) 0%, var(--status-active) 100%)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 color: 'white',
                                 fontSize: '1.5rem',
                                 fontWeight: 600,
-                                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                                boxShadow: 'var(--shadow-md)'
                             }}>
                                 {(selectedCustomer.first_name?.[0] || '') + (selectedCustomer.last_name?.[0] || '') || '?'}
                             </div>
@@ -962,19 +936,19 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                         onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(selectedCustomer.id); }}
                                         style={{ 
                                             background: 'transparent', 
-                                            border: '1px solid #ef4444', 
+                                            border: '1px solid var(--status-danger)', 
                                             padding: '0.5rem 1rem', 
                                             borderRadius: '8px', 
                                             cursor: 'pointer', 
                                             display: 'flex', 
                                             alignItems: 'center', 
                                             gap: '6px', 
-                                            color: '#ef4444', 
+                                            color: 'var(--status-danger)', 
                                             fontWeight: 600, 
                                             fontSize: '0.85rem',
                                             transition: 'all 0.2s'
                                         }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--status-danger-bg)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                     >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -1010,7 +984,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             </div>
                             <div style={{ background: 'var(--bg-input)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.025em' }}>Total Spent</p>
-                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#10b981' }}>₹{(selectedCustomer.total_spent || 0).toFixed(2)}</p>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--status-active)' }}>₹{(selectedCustomer.total_spent || 0).toFixed(2)}</p>
                             </div>
                         </div>
 
@@ -1092,16 +1066,16 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                     animation: 'slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ background: '#38bdf8', color: '#0c4a6e', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
+                        <div style={{ background: 'var(--accent-color)', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
                             {selectedCustomerIDs.size}
                         </div>
-                        <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>Customers Selected</span>
+                        <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Customers Selected</span>
                     </div>
-                    <div style={{ height: '20px', width: '1px', background: '#334155' }}></div>
+                    <div style={{ height: '20px', width: '1px', background: 'var(--border-color)' }}></div>
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <button 
                             className="btn-primary" 
-                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', background: '#38bdf8', color: '#0c4a6e', border: 'none' }}
+                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
                             onClick={() => setShowBulkModal(true)}
 >
                             Send Bulk Message
@@ -1507,7 +1481,7 @@ const BulkTemplateModal: React.FC<{
                             {isLoading ? (
                                 <div style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</div>
                             ) : templates.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '2rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                                <div style={{ textAlign: 'center', padding: '2rem', background: 'var(--status-danger-bg)', color: 'var(--status-danger)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                                     No marketing templates found (or none are approved yet). 
                                     <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.8 }}>Templates must be categorized as 'MARKETING' or end with '{bulkSuffix}'</p>
                                 </div>

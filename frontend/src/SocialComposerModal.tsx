@@ -42,14 +42,9 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
 
   return (
     <div className="modal-overlay" style={{ zIndex: 2000 }}>
-      <div className="premium-modal glass-card" style={{ 
-        maxWidth: '600px', 
-        background: 'rgba(20, 20, 20, 0.95)', 
-        backdropFilter: 'blur(30px)',
-        border: '1px solid rgba(255, 24, 119, 0.1)'
-      }}>
+      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px' }}>
         <h2>Multi-Platform Composer</h2>
-        <p style={{ color: 'var(--text-tertiary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
         
         <div style={{ marginBottom: '1.5rem' }}>
           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Post Content</label>
@@ -62,11 +57,12 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
               height: '150px',
               padding: '1rem',
               borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'white',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
               fontFamily: 'inherit',
-              resize: 'none'
+              resize: 'none',
+              outline: 'none'
             }}
           />
         </div>
@@ -96,7 +92,7 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
             className="btn-primary" 
             onClick={handlePost}
             disabled={isPosting || !content.trim() || selectedPlatforms.length === 0}
-            style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+            style={{ background: 'linear-gradient(135deg, var(--status-active), var(--status-active-bg))', color: 'var(--status-active)' }}
           >
             {isPosting ? 'Publishing...' : 'Publish Now'}
           </button>

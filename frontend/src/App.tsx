@@ -892,14 +892,14 @@ function App() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 </div>
                 <div className="metric-label">Total Orders</div>
-                <div className="metric-value" style={{ fontSize: '1.5rem' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon metric-icon-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div className="metric-label">Fulfilled</div>
-                <div className="metric-value" style={{ fontSize: '1.5rem', color: '#10b981' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--status-active)' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon metric-icon-3">
@@ -920,7 +920,7 @@ function App() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 </div>
                 <div className="metric-label">Avg. Order Value</div>
-                <div className="metric-value" style={{ fontSize: '1.5rem' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
               </div>
             </div>
           </section>
@@ -1250,15 +1250,20 @@ function App() {
                         <td>
                           <span 
                             style={{ 
-                              background: order.source_id === 'amazon' ? 'rgba(249, 115, 22, 0.15)' : 
-                                          order.source_id === 'pos' ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-input)', 
-                              color: order.source_id === 'amazon' ? '#f97316' : 
-                                     order.source_id === 'pos' ? '#22c55e' : 'var(--text-secondary)',
-                              border: `1px solid ${order.source_id === 'amazon' ? 'rgba(249, 115, 22, 0.2)' : 
-                                                  order.source_id === 'pos' ? 'rgba(34, 197, 94, 0.2)' : 'var(--border-color)'}`
+                              background: order.source_id === 'amazon' ? 'var(--status-warning-bg)' : 
+                                          order.source_id === 'pos' ? 'var(--status-active-bg)' : 'var(--bg-input)', 
+                              color: order.source_id === 'amazon' ? 'var(--status-warning)' : 
+                                     order.source_id === 'pos' ? 'var(--status-active)' : 'var(--text-secondary)',
+                              border: `1px solid ${order.source_id === 'amazon' ? 'var(--status-warning)' : 
+                                                  order.source_id === 'pos' ? 'var(--status-active)' : 'var(--border-color)'}`,
+                              padding: '0.25rem 0.75rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              textTransform: 'capitalize'
                             }}
                           >
-                            {order.source_id?.charAt(0).toUpperCase() + order.source_id?.slice(1) || 'Shopify'}
+                            {order.source_id || 'Shopify'}
                           </span>
                         </td>
                       )}

@@ -258,13 +258,13 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
     );
   }
 
-  const getStatusBadgeStyle = (status: string) => {
+  const getStatusBadgeClass = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'APPROVED': return { backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.2)' };
-      case 'PENDING': return { backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.2)' };
-      case 'REJECTED': return { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' };
-      case 'ARCHIVED': return { backgroundColor: 'var(--bg-input)', color: 'var(--text-tertiary)', border: '1px solid var(--border-color)' };
-      default: return { backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' };
+      case 'APPROVED': return 'badge-pill-success';
+      case 'PENDING': return 'badge-pill-warning';
+      case 'REJECTED': return 'badge-pill-danger';
+      case 'ARCHIVED': return 'badge-pill-gray';
+      default: return 'badge-pill-gray';
     }
   };
 
@@ -331,11 +331,11 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
               className="btn-primary" 
               onClick={handleSyncAll}
               disabled={isSyncing}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', height: '42px', fontWeight: 600, backgroundImage: 'linear-gradient(to bottom, #00C3F2, #00A8E0)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', height: '42px', fontWeight: 600 }}
             >
               {isSyncing ? (
                 <>
-                  <span className="spinner" style={{ width: '16px', height: '16px', border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></span>
+                  <span className="spinner" style={{ width: '16px', height: '16px', border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--surface-color)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></span>
                   Synchronizing...
                 </>
               ) : (
@@ -509,21 +509,12 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
                   {visibleColumns.includes('category') && <td><span className="badge" style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{t.category}</span></td>}
                   {visibleColumns.includes('language') && <td>{t.language}</td>}
                   {visibleColumns.includes('sent_count') && <td style={{ textAlign: 'center' }}><strong>{t.sent_count || 0}</strong></td>}
-                  {visibleColumns.includes('delivered_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.delivered_count > 0 ? '#00a884' : 'inherit' }}>{t.delivered_count || 0}</span></td>}
-                  {visibleColumns.includes('read_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.read_count > 0 ? '#34b7f1' : 'inherit' }}>{t.read_count || 0}</span></td>}
+                  {visibleColumns.includes('delivered_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.delivered_count > 0 ? 'var(--status-active)' : 'inherit' }}>{t.delivered_count || 0}</span></td>}
+                  {visibleColumns.includes('read_count') && <td style={{ textAlign: 'center' }}><span style={{ color: t.read_count > 0 ? 'var(--accent-color)' : 'inherit' }}>{t.read_count || 0}</span></td>}
                   {visibleColumns.includes('status') && (
                     <td>
-                      <span className="badge" style={{ 
-                        ...getStatusBadgeStyle(t.status || 'PENDING'), 
-                        borderRadius: '9999px', 
-                        padding: '0.2rem 0.75rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'currentColor' }}></span>
+                      <span className={`badge-pill ${getStatusBadgeClass(t.status || 'PENDING')}`}>
+                        <span className="dot"></span>
                         {(t.status || 'PENDING').toUpperCase()}
                       </span>
                     </td>
@@ -544,7 +535,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
                         </svg>
                       </button>
                       {['REQUIRED', 'INCOMPLETE'].includes(checkMappingStatus(t)) && t.status !== 'ARCHIVED' && (
-                        <div title="Mapping Required" style={{ color: '#f59e0b', display: 'flex' }}>
+                        <div title="Mapping Required" style={{ color: 'var(--status-warning)', display: 'flex' }}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                             <line x1="12" y1="9" x2="12" y2="13"></line>

@@ -163,7 +163,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
             </div>
           )}
 
-          {error && <div style={{ color: '#ef4444', marginTop: '1rem', fontSize: '0.9rem' }}>{error}</div>}
+          {error && <div style={{ color: 'var(--status-danger)', marginTop: '1rem', fontSize: '0.9rem' }}>{error}</div>}
         </div>
 
         <div className="modal-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>

@@ -131,25 +131,16 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
   };
 
   return (
-    <div className="social-dashboard-container" style={{ 
-      animation: 'fadeIn 0.6s ease-out',
-      fontFamily: "'Montserrat', sans-serif",
-      color: 'white'
+    <div className="social-dashboard-container tab-content-fade" style={{ 
+      animation: 'fadeIn 0.6s ease-out'
     }}>
       {/* Header Island with Platform Switcher and Date Picker */}
-      <div className="glass-island" style={{
-        background: 'rgba(255, 255, 255, 0.03)',
-        backdropFilter: 'blur(40px)',
-        WebkitBackdropFilter: 'blur(40px)',
-        borderRadius: '32px',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
+      <div className="glass-island-premium" style={{
         padding: '1.25rem 2rem',
         marginBottom: '2.5rem',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
       }}>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {(['instagram', 'facebook', 'threads'] as const).map(p => (
@@ -157,9 +148,9 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
               key={p}
               onClick={() => setActivePlatform(p)}
               style={{
-                background: activePlatform === p ? getPlatformColor(p) : 'rgba(255,255,255,0.03)',
-                color: activePlatform === p ? 'white' : 'rgba(255,255,255,0.4)',
-                border: activePlatform === p ? `1px solid ${getPlatformColor(p)}` : '1px solid rgba(255,255,255,0.05)',
+                background: activePlatform === p ? 'var(--accent-color)' : 'var(--bg-input)',
+                color: activePlatform === p ? 'white' : 'var(--text-secondary)',
+                border: '1px solid var(--border-color)',
                 padding: '0.6rem 1.4rem',
                 borderRadius: '14px',
                 fontWeight: 700,
@@ -169,14 +160,15 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                boxShadow: activePlatform === p ? 'var(--shadow-md)' : 'none'
               }}
             >
               {p}
             </button>
           ))}
           
-          <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.1)', margin: '0 0.5rem' }} />
+          <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 0.5rem' }} />
           
           {/* Standard Date Picker */}
           <CustomDatePicker 
@@ -190,19 +182,14 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
           <button
             onClick={syncPulse}
             disabled={isLoading}
-            className="glass-btn"
+            className="btn-secondary"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'white',
               padding: '0.6rem 1.25rem',
               borderRadius: '12px',
               fontWeight: 600,
-              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.6rem',
-              transition: 'all 0.3s'
             }}
           >
             <svg 
@@ -219,7 +206,7 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
               className="glass-btn primary"
               onClick={() => setIsComposerOpen(true)}
               style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: 'linear-gradient(135deg, var(--status-active), var(--accent-hover))',
                 border: 'none',
                 color: 'white',
                 padding: '0.6rem 1.25rem',
@@ -229,7 +216,7 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                boxShadow: '0 10px 20px rgba(16, 185, 129, 0.2)'
+                boxShadow: 'var(--shadow-md)'
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -241,38 +228,34 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
 
       {/* Error Alert Island */}
       {fetchError && (
-        <div className="glass-island" style={{
-          background: 'rgba(239, 68, 68, 0.08)',
-          backdropFilter: 'blur(40px)',
-          WebkitBackdropFilter: 'blur(40px)',
-          borderRadius: '24px',
-          border: '1px solid rgba(239, 68, 68, 0.25)',
+        <div className="glass-island-premium" style={{
+          background: 'var(--status-danger-bg)',
+          borderColor: 'var(--status-danger)',
           padding: '1.25rem 2rem',
           marginBottom: '2rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           animation: 'slideDown 0.5s ease-out',
-          boxShadow: '0 15px 30px -10px rgba(239, 68, 68, 0.15)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div style={{ 
               width: '44px', height: '44px', borderRadius: '14px', 
-              background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', 
+              background: 'var(--status-danger-bg)', display: 'flex', alignItems: 'center', 
               justifyContent: 'center', fontSize: '1.2rem',
-              border: '1px solid rgba(239, 68, 68, 0.3)'
+              border: '1px solid var(--status-danger)'
             }}>
               ⚠️
             </div>
             <div>
-              <div style={{ fontSize: '0.7rem', color: '#fca5a5', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.2rem' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--status-danger)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.2rem' }}>
                 Platform Access Restricted
               </div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)', marginBottom: '0.2rem' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
                 {fetchError}
               </div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                Meta requires an upgrade of your permissions. <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" rel="noopener noreferrer" style={{ color: '#fecaca', textDecoration: 'underline' }}>Check Token Scopes</a>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Meta requires an upgrade of your permissions. <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--status-danger)', textDecoration: 'underline' }}>Check Token Scopes</a>
               </div>
             </div>
           </div>
@@ -280,9 +263,9 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
             <button
               onClick={() => fetchMetrics()}
               style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#fecaca',
+                background: 'var(--status-danger-bg)',
+                border: '1px solid var(--status-danger)',
+                color: 'var(--status-danger)',
                 padding: '0.6rem 1.25rem',
                 borderRadius: '12px',
                 fontWeight: 700,
@@ -298,21 +281,21 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
       )}
 
       {/* Account Overall KPIs (Lifetime/Total) */}
-      {activePlatform === 'instagram' && metrics?.account && (
+      {(activePlatform === 'instagram' || activePlatform === 'facebook') && metrics?.account && (
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
           gap: '1rem', 
           marginBottom: '2rem',
           padding: '1.5rem',
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'var(--bg-input)',
           borderRadius: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.05)'
+          border: '1px solid var(--border-color)'
         }}>
           {[
-            { label: 'Followers', value: metrics.account.follower_count, icon: '👥', color: '#ff006e' },
-            { label: 'Growth Reach', value: metrics.account.total_reach, icon: '📈', color: '#8338ec' },
-            { label: 'Direct Impressions', value: metrics.account.total_views, icon: '🌊', color: '#3a86ff' }
+            { label: 'Followers', value: metrics.account.follower_count, icon: '👥', color: 'var(--accent-color)' },
+            { label: 'Growth Reach', value: metrics.account.total_reach, icon: '📈', color: 'var(--status-active)' },
+            { label: 'Direct Impressions', value: metrics.account.total_views, icon: '🌊', color: 'var(--accent-color)' }
           ].map(m => (
             <div key={m.label} style={{ 
               display: 'flex', 
@@ -324,16 +307,16 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
             }}>
               <div style={{ 
                 width: '44px', height: '44px', borderRadius: '14px', 
-                background: `${m.color}15`, display: 'flex', alignItems: 'center', 
+                background: 'var(--nav-active-bg)', display: 'flex', alignItems: 'center', 
                 justifyContent: 'center', fontSize: '1.3rem',
-                border: `1px solid ${m.color}30`,
-                boxShadow: `0 8px 16px ${m.color}10`
+                border: `1px solid var(--border-color)`,
+                boxShadow: `var(--shadow-sm)`
               }}>
                 {m.icon}
               </div>
               <div>
-                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.2rem' }}>{m.label}</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>{m.value.toLocaleString()}</div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.2rem' }}>{m.label}</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{m.value.toLocaleString()}</div>
               </div>
             </div>
           ))}
@@ -343,29 +326,21 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
       {/* Main KPI Grid (Period-specific) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
         {[
-          { label: 'Total Engagement', value: metrics?.total_engagement || 0, icon: '⚡', color: '#fbbf24', trend: 'Stable' },
-          { label: 'Unique Reach', value: metrics?.total_reach || 0, icon: '🎯', color: '#10b981', trend: 'Syncing' },
-          { label: 'Total Visibility', value: metrics?.total_views || 0, icon: '👁️', color: '#3b82f6', trend: 'Live' },
-          { label: 'Period Content', value: metrics?.posts?.length || 0, icon: '💎', color: '#a855f7', trend: 'Active' }
+          { label: 'Total Engagement', value: metrics?.total_engagement || 0, icon: '⚡', color: 'var(--status-warning)', trend: 'Stable' },
+          { label: 'Unique Reach', value: metrics?.total_reach || 0, icon: '🎯', color: 'var(--status-active)', trend: 'Syncing' },
+          { label: 'Total Visibility', value: metrics?.total_views || 0, icon: '👁️', color: 'var(--accent-color)', trend: 'Live' },
+          { label: 'Period Content', value: metrics?.posts?.length || 0, icon: '💎', color: 'var(--accent-color)', trend: 'Active' }
         ].map(m => (
-          <div key={m.label} className="metric-card-glass" style={{
-            background: 'rgba(255, 255, 255, 0.02)',
-            backdropFilter: 'blur(30px)',
-            WebkitBackdropFilter: 'blur(30px)',
-            borderRadius: '28px',
-            padding: '1.75rem 2rem',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+          <div key={m.label} className="metric-card-adaptive" style={{
             position: 'relative',
             overflow: 'hidden',
-            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.3)',
-            transition: 'transform 0.3s ease'
           }}>
-            <div style={{ position: 'absolute', top: '15px', right: '15px', padding: '0.3rem 0.6rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', fontSize: '0.65rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+            <div style={{ position: 'absolute', top: '15px', right: '15px', padding: '0.3rem 0.6rem', borderRadius: '8px', background: 'var(--bg-input)', fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
               {m.trend}
             </div>
-            <div style={{ position: 'absolute', bottom: '-20px', right: '-10px', fontSize: '6rem', opacity: 0.03 }}>{m.icon}</div>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{m.label}</div>
-            <div style={{ fontSize: '2.8rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'white', textShadow: `0 10px 20px ${m.color}20` }}>
+            <div style={{ position: 'absolute', bottom: '-20px', right: '-10px', fontSize: '6rem', opacity: 0.03, color: m.color }}>{m.icon}</div>
+            <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{m.label}</div>
+            <div style={{ fontSize: '2.8rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>
               {isLoading ? (
                 <span style={{ opacity: 0.3 }}>--</span>
               ) : (
@@ -377,16 +352,10 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
         ))}
       </div>
 
-      {/* Chart and Post Table */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem', marginBottom: '2rem' }}>
-        <div className="glass-card chart-card" style={{
-          background: 'rgba(25, 25, 25, 0.4)',
-          backdropFilter: 'blur(40px)',
-          borderRadius: '32px',
+        <div className="glass-card-premium" style={{
           padding: '2.5rem',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
           height: '450px',
-          boxShadow: '0 30px 60px rgba(0,0,0,0.3)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Engagement Pulse</h3>
@@ -401,10 +370,10 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                   <stop offset="95%" stopColor={getPlatformColor(activePlatform)} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgba(255,255,255,0.02)" />
+              <CartesianGrid strokeDasharray="0" vertical={false} stroke="var(--chart-grid)" />
               <XAxis 
                 dataKey="date" 
-                stroke="rgba(255,255,255,0.2)" 
+                stroke="var(--chart-axis)" 
                 fontSize={10} 
                 tickLine={false} 
                 axisLine={false} 
@@ -412,26 +381,26 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                 interval="preserveStartEnd"
               />
               <YAxis 
-                stroke="rgba(255,255,255,0.2)" 
+                stroke="var(--chart-axis)" 
                 fontSize={10} 
                 tickLine={false} 
                 axisLine={false} 
                 dx={-15} 
               />
               <Tooltip 
-                cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                cursor={{ stroke: 'var(--chart-grid)', strokeWidth: 1 }}
                 contentStyle={{ 
-                  background: 'rgba(20, 20, 20, 0.8)', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
+                  background: 'var(--chart-tooltip-bg)', 
+                  border: '1px solid var(--border-color)', 
                   borderRadius: '16px', 
                   backdropFilter: 'blur(20px)', 
                   WebkitBackdropFilter: 'blur(20px)',
-                  color: 'white',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                  color: 'var(--chart-tooltip-text)',
+                  boxShadow: 'var(--shadow-lg)',
                   padding: '12px'
                 }}
-                itemStyle={{ color: 'white', fontWeight: 800, fontSize: '0.9rem' }}
-                labelStyle={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, fontSize: '0.75rem', marginBottom: '4px' }}
+                itemStyle={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: '0.9rem' }}
+                labelStyle={{ color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.75rem', marginBottom: '4px' }}
               />
               <Area 
                 type="monotone" 
@@ -447,15 +416,12 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
           </ResponsiveContainer>
         </div>
 
-        <div className="glass-card" style={{
-          background: 'rgba(255, 255, 255, 0.02)',
-          borderRadius: '32px',
+        <div className="glass-card-premium" style={{
           padding: '2.5rem',
-          border: '1px solid rgba(255, 255, 255, 0.05)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Timeframe Post Analysis</h3>
-            <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700, padding: '0.4rem 0.8rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--status-active)', fontWeight: 700, padding: '0.4rem 0.8rem', background: 'var(--status-active-bg)', borderRadius: '12px' }}>
               {metrics?.posts?.length || 0} Posts Found
             </span>
           </div>
@@ -468,7 +434,7 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
             ) : (
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                 <thead>
-                  <tr style={{ textAlign: 'left', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <tr style={{ textAlign: 'left', color: 'var(--text-tertiary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     <th style={{ padding: '1rem 1.5rem' }}>Media</th>
                     <th style={{ padding: '1rem 1.5rem', minWidth: '120px' }}>Date</th>
                     <th style={{ padding: '1rem 1.5rem', minWidth: '140px' }}>Interactions</th>
@@ -486,16 +452,16 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                         setIsInsightsModalOpen(true);
                       }}
                       style={{ 
-                        background: 'rgba(255,255,255,0.02)', 
+                        background: 'var(--bg-card)', 
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         cursor: 'pointer'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.background = 'var(--bg-hover)';
                         e.currentTarget.style.transform = 'translateY(-2px)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                        e.currentTarget.style.background = 'var(--bg-card)';
                         e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
@@ -504,20 +470,20 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                           <img 
                             src={post.thumbnail_url || post.media_url} 
                             alt="thumb" 
-                            style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
+                            style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border-color)' }} 
                           />
                           <div style={{ fontSize: '0.85rem', fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {post.content || 'No Caption'}
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                      <td style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
                         {new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
-                      <td style={{ padding: '1rem 1.5rem', fontWeight: 800, fontSize: '1.1rem', color: post.restricted ? 'rgba(255,255,255,0.2)' : '#f59e0b' }}>
+                      <td style={{ padding: '1rem 1.5rem', fontWeight: 800, fontSize: '1.1rem', color: post.restricted ? 'var(--text-tertiary)' : 'var(--status-warning)' }}>
                         {post.restricted ? '--' : post.engagement.toLocaleString()}
                       </td>
-                      <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: post.restricted ? 'rgba(255,255,255,0.2)' : 'white' }}>
+                      <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: post.restricted ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
                         {post.restricted ? '--' : post.views.toLocaleString()}
                       </td>
                       <td style={{ padding: '1rem 1.5rem' }}>
@@ -525,27 +491,27 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
                           padding: '0.4rem 0.8rem', 
                           borderRadius: '12px', 
                           background: post.restricted 
-                            ? 'rgba(239, 68, 68, 0.1)' 
+                            ? 'var(--status-danger-bg)' 
                             : post.engagement > 100 
-                              ? 'rgba(16, 185, 129, 0.1)' 
-                              : post.engagement > 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.05)', 
+                              ? 'var(--status-active-bg)' 
+                              : post.engagement > 0 ? 'var(--bg-input)' : 'var(--bg-input)', 
                           color: post.restricted 
-                            ? '#ef4444' 
+                            ? 'var(--status-danger)' 
                             : post.engagement > 100 
-                              ? '#10b981' 
-                              : post.engagement > 0 ? '#3b82f6' : 'rgba(255,255,255,0.3)', 
+                              ? 'var(--status-active)' 
+                              : post.engagement > 0 ? 'var(--accent-color)' : 'var(--text-tertiary)', 
                           fontSize: '0.65rem', 
                           fontWeight: 800,
                           textTransform: 'uppercase',
                           letterSpacing: '0.05em',
-                          border: `1px solid ${post.restricted ? 'rgba(239, 68, 68, 0.2)' : post.engagement > 100 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.05)'}`
+                          border: `1px solid ${post.restricted ? 'var(--status-danger)' : post.engagement > 100 ? 'var(--status-active)' : 'var(--border-color)'}`
                         }}>
                           {post.restricted ? 'Access Restricted' : post.engagement > 100 ? 'High Performance' : post.engagement > 0 ? 'Developing' : 'Steady'}
                         </span>
                       </td>
                       <td style={{ padding: '1rem 1.5rem', borderRadius: '0 16px 16px 0', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'flex-end' }}>
-                          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', fontWeight: 700 }}>Details →</span>
+                          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 700 }}>Details →</span>
                         </div>
                       </td>
                     </tr>

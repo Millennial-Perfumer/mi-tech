@@ -170,7 +170,7 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
         <MetricCard title="Messages Read" value={metrics?.read || 0} />
         <MetricCard title="Read Rate" value={`${(metrics?.read_rate || 0).toFixed(1)}%`} />
         <MetricCard title="Triggers Executed" value={metrics?.triggered || 0} />
-        <MetricCard title="Failed Messages" value={metrics?.failed || 0} color="#ef4444" />
+        <MetricCard title="Failed Messages" value={metrics?.failed || 0} color="var(--status-danger)" />
       </div>
 
       {/* Recent Activity */}

@@ -39,7 +39,7 @@ func (p *SettingsProvider) GetWhatsAppPhoneNumberID() string {
 }
 
 func (p *SettingsProvider) GetWhatsAppAccessToken() string {
-	return p.get("whatsapp_access_token")
+	return p.GetMetaSystemUserToken()
 }
 
 func (p *SettingsProvider) GetWhatsAppWABAID() string {
@@ -110,8 +110,12 @@ func (p *SettingsProvider) GetBulkTemplateSuffix() string {
 	return s
 }
 
+func (p *SettingsProvider) GetMetaSystemUserToken() string {
+	return p.get("meta_system_user_token")
+}
+
 func (p *SettingsProvider) GetMetaMarketingAccessToken() string {
-	return p.get("meta_marketing_access_token")
+	return p.GetMetaSystemUserToken()
 }
 
 func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
