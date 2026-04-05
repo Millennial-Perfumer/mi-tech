@@ -22,6 +22,13 @@ func NewConfigsHandler(configsRepo *repository.ConfigsRepository, db *gorm.DB) *
 }
 
 // GetAllConfigs returns all configs with secret values masked.
+// @Summary List API configurations
+// @Description Retrieve a list of all API keys and secrets. Sensitive values are masked (********).
+// @Tags configurations
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /configs [get]
 func (h *ConfigsHandler) GetAllConfigs(w http.ResponseWriter, r *http.Request) {
 	configs, err := h.configsRepo.GetAll()
 	if err != nil {
@@ -37,6 +44,16 @@ func (h *ConfigsHandler) GetAllConfigs(w http.ResponseWriter, r *http.Request) {
 }
 
 // RevealConfigs returns all configs with values unmasked after password verification.
+// RevealConfigs handles POST /api/configs/reveal.
+// @Summary Reveal unmasked configurations
+// @Description Retrieve unmasked values of API keys by re-authenticating with the user's password.
+// @Tags configurations
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "User password"
+// @Success 200 {object} map[string]interface{}
+// @Router /configs/reveal [post]
 func (h *ConfigsHandler) RevealConfigs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -96,6 +113,16 @@ func (h *ConfigsHandler) RevealConfigs(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateConfig updates a single config value.
+// UpdateConfig handles PUT /api/configs.
+// @Summary Update API configuration
+// @Description Update a specific configuration key (e.g. meta_api_token). Required 'admin' role.
+// @Tags configurations
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "Config key-value"
+// @Success 200 {object} map[string]interface{}
+// @Router /configs [put]
 func (h *ConfigsHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

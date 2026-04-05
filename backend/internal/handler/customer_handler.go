@@ -17,6 +17,21 @@ func NewCustomerHandler(service *service.CustomerService) *CustomerHandler {
 	return &CustomerHandler{service: service}
 }
 
+// ListCustomers handles GET /api/customers.
+// @Summary List customers
+// @Description Retrieve a paginated list of customers with advanced filtering.
+// @Tags customers
+// @Security Bearer
+// @Produce json
+// @Param page query int false "Page number"
+// @Param pageSize query int false "Items per page"
+// @Param search query string false "Search"
+// @Param sortBy query string false "Sort field"
+// @Param sortOrder query string false "Sort order"
+// @Param city query string false "City filter"
+// @Param state query string false "State filter"
+// @Success 200 {object} map[string]interface{}
+// @Router /customers [get]
 func (h *CustomerHandler) ListCustomers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	page, _ := strconv.Atoi(q.Get("page"))
@@ -52,6 +67,17 @@ func (h *CustomerHandler) ListCustomers(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// ImportCSV handles POST /api/customers/import.
+// @Summary Import customers CSV
+// @Description Upload a CSV file and import customer data.
+// @Tags customers
+// @Security Bearer
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "CSV file"
+// @Param source_id formData string false "Source ID"
+// @Success 200 {object} map[string]string
+// @Router /customers/import [post]
 func (h *CustomerHandler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -79,6 +105,13 @@ func (h *CustomerHandler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Import successful"})
 }
 
+// DeleteAllCustomers handles DELETE /api/customers.
+// @Summary Delete all customers
+// @Description Wipe the entire customers table. Required 'admin' role.
+// @Tags customers
+// @Security Bearer
+// @Success 200 {object} map[string]string
+// @Router /customers [delete]
 func (h *CustomerHandler) DeleteAllCustomers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -94,6 +127,16 @@ func (h *CustomerHandler) DeleteAllCustomers(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "All customers cleared successfully"})
 }
+// CreateCustomer handles POST /api/customers.
+// @Summary Create customer
+// @Description Manually create a new customer profile.
+// @Tags customers
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body entity.Customer true "Customer data"
+// @Success 201 {object} entity.Customer
+// @Router /customers [post]
 func (h *CustomerHandler) CreateCustomer(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -120,6 +163,17 @@ func (h *CustomerHandler) CreateCustomer(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(req.Customer)
 }
 
+// UpdateCustomer handles PUT /api/customers/{id}.
+// @Summary Update customer
+// @Description Update an existing customer profile.
+// @Tags customers
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param id path int true "Customer ID"
+// @Param body body entity.Customer true "Updated data"
+// @Success 200 {object} entity.Customer
+// @Router /customers/{id} [put]
 func (h *CustomerHandler) UpdateCustomer(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -155,6 +209,14 @@ func (h *CustomerHandler) UpdateCustomer(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(req.Customer)
 }
 
+// DeleteCustomer handles DELETE /api/customers/{id}.
+// @Summary Delete customer
+// @Description Remove a specific customer.
+// @Tags customers
+// @Security Bearer
+// @Param id path int true "Customer ID"
+// @Success 204 "No Content"
+// @Router /customers/{id} [delete]
 func (h *CustomerHandler) DeleteCustomer(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/customers/")
 	idStr = strings.TrimSuffix(idStr, "/")
@@ -173,6 +235,16 @@ func (h *CustomerHandler) DeleteCustomer(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// BulkDeleteCustomers handles POST /api/customers/bulk-delete.
+// @Summary Bulk delete customers
+// @Description Delete multiple customers by their IDs.
+// @Tags customers
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body object true "List of IDs"
+// @Success 200 {object} map[string]string
+// @Router /customers/bulk-delete [post]
 func (h *CustomerHandler) BulkDeleteCustomers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

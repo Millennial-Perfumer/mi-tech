@@ -14,3 +14,5 @@ This file contains the technical memory and lessons learned for technical-manage
 ## Architectural Context
 - **2026-04-03 Marketing Client**: Uses a GORM-backed settings repo. Tokens are pulled via `c.settings.GetMetaMarketingAccessToken()`.
 - **2026-04-03 System User Tokens**: Prefer these for "permanent" access in Business-level integrations.
+- **2026-04-04 Social Data Ingestion**: When implementing complex 3rd-party sync engines (like Meta SMM), always verify database schema alignment with Go entities early. Silent failures (200 OK with no data) are often caused by SQL column mismatches or date-range precision issues (Date vs Timestamp).
+- **2026-04-04 Logs Specialist Skill**: Use `logs-specialist` as a primary diagnostic layer whenever backend logs are provided. It filters out irrelevant system noise (like OTEL timeouts) to isolate actual logic or database errors.

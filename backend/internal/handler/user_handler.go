@@ -21,6 +21,14 @@ type CreateUserRequest struct {
 	Role     string `json:"role"`
 }
 
+// GetUsers returns all registered users.
+// @Summary List users
+// @Description Retrieve a list of all users. Required 'admin' role.
+// @Tags users
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /users [get]
 func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	log.Printf("UserHandler.GetUsers: received request")
 	users, err := h.userService.GetUsers()
@@ -38,6 +46,16 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CreateUser creates a new user.
+// @Summary Create user
+// @Description Register a new user with a specified role. Required 'admin' role.
+// @Tags users
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param body body CreateUserRequest true "User data"
+// @Success 200 {object} map[string]interface{}
+// @Router /users [post]
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

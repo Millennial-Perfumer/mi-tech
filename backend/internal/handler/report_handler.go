@@ -18,6 +18,16 @@ func NewReportHandler(reportService *service.ReportService) *ReportHandler {
 }
 
 // GetGSTSummary handles GET /api/reports/summary.
+// GetGSTSummary handles GET /api/reports/gst.
+// @Summary GST Summary Report
+// @Description Aggregate revenue, taxable values, and tax splits (CGST/SGST/IGST) for a date range.
+// @Tags reports
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /reports/gst [get]
 func (h *ReportHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
@@ -33,6 +43,16 @@ func (h *ReportHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetStateSummary handles GET /api/reports/state-wise.
+// GetStateSummary handles GET /api/reports/state.
+// @Summary State-wise Summary Report
+// @Description Breakdown of revenue and taxes grouped by customer state.
+// @Tags reports
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /reports/state [get]
 func (h *ReportHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
@@ -48,6 +68,16 @@ func (h *ReportHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) 
 }
 
 // GetHSNSummary handles GET /api/reports/hsn-wise.
+// GetHSNSummary handles GET /api/reports/hsn.
+// @Summary HSN-wise Summary Report
+// @Description Detailed breakdown of taxes and sales grouped by HSN code.
+// @Tags reports
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Success 200 {object} map[string]interface{}
+// @Router /reports/hsn [get]
 func (h *ReportHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")

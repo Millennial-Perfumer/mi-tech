@@ -25,30 +25,40 @@ interface SettingsTabProps {
 }
 
 const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; color: string }> = {
+  meta_shared: {
+    title: 'Meta Shared Details',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>,
+    color: '#0ea5e9'
+  },
   shopify: {
     title: 'Shopify',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>,
-    color: '#10b981'
+    color: 'var(--status-active)'
   },
   whatsapp: {
     title: 'WhatsApp',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
-    color: '#22c55e'
+    color: 'var(--status-active)'
   },
   system: {
     title: 'System',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
-    color: '#6366f1'
+    color: 'var(--accent-color)'
   },
   business: {
     title: 'Business',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
-    color: '#f59e0b'
+    color: 'var(--status-warning)'
   },
   marketing: {
     title: 'Marketing',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-    color: '#1877F2'
+    color: '#0ea5e9'
+  },
+  social_media: {
+    title: 'Social Media',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>,
+    color: '#E4405F'
   }
 };
 
@@ -170,8 +180,8 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
     groupedConfigs[cfg.category].push(cfg);
   });
 
-  // Sort categories: Business > Shopify > Marketing > WhatsApp > System
-  const categoryOrder = ['business', 'shopify', 'marketing', 'whatsapp', 'system'];
+  // Sort categories: Business > Shopify > Meta Shared > Marketing > Social Media > WhatsApp > System
+  const categoryOrder = ['business', 'shopify', 'meta_shared', 'marketing', 'social_media', 'whatsapp', 'system'];
   const sortedCategories = Object.keys(groupedConfigs).sort((a, b) => {
     const idxA = categoryOrder.indexOf(a);
     const idxB = categoryOrder.indexOf(b);
@@ -381,11 +391,11 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             <span style={{
                               fontSize: '0.65rem',
                               fontWeight: 700,
-                              color: '#ef4444',
-                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--status-error)',
+                              background: 'var(--status-error-bg)',
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              border: '1px solid var(--status-error)',
                               textTransform: 'uppercase',
                               letterSpacing: '0.05em'
                             }}>
@@ -400,7 +410,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                 title="Save"
                                 disabled={isSavingConfig}
                                 onClick={() => handleSaveConfig(cfg.key, editValue)}
-                                style={{ color: '#10b981' }}
+                                style={{ color: 'var(--status-active)' }}
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                               </button>
@@ -408,7 +418,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                 className="toolbar-btn"
                                 title="Cancel"
                                 onClick={handleCancelEdit}
-                                style={{ color: '#ef4444' }}
+                                style={{ color: 'var(--status-error)' }}
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                               </button>
@@ -442,9 +452,9 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           justifyContent: 'space-between',
                           gap: '1rem',
                           padding: '1rem',
-                          background: 'var(--accent-subtle)',
+                          background: 'var(--status-active-bg)',
                           borderRadius: '10px',
-                          border: '1px dashed #10b981',
+                          border: '1px dashed var(--status-active)',
                           marginTop: '0.5rem'
                         }}
                       >
@@ -453,7 +463,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             width: '40px', 
                             height: '40px', 
                             borderRadius: '10px', 
-                            background: '#10b981', 
+                            background: 'var(--status-active)', 
                             display: 'flex', 
                             alignItems: 'center', 
                             justifyContent: 'center',
@@ -462,7 +472,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0369a1' }}>Manual Order Synchronization</div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--status-active)' }}>Manual Order Synchronization</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
                           </div>
                         </div>
@@ -492,7 +502,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
       {showPasswordModal && (
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
           <div className="premium-modal" style={{ maxWidth: '380px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)' }}>
+            <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, var(--status-error), var(--status-warning))' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             </div>
             <h2 style={{ fontSize: '1.25rem' }}>Enter Password</h2>
@@ -504,11 +514,11 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
               onChange={e => { setPassword(e.target.value); setPasswordError(''); }}
               placeholder="Admin password"
               autoFocus
-               style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid #ef4444' : '2px solid var(--border-color)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+             style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid var(--status-error)' : '2px solid var(--border-color)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
               onKeyDown={e => { if (e.key === 'Enter') handleReveal(); }}
             />
             {passwordError && (
-              <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 600 }}>
+              <div style={{ color: 'var(--status-error)', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 600 }}>
                 {passwordError}
               </div>
             )}

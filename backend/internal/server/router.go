@@ -32,6 +32,8 @@ func RegisterRoutes(
 	userHandler *handler.UserHandler,
 	marketingHandler *handler.MarketingHandler,
 	marketingWebhookHandler *handler.MarketingWebhookHandler,
+	systemHandler *handler.SystemHandler,
+	smmHandler *handler.SMMHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -55,7 +57,15 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/meta/adsets", protected(marketingHandler.GetMetaAdSets))
 	mux.HandleFunc("/api/marketing/meta/ads", protected(marketingHandler.GetMetaAds))
 	mux.HandleFunc("/api/marketing/meta/webhook", marketingWebhookHandler.MetaWebhook)
-	log.Println("DEBUG: Marketing Routes Registered")
+	
+	// Social Media Management (SMM) Routes
+	mux.HandleFunc("/api/marketing/smm/overview", protected(smmHandler.GetOverview))
+	mux.HandleFunc("/api/marketing/smm/health", protected(smmHandler.CheckHealth))
+	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
+	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
+	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
+	
+	log.Println("DEBUG: Marketing & SMM Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
 	mux.Handle("/api/metrics", promhttp.Handler())
@@ -220,4 +230,8 @@ func RegisterRoutes(
 
 	// --- Redirect Tracking ---
 	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
+
+	// --- Knowledge API (System Docs) ---
+	mux.HandleFunc("/api/system/docs", protected(systemHandler.ListDocs))
+	mux.HandleFunc("/api/system/docs/", protected(systemHandler.GetDoc))
 }

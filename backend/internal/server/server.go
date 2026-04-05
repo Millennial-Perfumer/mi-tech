@@ -52,6 +52,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	configsRepo := repository.NewConfigsRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
+	socialRepo := repository.NewSocialRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -72,8 +73,12 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo)
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
 	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
+	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
+	systemService := service.NewSystemService("../docs")
 	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
+	systemHandler := handler.NewSystemHandler(systemService)
+	smmHandler := handler.NewSMMHandler(socialService)
 	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo)
 
 	// Handlers
@@ -106,6 +111,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		userHandler,
 		marketingHandler,
 		marketingWebhookHandler,
+		systemHandler,
+		smmHandler,
 		authService,
 	)
 

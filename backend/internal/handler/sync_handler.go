@@ -25,9 +25,10 @@ type SyncRequest struct {
 }
 
 // SyncOrders handles POST /api/shopify/sync.
-// @Summary Sync orders from Shopify
-// @Description Fetch and sync orders from Shopify within a date range
+// @Summary Sync Shopify orders
+// @Description Fetch and update orders from Shopify for a specific date range.
 // @Tags sync
+// @Security Bearer
 // @Accept json
 // @Produce json
 // @Param start_date query string false "Start date (YYYY-MM-DD)"

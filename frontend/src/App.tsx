@@ -14,6 +14,7 @@ import { SettingsTab } from './SettingsTab';
 import { Customers } from './Customers';
 import { Users } from './Users';
 import { MarketingDashboard } from './MarketingDashboard';
+import { SocialDashboard } from './SocialDashboard';
 import OrderDetailsModal from './OrderDetailsModal';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -210,8 +211,10 @@ function App() {
   // Default to Year-to-Date (YTD) or January 1st as requested
   const defaultStartDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
   const defaultEndDate = getTodayIST();
-  const [startDate, setStartDate] = useState(defaultStartDate);
-  const [endDate, setEndDate] = useState(defaultEndDate);
+  
+  // Initialize with values from LocalStorage if available, otherwise defaults
+  const [startDate, setStartDate] = useState(() => localStorage.getItem('socialSmmStartDate') || defaultStartDate);
+  const [endDate, setEndDate] = useState(() => localStorage.getItem('socialSmmEndDate') || defaultEndDate);
 
   // Load saved date range from backend on startup
   useEffect(() => {
@@ -220,17 +223,23 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.start_date && data.end_date) {
+          console.log('DEBUG: Loaded date range from backend:', data.start_date, data.end_date);
           setStartDate(data.start_date);
           setEndDate(data.end_date);
+          localStorage.setItem('socialSmmStartDate', data.start_date);
+          localStorage.setItem('socialSmmEndDate', data.end_date);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error('Failed to load date range:', err));
   }, [token]);
 
   const handleUpdateDateRange = (start: string, end: string) => {
+    console.log('DEBUG: Updating global date range:', start, end);
     setPage(1);
     setStartDate(start);
     setEndDate(end);
+    localStorage.setItem('socialSmmStartDate', start);
+    localStorage.setItem('socialSmmEndDate', end);
     // Persist date range to backend
     fetchWithAuth(`${API_BASE}/api/settings/date-range`, {
       method: 'PUT',
@@ -651,9 +660,13 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             <span>Customers</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => setActiveTab('marketing')} title={isSidebarCollapsed ? "Marketing" : ""} style={{ animationDelay: '275ms' }}>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => setActiveTab('marketing')} title={isSidebarCollapsed ? "Ads Intelligence" : ""} style={{ animationDelay: '275ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h2M11 9h2M11 13h2M11 17h2M7 9h10v10c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2V9zM18 5c1.1 0 2 .9 2 2v2H4V7c0-1.1.9-2 2-2h12z"/></svg>
-            <span>Marketing</span>
+            <span>Ads</span>
+          </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'social' ? 'active' : ''}`} onClick={() => setActiveTab('social')} title={isSidebarCollapsed ? "Social Media" : ""} style={{ animationDelay: '285ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+            <span>Social Media</span>
           </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} title={isSidebarCollapsed ? "Settings" : ""} style={{ animationDelay: '300ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -771,7 +784,7 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Marketing Console' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
             <p className="page-subtitle">
               {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
@@ -806,10 +819,20 @@ function App() {
           }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
-                {activeTab === 'dashboard' ? 'Business Overview' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'customers' ? 'Customer Directory' : 'Shopify Orders'}
+                {activeTab === 'dashboard' ? 'Business Overview' : 
+                 activeTab === 'reports' ? 'GST Reports' : 
+                 activeTab === 'customers' ? 'Customer Directory' : 
+                 activeTab === 'marketing' ? 'Social Marketing Pulse' : 
+                 activeTab === 'social' ? 'Social Channel Pulse' :
+                 'Shopify Orders'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>
-                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : activeTab === 'reports' ? 'Generate and export GST-ready reports' : activeTab === 'customers' ? 'Manage and analyze your customer base' : 'Manage your Shopify store orders'}
+                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : 
+                 activeTab === 'reports' ? 'Generate and export GST-ready reports' : 
+                 activeTab === 'customers' ? 'Manage and analyze your customer base' : 
+                 activeTab === 'marketing' ? 'Analyze and manage social media engagement' : 
+                 activeTab === 'social' ? 'Unified management for all your social channels' :
+                 'Manage your Shopify store orders'}
               </p>
             </div>
             
@@ -869,14 +892,14 @@ function App() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 </div>
                 <div className="metric-label">Total Orders</div>
-                <div className="metric-value" style={{ fontSize: '1.5rem' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon metric-icon-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div className="metric-label">Fulfilled</div>
-                <div className="metric-value" style={{ fontSize: '1.5rem', color: '#10b981' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--status-active)' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon metric-icon-3">
@@ -897,7 +920,7 @@ function App() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 </div>
                 <div className="metric-label">Avg. Order Value</div>
-                <div className="metric-value" style={{ fontSize: '1.5rem' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
+                <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
               </div>
             </div>
           </section>
@@ -1227,15 +1250,20 @@ function App() {
                         <td>
                           <span 
                             style={{ 
-                              background: order.source_id === 'amazon' ? 'rgba(249, 115, 22, 0.15)' : 
-                                          order.source_id === 'pos' ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-input)', 
-                              color: order.source_id === 'amazon' ? '#f97316' : 
-                                     order.source_id === 'pos' ? '#22c55e' : 'var(--text-secondary)',
-                              border: `1px solid ${order.source_id === 'amazon' ? 'rgba(249, 115, 22, 0.2)' : 
-                                                  order.source_id === 'pos' ? 'rgba(34, 197, 94, 0.2)' : 'var(--border-color)'}`
+                              background: order.source_id === 'amazon' ? 'var(--status-warning-bg)' : 
+                                          order.source_id === 'pos' ? 'var(--status-active-bg)' : 'var(--bg-input)', 
+                              color: order.source_id === 'amazon' ? 'var(--status-warning)' : 
+                                     order.source_id === 'pos' ? 'var(--status-active)' : 'var(--text-secondary)',
+                              border: `1px solid ${order.source_id === 'amazon' ? 'var(--status-warning)' : 
+                                                  order.source_id === 'pos' ? 'var(--status-active)' : 'var(--border-color)'}`,
+                              padding: '0.25rem 0.75rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              textTransform: 'capitalize'
                             }}
                           >
-                            {order.source_id?.charAt(0).toUpperCase() + order.source_id?.slice(1) || 'Shopify'}
+                            {order.source_id || 'Shopify'}
                           </span>
                         </td>
                       )}
@@ -1363,6 +1391,16 @@ function App() {
               fetchWithAuth={fetchWithAuth}
               userRole={userRole}
               onNavigate={(tab) => setActiveTab(tab)}
+            />
+          )}
+
+          {activeTab === 'social' && (
+            <SocialDashboard 
+              fetchWithAuth={fetchWithAuth}
+              userRole={userRole}
+              startDate={startDate}
+              endDate={endDate}
+              onUpdateDateRange={handleUpdateDateRange}
             />
           )}
 

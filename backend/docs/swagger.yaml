@@ -1,5 +1,187 @@
 basePath: /api
 definitions:
+  internal_automation_whatsapp.AutomationTemplate:
+    properties:
+      body:
+        type: string
+      buttons:
+        items:
+          type: integer
+        type: array
+      category:
+        type: string
+      created_at:
+        type: string
+      delivered_count:
+        type: integer
+      footer:
+        type: string
+      header:
+        items:
+          type: integer
+        type: array
+      id:
+        type: integer
+      language:
+        type: string
+      meta_template_id:
+        type: string
+      read_count:
+        type: integer
+      sent_count:
+        type: integer
+      status:
+        description: PENDING, APPROVED, REJECTED
+        type: string
+      store_id:
+        type: string
+      template_name:
+        type: string
+      updated_at:
+        type: string
+      variable_mappings:
+        items:
+          type: integer
+        type: array
+    type: object
+  internal_automation_whatsapp.ChatMessage:
+    properties:
+      conversation_id:
+        type: integer
+      direction:
+        type: string
+      id:
+        type: integer
+      message_id:
+        type: string
+      metadata:
+        items:
+          type: integer
+        type: array
+      sender_role:
+        type: string
+      sent_at:
+        type: string
+      status:
+        type: string
+      text:
+        type: string
+      type:
+        type: string
+    type: object
+  internal_automation_whatsapp.Conversation:
+    properties:
+      contact_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_message:
+        type: string
+      last_message_at:
+        type: string
+      mode:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_automation_whatsapp.CreateTemplateRequest:
+    properties:
+      body:
+        type: string
+      buttons:
+        items:
+          $ref: '#/definitions/internal_automation_whatsapp.TemplateButton'
+        type: array
+      category:
+        type: string
+      examples:
+        type: string
+      footer:
+        type: string
+      header:
+        $ref: '#/definitions/internal_automation_whatsapp.TemplateHeader'
+      language:
+        type: string
+      name:
+        type: string
+    type: object
+  internal_automation_whatsapp.TemplateButton:
+    properties:
+      flowID:
+        description: Frontend camelCase
+        type: string
+      flowName:
+        description: Frontend camelCase
+        type: string
+      offerCode:
+        description: Frontend camelCase
+        type: string
+      payload:
+        type: string
+      phoneNumber:
+        description: Frontend camelCase
+        type: string
+      text:
+        type: string
+      type:
+        description: custom, visit_website, call_whatsapp, call_phone, flow, copy_code
+        type: string
+      url:
+        type: string
+    type: object
+  internal_automation_whatsapp.TemplateHeader:
+    properties:
+      location:
+        items:
+          type: integer
+        type: array
+      sample:
+        items:
+          type: integer
+        type: array
+      text:
+        type: string
+      type:
+        description: text, image, video, document, location, none
+        type: string
+    type: object
+  internal_automation_whatsapp.Trigger:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      store_id:
+        type: string
+      template_body:
+        description: Joined field
+        type: string
+      template_id:
+        type: integer
+      template_name:
+        description: Joined field
+        type: string
+      template_status:
+        description: Joined field
+        type: string
+      webhook_topic:
+        type: string
+    type: object
+  internal_handler.CreateUserRequest:
+    properties:
+      password:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
   internal_handler.LoginRequest:
     properties:
       password:
@@ -9,6 +191,8 @@ definitions:
     type: object
   internal_handler.LoginResponse:
     properties:
+      requires_2fa:
+        type: boolean
       token:
         type: string
     type: object
@@ -24,6 +208,80 @@ definitions:
       status:
         type: string
     type: object
+  internal_handler.VerifyOTPRequest:
+    properties:
+      otp:
+        type: string
+      username:
+        type: string
+    type: object
+  mi-tech_internal_dto.OrderUpdateRequest:
+    properties:
+      customer_address1:
+        type: string
+      customer_address2:
+        type: string
+      customer_city:
+        type: string
+      customer_country:
+        type: string
+      customer_email:
+        type: string
+      customer_first_name:
+        type: string
+      customer_last_name:
+        type: string
+      customer_phone:
+        type: string
+      customer_state:
+        type: string
+      customer_zip:
+        type: string
+    type: object
+  mi-tech_internal_entity.Customer:
+    properties:
+      address1:
+        type: string
+      address2:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      external_id:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      last_name:
+        type: string
+      phone_number:
+        type: string
+      source_id:
+        type: string
+      state:
+        type: string
+      total_orders:
+        type: integer
+      total_spent:
+        type: number
+      updated_at:
+        type: string
+      zip_code:
+        type: string
+    type: object
+  mi-tech_internal_service.Document:
+    properties:
+      slug:
+        type: string
+      title:
+        type: string
+    type: object
 info:
   contact: {}
   description: Backend API for Mi-Tech GST Invoice Manager.
@@ -34,7 +292,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate a user and return a JWT token
+      description: Authenticate a user and return a JWT token. If 2FA is enabled,
+        it returns requires_2fa=true.
       parameters:
       - description: Login credentials
         in: body
@@ -56,6 +315,881 @@ paths:
       summary: Login to the application
       tags:
       - auth
+  /auth/verify:
+    get:
+      description: Internal endpoint for Nginx to validate the Bearer token and retrieve
+        user metadata.
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Validate JWT Session
+      tags:
+      - auth
+  /auth/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Complete the login process by verifying the 6-digit OTP.
+      parameters:
+      - description: OTP Verification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.LoginResponse'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+      summary: Verify 2FA OTP
+      tags:
+      - auth
+  /automation/whatsapp/chat:
+    get:
+      description: Retrieve all messages for a specific conversation.
+      parameters:
+      - description: Conv ID
+        in: query
+        name: conversation_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_automation_whatsapp.ChatMessage'
+            type: array
+      security:
+      - Bearer: []
+      summary: Get chat history
+      tags:
+      - automation
+  /automation/whatsapp/conversations:
+    get:
+      description: Retrieve all active customer chat conversations.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_automation_whatsapp.Conversation'
+            type: array
+      security:
+      - Bearer: []
+      summary: List chat threads
+      tags:
+      - automation
+  /automation/whatsapp/conversations/mode:
+    put:
+      consumes:
+      - application/json
+      description: Switch between 'auto' (bot) and 'human' (agent) mode for a chat
+        thread.
+      parameters:
+      - description: Mode data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - Bearer: []
+      summary: Toggle chat mode
+      tags:
+      - automation
+  /automation/whatsapp/messages:
+    get:
+      description: Retrieve a paginated list of all sent and received WhatsApp messages.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: Filter by template
+        in: query
+        name: template_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List message logs
+      tags:
+      - automation
+  /automation/whatsapp/metrics:
+    get:
+      description: Aggregate delivery, read, and failure rates for automated messages.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get automation analytics
+      tags:
+      - automation
+  /automation/whatsapp/metrics/sync:
+    post:
+      description: Fetch delivery and read analytics directly from Meta's Insight
+        API.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Sync Meta insights
+      tags:
+      - automation
+  /automation/whatsapp/send-bulk:
+    post:
+      consumes:
+      - application/json
+      description: Dispatch a template message to multiple customers simultaneously.
+      parameters:
+      - description: Bulk send request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Send bulk marketing
+      tags:
+      - automation
+  /automation/whatsapp/send-manual:
+    post:
+      consumes:
+      - application/json
+      description: Trigger a specific template message for a given order manually.
+      parameters:
+      - description: Send request (order_id, template_id)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Send manual template
+      tags:
+      - automation
+  /automation/whatsapp/send-message:
+    post:
+      consumes:
+      - application/json
+      description: Send a non-template, free-text message to a customer (Human-to-Human).
+      parameters:
+      - description: Message data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - Bearer: []
+      summary: Send free-text
+      tags:
+      - automation
+  /automation/whatsapp/templates:
+    delete:
+      description: Remove a template from the local database.
+      parameters:
+      - description: Template ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+      security:
+      - Bearer: []
+      summary: Delete WhatsApp template
+      tags:
+      - automation
+    get:
+      description: Retrieve all imported WhatsApp templates with optional date filtering.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_automation_whatsapp.AutomationTemplate'
+            type: array
+      security:
+      - Bearer: []
+      summary: List WhatsApp templates
+      tags:
+      - automation
+    post:
+      consumes:
+      - application/json
+      description: Import a new template from Meta or create a custom one.
+      parameters:
+      - description: Template data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_automation_whatsapp.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Create WhatsApp template
+      tags:
+      - automation
+    put:
+      consumes:
+      - application/json
+      description: Update the variable mappings for a WhatsApp template.
+      parameters:
+      - description: Updated mapping
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_automation_whatsapp.AutomationTemplate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - Bearer: []
+      summary: Update template mapping
+      tags:
+      - automation
+  /automation/whatsapp/templates/sync:
+    post:
+      description: Fetch latest approval statuses for all templates from Meta.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Sync template status
+      tags:
+      - automation
+  /automation/whatsapp/templates/sync-all:
+    post:
+      description: Wipe and re-import all templates from the linked Meta WABA.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - Bearer: []
+      summary: Full template import
+      tags:
+      - automation
+  /automation/whatsapp/templates/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload an image or PDF to Meta's servers for use in template headers.
+      parameters:
+      - description: Media file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Upload media to Meta
+      tags:
+      - automation
+  /automation/whatsapp/triggers:
+    get:
+      description: Retrieve all configured Webhook-to-Template mappings.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_automation_whatsapp.Trigger'
+            type: array
+      security:
+      - Bearer: []
+      summary: List automation triggers
+      tags:
+      - automation
+    post:
+      consumes:
+      - application/json
+      description: Link a Shopify webhook topic to a WhatsApp template.
+      parameters:
+      - description: Trigger data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+      security:
+      - Bearer: []
+      summary: Create automation trigger
+      tags:
+      - automation
+    put:
+      consumes:
+      - application/json
+      description: Enable or disable a specific Webhook-to-Template trigger.
+      parameters:
+      - description: Trigger toggle data
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - Bearer: []
+      summary: Toggle automation trigger
+      tags:
+      - automation
+  /automation/whatsapp/webhook:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint for Meta Cloud API to push delivery receipts and incoming
+        customer messages.
+      parameters:
+      - description: HMAC Signature
+        in: header
+        name: X-Hub-Signature-256
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: WhatsApp Webhook
+      tags:
+      - automation
+  /configs:
+    get:
+      description: Retrieve a list of all API keys and secrets. Sensitive values are
+        masked (********).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List API configurations
+      tags:
+      - configurations
+    put:
+      consumes:
+      - application/json
+      description: Update a specific configuration key (e.g. meta_api_token). Required
+        'admin' role.
+      parameters:
+      - description: Config key-value
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update API configuration
+      tags:
+      - configurations
+  /configs/reveal:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve unmasked values of API keys by re-authenticating with
+        the user's password.
+      parameters:
+      - description: User password
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Reveal unmasked configurations
+      tags:
+      - configurations
+  /customers:
+    delete:
+      description: Wipe the entire customers table. Required 'admin' role.
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete all customers
+      tags:
+      - customers
+    get:
+      description: Retrieve a paginated list of customers with advanced filtering.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      - description: Search
+        in: query
+        name: search
+        type: string
+      - description: Sort field
+        in: query
+        name: sortBy
+        type: string
+      - description: Sort order
+        in: query
+        name: sortOrder
+        type: string
+      - description: City filter
+        in: query
+        name: city
+        type: string
+      - description: State filter
+        in: query
+        name: state
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List customers
+      tags:
+      - customers
+    post:
+      consumes:
+      - application/json
+      description: Manually create a new customer profile.
+      parameters:
+      - description: Customer data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/mi-tech_internal_entity.Customer'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/mi-tech_internal_entity.Customer'
+      security:
+      - Bearer: []
+      summary: Create customer
+      tags:
+      - customers
+  /customers/{id}:
+    delete:
+      description: Remove a specific customer.
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+      security:
+      - Bearer: []
+      summary: Delete customer
+      tags:
+      - customers
+    put:
+      consumes:
+      - application/json
+      description: Update an existing customer profile.
+      parameters:
+      - description: Customer ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/mi-tech_internal_entity.Customer'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mi-tech_internal_entity.Customer'
+      security:
+      - Bearer: []
+      summary: Update customer
+      tags:
+      - customers
+  /customers/bulk-delete:
+    post:
+      consumes:
+      - application/json
+      description: Delete multiple customers by their IDs.
+      parameters:
+      - description: List of IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Bulk delete customers
+      tags:
+      - customers
+  /customers/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a CSV file and import customer data.
+      parameters:
+      - description: CSV file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Source ID
+        in: formData
+        name: source_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Import customers CSV
+      tags:
+      - customers
+  /marketing/meta/ads:
+    get:
+      description: Fetch all individual ads for a specific Meta Adset, including insights.
+      parameters:
+      - description: Meta Adset ID
+        in: query
+        name: adset_id
+        required: true
+        type: string
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List Meta ads
+      tags:
+      - marketing
+  /marketing/meta/adsets:
+    get:
+      description: Fetch all adsets for a specific Meta Campaign, including insights.
+      parameters:
+      - description: Meta Campaign ID
+        in: query
+        name: campaign_id
+        required: true
+        type: string
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List Meta adsets
+      tags:
+      - marketing
+  /marketing/meta/campaigns:
+    get:
+      description: Fetch all campaigns for a specific Meta Ad Account.
+      parameters:
+      - description: Meta Ad Account ID
+        in: query
+        name: ad_account_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List Meta campaigns
+      tags:
+      - marketing
+  /marketing/meta/overview:
+    get:
+      description: High-level summary of active campaigns, ad accounts, and performance
+        insights.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Meta Marketing Overview
+      tags:
+      - marketing
+  /metrics/dashboard:
+    get:
+      description: Retrieve real-time metrics including revenue, GST breakdown, and
+        order counts.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get dashboard metrics
+      tags:
+      - dashboard
   /orders:
     get:
       consumes:
@@ -113,6 +1247,57 @@ paths:
       summary: List orders
       tags:
       - orders
+    put:
+      consumes:
+      - application/json
+      description: Update order details and synchronize improvements back to Shopify.
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Updated order data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/mi-tech_internal_dto.OrderUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update order
+      tags:
+      - orders
+  /orders/detail:
+    get:
+      description: Retrieve full details for a specific order, including line items.
+      parameters:
+      - description: Order ID (Internal or External)
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get order details
+      tags:
+      - orders
   /orders/invoice:
     get:
       description: Generate and download a GST invoice PDF for an order
@@ -130,6 +1315,23 @@ paths:
           schema:
             type: file
       summary: Generate invoice PDF
+      tags:
+      - orders
+  /orders/sources:
+    get:
+      description: Retrieve a list of all unique platforms from which orders originated
+        (e.g., Shopify, Amazon, POS).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List order sources
       tags:
       - orders
   /orders/status:
@@ -160,6 +1362,124 @@ paths:
       summary: Update order status
       tags:
       - orders
+  /reports/gst:
+    get:
+      description: Aggregate revenue, taxable values, and tax splits (CGST/SGST/IGST)
+        for a date range.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: GST Summary Report
+      tags:
+      - reports
+  /reports/hsn:
+    get:
+      description: Detailed breakdown of taxes and sales grouped by HSN code.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: HSN-wise Summary Report
+      tags:
+      - reports
+  /reports/state:
+    get:
+      description: Breakdown of revenue and taxes grouped by customer state.
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: State-wise Summary Report
+      tags:
+      - reports
+  /settings:
+    put:
+      consumes:
+      - application/json
+      description: Update a specific setting key. Required 'admin' role.
+      parameters:
+      - description: Setting key-value
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update application setting
+      tags:
+      - settings
+  /settings/date-range:
+    get:
+      description: Retrieve the start and end dates used for filtering dashboard and
+        report data.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get global date range
+      tags:
+      - settings
   /shopify/reset:
     post:
       consumes:
@@ -180,7 +1500,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Fetch and sync orders from Shopify within a date range
+      description: Fetch and update orders from Shopify for a specific date range.
       parameters:
       - description: Start date (YYYY-MM-DD)
         in: query
@@ -203,7 +1523,153 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Sync orders from Shopify
+      security:
+      - Bearer: []
+      summary: Sync Shopify orders
       tags:
       - sync
+  /system/docs:
+    get:
+      description: Retrieve a list of all available documentation files in the /docs
+        directory.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/mi-tech_internal_service.Document'
+            type: array
+      security:
+      - Bearer: []
+      summary: List documentation slugs
+      tags:
+      - discovery
+  /system/docs/{slug}:
+    get:
+      description: Fetch the raw Markdown content of a documentation file by its slug.
+      parameters:
+      - description: Document slug (e.g. api-auth)
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - text/markdown
+      responses:
+        "200":
+          description: Markdown content
+          schema:
+            type: string
+        "404":
+          description: Document not found
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Get document content
+      tags:
+      - discovery
+  /t/{id}:
+    get:
+      description: Redirects the user to the carrier's tracking page based on the
+        order ID.
+      parameters:
+      - description: Order ID or Number
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "307":
+          description: Redirect
+          schema:
+            type: string
+      summary: Order tracking redirect
+      tags:
+      - system
+  /users:
+    get:
+      description: Retrieve a list of all users. Required 'admin' role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with a specified role. Required 'admin' role.
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Create user
+      tags:
+      - users
+  /webhook/status:
+    get:
+      description: Check the status of the last received webhook and its processing
+        state.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Webhook Health Status
+      tags:
+      - webhooks
+  /webhooks/shopify:
+    post:
+      consumes:
+      - application/json
+      description: Secure endpoint for Shopify to push real-time order, fulfillment,
+        and customer updates.
+      parameters:
+      - description: Webhook Topic (e.g., orders/create)
+        in: header
+        name: X-Shopify-Topic
+        required: true
+        type: string
+      - description: HMAC Signature
+        in: header
+        name: X-Shopify-Hmac-Sha256
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Shopify Webhook Ingestion
+      tags:
+      - webhooks
 swagger: "2.0"

@@ -22,6 +22,9 @@ You must be aware of your team's specific strengths and boundaries:
 | **[integration-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/integration-sk/SKILL.md)** | Technical Integration Engineer | Designing resilient 3rd-party integrations, documentation analysis, and asynchronous architecture. |
 | **[metrics-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/metrics-sk/SKILL.md)** | Data & Analytics Strategist | Profit-driven metrics, funnel optimization, and growth-focused dashboards. |
 | **[docs-fetcher-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/docs-fetcher-sk/SKILL.md)** | Documentation Specialist | Fetching, cleaning, and structuring 3rd-party API documentation and SDK guides. |
+| **[security-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/security-sk/SKILL.md)** | Security Analyst | Identifying vulnerabilities, auditing auth/API/infra, and enforcing secure practices. |
+| **[devops-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/devops-sk/SKILL.md)** | Pragmatic DevOps | Managing infrastructure, CI/CD, deployments, and system reliability within budget. |
+| **[logs-specialist](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/logs-specialist/SKILL.md)** | Log Analysis Specialist | Identifying root causes of failures, performance bottlenecks, or suspicious patterns in deep trace logs. |
 
 ## Core Responsibilities
 

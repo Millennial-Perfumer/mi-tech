@@ -39,7 +39,7 @@ func (p *SettingsProvider) GetWhatsAppPhoneNumberID() string {
 }
 
 func (p *SettingsProvider) GetWhatsAppAccessToken() string {
-	return p.get("whatsapp_access_token")
+	return p.GetMetaSystemUserToken()
 }
 
 func (p *SettingsProvider) GetWhatsAppWABAID() string {
@@ -110,8 +110,12 @@ func (p *SettingsProvider) GetBulkTemplateSuffix() string {
 	return s
 }
 
+func (p *SettingsProvider) GetMetaSystemUserToken() string {
+	return p.get("meta_system_user_token")
+}
+
 func (p *SettingsProvider) GetMetaMarketingAccessToken() string {
-	return p.get("meta_marketing_access_token")
+	return p.GetMetaSystemUserToken()
 }
 
 func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
@@ -120,4 +124,24 @@ func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
 
 func (p *SettingsProvider) GetMetaMarketingWebhookVerifyToken() string {
 	return p.get("meta_marketing_webhook_verify_token")
+}
+
+func (p *SettingsProvider) GetMetaAppID() string {
+	return p.get("meta_app_id")
+}
+
+func (p *SettingsProvider) GetMetaAppSecret() string {
+	return p.get("meta_app_secret")
+}
+
+func (p *SettingsProvider) GetFacebookPageID() string {
+	return p.get("facebook_page_id")
+}
+
+func (p *SettingsProvider) GetInstagramBusinessID() string {
+	return p.get("instagram_business_id")
+}
+
+func (p *SettingsProvider) GetThreadsUserID() string {
+	return p.get("threads_user_id")
 }

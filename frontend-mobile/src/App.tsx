@@ -1,116 +1,91 @@
-import { useState, useEffect } from 'react';
-import './App.css';
-import { Dashboard } from './modules/Dashboard';
-import { Orders } from './modules/Orders';
-import { Customers } from './modules/Customers';
-import { GSTReports } from './modules/GSTReports';
-import { Settings } from './modules/Settings';
+import { useState } from 'react'
+import { 
+  Home, 
+  Package, 
+  FileText, 
+  Zap, 
+  Users,
+  Settings as LucideSettings
+} from 'lucide-react'
+import { useAuthStore } from './store/useAuthStore'
 
-const App = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('mobileAppTheme') as 'light' | 'dark') || 'light';
-  });
-  const [isNavOpen, setIsNavOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+import { Login } from './pages/Login'
+import { Dashboard } from './pages/Dashboard'
+import { Orders } from './pages/Orders'
+import { Customers } from './pages/Customers'
+import { Marketing } from './pages/Marketing'
+import { Automation } from './pages/Automation'
+import { Settings } from './pages/Settings'
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('mobileAppTheme', theme);
-  }, [theme]);
+function App() {
+  const [activeTab, setActiveTab] = useState('home')
+  const { token } = useAuthStore()
 
-  useEffect(() => {
-    if (isNavOpen) {
-      document.body.classList.add('scroll-lock');
-    } else {
-      document.body.classList.remove('scroll-lock');
+  if (!token) {
+    return <Login />
+  }
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return <Dashboard />
+      case 'orders':
+        return <Orders />
+      case 'crm':
+        return <Customers />
+      case 'marketing':
+        return <Marketing />
+      case 'auto':
+        return <Automation />
+      case 'more':
+        return <Settings />
+      default:
+        return (
+          <div style={{ textAlign: 'center', marginTop: '50%' }}>
+            <h1>{activeTab.toUpperCase()}</h1>
+            <p>Coming Soon</p>
+          </div>
+        )
     }
-  }, [isNavOpen]);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-    { id: 'orders', label: 'Orders', icon: '📦' },
-    { id: 'customers', label: 'Customers', icon: '👥' },
-    { id: 'gst', label: 'GST Reports', icon: '📄' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
-  ];
-
-  const handleNavClick = (id: string) => {
-    setActiveTab(id);
-    setIsNavOpen(false);
-  };
+  }
 
   return (
-    <div className="app-shell">
-      {isOffline && (
-        <div className="offline-banner">
-          📶 Poor connection. Some data may be outdated.
-        </div>
-      )}
-
-      <header className="sticky-header">
-        <div className="header-content">
-          <div className="logo">GST Admin</div>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={toggleTheme} aria-label="Toggle theme">
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-            <button className="icon-btn menu-trigger" onClick={() => setIsNavOpen(true)} aria-label="Open navigation">
-              ☰
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="main-content tab-content-fade" key={activeTab}>
-        {activeTab === 'dashboard' && <Dashboard />}
-        {activeTab === 'orders' && <Orders />}
-        {activeTab === 'customers' && <Customers />}
-        {activeTab === 'gst' && <GSTReports />}
-        {activeTab === 'settings' && <Settings />}
+    <div className="mobile-shell">
+      <main className="main-scroll">
+        {renderContent()}
       </main>
 
-      {/* Navigation Overlay */}
-      {isNavOpen && (
-        <div className="nav-overlay glass-blur" onClick={() => setIsNavOpen(false)}>
-          <div className="nav-container" onClick={e => e.stopPropagation()}>
-            <div className="nav-header">
-              <div className="logo">GST Admin</div>
-              <button className="icon-btn" onClick={() => setIsNavOpen(false)}>✕</button>
-            </div>
-            <div className="nav-grid">
-              {navItems.map((item, index) => (
-                <button
-                  key={item.id}
-                  className={`nav-card nav-item-stagger ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => handleNavClick(item.id)}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <span className="nav-card-icon">{item.icon}</span>
-                  <span className="nav-card-label">{item.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <nav className="bottom-nav glass-panel">
+        {[
+          { id: 'home', icon: Home, label: 'Home' },
+          { id: 'orders', icon: Package, label: 'Orders' },
+          { id: 'crm', icon: Users, label: 'CRM' },
+          { id: 'marketing', icon: FileText, label: 'Meta' },
+          { id: 'auto', icon: Zap, label: 'Auto' },
+          { id: 'more', icon: LucideSettings, label: 'More' }
+        ].map((item) => (
+          <button 
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            style={{ 
+              flexDirection: 'column', 
+              color: activeTab === item.id ? 'var(--accent-color)' : 'var(--text-tertiary)',
+              gap: '4px',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <item.icon size={20} />
+            <span style={{ fontSize: '10px', fontWeight: 600 }}>{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
-  );
-};
+  )
+}
 
-export default App;
+export default App

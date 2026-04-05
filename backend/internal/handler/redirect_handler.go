@@ -14,6 +14,13 @@ func NewRedirectHandler(orderRepo repository.OrderRepository) *RedirectHandler {
 	return &RedirectHandler{orderRepo: orderRepo}
 }
 
+// RedirectTracking handles GET /t/{id}.
+// @Summary Order tracking redirect
+// @Description Redirects the user to the carrier's tracking page based on the order ID.
+// @Tags system
+// @Param id path string true "Order ID or Number"
+// @Success 307 {string} string "Redirect"
+// @Router /t/{id} [get]
 func (h *RedirectHandler) RedirectTracking(w http.ResponseWriter, r *http.Request) {
 	// Expected URL: /t/ORDER_ID
 	id := strings.TrimPrefix(r.URL.Path, "/t/")

@@ -86,7 +86,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      background: 'radial-gradient(circle at top right, #1e293b, #0f172a, #020617)',
+      background: 'var(--bg-color)',
       padding: '1.5rem',
       position: 'relative',
       overflow: 'hidden'
@@ -104,17 +104,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         WebkitBackdropFilter: 'blur(24px)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '28px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        boxShadow: 'var(--shadow-lg)',
         textAlign: 'center',
         zIndex: 2,
         animation: 'fadeIn 0.6s ease-out'
       }}>
-        <img src={fullLogoDark} alt="mi-tech" style={{ width: 'min(180px, 60vw)', marginBottom: '2rem', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.1))' }} />
+        <img src={fullLogoDark} alt="mi-tech" style={{ width: 'min(180px, 60vw)', marginBottom: '2rem' }} />
         
         {!is2FARequired ? (
           <>
-            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>Welcome Back</h2>
-            <p style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
+            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Welcome Back</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
               Please enter your credentials to continue.
             </p>
 
@@ -171,14 +171,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               {error && (
                 <div style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                  color: '#ef4444',
+                  backgroundColor: 'var(--status-danger-bg)',
+                  color: 'var(--status-danger)',
                   padding: '0.75rem',
                   borderRadius: '8px',
                   fontSize: '0.875rem',
                   marginBottom: '1.5rem',
                   textAlign: 'center',
-                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                  border: '1px solid var(--status-danger-bg)'
                 }}>
                   {error}
                 </div>
@@ -194,9 +194,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   fontWeight: 600,
                   borderRadius: '14px',
                   marginTop: '1rem',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  border: 'none',
-                  boxShadow: '0 8px 20px -4px rgba(14, 165, 233, 0.4)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
                 disabled={loading}
@@ -207,8 +204,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </>
         ) : (
           <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 700, color: '#fff' }}>Verify Identity</h2>
-            <p style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
+            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>Verify Identity</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', fontSize: '0.95rem' }}>
               We've sent a 6-digit verification code to your registered WhatsApp number.
             </p>
 
@@ -237,14 +234,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
               {error && (
                 <div style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                  color: '#ef4444',
+                  backgroundColor: 'var(--status-danger-bg)',
+                  color: 'var(--status-danger)',
                   padding: '0.75rem',
                   borderRadius: '8px',
                   fontSize: '0.875rem',
                   marginBottom: '1.5rem',
                   textAlign: 'center',
-                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                  border: '1px solid var(--status-danger-bg)'
                 }}>
                   {error}
                 </div>
@@ -259,9 +256,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   fontSize: '1rem', 
                   fontWeight: 600,
                   borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  border: 'none',
-                  boxShadow: '0 8px 20px -4px rgba(16, 185, 129, 0.4)',
                   transition: 'all 0.3s ease'
                 }}
                 disabled={loading}
@@ -275,7 +269,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   marginTop: '1.5rem',
-                  color: 'rgba(255, 255, 255, 0.4)',
+                  color: 'var(--text-tertiary)',
                   fontSize: '0.875rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -294,7 +288,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         )}
       </div>
       
-      <p style={{ marginTop: '2.5rem', color: 'rgba(255, 255, 255, 0.3)', fontSize: '0.85rem', zIndex: 2 }}>
+      <p style={{ marginTop: '2.5rem', color: 'var(--text-tertiary)', fontSize: '0.85rem', zIndex: 2 }}>
           &copy; {new Date().getFullYear()} mi-tech. All rights reserved.
       </p>
     </div>

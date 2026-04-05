@@ -1,10 +1,13 @@
-.PHONY: install install-frontend install-backend run frontend backend build build-frontend build-backend clean db-up db-down
+.PHONY: install install-frontend install-frontend-mobile install-backend run frontend frontend-mobile backend build build-frontend build-backend clean db-up db-down
 
 # Install dependencies for both frontend and backend
-install: install-frontend install-backend
+install: install-frontend install-frontend-mobile install-backend
 
 install-frontend:
 	cd frontend && npm install
+
+install-frontend-mobile:
+	cd frontend-mobile && npm install
 
 install-backend:
 	cd backend && go mod download
@@ -27,6 +30,9 @@ db-down:
 frontend:
 	cd frontend && npm run dev
 
+frontend-mobile:
+	cd frontend-mobile && npm run dev
+
 backend:
 	cd backend && go run github.com/air-verse/air@latest -c .air.toml
 
@@ -43,4 +49,6 @@ build-backend:
 clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
+	rm -rf frontend-mobile/dist
+	rm -rf frontend-mobile/node_modules
 	rm -rf backend/bin

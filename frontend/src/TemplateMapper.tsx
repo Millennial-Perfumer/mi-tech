@@ -178,7 +178,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Body Parameters</h3>
                 {Array.from({ length: bodyVarCount }).map((_, i) => (
                   <div key={`body_${i+1}`} className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <label style={{ margin: 0, fontWeight: 600, color: '#10b981' }}>{`{{${i+1}}}`}</label>
+                    <label style={{ margin: 0, fontWeight: 600, color: 'var(--status-active)' }}>{`{{${i+1}}}`}</label>
                     <select 
                       value={mappings[`body_text_0_{{${i+1}}}`] || ''}
                       onChange={(e) => handleMappingChange(`body_text_0_{{${i+1}}}`, e.target.value)}
@@ -253,25 +253,26 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
             border: '4px solid var(--border-color)'
           }}>
             {/* Status Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 20px 8px', color: 'white', fontSize: '0.7rem', fontWeight: 600 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 20px 8px', color: 'var(--text-tertiary)', fontSize: '0.7rem', fontWeight: 600 }}>
               <span>12:45</span>
               <div style={{ display: 'flex', gap: '4px' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 21l-12-18h24z"/></svg>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M13 3h-2v10h2v-10zm4.846 1.55l-1.414 1.414c1.111 1.111 1.8 2.644 1.8 4.336 0 3.397-2.753 6.15-6.15 6.15s-6.15-2.753-6.15-6.15c0-1.692.689-3.225 1.8-4.336l-1.414-1.414c-1.478 1.478-2.386 3.518-2.386 5.75 0 4.562 3.688 8.25 8.25 8.25s8.25-3.688 8.25-8.25c0-2.232-.908-4.272-2.386-5.75z"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--text-tertiary)"><path d="M12 21l-12-18h24z"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--text-tertiary)"><path d="M13 3h-2v10h2v-10zm4.846 1.55l-1.414 1.414c1.111 1.111 1.8 2.644 1.8 4.336 0 3.397-2.753 6.15-6.15 6.15s-6.15-2.753-6.15-6.15c0-1.692.689-3.225 1.8-4.336l-1.414-1.414c-1.478 1.478-2.386 3.518-2.386 5.75 0 4.562 3.688 8.25 8.25 8.25s8.25-3.688 8.25-8.25c0-2.232-.908-4.272-2.386-5.75z"/></svg>
               </div>
             </div>
             
             <div style={{ 
-              backgroundColor: '#0b141a', 
+              backgroundColor: 'var(--bg-sidebar)', 
             borderRadius: '24px', 
             padding: '1rem', 
             backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', 
             backgroundSize: 'cover',
             opacity: 0.95,
-            minHeight: '400px'
+            minHeight: '400px',
+            border: '1px solid var(--border-color)'
           }}>
             <div style={{ position: 'relative', maxWidth: '90%' }}>
-              <div style={{ backgroundColor: '#005c4b', borderRadius: '8px 8px 8px 0', overflow: 'hidden', boxShadow: '0 1px 1px rgba(0,0,0,0.15)' }}>
+              <div style={{ backgroundColor: 'var(--status-active)', borderRadius: '8px 8px 8px 0', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                   
                   {headerType !== 'NONE' && headerType !== 'TEXT' && (
                     <div style={{ backgroundColor: 'var(--bg-input)', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -281,14 +282,14 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                   
                   <div style={{ padding: '8px 12px' }}>
                     {headerType === 'TEXT' && (
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px', color: 'var(--text-tertiary)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px', color: 'white', opacity: 0.9 }}>
                         {headerText.replace(/\{\{(\d+)\}\}/g, (match, id) => {
                           const mappedVar = mappings[`header_text_0_{{${id}}}`];
                           return mappedVar ? `[${availableVariables.find(v => v.value === mappedVar)?.label || mappedVar}]` : match;
                         })}
                       </div>
                     )}
-                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: 'var(--text-tertiary)', lineHeight: '1.4' }}>
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: 'white', lineHeight: '1.4' }}>
                       {template.body.replace(/\{\{(\d+)\}\}/g, (match, id) => {
                         const mappedVar = mappings[`body_text_0_{{${id}}}`];
                         return mappedVar ? `[${availableVariables.find(v => v.value === mappedVar)?.label || mappedVar}]` : match;
@@ -299,9 +300,9 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                   </div>
 
                   {buttons.length > 0 && (
-                    <div style={{ borderTop: '1px solid #f0f2f5' }}>
+                    <div style={{ borderTop: '1px solid var(--border-color)', background: 'var(--surface-color)' }}>
                       {buttons.map((b, idx) => (
-                        <div key={idx} style={{ padding: '8px', textAlign: 'center', color: '#34b7f1', fontSize: '0.85rem', fontWeight: 600, borderBottom: idx < buttons.length - 1 ? '1px solid #f0f2f5' : 'none', cursor: 'pointer' }}>
+                        <div key={idx} style={{ padding: '8px', textAlign: 'center', color: 'var(--accent-color)', fontSize: '0.85rem', fontWeight: 600, borderBottom: idx < buttons.length - 1 ? '1px solid var(--border-color)' : 'none', cursor: 'pointer' }}>
                           {b.type === 'visit_website' && (b.url || '').includes('{{1}}') ? (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
@@ -315,8 +316,8 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                     </div>
                   )}
                 </div>
-                {/* SVG Bubble Tail */}
-                <svg style={{ position: 'absolute', left: '-8px', bottom: '0', color: '#005c4b' }} width="8" height="13" viewBox="0 0 8 13">
+                  {/* SVG Bubble Tail */}
+                <svg style={{ position: 'absolute', left: '-8px', bottom: '0', color: 'var(--status-active)' }} width="8" height="13" viewBox="0 0 8 13">
                   <path fill="currentColor" d="M1.533 3.568L8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
                 </svg>
               </div>

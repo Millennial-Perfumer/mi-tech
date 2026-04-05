@@ -18,9 +18,8 @@ import (
 
 // CORSMiddleware adds CORS headers to all requests.
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
-
 	return func(w http.ResponseWriter, r *http.Request) {
+		allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
 		origin := r.Header.Get("Origin")
 		isAllowed := false
 
@@ -31,18 +30,26 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 					break
 				}
 			}
+		} else {
+			// If no origin, we can consider it a direct request or same-origin
+			isAllowed = true
 		}
 
 		if isAllowed {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
+		} else if origin != "" {
+			log.Printf("CORS: Origin %s not allowed (Allowed: %v)", origin, allowedOrigins)
 		}
 
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+			if isAllowed {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				w.WriteHeader(http.StatusForbidden)
+			}
 			return
 		}
 
