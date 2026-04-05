@@ -3,14 +3,17 @@ package config
 import (
 	"log"
 	"os"
-	"mi-tech/internal/repository"
 )
 
-type SettingsProvider struct {
-	configsRepo *repository.ConfigsRepository
+type ConfigsRepository interface {
+	Get(key string) (string, error)
 }
 
-func NewSettingsProvider(configsRepo *repository.ConfigsRepository) *SettingsProvider {
+type SettingsProvider struct {
+	configsRepo ConfigsRepository
+}
+
+func NewSettingsProvider(configsRepo ConfigsRepository) *SettingsProvider {
 	return &SettingsProvider{configsRepo: configsRepo}
 }
 

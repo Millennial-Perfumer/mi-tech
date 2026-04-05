@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -174,21 +175,31 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
-		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+		query := r.URL.Query()
+		mode := query.Get("hub.mode")
+		token := query.Get("hub.verify_token")
+		challenge := query.Get("hub.challenge")
+
+		expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+
+		if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+		http.Error(w, "Verification failed", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
 	if r.Method == http.MethodPost {
+		// Security: Limit body size to 1MB to prevent memory exhaustion
+		r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 		// Read body for both validation and unmarshaling
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("Error reading WhatsApp webhook body: %v", err)
-			http.Error(w, "Failed to read body", http.StatusInternalServerError)
+			http.Error(w, "Request body too large or failed to read", http.StatusRequestEntityTooLarge)
 			return
 		}
 		defer r.Body.Close()
