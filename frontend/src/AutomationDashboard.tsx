@@ -159,18 +159,13 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
         }
       `}</style>
       {/* KPI Grid */}
-      <div className="metrics-grid" style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        <MetricCard title="Messages Sent" value={metrics?.sent || 0} />
-        <MetricCard title="Messages Delivered" value={metrics?.delivered || 0} />
-        <MetricCard title="Messages Read" value={metrics?.read || 0} />
-        <MetricCard title="Read Rate" value={`${(metrics?.read_rate || 0).toFixed(1)}%`} />
-        <MetricCard title="Triggers Executed" value={metrics?.triggered || 0} />
-        <MetricCard title="Failed Messages" value={metrics?.failed || 0} color="#ef4444" />
+      <div className="metrics-grid">
+        <MetricCard title="Messages Sent" value={metrics?.sent || 0} iconClass="metric-icon-1" icon={<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>} />
+        <MetricCard title="Messages Delivered" value={metrics?.delivered || 0} iconClass="metric-icon-2" icon={<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>} />
+        <MetricCard title="Messages Read" value={metrics?.read || 0} iconClass="metric-icon-3" icon={<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>} />
+        <MetricCard title="Read Rate" value={`${(metrics?.read_rate || 0).toFixed(1)}%`} iconClass="metric-icon-1" icon={<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>} />
+        <MetricCard title="Triggers Executed" value={metrics?.triggered || 0} iconClass="metric-icon-5" icon={<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>} />
+        <MetricCard title="Failed Messages" value={metrics?.failed || 0} color="#ef4444" iconClass="metric-icon-4" icon={<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>} />
       </div>
 
       {/* Recent Activity */}
@@ -224,11 +219,12 @@ export function AutomationDashboard({ fetchWithAuth, startDate, endDate, onDateC
   );
 }
 
-function MetricCard({ title, value, color }: { title: string, value: string | number, color?: string }) {
+function MetricCard({ title, value, color, icon, iconClass }: { title: string, value: string | number, color?: string, icon?: React.ReactNode, iconClass?: string }) {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{title}</span>
-      <span style={{ fontSize: '1.5rem', fontWeight: 700, color: color || 'var(--text-primary)' }}>{value}</span>
+    <div className="metric-card">
+      {icon && <div className={`metric-icon ${iconClass || 'metric-icon-1'}`}>{icon}</div>}
+      <div className="metric-label">{title}</div>
+      <div className="metric-value" style={{ color: color || 'var(--text-primary)' }}>{value}</div>
     </div>
   );
 }
