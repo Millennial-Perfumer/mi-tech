@@ -185,7 +185,7 @@ func (s *TemplatesService) mapToMetaComponents(req CreateTemplateRequest) ([]map
 				}
 				btn["url"] = url
 				if strings.Contains(url, "{{1}}") {
-					btn["example"] = []string{"https://www.delhivery.com/track/package/123456"}
+					btn["example"] = []string{"https://www.example.com/track/123456"}
 				}
 			case "call_phone":
 				btn["type"] = "PHONE_NUMBER"

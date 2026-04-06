@@ -34,6 +34,7 @@ func RegisterRoutes(
 	marketingWebhookHandler *handler.MarketingWebhookHandler,
 	systemHandler *handler.SystemHandler,
 	smmHandler *handler.SMMHandler,
+	plannerHandler *handler.PlannerHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -57,14 +58,14 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/meta/adsets", protected(marketingHandler.GetMetaAdSets))
 	mux.HandleFunc("/api/marketing/meta/ads", protected(marketingHandler.GetMetaAds))
 	mux.HandleFunc("/api/marketing/meta/webhook", marketingWebhookHandler.MetaWebhook)
-	
+
 	// Social Media Management (SMM) Routes
 	mux.HandleFunc("/api/marketing/smm/overview", protected(smmHandler.GetOverview))
 	mux.HandleFunc("/api/marketing/smm/health", protected(smmHandler.CheckHealth))
 	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
 	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
 	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
-	
+
 	log.Println("DEBUG: Marketing & SMM Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
@@ -234,4 +235,34 @@ func RegisterRoutes(
 	// --- Knowledge API (System Docs) ---
 	mux.HandleFunc("/api/system/docs", protected(systemHandler.ListDocs))
 	mux.HandleFunc("/api/system/docs/", protected(systemHandler.GetDoc))
+
+	// --- Planner Routes ---
+	mux.HandleFunc("/api/planner/boards", protected(plannerHandler.GetBoards))
+	mux.HandleFunc("/api/planner/tasks", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(plannerHandler.CreateTask)(w, r)
+		case http.MethodPut:
+			adminProtected(plannerHandler.UpdateTask)(w, r)
+		case http.MethodDelete:
+			adminProtected(plannerHandler.DeleteTask)(w, r)
+		default:
+			plannerHandler.GetTasks(w, r)
+		}
+	}))
+	mux.HandleFunc("/api/planner/tasks/move", adminProtected(plannerHandler.MoveTask))
+	mux.HandleFunc("/api/planner/sprints", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(plannerHandler.CreateSprint)(w, r)
+		case http.MethodPut:
+			adminProtected(plannerHandler.UpdateSprint)(w, r)
+		case http.MethodDelete:
+			adminProtected(plannerHandler.DeleteSprint)(w, r)
+		default:
+			plannerHandler.GetSprints(w, r)
+		}
+	}))
+	mux.HandleFunc("/api/planner/analytics", protected(plannerHandler.GetAnalytics))
+	
 }
