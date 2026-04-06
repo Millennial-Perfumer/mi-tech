@@ -43,7 +43,7 @@ interface OrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string | number;
-  fetchWithAuth: (url: string, options?: RequestInit) => Promise<any>;
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   userRole?: string;
   onOrderUpdated?: () => void;
 }
@@ -61,12 +61,14 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [formData, setFormData] = useState<Partial<Order>>({});
 
   useEffect(() => {
     if (isOpen && orderId) {
       fetchOrderDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, orderId]);
 
   const fetchOrderDetails = async () => {
@@ -81,6 +83,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         error('Failed to fetch order details');
       }
     } catch (err) {
+      console.error('Fetch order details error:', err);
       error('An error occurred while fetching order details');
     } finally {
       setIsLoading(false);
@@ -125,9 +128,37 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         error(result.message || 'Failed to update order');
       }
     } catch (err) {
+      console.error('Save order error:', err);
       error('An error occurred while saving changes');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+    setIsDownloading(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/invoice?id=${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${order.order_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      success('Invoice download started');
+    } catch (err) {
+      console.error('Download error:', err);
+      error('Failed to download invoice. Please try again.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -136,6 +167,30 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="premium-modal order-details-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
+        <button
+          onClick={onClose}
+          aria-label="Close modal"
+          title="Close"
+          style={{
+            position: 'absolute',
+            top: '1.5rem',
+            right: '1.5rem',
+            background: 'var(--bg-input)',
+            border: 'none',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-secondary)',
+            zIndex: 10
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+
         <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, var(--accent-color), var(--status-active))' }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
@@ -180,6 +235,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <button 
                       className="btn-icon-minimal" 
                       onClick={() => setIsEditing(!isEditing)}
+                      aria-label={isEditing ? "Cancel editing customer details" : "Edit customer details"}
                       title={isEditing ? "Cancel Edit" : "Edit Customer Details"}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -382,16 +438,19 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               ) : 'Save Changes'}
             </button>
           )}
-          {!isEditing && !isLoading && (
+          {!isEditing && !isLoading && order && (
              <button 
                className="btn-primary" 
-               onClick={() => {
-                 // Trigger invoice download
-                 const downloadUrl = `/api/orders/invoice?id=${orderId}`;
-                 window.open(downloadUrl, '_blank');
-               }}
+               onClick={handleDownloadInvoice}
+               disabled={isDownloading}
+               style={{ minWidth: '200px' }}
              >
-                Download GST Invoice
+                {isDownloading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                    <div className="loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', marginBottom: 0 }}></div>
+                    Generating...
+                  </span>
+                ) : 'Download GST Invoice'}
              </button>
           )}
         </div>
