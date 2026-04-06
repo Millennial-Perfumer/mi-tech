@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -118,7 +118,8 @@ function App() {
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
-  const userRole = token ? (() => {
+  const userRole = useMemo(() => {
+    if (!token) return 'read';
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload?.role || 'read';
@@ -126,8 +127,8 @@ function App() {
       console.error('Error parsing token:', err);
       return 'read';
     }
-  })() : 'read';
-  
+  }, [token]);
+
   useEffect(() => {
     console.log('Current userRole:', userRole);
   }, [userRole]);
@@ -137,12 +138,12 @@ function App() {
     setToken(newToken);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
-  };
+  }, []);
 
-  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const fetchWithAuth = useCallback(async (url: string, options: RequestInit = {}) => {
     const headers = {
       ...options.headers,
       'Authorization': `Bearer ${token}`
@@ -152,7 +153,7 @@ function App() {
       handleLogout();
     }
     return response;
-  };
+  }, [token, handleLogout]);
 
   useEffect(() => {
     localStorage.setItem('gstAppActiveTab', activeTab);
@@ -291,7 +292,7 @@ function App() {
     }
   };
 
-  const fetchAppSettings = async () => {
+  const fetchAppSettings = useCallback(async () => {
     if (!token) return;
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/settings`);
@@ -302,9 +303,9 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch app settings:', err);
     }
-  };
+  }, [token, fetchWithAuth]);
 
-  const fetchAppConfigs = async () => {
+  const fetchAppConfigs = useCallback(async () => {
     if (!token) return;
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/configs`);
@@ -319,7 +320,7 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch app configs:', err);
     }
-  };
+  }, [token, fetchWithAuth]);
 
 
   // Dedicated effect for settings - only on mount or token change
@@ -328,13 +329,16 @@ function App() {
       fetchAppSettings();
       fetchAppConfigs();
     }
-  }, [token]);
+  }, [token, fetchAppSettings, fetchAppConfigs]);
 
-  const fetchDashboardData = async (silent = false, force = false) => {
+  const fetchDashboardData = useCallback(async (silent = false, force = false) => {
     if (!token) return;
     
     // Only fetch dashboard/orders data if specifically on those tabs (unless forced)
-    if (!force && activeTab !== 'dashboard' && activeTab !== 'shopify') {
+    const isDashboardTab = activeTab === 'dashboard';
+    const isOrdersTab = activeTab === 'shopify';
+
+    if (!force && !isDashboardTab && !isOrdersTab) {
       return;
     }
 
@@ -352,30 +356,41 @@ function App() {
         const [y, m, d] = endDate.split('-').map(Number);
         endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
       }
-      
-      const metricsRes = await fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
-      const metricsData = await metricsRes.json();
-      
-      if (metricsData.success) {
-        setMetrics(metricsData.metrics);
+
+      const promises: Promise<any>[] = [];
+
+      // ⚡ Bolt Optimization: Parallelize requests and implement conditional fetching
+      if (isDashboardTab || force) {
+        promises.push(
+          fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`)
+            .then(res => res.json())
+            .then(data => { if (data.success) setMetrics(data.metrics); })
+        );
       }
 
-      const ordersRes = await fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
-      const ordersData = await ordersRes.json();
-      if (ordersData.success) {
-        setOrders(ordersData.orders);
-        setTotalCount(ordersData.total_count);
+      if (isOrdersTab || force) {
+        promises.push(
+          fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                setOrders(data.orders);
+                setTotalCount(data.total_count);
+              }
+            }),
+          fetchWithAuth(`${API_BASE}/api/webhook/status`)
+            .then(res => res.json())
+            .then(data => setWebhookStatus(data))
+        );
       }
 
-      const webhookRes = await fetchWithAuth(`${API_BASE}/api/webhook/status`);
-      const webhookData = await webhookRes.json();
-      setWebhookStatus(webhookData);
+      await Promise.all(promises);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, activeTab, startDate, endDate, page, limit, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder, fetchWithAuth]);
 
   const syncShopify = async () => {
     setIsSyncing(true);
@@ -448,7 +463,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [fetchDashboardData]);
 
   const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {

@@ -71,6 +71,14 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
   const [loading, setLoading] = useState(!summary);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // ⚡ Bolt Optimization: Clear stale data when date range or refresh trigger changes
+  useEffect(() => {
+    setSummary(null);
+    setStateData([]);
+    setHsnData([]);
+    setDocsData([]);
+  }, [startDate, endDate, refreshTrigger]);
+
   // Sorting State
   const [sortField, setSortField] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -129,32 +137,51 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
           endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
         }
 
-        const [sumRes, stateRes, hsnRes, docsRes] = await Promise.all([
-          fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
-        ]);
+        const promises: Promise<any>[] = [];
 
-        const sumData = await sumRes.json();
-        const sData = await stateRes.json();
-        const hData = await hsnRes.json();
-        const dData = await docsRes.json();
-
-        if (sumData.success) {
-          setSummary(sumData.summary);
-          setOpSummary([
-            { metric: 'Total Orders', count: sumData.summary.total_orders },
-            { metric: 'Cancelled Orders', count: sumData.summary.cancelled_orders },
-            { metric: 'Fulfilled Orders', count: sumData.summary.fulfilled_orders },
-            { metric: 'Unfulfilled Orders', count: sumData.summary.unfulfilled_orders },
-            { metric: 'Paid Orders', count: sumData.summary.paid_orders },
-            { metric: 'Invoices Generated', count: sumData.summary.invoices_generated }
-          ]);
+        // ⚡ Bolt Optimization: Conditional fetching for GST reports
+        // Always fetch summary if not loaded, or if refreshing
+        if (!summary || isRefreshing || activeSubTab === 'summary') {
+          promises.push(
+            fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`)
+              .then(res => res.json())
+              .then(sumData => {
+                if (sumData.success) {
+                  setSummary(sumData.summary);
+                  setOpSummary([
+                    { metric: 'Total Orders', count: sumData.summary.total_orders },
+                    { metric: 'Cancelled Orders', count: sumData.summary.cancelled_orders },
+                    { metric: 'Fulfilled Orders', count: sumData.summary.fulfilled_orders },
+                    { metric: 'Unfulfilled Orders', count: sumData.summary.unfulfilled_orders },
+                    { metric: 'Paid Orders', count: sumData.summary.paid_orders },
+                    { metric: 'Invoices Generated', count: sumData.summary.invoices_generated }
+                  ]);
+                }
+              })
+          );
         }
-        if (sData.success) setStateData(sData.data || []);
-        if (hData.success) setHsnData(hData.data || []);
-        if (dData.success) setDocsData(dData.data || []);
+
+        if (activeSubTab === 'state') {
+          promises.push(
+            fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`)
+              .then(res => res.json())
+              .then(sData => { if (sData.success) setStateData(sData.data || []); })
+          );
+        } else if (activeSubTab === 'hsn') {
+          promises.push(
+            fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`)
+              .then(res => res.json())
+              .then(hData => { if (hData.success) setHsnData(hData.data || []); })
+          );
+        } else if (activeSubTab === 'documents') {
+          promises.push(
+            fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
+              .then(res => res.json())
+              .then(dData => { if (dData.success) setDocsData(dData.data || []); })
+          );
+        }
+
+        await Promise.all(promises);
       } catch (err) {
         console.error('Failed to fetch reports:', err);
       } finally {
@@ -164,7 +191,8 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     };
 
     fetchReports();
-  }, [startDate, endDate, fetchWithAuth, refreshTrigger]);
+    // ⚡ Bolt Optimization: summary and isRefreshing removed to avoid infinite loop
+  }, [startDate, endDate, fetchWithAuth, refreshTrigger, activeSubTab]);
 
   const downloadCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;
