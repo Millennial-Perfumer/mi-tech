@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-05-20 - [Timing Attack and DoS Vulnerabilities in Webhook Handlers]
+**Vulnerability:** Webhook handlers used simple string comparison for secrets/tokens and lacked request body size limits.
+**Learning:** Simple string comparison (`==`) is susceptible to timing attacks. Additionally, lacking `http.MaxBytesReader` allows an attacker to send extremely large payloads, potentially causing memory exhaustion (DoS).
+**Prevention:** Use `crypto/subtle.ConstantTimeCompare` or `hmac.Equal` for all security-sensitive comparisons. Always use `http.MaxBytesReader` to enforce strict size limits on unauthenticated webhook bodies.
