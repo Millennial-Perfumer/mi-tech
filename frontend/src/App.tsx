@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -120,7 +120,8 @@ function App() {
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
-  const userRole = token ? (() => {
+  const userRole = useMemo(() => {
+    if (!token) return 'read';
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload?.role || 'read';
@@ -128,7 +129,7 @@ function App() {
       console.error('Error parsing token:', err);
       return 'read';
     }
-  })() : 'read';
+  }, [token]);
   
   useEffect(() => {
     console.log('Current userRole:', userRole);
@@ -333,9 +334,12 @@ function App() {
 
   const fetchDashboardData = async (silent = false, force = false) => {
     if (!token) return;
-    
+
     // Only fetch dashboard/orders data if specifically on those tabs (unless forced)
-    if (!force && activeTab !== 'dashboard' && activeTab !== 'shopify') {
+    const isOnDashboard = activeTab === 'dashboard';
+    const isOnOrders = activeTab === 'shopify';
+
+    if (!force && !isOnDashboard && !isOnOrders) {
       return;
     }
 
@@ -343,34 +347,53 @@ function App() {
     try {
       let startObj = '';
       let endObj = '';
-      
+
       if (startDate) {
         const [y, m, d] = startDate.split('-').map(Number);
         startObj = new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
       }
-      
+
       if (endDate) {
         const [y, m, d] = endDate.split('-').map(Number);
         endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
       }
-      
-      const metricsRes = await fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
-      const metricsData = await metricsRes.json();
-      
-      if (metricsData.success) {
-        setMetrics(metricsData.metrics);
+
+      // Optimization: Conditional parallel fetching based on activeTab
+      const fetchTasks: Promise<any>[] = [];
+
+      // 1. Fetch Metrics (Dashboard only)
+      if (force || isOnDashboard) {
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`)
+            .then(res => res.json())
+            .then(data => { if (data.success) setMetrics(data.metrics); })
+        );
       }
 
-      const ordersRes = await fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
-      const ordersData = await ordersRes.json();
-      if (ordersData.success) {
-        setOrders(ordersData.orders);
-        setTotalCount(ordersData.total_count);
+      // 2. Fetch Orders (Orders tab only)
+      if (force || isOnOrders) {
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                setOrders(data.orders);
+                setTotalCount(data.total_count);
+              }
+            })
+        );
+
+        // 3. Webhook Status (Orders tab only)
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/webhook/status`)
+            .then(res => res.json())
+            .then(data => setWebhookStatus(data))
+        );
       }
 
-      const webhookRes = await fetchWithAuth(`${API_BASE}/api/webhook/status`);
-      const webhookData = await webhookRes.json();
-      setWebhookStatus(webhookData);
+      // Execute all required fetches in parallel
+      await Promise.all(fetchTasks);
+
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
