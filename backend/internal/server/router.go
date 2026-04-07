@@ -224,6 +224,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/automation/whatsapp/send-bulk", adminProtected(automationHandler.SendBulkMarketing))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", adminProtected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
+	mux.HandleFunc("/api/automation/whatsapp/media", protected(automationHandler.GetWhatsAppMedia))
 	// Marketing routes moved to top
 
 	// --- Swagger ---

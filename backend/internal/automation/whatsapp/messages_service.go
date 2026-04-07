@@ -2,8 +2,12 @@ package whatsapp
 
 import (
 	"context"
+	"log"
 	"mi-tech/internal/config"
 	"mi-tech/internal/repository"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -16,12 +20,23 @@ type MessagesService struct {
 
 func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvider, customerRepo *repository.CustomerRepository) *MessagesService {
 	metaClient := NewMetaClient(settings)
-	return &MessagesService{
+	s := &MessagesService{
 		repo:         repo,
 		metaClient:   metaClient,
 		settings:     settings,
 		customerRepo: customerRepo,
 	}
+
+	// Trigger early cleanup and start daily ticker
+	go func() {
+		s.CleanupOldMedia()
+		ticker := time.NewTicker(24 * time.Hour)
+		for range ticker.C {
+			s.CleanupOldMedia()
+		}
+	}()
+
+	return s
 }
 
 func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}) error {
@@ -210,4 +225,78 @@ func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messag
 	}
 	_, err = s.repo.SaveChatMessage(chatMsg)
 	return err
+}
+
+func (s *MessagesService) DownloadAndStoreMedia(mediaID string) (string, error) {
+	// 1. Get URL from Meta
+	url, err := s.metaClient.GetMediaURL(mediaID)
+	if err != nil {
+		return "", err
+	}
+
+	// 2. Download binary
+	data, contentType, err := s.metaClient.DownloadMedia(url)
+	if err != nil {
+		return "", err
+	}
+
+	// 3. Determine extension
+	ext := ".bin"
+	ct := strings.ToLower(contentType)
+	if strings.Contains(ct, "image/jpeg") || strings.Contains(ct, "image/jpg") {
+		ext = ".jpg"
+	} else if strings.Contains(ct, "image/png") {
+		ext = ".png"
+	} else if strings.Contains(ct, "image/webp") || strings.Contains(ct, "webp") {
+		ext = ".webp"
+	} else if strings.Contains(ct, "video/mp4") {
+		ext = ".mp4"
+	} else if strings.Contains(ct, "application/pdf") {
+		ext = ".pdf"
+	}
+
+	filename := mediaID + ext
+	dir := filepath.Join("uploads", "whatsapp")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	
+	fullPath := filepath.Join(dir, filename)
+
+	// 4. Save to disk
+	err = os.WriteFile(fullPath, data, 0644)
+	if err != nil {
+		return "", err
+	}
+
+	return filename, nil
+}
+
+func (s *MessagesService) CleanupOldMedia() {
+	dir := filepath.Join("uploads", "whatsapp")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return
+	}
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		log.Printf("Media Cleanup Error: Failed to read directory: %v", err)
+		return
+	}
+
+	count := 0
+	for _, f := range files {
+		info, err := f.Info()
+		if err != nil {
+			continue
+		}
+		// Policy: 15 days
+		if time.Since(info.ModTime()) > 15*24*time.Hour {
+			os.Remove(filepath.Join(dir, f.Name()))
+			count++
+		}
+	}
+	if count > 0 {
+		log.Printf("Media Cleanup: Removed %d old WhatsApp media files", count)
+	}
 }

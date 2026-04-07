@@ -20,6 +20,7 @@ interface ChatMessage {
   sender_role: string;
   status: string;
   sent_at: string;
+  metadata?: any;
 }
 
 interface WhatsAppChatProps {
@@ -384,19 +385,39 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                   Loading older messages...
                 </div>
               )}
-              {messages.map(msg => (
-                <div key={msg.id} className={`message-bubble message-${msg.direction}`}>
-                  <div className="message-text">{msg.text}</div>
-                  <div className="message-info">
-                    <span className="message-time">{formatTime(msg.sent_at)}</span>
-                    {msg.direction === 'outgoing' && (
-                      <span className="message-status">
-                        {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
-                      </span>
+              {messages.map(msg => {
+                const isImage = msg.type === 'image' || msg.type === 'sticker';
+                const filename = msg.metadata?.extracted_metadata?.filename;
+                
+                return (
+                  <div key={msg.id} className={`message-bubble message-${msg.direction} ${isImage ? 'message-media' : ''}`}>
+                    {isImage && filename ? (
+                      <div className="message-image-wrapper">
+                        <img 
+                          src={`${API_BASE}/api/automation/whatsapp/media?filename=${filename}`} 
+                          alt="WhatsApp media" 
+                          className="message-img"
+                          onLoad={() => {
+                            // Scroll to bottom when image loads to account for its height
+                            scrollToBottom('auto');
+                          }}
+                        />
+                        {msg.type === 'sticker' && <span className="media-label">Sticker</span>}
+                      </div>
+                    ) : (
+                      <div className="message-text">{msg.text}</div>
                     )}
+                    <div className="message-info">
+                      <span className="message-time">{formatTime(msg.sent_at)}</span>
+                      {msg.direction === 'outgoing' && (
+                        <span className="message-status">
+                          {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
 
