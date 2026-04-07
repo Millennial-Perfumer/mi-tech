@@ -84,7 +84,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     }
   };
 
-  const getSortedData = <T extends Record<string, any>>(data: T[]): T[] => {
+  const getSortedData = useCallback(<T extends Record<string, string | number | null>>(data: T[]): T[] => {
     if (!sortField) return data;
     return [...data].sort((a, b) => {
       const aVal = a[sortField];
@@ -97,10 +97,13 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
       }
       
       return sortOrder === 'asc' 
-        ? (aVal as number) - (bVal as number) 
-        : (bVal as number) - (aVal as number);
+        ? ((aVal as number) || 0) - ((bVal as number) || 0)
+        : ((bVal as number) || 0) - ((aVal as number) || 0);
     });
-  };
+  }, [sortField, sortOrder]);
+
+  const sortedStateData = useMemo(() => getSortedData(stateData), [stateData, getSortedData]);
+  const sortedHsnData = useMemo(() => getSortedData(hsnData), [hsnData, getSortedData]);
 
   const renderSortArrow = (field: string) => {
     if (sortField !== field) return <span style={{ opacity: 0.2, marginLeft: '4px' }}>↕</span>;
@@ -108,8 +111,25 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
   };
 
   useEffect(() => {
+    // Clear data when date range or refresh trigger changes
+    setSummary(null);
+    setStateData([]);
+    setHsnData([]);
+    setDocsData([]);
+    setOpSummary([]);
+  }, [startDate, endDate, refreshTrigger]);
+
+  useEffect(() => {
     const fetchReports = async () => {
-      if (summary) {
+      // Avoid fetching if we already have data for the active tab (unless it's a refresh)
+      const hasData = (activeSubTab === 'summary' && summary) ||
+                      (activeSubTab === 'state' && stateData.length > 0) ||
+                      (activeSubTab === 'hsn' && hsnData.length > 0) ||
+                      (activeSubTab === 'documents' && docsData.length > 0);
+
+      if (hasData) return;
+
+      if ((activeSubTab === 'summary' && summary) || (activeSubTab === 'state' && stateData.length > 0) || (activeSubTab === 'hsn' && hsnData.length > 0) || (activeSubTab === 'documents' && docsData.length > 0)) {
         setIsRefreshing(true);
       } else {
         setLoading(true);
@@ -129,32 +149,33 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
           endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
         }
 
-        const [sumRes, stateRes, hsnRes, docsRes] = await Promise.all([
-          fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
-        ]);
-
-        const sumData = await sumRes.json();
-        const sData = await stateRes.json();
-        const hData = await hsnRes.json();
-        const dData = await docsRes.json();
-
-        if (sumData.success) {
-          setSummary(sumData.summary);
-          setOpSummary([
-            { metric: 'Total Orders', count: sumData.summary.total_orders },
-            { metric: 'Cancelled Orders', count: sumData.summary.cancelled_orders },
-            { metric: 'Fulfilled Orders', count: sumData.summary.fulfilled_orders },
-            { metric: 'Unfulfilled Orders', count: sumData.summary.unfulfilled_orders },
-            { metric: 'Paid Orders', count: sumData.summary.paid_orders },
-            { metric: 'Invoices Generated', count: sumData.summary.invoices_generated }
-          ]);
+        if (activeSubTab === 'summary') {
+          const sumRes = await fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`);
+          const sumData = await sumRes.json();
+          if (sumData.success) {
+            setSummary(sumData.summary);
+            setOpSummary([
+              { metric: 'Total Orders', count: sumData.summary.total_orders },
+              { metric: 'Cancelled Orders', count: sumData.summary.cancelled_orders },
+              { metric: 'Fulfilled Orders', count: sumData.summary.fulfilled_orders },
+              { metric: 'Unfulfilled Orders', count: sumData.summary.unfulfilled_orders },
+              { metric: 'Paid Orders', count: sumData.summary.paid_orders },
+              { metric: 'Invoices Generated', count: sumData.summary.invoices_generated }
+            ]);
+          }
+        } else if (activeSubTab === 'state') {
+          const stateRes = await fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`);
+          const sData = await stateRes.json();
+          if (sData.success) setStateData(sData.data || []);
+        } else if (activeSubTab === 'hsn') {
+          const hsnRes = await fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`);
+          const hData = await hsnRes.json();
+          if (hData.success) setHsnData(hData.data || []);
+        } else if (activeSubTab === 'documents') {
+          const docsRes = await fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`);
+          const dData = await docsRes.json();
+          if (dData.success) setDocsData(dData.data || []);
         }
-        if (sData.success) setStateData(sData.data || []);
-        if (hData.success) setHsnData(hData.data || []);
-        if (dData.success) setDocsData(dData.data || []);
       } catch (err) {
         console.error('Failed to fetch reports:', err);
       } finally {
@@ -164,9 +185,9 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     };
 
     fetchReports();
-  }, [startDate, endDate, fetchWithAuth, refreshTrigger]);
+  }, [startDate, endDate, fetchWithAuth, refreshTrigger, activeSubTab, summary, stateData.length, hsnData.length, docsData.length]);
 
-  const downloadCSV = (data: any[], filename: string) => {
+  const downloadCSV = useCallback((data: Record<string, string | number | null>[], filename: string) => {
     if (data.length === 0) return;
     const headers = Object.keys(data[0]).join(',');
     const rows = data.map(obj => Object.values(obj).join(',')).join('\n');
@@ -178,7 +199,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, []);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading Reports...</div>;
 
@@ -204,7 +225,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
         ].map((tab) => (
           <button 
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as any)}
+            onClick={() => setActiveSubTab(tab.id as 'summary' | 'state' | 'hsn' | 'documents')}
             style={{ 
               background: 'none', border: 'none', padding: '0.5rem 1.25rem', cursor: 'pointer',
               borderBottom: activeSubTab === tab.id ? '2px solid var(--accent-color)' : 'none',
@@ -310,7 +331,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
                     <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>No state-wise data for this period.</td>
                   </tr>
                 ) : (
-                  getSortedData(stateData).map((row, idx) => (
+                  sortedStateData.map((row, idx) => (
                     <tr key={idx}>
                       <td>{row.state || 'N/A'}</td>
                       <td>{row.orders}</td>
@@ -354,7 +375,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
                     <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>No HSN data for this period.</td>
                   </tr>
                 ) : (
-                  getSortedData(hsnData).map((row, idx) => (
+                  sortedHsnData.map((row, idx) => (
                     <tr key={idx}>
                       <td>{row.hsn_code}</td>
                       <td>{row.qty_sold}</td>

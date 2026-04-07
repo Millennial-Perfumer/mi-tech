@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -120,7 +120,8 @@ function App() {
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
-  const userRole = token ? (() => {
+  const userRole = useMemo(() => {
+    if (!token) return 'read';
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload?.role || 'read';
@@ -128,7 +129,7 @@ function App() {
       console.error('Error parsing token:', err);
       return 'read';
     }
-  })() : 'read';
+  }, [token]);
   
   useEffect(() => {
     console.log('Current userRole:', userRole);
@@ -139,22 +140,22 @@ function App() {
     setToken(newToken);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
-  };
+  }, []);
 
-  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const fetchWithAuth = useCallback(async (url: string, options: RequestInit = {}) => {
     const headers = {
       ...options.headers,
-      'Authorization': `Bearer ${token}`
+      'Authorization': (options.headers as any)?.['Authorization'] || `Bearer ${token}`
     };
     const response = await fetch(url, { ...options, headers });
     if (response.status === 401) {
       handleLogout();
     }
     return response;
-  };
+  }, [token, handleLogout]);
 
   useEffect(() => {
     localStorage.setItem('gstAppActiveTab', activeTab);
