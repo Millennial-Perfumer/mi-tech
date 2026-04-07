@@ -3,14 +3,18 @@ package config
 import (
 	"log"
 	"os"
-	"mi-tech/internal/repository"
 )
 
-type SettingsProvider struct {
-	configsRepo *repository.ConfigsRepository
+// ConfigGetter is an interface for fetching configuration values.
+type ConfigGetter interface {
+	Get(key string) (string, error)
 }
 
-func NewSettingsProvider(configsRepo *repository.ConfigsRepository) *SettingsProvider {
+type SettingsProvider struct {
+	configsRepo ConfigGetter
+}
+
+func NewSettingsProvider(configsRepo ConfigGetter) *SettingsProvider {
 	return &SettingsProvider{configsRepo: configsRepo}
 }
 
