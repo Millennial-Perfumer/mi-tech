@@ -558,3 +558,48 @@ func (c *MetaClient) SendTextMessage(phoneNumber, text string) (string, error) {
 
 	return "", nil
 }
+
+func (c *MetaClient) GetMediaURL(mediaID string) (string, error) {
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s", c.apiVersion, mediaID)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("failed to get media URL: %s", string(respBody))
+	}
+
+	var result struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.URL, nil
+}
+
+func (c *MetaClient) DownloadMedia(downloadURL string) ([]byte, string, error) {
+	req, _ := http.NewRequest("GET", downloadURL, nil)
+	// Some media URLs already contain tokens or require the Authorization header
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, "", fmt.Errorf("failed to download media binary: %s", string(respBody))
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	return data, resp.Header.Get("Content-Type"), err
+}

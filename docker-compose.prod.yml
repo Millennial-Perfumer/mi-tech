@@ -35,6 +35,8 @@ services:
       # Add other necessary backend environment variables here
     depends_on:
       - db
+    volumes:
+      - backend_uploads:/app/uploads
     networks:
       - app-network
 
@@ -79,3 +81,4 @@ networks:
 
 volumes:
   postgres_data_prod:
+  backend_uploads:

@@ -11,6 +11,7 @@ import (
 	"mi-tech/internal/config"
 	"mi-tech/internal/service"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -217,7 +218,13 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 							Text struct {
 								Body string `json:"body"`
 							} `json:"text"`
-							Type string `json:"type"`
+							Type     string `json:"type"`
+							Image    *struct { ID string `json:"id" `} `json:"image,omitempty"`
+							Sticker  *struct { ID string `json:"id" `} `json:"sticker,omitempty"`
+							Reaction *struct {
+								MessageID string `json:"message_id"`
+								Emoji     string `json:"emoji"`
+							} `json:"reaction,omitempty"`
 						} `json:"messages"`
 						Contacts []struct {
 							Profile struct {
@@ -258,13 +265,53 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 					}
 
 					text := ""
-					if msg.Type == "text" {
+					var mediaMetadata map[string]interface{}
+
+					switch msg.Type {
+					case "text":
 						text = msg.Text.Body
-					} else {
+					case "image":
+						if msg.Image != nil {
+							filename, err := h.messagesService.DownloadAndStoreMedia(msg.Image.ID)
+							if err == nil {
+								text = "Sent an image"
+								mediaMetadata = map[string]interface{}{"media_id": msg.Image.ID, "filename": filename}
+							} else {
+								text = "[Image could not be downloaded]"
+							}
+						}
+					case "sticker":
+						if msg.Sticker != nil {
+							filename, err := h.messagesService.DownloadAndStoreMedia(msg.Sticker.ID)
+							if err == nil {
+								text = "Sent a sticker"
+								mediaMetadata = map[string]interface{}{"media_id": msg.Sticker.ID, "filename": filename}
+							} else {
+								text = "[Sticker could not be downloaded]"
+							}
+						}
+					case "reaction":
+						if msg.Reaction != nil {
+							text = fmt.Sprintf("Reacted with %s", msg.Reaction.Emoji)
+							mediaMetadata = map[string]interface{}{
+								"reaction_emoji": msg.Reaction.Emoji,
+								"reacting_to":    msg.Reaction.MessageID,
+							}
+						}
+					default:
 						text = fmt.Sprintf("[%s message]", msg.Type)
 					}
 
-					valBytes, _ := json.Marshal(change.Value)
+					var valBytes []byte
+					if mediaMetadata != nil {
+						// Merge captured metadata into the raw payload for full context
+						base := make(map[string]interface{})
+						json.Unmarshal(body, &base)
+						base["extracted_metadata"] = mediaMetadata
+						valBytes, _ = json.Marshal(base)
+					} else {
+						valBytes, _ = json.Marshal(change.Value)
+					}
 					err := h.messagesService.HandleIncomingMessage(msg.From, contactName, msg.ID, text, msg.Type, valBytes)
 					if err != nil {
 						log.Printf("Error handling incoming message from %s: %v", msg.From, err)
@@ -963,4 +1010,37 @@ func (h *AutomationHandler) UpdateConversationMode(w http.ResponseWriter, r *htt
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+// GetWhatsAppMedia serves local WhatsApp media files.
+func (h *AutomationHandler) GetWhatsAppMedia(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get("filename")
+	if filename == "" {
+		http.Error(w, "Filename is required", http.StatusBadRequest)
+		return
+	}
+
+	// Basic security check to prevent directory traversal
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
+		http.Error(w, "Invalid filename", http.StatusForbidden)
+		return
+	}
+
+	dir := filepath.Join("uploads", "whatsapp")
+	path := filepath.Join(dir, filename)
+
+	// Verify the file exists within the dedicated uploads directory
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		http.Error(w, "Invalid path", http.StatusInternalServerError)
+		return
+	}
+	
+	absDir, _ := filepath.Abs(dir)
+	if !strings.HasPrefix(absPath, absDir) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	http.ServeFile(w, r, path)
 }
