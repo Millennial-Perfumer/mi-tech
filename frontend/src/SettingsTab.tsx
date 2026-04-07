@@ -490,6 +490,8 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                       </div>
                     )}
                   </div>
+                )}
+              </div>
               );
             })}
           </div>
