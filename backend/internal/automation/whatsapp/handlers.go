@@ -219,8 +219,8 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 								Body string `json:"body"`
 							} `json:"text"`
 							Type     string `json:"type"`
-							Image    *struct { ID string `json:"id" `} `json:"image,omitempty"`
-							Sticker  *struct { ID string `json:"id" `} `json:"sticker,omitempty"`
+							Image    *struct { ID string `json:"id"` } `json:"image,omitempty"`
+							Sticker  *struct { ID string `json:"id"` } `json:"sticker,omitempty"`
 							Reaction *struct {
 								MessageID string `json:"message_id"`
 								Emoji     string `json:"emoji"`
