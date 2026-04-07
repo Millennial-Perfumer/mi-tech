@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -15,7 +15,9 @@ import { Customers } from './Customers';
 import { Users } from './Users';
 import { MarketingDashboard } from './MarketingDashboard';
 import { SocialDashboard } from './SocialDashboard';
+import { Planner } from './Planner';
 import OrderDetailsModal from './OrderDetailsModal';
+
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
 import './App.css';
@@ -118,7 +120,8 @@ function App() {
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
-  const userRole = token ? (() => {
+  const userRole = useMemo(() => {
+    if (!token) return 'read';
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       return payload?.role || 'read';
@@ -126,7 +129,7 @@ function App() {
       console.error('Error parsing token:', err);
       return 'read';
     }
-  })() : 'read';
+  }, [token]);
   
   useEffect(() => {
     console.log('Current userRole:', userRole);
@@ -173,7 +176,6 @@ function App() {
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
-  
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncStartDate, setSyncStartDate] = useState(getTodayIST());
@@ -332,9 +334,12 @@ function App() {
 
   const fetchDashboardData = async (silent = false, force = false) => {
     if (!token) return;
-    
+
     // Only fetch dashboard/orders data if specifically on those tabs (unless forced)
-    if (!force && activeTab !== 'dashboard' && activeTab !== 'shopify') {
+    const isOnDashboard = activeTab === 'dashboard';
+    const isOnOrders = activeTab === 'shopify';
+
+    if (!force && !isOnDashboard && !isOnOrders) {
       return;
     }
 
@@ -342,34 +347,53 @@ function App() {
     try {
       let startObj = '';
       let endObj = '';
-      
+
       if (startDate) {
         const [y, m, d] = startDate.split('-').map(Number);
         startObj = new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
       }
-      
+
       if (endDate) {
         const [y, m, d] = endDate.split('-').map(Number);
         endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
       }
-      
-      const metricsRes = await fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`);
-      const metricsData = await metricsRes.json();
-      
-      if (metricsData.success) {
-        setMetrics(metricsData.metrics);
+
+      // Optimization: Conditional parallel fetching based on activeTab
+      const fetchTasks: Promise<any>[] = [];
+
+      // 1. Fetch Metrics (Dashboard only)
+      if (force || isOnDashboard) {
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`)
+            .then(res => res.json())
+            .then(data => { if (data.success) setMetrics(data.metrics); })
+        );
       }
 
-      const ordersRes = await fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`);
-      const ordersData = await ordersRes.json();
-      if (ordersData.success) {
-        setOrders(ordersData.orders);
-        setTotalCount(ordersData.total_count);
+      // 2. Fetch Orders (Orders tab only)
+      if (force || isOnOrders) {
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                setOrders(data.orders);
+                setTotalCount(data.total_count);
+              }
+            })
+        );
+
+        // 3. Webhook Status (Orders tab only)
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/webhook/status`)
+            .then(res => res.json())
+            .then(data => setWebhookStatus(data))
+        );
       }
 
-      const webhookRes = await fetchWithAuth(`${API_BASE}/api/webhook/status`);
-      const webhookData = await webhookRes.json();
-      setWebhookStatus(webhookData);
+      // Execute all required fetches in parallel
+      await Promise.all(fetchTasks);
+
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -471,6 +495,8 @@ function App() {
       toastError('Failed to download invoice. Please try again.');
     }
   };
+
+
 
   if (!token) {
     return <Login onLogin={handleLogin} />;
@@ -678,6 +704,10 @@ function App() {
               <span>RBAC</span>
             </a>
           )}
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '375ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Planner</span>
+          </a>
         </nav>
 
         <div className="sidebar-footer">
@@ -740,6 +770,10 @@ function App() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>More</span>
         </button>
+        <button className={`tab-btn nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} style={{ animationDelay: '350ms' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Plan</span>
+        </button>
       </nav>
 
       <main className="main-content">
@@ -784,9 +818,9 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
           {activeTab !== 'automation' && activeTab === 'settings' && userRole === 'admin' && (
@@ -805,7 +839,7 @@ function App() {
           )}
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -939,6 +973,8 @@ function App() {
 
         {activeTab === 'shopify' && (
           <section className="table-container">
+
+
             <div className="webhook-status-bar" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.025em', marginBottom: '0.25rem' }}>Webhook Status</div>
@@ -993,6 +1029,7 @@ function App() {
                     onChange={setVisibleColumns}
                     onReset={() => setVisibleColumns(DEFAULT_VISIBLE_COLUMNS)}
                   />
+
                 </div>
               </div>
 
@@ -1099,6 +1136,7 @@ function App() {
             <table>
               <thead>
                 <tr>
+
                   {visibleColumns.includes('order_id') && (
                     <th onClick={() => { setSortBy('order_number'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
                       Order ID {sortBy === 'order_number' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
@@ -1153,8 +1191,14 @@ function App() {
                     <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No orders found. Click Sync Shopify to fetch.</td>
                   </tr>
                 ) : (
-                  orders.map((order) => (
-                    <tr key={order.id}>
+                  orders.map((order, idx) => (
+                    <tr 
+                      key={order.id} 
+                      className="table-row-stagger" 
+                      style={{ animationDelay: `${idx * 20}ms` }}
+
+                    >
+
                       {visibleColumns.includes('order_id') && (
                         <td>
                           <a 
@@ -1313,13 +1357,14 @@ function App() {
                         </td>
                       )}
                       {visibleColumns.includes('gst_invoice') && (
-                        <td>
+                        <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+
                           <button 
                             onClick={() => handleDownloadInvoice(order.id, order.order_number)}
                             className="btn-primary" 
                             style={{fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-block', cursor: 'pointer', border: 'none'}}
                           >
-                            Download
+                            Invoice
                           </button>
                         </td>
                       )}
@@ -1411,6 +1456,12 @@ function App() {
               bulkSuffix={appConfigs?.bulk_template_suffix || '_marketing'}
               userRole={userRole}
             />
+          )}
+
+
+
+          {activeTab === 'planner' && (
+            <Planner fetchWithAuth={fetchWithAuth} />
           )}
 
           {activeTab === 'users' && userRole === 'admin' && (

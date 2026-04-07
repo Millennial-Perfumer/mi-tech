@@ -53,6 +53,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	settingsRepo := repository.NewSettingsRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
 	socialRepo := repository.NewSocialRepository(db)
+	plannerRepo := repository.NewPlannerRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -74,6 +75,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
 	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
 	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
+	plannerService := service.NewPlannerService(plannerRepo)
 	systemService := service.NewSystemService("../docs")
 	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
@@ -94,6 +96,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	authHandler := handler.NewAuthHandler(authService)
 	customerHandler := handler.NewCustomerHandler(customerService)
 	userHandler := handler.NewUserHandler(userService)
+	plannerHandler := handler.NewPlannerHandler(plannerService)
 
 	RegisterRoutes(
 		mux,
@@ -113,6 +116,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		marketingWebhookHandler,
 		systemHandler,
 		smmHandler,
+		plannerHandler,
 		authService,
 	)
 

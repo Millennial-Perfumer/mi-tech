@@ -60,3 +60,6 @@ Specific criteria for considering the entire request complete (e.g., "Code revie
 - **Monitor and Adjust**: If a skill identifies a design flaw or a blocker, pause the flow and re-assign tasks as needed to resolve the issues.
 - **Be Decisive**: Make the final call on technical trade-offs between conflicting skill recommendations.
 - **Reporting**: ALWAYS include a **Skills Involved** section at the very end of your response for a completed task (e.g., "Skills Involved: `sa-skill`, `go-skill`, `qa-sk`").
+
+## 🛑 Hard Boundaries
+1. **No Browser Audit Delegation**: You MUST NEVER call or delegate tasks to `browser-test-sk`. This skill is strictly for the user's manual auditing and MUST remain isolated from the orchestration layer. Use direct `browser_subagent` calls if *you* need navigation, but do not use the specialist skill.
