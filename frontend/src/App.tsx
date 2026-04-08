@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -140,12 +140,12 @@ function App() {
     setToken(newToken);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
-  };
+  }, []);
 
-  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const fetchWithAuth = useCallback(async (url: string, options: RequestInit = {}) => {
     const headers = {
       ...options.headers,
       'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@ function App() {
       handleLogout();
     }
     return response;
-  };
+  }, [token, handleLogout]);
 
   useEffect(() => {
     localStorage.setItem('gstAppActiveTab', activeTab);
@@ -204,7 +204,7 @@ function App() {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
+  const triggerRefresh = useCallback(() => setRefreshTrigger(prev => prev + 1), []);
 
   useEffect(() => {
     localStorage.setItem('shopifyAppVisibleColumns', JSON.stringify(visibleColumns));
@@ -233,9 +233,9 @@ function App() {
         }
       })
       .catch((err) => console.error('Failed to load date range:', err));
-  }, [token]);
+  }, [token, fetchWithAuth]);
 
-  const handleUpdateDateRange = (start: string, end: string) => {
+  const handleUpdateDateRange = useCallback((start: string, end: string) => {
     console.log('DEBUG: Updating global date range:', start, end);
     setPage(1);
     setStartDate(start);
@@ -248,7 +248,7 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ start_date: start, end_date: end }),
     }).catch(console.error);
-  };
+  }, [fetchWithAuth]);
 
   // Close status popover when clicking elsewhere
   useEffect(() => {
@@ -268,71 +268,7 @@ function App() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const handleStatusUpdate = async (orderId: string | number, newStatus: string) => {
-    setIsUpdatingStatus(true);
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/orders/status?id=${orderId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        toastSuccess('Status updated successfully');
-        // Refresh data
-        fetchDashboardData();
-        setEditingStatusId(null);
-      } else {
-        toastError(data.message || 'Failed to update status');
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toastError('Network error updating status');
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const fetchAppSettings = async () => {
-    if (!token) return;
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/settings`);
-      const data = await response.json();
-      if (data.success) {
-        setAppSettings(data.settings);
-      }
-    } catch (err) {
-      console.error('Failed to fetch app settings:', err);
-    }
-  };
-
-  const fetchAppConfigs = async () => {
-    if (!token) return;
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/configs`);
-      const data = await response.json();
-      if (data.success && Array.isArray(data.configs)) {
-        const configsMap: Record<string, string> = {};
-        data.configs.forEach((cfg: any) => {
-          configsMap[cfg.key] = cfg.value;
-        });
-        setAppConfigs(configsMap);
-      }
-    } catch (err) {
-      console.error('Failed to fetch app configs:', err);
-    }
-  };
-
-
-  // Dedicated effect for settings - only on mount or token change
-  useEffect(() => {
-    if (token) {
-      fetchAppSettings();
-      fetchAppConfigs();
-    }
-  }, [token]);
-
-  const fetchDashboardData = async (silent = false, force = false) => {
+  const fetchDashboardData = useCallback(async (silent = false, force = false) => {
     if (!token) return;
 
     // Only fetch dashboard/orders data if specifically on those tabs (unless forced)
@@ -399,9 +335,73 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder, fetchWithAuth]);
 
-  const syncShopify = async () => {
+  const handleStatusUpdate = useCallback(async (orderId: string | number, newStatus: string) => {
+    setIsUpdatingStatus(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/status?id=${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toastSuccess('Status updated successfully');
+        // Refresh data
+        fetchDashboardData();
+        setEditingStatusId(null);
+      } else {
+        toastError(data.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toastError('Network error updating status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }, [fetchWithAuth, fetchDashboardData, toastSuccess, toastError]);
+
+  const fetchAppSettings = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/settings`);
+      const data = await response.json();
+      if (data.success) {
+        setAppSettings(data.settings);
+      }
+    } catch (err) {
+      console.error('Failed to fetch app settings:', err);
+    }
+  }, [token, fetchWithAuth]);
+
+  const fetchAppConfigs = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/configs`);
+      const data = await response.json();
+      if (data.success && Array.isArray(data.configs)) {
+        const configsMap: Record<string, string> = {};
+        data.configs.forEach((cfg: any) => {
+          configsMap[cfg.key] = cfg.value;
+        });
+        setAppConfigs(configsMap);
+      }
+    } catch (err) {
+      console.error('Failed to fetch app configs:', err);
+    }
+  }, [token, fetchWithAuth]);
+
+
+  // Dedicated effect for settings - only on mount or token change
+  useEffect(() => {
+    if (token) {
+      fetchAppSettings();
+      fetchAppConfigs();
+    }
+  }, [token, fetchAppSettings, fetchAppConfigs]);
+
+  const syncShopify = useCallback(async () => {
     setIsSyncing(true);
     setShowSyncModal(false);
     try {
@@ -427,9 +427,9 @@ function App() {
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [fetchWithAuth, syncStartDate, syncEndDate, toastSuccess, triggerRefresh, fetchDashboardData, toastError]);
 
-  const resetShopify = async () => {
+  const resetShopify = useCallback(async () => {
     const confirmed = await confirm({
       title: 'Full Database Reset',
       message: 'Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.',
@@ -457,7 +457,7 @@ function App() {
     } finally {
       setIsResetting(false);
     }
-  };
+  }, [confirm, fetchWithAuth, toastSuccess, fetchDashboardData, toastError]);
 
 
   useEffect(() => {
@@ -472,9 +472,9 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder, fetchDashboardData]);
 
-  const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
+  const handleDownloadInvoice = useCallback(async (orderId: string | number, orderNumber: string) => {
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/orders/invoice?id=${orderId}`);
       if (!response.ok) {
@@ -494,7 +494,7 @@ function App() {
       console.error('Error downloading invoice:', error);
       toastError('Failed to download invoice. Please try again.');
     }
-  };
+  }, [fetchWithAuth, toastError]);
 
 
 
