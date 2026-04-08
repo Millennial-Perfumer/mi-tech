@@ -1,0 +1,14 @@
+{
+  "name": "mi-tech-shopify-mcp",
+  "version": "1.0.0",
+  "description": "Shopify Admin MCP Bridge for Mi-Tech",
+  "main": "shopify_bridge.js",
+  "type": "module",
+  "scripts": {
+    "start": "node shopify_bridge.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0"
+  }
+}

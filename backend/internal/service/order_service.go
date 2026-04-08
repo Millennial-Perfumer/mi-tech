@@ -194,3 +194,31 @@ func (s *OrderService) UpdateOrder(id int64, req dto.OrderUpdateRequest) error {
 
 	return nil
 }
+
+func (s *OrderService) GetOrdersForFeedback() ([]entity.Order, error) {
+	return s.orderRepo.GetOrdersForFeedback()
+}
+
+func (s *OrderService) MarkAsDelivered(id int64) error {
+	return s.orderRepo.MarkAsDelivered(id)
+}
+
+func (s *OrderService) UpdateFeedbackStatus(id int64, statusID int) error {
+	return s.orderRepo.UpdateFeedbackStatus(id, statusID)
+}
+
+func (s *OrderService) GetCustomerFeedback() ([]entity.CustomerFeedback, error) {
+	return s.orderRepo.GetCustomerFeedback()
+}
+
+func (s *OrderService) SaveCustomerFeedback(feedback entity.CustomerFeedback) error {
+	return s.orderRepo.SaveCustomerFeedback(feedback)
+}
+
+func (s *OrderService) ValidateFeedback(orderID int64, phone string) (bool, error) {
+	_, err := s.orderRepo.GetByIDAndPhone(orderID, phone)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}

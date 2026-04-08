@@ -46,6 +46,14 @@ type OrderRepository interface {
 	GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error)
 	GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error)
 	TruncateAll() error
+
+	// Feedback & Delivery System
+	MarkAsDelivered(id int64) error
+	GetOrdersForFeedback() ([]entity.Order, error)
+	GetByIDAndPhone(id int64, phone string) (entity.Order, error)
+	UpdateFeedbackStatus(id int64, statusID int) error
+	SaveCustomerFeedback(feedback entity.CustomerFeedback) error
+	GetCustomerFeedback() ([]entity.CustomerFeedback, error)
 }
 
 // LineItemRepository defines all data access operations for the order_line_items table.
@@ -156,5 +164,6 @@ type PlannerRepository interface {
 	// Analytics
 	GetSprintVelocity(sprintID uint) (int, error)
 	GetTaskLeadTime(taskID uint) (float64, error)
+	GetNextTicketNumber() (string, error)
 }
 

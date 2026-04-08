@@ -368,25 +368,31 @@ func (r *gormOrderRepository) CancelOrder(externalOrderID string, cancelledAt *s
 }
 
 func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
-	updates := map[string]interface{}{
+	commonUpdates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
 	if trackingNumber != "" {
-		updates["tracking_number"] = trackingNumber
+		commonUpdates["tracking_number"] = trackingNumber
 	}
 	if shippingCompany != "" {
-		updates["shipping_company"] = shippingCompany
+		commonUpdates["shipping_company"] = shippingCompany
 	}
 	if trackingUrl != "" {
-		updates["tracking_url"] = trackingUrl
-	}
-	if deliveryStatus != "" {
-		updates["delivery_status"] = deliveryStatus
+		commonUpdates["tracking_url"] = trackingUrl
 	}
 
-	return r.db.Model(&entity.Order{}).
-		Where("external_order_id = ?", externalOrderID).
-		Updates(updates).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(commonUpdates).Error; err != nil {
+			return err
+		}
+		if deliveryStatus != "" {
+			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
+			return tx.Model(&entity.Order{}).
+				Where("external_order_id = ? AND (delivery_status != 'delivered' OR delivery_status IS NULL)", externalOrderID).
+				Update("delivery_status", deliveryStatus).Error
+		}
+		return nil
+	})
 }
 
 func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
@@ -460,4 +466,51 @@ func (r *gormOrderRepository) TruncateAll() error {
 	}
 	log.Println("Successfully truncated orders, order_line_items, and webhook_events tables")
 	return nil
+}
+
+func (r *gormOrderRepository) MarkAsDelivered(id int64) error {
+	now := time.Now()
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"delivery_status": "delivered",
+		"delivered_at":    now,
+		"updated_at":      now,
+	}).Error
+}
+
+func (r *gormOrderRepository) GetOrdersForFeedback() ([]entity.Order, error) {
+	var orders []entity.Order
+	// Logic: Delivered but feedback is still 'pending' (status_id = 1) and delivered_at <= 5 days ago
+	threshold := time.Now().AddDate(0, 0, -5)
+	err := r.db.Where("delivery_status = ? AND feedback_status_id = ? AND delivered_at <= ?", "delivered", 1, threshold).
+		Find(&orders).Error
+	return orders, err
+}
+
+func (r *gormOrderRepository) UpdateFeedbackStatus(id int64, statusID int) error {
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Update("feedback_status_id", statusID).Error
+}
+
+func (r *gormOrderRepository) GetByIDAndPhone(id int64, phone string) (entity.Order, error) {
+	var order entity.Order
+	// Use LIKE to handle variations in phone format (e.g. with country code)
+	// We check if the stored phone ends with the provided phone or vice versa
+	searchPhone := phone
+	if len(phone) > 10 {
+		searchPhone = phone[len(phone)-10:]
+	}
+	err := r.db.Where("id = ? AND (customer_phone LIKE ? OR ? LIKE '%' || customer_phone)", id, "%"+searchPhone, phone).First(&order).Error
+	return order, err
+}
+
+func (r *gormOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedback) error {
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "order_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"rating", "message", "updated_at"}),
+	}).Create(&feedback).Error
+}
+
+func (r *gormOrderRepository) GetCustomerFeedback() ([]entity.CustomerFeedback, error) {
+	var results []entity.CustomerFeedback
+	err := r.db.Order("created_at DESC").Find(&results).Error
+	return results, err
 }

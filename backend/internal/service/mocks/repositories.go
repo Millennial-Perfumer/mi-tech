@@ -87,6 +87,36 @@ func (m *MockOrderRepository) TruncateAll() error {
 	return args.Error(0)
 }
 
+func (m *MockOrderRepository) MarkAsDelivered(id int64) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) GetOrdersForFeedback() ([]entity.Order, error) {
+	args := m.Called()
+	return args.Get(0).([]entity.Order), args.Error(1)
+}
+
+func (m *MockOrderRepository) UpdateFeedbackStatus(id int64, statusID int) error {
+	args := m.Called(id, statusID)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) GetByIDAndPhone(id int64, phone string) (entity.Order, error) {
+	args := m.Called(id, phone)
+	return args.Get(0).(entity.Order), args.Error(1)
+}
+
+func (m *MockOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedback) error {
+	args := m.Called(feedback)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) GetCustomerFeedback() ([]entity.CustomerFeedback, error) {
+	args := m.Called()
+	return args.Get(0).([]entity.CustomerFeedback), args.Error(1)
+}
+
 type MockLineItemRepository struct {
 	mock.Mock
 }

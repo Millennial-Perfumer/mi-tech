@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"mi-tech/internal/automation/whatsapp"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"mi-tech/internal/dto"
 	"mi-tech/internal/repository"
@@ -11,11 +13,12 @@ import (
 )
 
 type PlannerHandler struct {
-	service *service.PlannerService
+	service      *service.PlannerService
+	agentService *whatsapp.AgentService
 }
 
-func NewPlannerHandler(service *service.PlannerService) *PlannerHandler {
-	return &PlannerHandler{service: service}
+func NewPlannerHandler(service *service.PlannerService, agentService *whatsapp.AgentService) *PlannerHandler {
+	return &PlannerHandler{service: service, agentService: agentService}
 }
 
 // GetBoards handles GET /api/planner/boards
@@ -147,6 +150,11 @@ func (h *PlannerHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to update task", http.StatusInternalServerError)
 		return
+	}
+
+	// AI Mention Hook
+	if req.Description != nil && strings.Contains(*req.Description, "@ai") {
+		go h.agentService.ProcessTaskAI(uint(id), *req.Description)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

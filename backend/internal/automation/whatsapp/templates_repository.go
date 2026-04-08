@@ -215,3 +215,35 @@ func (r *TemplatesRepository) UpsertMetaTemplate(t AutomationTemplate) (int, err
 	return existingID, nil
 }
 
+func (r *TemplatesRepository) GetEvents() ([]AutomationEvent, error) {
+	query := `SELECT id, name, topic, description, created_at FROM automation_events ORDER BY created_at ASC`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []AutomationEvent
+	for rows.Next() {
+		var e AutomationEvent
+		err := rows.Scan(&e.ID, &e.Name, &e.Topic, &e.Description, &e.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+	return events, nil
+}
+
+func (r *TemplatesRepository) SaveEvent(e AutomationEvent) error {
+	query := `INSERT INTO automation_events (name, topic, description) VALUES ($1, $2, $3) ON CONFLICT (topic) DO UPDATE SET name = $1, description = $3`
+	_, err := r.db.Exec(query, e.Name, e.Topic, e.Description)
+	return err
+}
+
+func (r *TemplatesRepository) DeleteEvent(id int) error {
+	query := `DELETE FROM automation_events WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+

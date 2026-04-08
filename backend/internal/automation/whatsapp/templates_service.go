@@ -578,3 +578,15 @@ func (s *TemplatesService) SyncSingleTemplate(storeID, templateName string) erro
 	_, err = s.repo.UpsertMetaTemplate(localTpl)
 	return err
 }
+
+func (s *TemplatesService) GetEvents() ([]AutomationEvent, error) {
+	return s.repo.GetEvents()
+}
+
+func (s *TemplatesService) SaveEvent(e AutomationEvent) error {
+	return s.repo.SaveEvent(e)
+}
+
+func (s *TemplatesService) DeleteEvent(id int) error {
+	return s.repo.DeleteEvent(id)
+}

@@ -11,19 +11,22 @@ import (
 
 	"mi-tech/internal/dto"
 	"mi-tech/internal/service"
+	"mi-tech/internal/automation/whatsapp"
 )
 
 // OrderHandler is a thin HTTP adapter for order operations.
 type OrderHandler struct {
 	orderService   *service.OrderService
 	invoiceService *service.InvoiceService
+	mappingService *whatsapp.WebhookMappingService
 }
 
 // NewOrderHandler creates a new OrderHandler.
-func NewOrderHandler(orderService *service.OrderService, invoiceService *service.InvoiceService) *OrderHandler {
+func NewOrderHandler(orderService *service.OrderService, invoiceService *service.InvoiceService, mappingService *whatsapp.WebhookMappingService) *OrderHandler {
 	return &OrderHandler{
 		orderService:   orderService,
 		invoiceService: invoiceService,
+		mappingService: mappingService,
 	}
 }
 
@@ -303,5 +306,100 @@ func (h *OrderHandler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Order updated and synchronized with Shopify successfully",
+	})
+}
+
+// MarkAsDelivered handles PUT /api/orders/delivered.
+// @Summary Mark order as delivered
+// @Description Set delivery_status = 'delivered' and stamp delivered_at time. Trigger immediate WhatsApp notification.
+// @Tags orders
+// @Security Bearer
+// @Produce json
+// @Param id query string true "Order ID"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/delivered [put]
+func (h *OrderHandler) MarkAsDelivered(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost && r.Method != http.MethodOptions {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	var id int64
+	var err error
+
+	if idStr == "" && r.Method == http.MethodPost {
+		var body struct {
+			ID int64 `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			id = body.ID
+		}
+	}
+
+	if id == 0 && idStr != "" {
+		id, err = strconv.ParseInt(idStr, 10, 64)
+	}
+
+	if id == 0 && idStr != "" && err != nil {
+		// Try flexible look up if it's an external ID
+		order, err := h.orderService.GetOrderFlexible(idStr)
+		if err != nil {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+		id = order.ID
+	}
+
+	if id == 0 {
+		http.Error(w, "Missing or invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.orderService.MarkAsDelivered(id); err != nil {
+		log.Printf("Error marking order %d as delivered: %v", id, err)
+		http.Error(w, "Failed to update delivery status", http.StatusInternalServerError)
+		return
+	}
+
+	// Trigger "Order Delivered" WhatsApp notification
+	// Fetch the updated order to get full details for template mapping
+	order, err := h.orderService.GetOrderEntity(id)
+	if err == nil {
+		// Use "orders/delivered" topic as per existing conventions in WebhookMappingService
+		go func() {
+			if err := h.mappingService.ExecuteMapping(order.SourceID, "orders/delivered", order); err != nil {
+				log.Printf("Failed to send delivery notification for order %d: %v", id, err)
+			}
+		}()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Order marked as delivered. Customer notification triggered.",
+	})
+}
+
+// GetFeedback handles GET /api/automation/whatsapp/feedback.
+// @Summary List customer feedback
+// @Description Retrieve a list of all customer ratings and messages
+// @Tags feedback
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /automation/whatsapp/feedback [get]
+func (h *OrderHandler) GetFeedback(w http.ResponseWriter, r *http.Request) {
+	feedback, err := h.orderService.GetCustomerFeedback()
+	if err != nil {
+		log.Printf("Error fetching feedback: %v", err)
+		http.Error(w, "Failed to fetch feedback", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"feedback": feedback,
 	})
 }

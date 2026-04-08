@@ -26,7 +26,7 @@ func TestEndToEnd_LoginAndListOrders(t *testing.T) {
 	customerRepo := repository.NewCustomerRepository(db)
 	customerService := service.NewCustomerService(customerRepo, orderRepo, nil)
 	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, nil)
-	orderHandler := handler.NewOrderHandler(orderService, nil)
+	orderHandler := handler.NewOrderHandler(orderService, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/orders", orderHandler.GetOrders)

@@ -57,9 +57,10 @@ type AutomationHandler struct {
 	orderService     *service.OrderService
 	customerService  *service.CustomerService
 	settings         *config.SettingsProvider
+	agentService     *AgentService
 }
 
-func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, customerService *service.CustomerService, settings *config.SettingsProvider) *AutomationHandler {
+func NewAutomationHandler(tService *TemplatesService, mService *MessagesService, mappingService *WebhookMappingService, orderService *service.OrderService, customerService *service.CustomerService, settings *config.SettingsProvider, agentService *AgentService) *AutomationHandler {
 	return &AutomationHandler{
 		templatesService: tService,
 		messagesService:  mService,
@@ -67,6 +68,7 @@ func NewAutomationHandler(tService *TemplatesService, mService *MessagesService,
 		orderService:     orderService,
 		customerService:  customerService,
 		settings:         settings,
+		agentService:     agentService,
 	}
 }
 
@@ -322,6 +324,45 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// TelegramWebhook handles incoming messages from the Telegram bot (Admin interaction).
+func (h *AutomationHandler) TelegramWebhook(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Message struct {
+			Text string `json:"text"`
+			Chat struct {
+				ID int64 `json:"id"`
+			} `json:"chat"`
+		} `json:"message"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	// Security: Verify Chat ID
+	adminChatIDStr := h.settings.Get("telegram_chat_id")
+	adminChatID, _ := strconv.ParseInt(adminChatIDStr, 10, 64)
+
+	if payload.Message.Chat.ID != adminChatID {
+		log.Printf("Unauthorized Telegram interaction from ChatID: %d", payload.Message.Chat.ID)
+		w.WriteHeader(http.StatusOK) // Silent ignore
+		return
+	}
+
+	text := strings.TrimSpace(payload.Message.Text)
+	if strings.HasPrefix(text, "/concerns") {
+		summary, err := h.agentService.GenerateDailyConcernsSummary()
+		if err != nil {
+			h.agentService.notifService.SendSummary(fmt.Sprintf("❌ Error generating report: %v", err))
+		} else {
+			h.agentService.notifService.SendSummary(summary)
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature string) bool {
@@ -1013,6 +1054,7 @@ func (h *AutomationHandler) UpdateConversationMode(w http.ResponseWriter, r *htt
 }
 
 // GetWhatsAppMedia serves local WhatsApp media files.
+// GetWhatsAppMedia serves local WhatsApp media files.
 func (h *AutomationHandler) GetWhatsAppMedia(w http.ResponseWriter, r *http.Request) {
 	filename := r.URL.Query().Get("filename")
 	if filename == "" {
@@ -1043,4 +1085,56 @@ func (h *AutomationHandler) GetWhatsAppMedia(w http.ResponseWriter, r *http.Requ
 	}
 
 	http.ServeFile(w, r, path)
+}
+
+func (h *AutomationHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
+	events, err := h.templatesService.GetEvents()
+	if err != nil {
+		http.Error(w, "Failed to fetch events", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(events)
+}
+
+func (h *AutomationHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
+	var req AutomationEvent
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" || req.Topic == "" {
+		http.Error(w, "name and topic are required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.templatesService.SaveEvent(req)
+	if err != nil {
+		http.Error(w, "Failed to save event", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *AutomationHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.templatesService.DeleteEvent(id); err != nil {
+		http.Error(w, "Failed to delete event", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

@@ -392,3 +392,71 @@
 .message-bubble {
     animation: message-pop 0.3s ease-out;
 }
+
+/* ISSUE & PRIORITY BADGES */
+.issue-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    display: inline-block;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.issue-badge.low { background: #10b981; color: white; }
+.issue-badge.medium { background: #f59e0b; color: white; }
+.issue-badge.high { background: #ef4444; color: white; }
+.issue-badge.urgent { 
+    background: #7f1d1d; 
+    color: white; 
+    animation: pulse-urgent 2s infinite;
+}
+
+@keyframes pulse-urgent {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.priority-badge-mini {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.priority-mini {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.priority-mini.low { background: #10b981; }
+.priority-mini.medium { background: #f59e0b; }
+.priority-mini.high { background: #ef4444; }
+.priority-mini.urgent { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+
+.task-link-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--accent-light);
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.task-link-badge:hover {
+    background: var(--accent-subtle);
+    color: var(--accent-color);
+}

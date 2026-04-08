@@ -68,6 +68,7 @@ type PlannerTask struct {
 	CreatedAt   time.Time        `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt   time.Time        `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	Order       int              `gorm:"column:p_order;default:0" json:"order"`
+	TicketID    *string          `gorm:"column:ticket_id" json:"ticket_id"`
 }
 
 func (PlannerTask) TableName() string { return "planner_tasks" }

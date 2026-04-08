@@ -8,7 +8,9 @@ import (
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
+	"net/url"
 	"regexp"
+	"mi-tech/internal/config"
 	"strconv"
 	"strings"
 	"time"
@@ -27,20 +29,22 @@ func sanitizePhoneNumber(phone string) string {
 }
 
 type WebhookMappingService struct {
-	templatesRepo   *TemplatesRepository
-	messagesService *MessagesService
-	invoiceService  *service.InvoiceService
-	settingsRepo    *repository.SettingsRepository
-	lineItemRepo    repository.LineItemRepository
+	templatesRepo    *TemplatesRepository
+	messagesService  *MessagesService
+	invoiceService   *service.InvoiceService
+	settingsRepo     *repository.SettingsRepository
+	lineItemRepo     repository.LineItemRepository
+	settingsProvider *config.SettingsProvider
 }
 
-func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository, liRepo repository.LineItemRepository) *WebhookMappingService {
+func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository, liRepo repository.LineItemRepository, sProvider *config.SettingsProvider) *WebhookMappingService {
 	return &WebhookMappingService{
-		templatesRepo:   tRepo,
-		messagesService: mService,
-		invoiceService:  iService,
-		settingsRepo:    sRepo,
-		lineItemRepo:    liRepo,
+		templatesRepo:    tRepo,
+		messagesService:  mService,
+		invoiceService:   iService,
+		settingsRepo:     sRepo,
+		lineItemRepo:     liRepo,
+		settingsProvider: sProvider,
 	}
 }
 
@@ -172,6 +176,24 @@ func (s *WebhookMappingService) resolveVariable(field string, order entity.Order
 		return entity.DerefStr(order.CustomerPhone)
 	case "internal_order_id":
 		return fmt.Sprintf("%d", order.ID)
+	case "feedback_url":
+		baseURL := s.settingsProvider.GetFeedbackBaseURL()
+		if baseURL == "" {
+			return ""
+		}
+		
+		u, err := url.Parse(baseURL)
+		if err != nil {
+			log.Printf("ERROR: Invalid feedback base URL: %v", err)
+			return baseURL
+		}
+		
+		q := u.Query()
+		q.Set("order_id", fmt.Sprintf("%d", order.ID))
+		q.Set("phone", sanitizePhoneNumber(entity.DerefStr(order.CustomerPhone)))
+		u.RawQuery = q.Encode()
+		
+		return u.String()
 	default:
 		return "" // Unknown or empty mapping yields empty string (will fail if Meta requires it, which is correct behavior for unmapped vars)
 	}

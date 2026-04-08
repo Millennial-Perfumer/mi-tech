@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"mi-tech/internal/entity"
 	"strings"
 	"time"
@@ -231,4 +232,13 @@ func (r *plannerRepository) GetTaskLeadTime(taskID uint) (float64, error) {
 	}
 	duration := task.CompletedAt.Sub(task.CreatedAt)
 	return duration.Hours() / 24.0, nil // Return in days
+}
+ 
+func (r *plannerRepository) GetNextTicketNumber() (string, error) {
+	var count int64
+	err := r.db.Model(&entity.PlannerTask{}).Where("ticket_id IS NOT NULL").Count(&count).Error
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("TKT-%d", 1001+count), nil
 }
