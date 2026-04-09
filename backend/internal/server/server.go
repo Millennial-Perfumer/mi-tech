@@ -83,7 +83,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := handler.NewSystemHandler(systemService)
 	smmHandler := handler.NewSMMHandler(socialService)
-	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider)
+	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
 
 	// Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService, mappingService)
@@ -97,11 +97,11 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	customerHandler := handler.NewCustomerHandler(customerService)
-	feedbackHandler := handler.NewFeedbackHandler(orderService)
+	feedbackHandler := handler.NewFeedbackHandler(orderService, settingsProvider, mappingService)
 	
 	// Start Background Workers
-	feedbackWorker := whatsapp.NewFeedbackWorker(orderService, mappingService)
-	go feedbackWorker.Start()
+	// feedbackWorker := whatsapp.NewFeedbackWorker(orderService, mappingService)
+	// go feedbackWorker.Start() // Disabled per user request for manual control
 	userHandler := handler.NewUserHandler(userService)
 	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)
 

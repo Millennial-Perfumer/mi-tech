@@ -49,6 +49,8 @@ services:
   frontend-feedback:
     build:
       context: ./frontend-feedback
+      args:
+        - VITE_API_URL=https://mi-tech-api.millennialperfumer.in
     restart: always
     networks:
       - app-network

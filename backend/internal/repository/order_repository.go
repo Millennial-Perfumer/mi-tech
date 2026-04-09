@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -477,17 +478,23 @@ func (r *gormOrderRepository) MarkAsDelivered(id int64) error {
 	}).Error
 }
 
-func (r *gormOrderRepository) GetOrdersForFeedback() ([]entity.Order, error) {
+func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error) {
 	var orders []entity.Order
-	// Logic: Delivered but feedback is still 'pending' (status_id = 1) and delivered_at <= 5 days ago
-	threshold := time.Now().AddDate(0, 0, -5)
+	// Logic: Delivered but feedback is still 'pending' (status_id = 1) and delivered_at <= delayMinutes ago
+	threshold := time.Now().Add(time.Duration(-delayMinutes) * time.Minute)
 	err := r.db.Where("delivery_status = ? AND feedback_status_id = ? AND delivered_at <= ?", "delivered", 1, threshold).
 		Find(&orders).Error
 	return orders, err
 }
 
 func (r *gormOrderRepository) UpdateFeedbackStatus(id int64, statusID int) error {
-	return r.db.Model(&entity.Order{}).Where("id = ?", id).Update("feedback_status_id", statusID).Error
+	updates := map[string]interface{}{
+		"feedback_status_id": statusID,
+	}
+	if statusID == 2 { // Sent
+		updates["feedback_sent_at"] = time.Now()
+	}
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *gormOrderRepository) GetByIDAndPhone(id int64, phone string) (entity.Order, error) {
@@ -509,8 +516,12 @@ func (r *gormOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedb
 	}).Create(&feedback).Error
 }
 
-func (r *gormOrderRepository) GetCustomerFeedback() ([]entity.CustomerFeedback, error) {
-	var results []entity.CustomerFeedback
-	err := r.db.Order("created_at DESC").Find(&results).Error
+func (r *gormOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
+	var results []dto.FeedbackResponse
+	err := r.db.Table("customer_feedback").
+		Select("customer_feedback.id, customer_feedback.order_id, orders.order_number, orders.customer_name, customer_feedback.rating, customer_feedback.message as comment, customer_feedback.created_at").
+		Joins("JOIN orders ON orders.id = customer_feedback.order_id").
+		Order("customer_feedback.created_at DESC").
+		Scan(&results).Error
 	return results, err
 }

@@ -8,4 +8,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    allowedHosts: [
+      'unpresumptuously-nonapplicative-christi.ngrok-free.dev',
+      'feedback-form.millennialperfumer.in'
+    ]
+  }
 })

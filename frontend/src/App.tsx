@@ -85,7 +85,7 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
   { id: 'source', label: 'Source', category: 'General', isDefault: true },
   { id: 'whatsapp', label: 'WhatsApp', category: 'General', isDefault: true },
   { id: 'gst_invoice', label: 'GST Invoice', category: 'General', isDefault: true },
-  { id: 'feedback_status', label: 'Feedback', category: 'Status', isDefault: true },
+  { id: 'feedback_status', label: 'Feedback', category: 'Status', isDefault: false },
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
@@ -857,7 +857,7 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : 'Settings'}</h1>
             <p className="page-subtitle">
               {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
@@ -878,7 +878,7 @@ function App() {
           )}
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1417,9 +1417,77 @@ function App() {
                       )}
                       {visibleColumns.includes('feedback_status') && (
                         <td>
-                          <span className={`badge-pill badge-pill-${order.feedback_status_id === 3 ? 'success' : order.feedback_status_id === 2 ? 'info' : 'gray'}`}>
-                             {order.feedback_status_id === 3 ? 'Completed' : order.feedback_status_id === 2 ? 'Sent' : 'Pending'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {(() => {
+                              const sentAt = order.feedback_sent_at ? new Date(order.feedback_sent_at) : null;
+                              const statusId = order.feedback_status_id;
+                              
+                              if (statusId === 3) {
+                                return (
+                                  <span className="badge-pill badge-pill-success">
+                                    <span className="dot"></span> Received
+                                  </span>
+                                );
+                              }
+                              
+                              if (statusId === 2 && sentAt) {
+                                const expiryMins = parseInt(appConfigs?.feedback_link_expiry_minutes || '2880');
+                                const isExpired = (new Date().getTime() - sentAt.getTime()) > (expiryMins * 60 * 1000);
+                                const surveyURL = `${appConfigs?.feedback_base_url || 'https://feedback-form.millennialperfumer.in'}?o=${order.id}&p=${order.customer_phone}`;
+                                
+                                if (isExpired) {
+                                  return (
+                                    <span className="badge-pill badge-pill-danger" title={`Expired after ${expiryMins} mins`}>
+                                      <span className="dot"></span> Expired
+                                    </span>
+                                  );
+                                }
+                                
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span className="badge-pill badge-pill-info">
+                                      <span className="dot"></span> Sent
+                                    </span>
+                                    <button 
+                                      className="btn-icon-minimal" 
+                                      title="Copy Feedback Link"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(surveyURL);
+                                        const btn = e.currentTarget;
+                                        const original = btn.innerHTML;
+                                        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                                        setTimeout(() => btn.innerHTML = original, 2000);
+                                      }}
+                                      style={{ 
+                                        width: '24px', 
+                                        height: '24px', 
+                                        padding: 0, 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        borderRadius: '6px',
+                                        background: 'var(--bg-input)',
+                                        border: '1px solid var(--border-color)',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              
+                              return (
+                                <span className="badge-pill badge-pill-gray" style={{ opacity: 0.6 }}>
+                                   Pending
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </td>
                       )}
                     </tr>

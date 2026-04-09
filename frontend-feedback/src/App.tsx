@@ -31,7 +31,8 @@ function App() {
 
   const validateRequest = async (o: string, p: string) => {
     try {
-      const response = await fetch(`https://mi-tech.millennialperfumer.in/api/feedback/validate?o=${o}&p=${p}`)
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://mi-tech.millennialperfumer.in';
+      const response = await fetch(`${apiUrl}/api/feedback/validate?o=${encodeURIComponent(o)}&p=${encodeURIComponent(p)}`)
       if (response.ok) {
         setIsValidated(true)
       } else {
@@ -55,7 +56,8 @@ function App() {
     setError('')
 
     try {
-      const response = await fetch('https://mi-tech.millennialperfumer.in/api/feedback/submit', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://mi-tech.millennialperfumer.in';
+      const response = await fetch(`${apiUrl}/api/feedback/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

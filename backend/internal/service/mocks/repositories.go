@@ -92,8 +92,8 @@ func (m *MockOrderRepository) MarkAsDelivered(id int64) error {
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) GetOrdersForFeedback() ([]entity.Order, error) {
-	args := m.Called()
+func (m *MockOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error) {
+	args := m.Called(delayMinutes)
 	return args.Get(0).([]entity.Order), args.Error(1)
 }
 

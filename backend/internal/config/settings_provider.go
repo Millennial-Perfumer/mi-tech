@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"mi-tech/internal/repository"
@@ -152,4 +153,30 @@ func (p *SettingsProvider) GetFeedbackBaseURL() string {
 		return "https://feedback-form.millennialperfumer.in"
 	}
 	return val
+}
+
+func (p *SettingsProvider) GetFeedbackExpiryMinutes() int {
+	val := p.Get("feedback_link_expiry_minutes")
+	if val == "" {
+		return 2880 // 48 hours
+	}
+	var mins int
+	fmt.Sscanf(val, "%d", &mins)
+	if mins <= 0 {
+		return 2880
+	}
+	return mins
+}
+
+func (p *SettingsProvider) GetFeedbackAutomationDelayMinutes() int {
+	val := p.Get("feedback_automation_delay_minutes")
+	if val == "" {
+		return 60 // 1 hour
+	}
+	var mins int
+	fmt.Sscanf(val, "%d", &mins)
+	if mins <= 0 {
+		return 60
+	}
+	return mins
 }

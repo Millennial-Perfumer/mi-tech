@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -49,11 +50,11 @@ type OrderRepository interface {
 
 	// Feedback & Delivery System
 	MarkAsDelivered(id int64) error
-	GetOrdersForFeedback() ([]entity.Order, error)
+	GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error)
 	GetByIDAndPhone(id int64, phone string) (entity.Order, error)
 	UpdateFeedbackStatus(id int64, statusID int) error
 	SaveCustomerFeedback(feedback entity.CustomerFeedback) error
-	GetCustomerFeedback() ([]entity.CustomerFeedback, error)
+	GetCustomerFeedback() ([]dto.FeedbackResponse, error)
 }
 
 // LineItemRepository defines all data access operations for the order_line_items table.

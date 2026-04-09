@@ -195,8 +195,8 @@ func (s *OrderService) UpdateOrder(id int64, req dto.OrderUpdateRequest) error {
 	return nil
 }
 
-func (s *OrderService) GetOrdersForFeedback() ([]entity.Order, error) {
-	return s.orderRepo.GetOrdersForFeedback()
+func (s *OrderService) GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error) {
+	return s.orderRepo.GetOrdersForFeedback(delayMinutes)
 }
 
 func (s *OrderService) MarkAsDelivered(id int64) error {
@@ -207,7 +207,7 @@ func (s *OrderService) UpdateFeedbackStatus(id int64, statusID int) error {
 	return s.orderRepo.UpdateFeedbackStatus(id, statusID)
 }
 
-func (s *OrderService) GetCustomerFeedback() ([]entity.CustomerFeedback, error) {
+func (s *OrderService) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
 	return s.orderRepo.GetCustomerFeedback()
 }
 

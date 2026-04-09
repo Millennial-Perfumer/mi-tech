@@ -209,6 +209,12 @@
   border: 1px solid var(--border-color);
 }
 
+.order-badge.system-badge {
+  background-color: var(--bg-hover);
+  color: var(--text-tertiary);
+  border-color: var(--border-color);
+}
+
 .time-cell {
   color: var(--text-secondary);
   font-weight: 500;

@@ -35,8 +35,11 @@ func (w *FeedbackWorker) Start() {
 func (w *FeedbackWorker) process() {
 	log.Println("Feedback Automation Worker: Checking for orders ready for feedback...")
 	
-	// 1. Get orders delivered 5+ days ago with 'pending' feedback status
-	orders, err := w.orderService.GetOrdersForFeedback()
+	// Fetch delay from settings
+	delayMins := w.mappingService.settingsProvider.GetFeedbackAutomationDelayMinutes()
+
+	// 1. Get orders delivered delayMins minutes ago with 'pending' feedback status
+	orders, err := w.orderService.GetOrdersForFeedback(delayMins)
 	if err != nil {
 		log.Printf("Feedback Automation Worker: Error fetching orders: %v", err)
 		return

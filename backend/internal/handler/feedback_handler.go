@@ -3,18 +3,27 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/config"
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
+	"time"
 )
 
 type FeedbackHandler struct {
-	orderService *service.OrderService
+	orderService     *service.OrderService
+	settingsProvider *config.SettingsProvider
+	mappingService   *whatsapp.WebhookMappingService
 }
 
-func NewFeedbackHandler(orderService *service.OrderService) *FeedbackHandler {
+func NewFeedbackHandler(orderService *service.OrderService, settingsProvider *config.SettingsProvider, mappingService *whatsapp.WebhookMappingService) *FeedbackHandler {
 	return &FeedbackHandler{
-		orderService: orderService,
+		orderService:     orderService,
+		settingsProvider: settingsProvider,
+		mappingService:   mappingService,
 	}
 }
 
@@ -87,8 +96,8 @@ func (h *FeedbackHandler) GetFeedback(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":   true,
-		"feedbacks": feedbacks,
+		"success":  true,
+		"feedback": feedbacks,
 	})
 }
 
@@ -124,6 +133,17 @@ func (h *FeedbackHandler) ValidateFeedback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	order, err := h.orderService.GetOrderEntity(orderID)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Feedback request not found.",
+		})
+		return
+	}
+
+	// 2. Check phone match
 	valid, err := h.orderService.ValidateFeedback(orderID, phone)
 	if err != nil || !valid {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -134,9 +154,113 @@ func (h *FeedbackHandler) ValidateFeedback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// 3. Check expiry
+	if order.FeedbackSentAt == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Feedback request has not been sent yet.",
+		})
+		return
+	}
+
+	expiryMins := h.settingsProvider.GetFeedbackExpiryMinutes()
+	expiryWindow := time.Duration(expiryMins) * time.Minute
+	if time.Since(*order.FeedbackSentAt) > expiryWindow {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("This feedback link has expired (%d-minute limit). Please request a new one.", expiryMins),
+		})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Validated",
+	})
+}
+// ScanFeedbackCandidates handles GET /api/feedback/scan
+func (h *FeedbackHandler) ScanFeedbackCandidates(w http.ResponseWriter, r *http.Request) {
+	delayMins := h.settingsProvider.GetFeedbackAutomationDelayMinutes()
+	orders, err := h.orderService.GetOrdersForFeedback(delayMins)
+	if err != nil {
+		http.Error(w, "Failed to scan for candidates", http.StatusInternalServerError)
+		return
+	}
+
+	var results []dto.FeedbackScanResult
+	for _, order := range orders {
+		if order.DeliveredAt == nil {
+			log.Printf("DEBUG: Skipping order %d, delivered_at is nil", order.ID)
+			continue
+		}
+		
+		results = append(results, dto.FeedbackScanResult{
+			ID:            order.ID,
+			OrderNumber:   order.OrderNumber,
+			CustomerName:  entity.DerefStr(order.CustomerName),
+			CustomerPhone: entity.DerefStr(order.CustomerPhone),
+			DeliveredAt:   *order.DeliveredAt,
+			FeedbackURL:   h.mappingService.GenerateFeedbackURL(order),
+		})
+	}
+
+	log.Printf("DEBUG: Found %d eligible feedback orders", len(results))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"orders":  results,
+	})
+}
+
+// BulkSendFeedbackRequests handles POST /api/feedback/bulk-send
+func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		OrderIDs []int64 `json:"order_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.OrderIDs) == 0 {
+		http.Error(w, "No orders selected", http.StatusBadRequest)
+		return
+	}
+
+	successCount := 0
+	errorCount := 0
+
+	for _, id := range req.OrderIDs {
+		order, err := h.orderService.GetOrderEntity(id)
+		if err != nil {
+			log.Printf("Bulk Send Error: Failed to fetch order %d: %v", id, err)
+			errorCount++
+			continue
+		}
+
+		// Trigger feedback mapping
+		// Topic: orders/feedback_request - as previously defined in worker
+		err = h.mappingService.ExecuteMapping("1", "orders/feedback_request", order)
+		if err != nil {
+			log.Printf("Bulk Send Error: Failed to send feedback for order %d: %v", id, err)
+			errorCount++
+			continue
+		}
+
+		// Update feedback status to 'sent' (2)
+		_ = h.orderService.UpdateFeedbackStatus(order.ID, 2)
+		successCount++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"sent":    successCount,
+		"failed":  errorCount,
 	})
 }

@@ -46,6 +46,7 @@ type Order struct {
 	// Feedback System integration
 	DeliveredAt        *time.Time       `gorm:"column:delivered_at"`
 	FeedbackStatusID   int              `gorm:"column:feedback_status_id"`
+	FeedbackSentAt     *time.Time       `gorm:"column:feedback_sent_at"`
 }
 
 func (Order) TableName() string { return "orders" }
@@ -66,6 +67,7 @@ type CustomerFeedback struct {
 	Rating        int        `gorm:"column:rating"`
 	Message       string     `gorm:"column:message"`
 	CreatedAt     time.Time  `gorm:"column:created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at"`
 }
 
 func (CustomerFeedback) TableName() string { return "customer_feedback" }

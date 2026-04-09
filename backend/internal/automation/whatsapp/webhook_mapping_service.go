@@ -35,9 +35,10 @@ type WebhookMappingService struct {
 	settingsRepo     *repository.SettingsRepository
 	lineItemRepo     repository.LineItemRepository
 	settingsProvider *config.SettingsProvider
+	orderRepo        repository.OrderRepository
 }
 
-func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository, liRepo repository.LineItemRepository, sProvider *config.SettingsProvider) *WebhookMappingService {
+func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository, liRepo repository.LineItemRepository, sProvider *config.SettingsProvider, oRepo repository.OrderRepository) *WebhookMappingService {
 	return &WebhookMappingService{
 		templatesRepo:    tRepo,
 		messagesService:  mService,
@@ -45,6 +46,7 @@ func NewWebhookMappingService(tRepo *TemplatesRepository, mService *MessagesServ
 		settingsRepo:     sRepo,
 		lineItemRepo:     liRepo,
 		settingsProvider: sProvider,
+		orderRepo:        oRepo,
 	}
 }
 
@@ -177,23 +179,7 @@ func (s *WebhookMappingService) resolveVariable(field string, order entity.Order
 	case "internal_order_id":
 		return fmt.Sprintf("%d", order.ID)
 	case "feedback_url":
-		baseURL := s.settingsProvider.GetFeedbackBaseURL()
-		if baseURL == "" {
-			return ""
-		}
-		
-		u, err := url.Parse(baseURL)
-		if err != nil {
-			log.Printf("ERROR: Invalid feedback base URL: %v", err)
-			return baseURL
-		}
-		
-		q := u.Query()
-		q.Set("order_id", fmt.Sprintf("%d", order.ID))
-		q.Set("phone", sanitizePhoneNumber(entity.DerefStr(order.CustomerPhone)))
-		u.RawQuery = q.Encode()
-		
-		return u.String()
+		return s.GenerateFeedbackURL(order)
 	default:
 		return "" // Unknown or empty mapping yields empty string (will fail if Meta requires it, which is correct behavior for unmapped vars)
 	}
@@ -408,7 +394,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 	compJSON, _ := json.Marshal(components)
 	log.Printf("Automation Meta Call: Sending %s to %s (Order: %d). Payload: %s", template.TemplateName, cleanPhone, order.ID, string(compJSON))
 
-	return s.messagesService.SendTemplateMessage(
+	err := s.messagesService.SendTemplateMessage(
 		storeID,
 		template.ID,
 		order.ID,
@@ -417,6 +403,26 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		template.Language,
 		components,
 	)
+
+	// Post-send logic: if it's a feedback message, mark the order status as 'Sent' (2)
+	if err == nil {
+		isFeedback := false
+		if mappings != nil {
+			for _, v := range mappings {
+				if v == "feedback_url" {
+					isFeedback = true
+					break
+				}
+			}
+		}
+		if isFeedback {
+			if updateErr := s.orderRepo.UpdateFeedbackStatus(order.ID, 2); updateErr != nil {
+				log.Printf("Automation Error: Failed to update feedback status for order %d: %v", order.ID, updateErr)
+			}
+		}
+	}
+
+	return err
 }
 
 // countRequiredParams finds the maximum {{n}} placeholder in the template body.
@@ -561,4 +567,23 @@ func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *A
 	}
 
 	return s.messagesService.SendTemplateMessage(storeID, template.ID, 0, cleanPhone, template.TemplateName, template.Language, components)
+}
+func (s *WebhookMappingService) GenerateFeedbackURL(order entity.Order) string {
+	baseURL := s.settingsProvider.GetFeedbackBaseURL()
+	if baseURL == "" {
+		return ""
+	}
+
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		log.Printf("ERROR: Invalid feedback base URL: %v", err)
+		return baseURL
+	}
+
+	q := u.Query()
+	q.Set("order_id", fmt.Sprintf("%d", order.ID))
+	q.Set("phone", sanitizePhoneNumber(entity.DerefStr(order.CustomerPhone)))
+	u.RawQuery = q.Encode()
+
+	return u.String()
 }

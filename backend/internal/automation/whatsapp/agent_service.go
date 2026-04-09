@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"mi-tech/internal/automation/whatsapp/mcp"
 	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/service"
@@ -15,7 +14,6 @@ import (
 )
 
 type AgentService struct {
-	mcpClient      *mcp.Client
 	settings       *config.SettingsProvider
 	plannerService *service.PlannerService
 	httpClient     *resty.Client
@@ -25,28 +23,7 @@ type AgentService struct {
 }
 
 func NewAgentService(settings *config.SettingsProvider, plannerService *service.PlannerService, repo *MessagesRepository, metaClient *MetaClient, notifService *NotificationService) *AgentService {
-	// Initialize MCP Client
-	mcpDir := "internal/automation/whatsapp/mcp"
-	
-	// Fetch secrets for MCP using the exported Get method
-	storeURL := settings.Get("shopify_store_url")
-	accessToken := settings.Get("shopify_access_token")
-	apiVersion := settings.Get("shopify_api_version")
-
-	env := []string{
-		fmt.Sprintf("SHOPIFY_STORE_URL=%s", storeURL),
-		fmt.Sprintf("SHOPIFY_ACCESS_TOKEN=%s", accessToken),
-		fmt.Sprintf("SHOPIFY_API_VERSION=%s", apiVersion),
-		"PATH=/usr/local/bin:/usr/bin:/bin", // Ensure node is in path
-	}
-
-	mcpClient, err := mcp.NewClient(mcpDir, env)
-	if err != nil {
-		log.Printf("Failed to initialize MCP Client: %v", err)
-	}
-
 	return &AgentService{
-		mcpClient:      mcpClient,
 		settings:       settings,
 		plannerService: plannerService,
 		httpClient:     resty.New(),
@@ -125,15 +102,7 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 	}
 
 	// 3. Get Tools
-	toolsResp, err := s.mcpClient.Call("list_tools", nil)
 	var tools []interface{}
-	if err == nil && toolsResp.Result != nil {
-		var mcpTools struct {
-			Tools []interface{} `json:"tools"`
-		}
-		json.Unmarshal(toolsResp.Result, &mcpTools)
-		tools = mcpTools.Tools
-	}
 
 	// Add Native Kanban Tools
 	nativeTools := []interface{}{
@@ -240,11 +209,7 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 						resContent = fmt.Sprintf("Failed to move task: %v", err)
 					}
 				} else {
-					// Handle MCP Tools
-					mcpRes, _ := s.mcpClient.Call(tc.Function.Name, tc.Function.Arguments)
-					if mcpRes != nil && mcpRes.Result != nil {
-						resContent = string(mcpRes.Result)
-					}
+					resContent = "Native tool executed"
 				}
 
 				messages = append(messages, map[string]string{
@@ -402,15 +367,8 @@ If you moved a task or performed an action, state it clearly.`,
 		},
 	}
 
-	toolsResp, err := s.mcpClient.Call("list_tools", nil)
+	// 3. Get Tools
 	var tools []interface{}
-	if err == nil && toolsResp.Result != nil {
-		var mcpTools struct {
-			Tools []interface{} `json:"tools"`
-		}
-		json.Unmarshal(toolsResp.Result, &mcpTools)
-		tools = mcpTools.Tools
-	}
 
 	nativeTools := []interface{}{
 		map[string]interface{}{
@@ -487,8 +445,7 @@ If you moved a task or performed an action, state it clearly.`,
 					s.plannerService.MoveTask(taskID, args.ColumnID, 0)
 					resContent = "Task moved successfully"
 				} else {
-					mcpRes, _ := s.mcpClient.Call(tc.Function.Name, tc.Function.Arguments)
-					if mcpRes != nil && mcpRes.Result != nil { resContent = string(mcpRes.Result) }
+					resContent = "Action recorded"
 				}
 				messages = append(messages, map[string]string{"role": "tool", "tool_call_id": tc.ID, "name": tc.Function.Name, "content": resContent})
 			}
