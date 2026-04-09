@@ -256,8 +256,8 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	secret := h.settings.GetShopifyWebhookSecret()
 	if secret == "" {
-		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Skipping validation.")
-		return true
+		log.Printf("Webhook Error: No shopify_webhook_secret configured. Failing closed.")
+		return false
 	}
 
 	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")
