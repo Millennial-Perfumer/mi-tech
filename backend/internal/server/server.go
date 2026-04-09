@@ -99,9 +99,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	customerHandler := handler.NewCustomerHandler(customerService)
 	feedbackHandler := handler.NewFeedbackHandler(orderService, settingsProvider, mappingService)
 	
-	// Start Background Workers
-	// feedbackWorker := whatsapp.NewFeedbackWorker(orderService, mappingService)
-	// go feedbackWorker.Start() // Disabled per user request for manual control
 	userHandler := handler.NewUserHandler(userService)
 	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)
 
