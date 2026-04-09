@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -140,17 +140,17 @@ function App() {
     console.log('Current userRole:', userRole);
   }, [userRole]);
 
-  const handleLogin = (newToken: string) => {
+  const handleLogin = useCallback((newToken: string) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
-  };
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
-  };
+  }, []);
 
-  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const fetchWithAuth = useCallback(async (url: string, options: RequestInit = {}) => {
     const headers = {
       ...options.headers,
       'Authorization': `Bearer ${token}`
@@ -160,7 +160,7 @@ function App() {
       handleLogout();
     }
     return response;
-  };
+  }, [token, handleLogout]);
 
   useEffect(() => {
     localStorage.setItem('gstAppActiveTab', activeTab);
@@ -239,7 +239,7 @@ function App() {
         }
       })
       .catch((err) => console.error('Failed to load date range:', err));
-  }, [token]);
+  }, [token, fetchWithAuth]);
 
   const handleUpdateDateRange = (start: string, end: string) => {
     console.log('DEBUG: Updating global date range:', start, end);
@@ -320,27 +320,27 @@ function App() {
     }
   };
 
-  const fetchAppSettings = async () => {
+  const fetchAppSettings = useCallback(async () => {
     if (!token) return;
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/settings`);
-      const data = await response.json();
+      const data = (await response.json()) as { success: boolean; settings: Record<string, string> };
       if (data.success) {
         setAppSettings(data.settings);
       }
     } catch (err) {
       console.error('Failed to fetch app settings:', err);
     }
-  };
+  }, [token, fetchWithAuth]);
 
-  const fetchAppConfigs = async () => {
+  const fetchAppConfigs = useCallback(async () => {
     if (!token) return;
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/configs`);
-      const data = await response.json();
+      const data = (await response.json()) as { success: boolean; configs: { key: string; value: string }[] };
       if (data.success && Array.isArray(data.configs)) {
         const configsMap: Record<string, string> = {};
-        data.configs.forEach((cfg: any) => {
+        data.configs.forEach((cfg) => {
           configsMap[cfg.key] = cfg.value;
         });
         setAppConfigs(configsMap);
@@ -348,7 +348,7 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch app configs:', err);
     }
-  };
+  }, [token, fetchWithAuth]);
 
 
   // Dedicated effect for settings - only on mount or token change
@@ -357,9 +357,9 @@ function App() {
       fetchAppSettings();
       fetchAppConfigs();
     }
-  }, [token]);
+  }, [token, fetchAppSettings, fetchAppConfigs]);
 
-  const fetchDashboardData = async (silent = false, force = false) => {
+  const fetchDashboardData = useCallback(async (silent = false, force = false) => {
     if (!token) return;
 
     // Only fetch dashboard/orders data if specifically on those tabs (unless forced)
@@ -386,13 +386,13 @@ function App() {
       }
 
       // Optimization: Conditional parallel fetching based on activeTab
-      const fetchTasks: Promise<any>[] = [];
+      const fetchTasks: Promise<unknown>[] = [];
 
       // 1. Fetch Metrics (Dashboard only)
       if (force || isOnDashboard) {
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`)
-            .then(res => res.json())
+            .then(res => res.json() as Promise<{ success: boolean; metrics: DashboardMetrics }>)
             .then(data => { if (data.success) setMetrics(data.metrics); })
         );
       }
@@ -401,7 +401,7 @@ function App() {
       if (force || isOnOrders) {
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&search=${debouncedSearch}&source=${sourceFilter}&financial_status=${paymentFilter}&fulfillment_status=${fulfillmentFilter}&sort_by=${sortBy}&sort_order=${sortOrder}`)
-            .then(res => res.json())
+            .then(res => res.json() as Promise<{ success: boolean; orders: Order[]; total_count: number }>)
             .then(data => {
               if (data.success) {
                 setOrders(data.orders);
@@ -413,7 +413,7 @@ function App() {
         // 3. Webhook Status (Orders tab only)
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/webhook/status`)
-            .then(res => res.json())
+            .then(res => res.json() as Promise<WebhookStatus>)
             .then(data => setWebhookStatus(data))
         );
       }
@@ -426,7 +426,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder, fetchWithAuth]);
 
   const syncShopify = async () => {
     setIsSyncing(true);
@@ -499,7 +499,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [fetchDashboardData]);
 
   const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {

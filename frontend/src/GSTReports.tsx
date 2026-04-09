@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 interface GSTSummary {
   total_orders: number;
@@ -16,7 +16,7 @@ interface GSTSummary {
   paid_orders: number;
 }
 
-interface StateReport {
+interface StateReport extends Record<string, string | number | null> {
   state: string;
   orders: number;
   taxable_value: number;
@@ -27,7 +27,7 @@ interface StateReport {
   revenue: number;
 }
 
-interface HSNReport {
+interface HSNReport extends Record<string, string | number | null> {
   hsn_code: string;
   product_count: number;
   qty_sold: number;
@@ -39,7 +39,7 @@ interface HSNReport {
   revenue: number;
 }
 
-interface DocumentIssued {
+interface DocumentIssued extends Record<string, string | number | null> {
   document_type: string;
   from_serial: string;
   to_serial: string;
@@ -68,23 +68,32 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
   const [hsnData, setHsnData] = useState<HSNReport[]>([]);
   const [docsData, setDocsData] = useState<DocumentIssued[]>([]);
   const [opSummary, setOpSummary] = useState<OperationalSummary[]>([]);
-  const [loading, setLoading] = useState(!summary);
+  const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Clear data when global filters change
+  useEffect(() => {
+    setSummary(null);
+    setStateData([]);
+    setHsnData([]);
+    setDocsData([]);
+    setOpSummary([]);
+  }, [startDate, endDate]);
 
   // Sorting State
   const [sortField, setSortField] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  const handleSort = (field: string) => {
+  const handleSort = useCallback((field: string) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortOrder('desc');
     }
-  };
+  }, [sortField]);
 
-  const getSortedData = <T extends Record<string, any>>(data: T[]): T[] => {
+  const getSortedData = useCallback(<T extends Record<string, string | number | null>>(data: T[]): T[] => {
     if (!sortField) return data;
     return [...data].sort((a, b) => {
       const aVal = a[sortField];
@@ -97,10 +106,13 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
       }
       
       return sortOrder === 'asc' 
-        ? (aVal as number) - (bVal as number) 
-        : (bVal as number) - (aVal as number);
+        ? ((aVal as number) || 0) - ((bVal as number) || 0)
+        : ((bVal as number) || 0) - ((aVal as number) || 0);
     });
-  };
+  }, [sortField, sortOrder]);
+
+  const sortedStateData = useMemo(() => getSortedData(stateData), [stateData, getSortedData]);
+  const sortedHsnData = useMemo(() => getSortedData(hsnData), [hsnData, getSortedData]);
 
   const renderSortArrow = (field: string) => {
     if (sortField !== field) return <span style={{ opacity: 0.2, marginLeft: '4px' }}>↕</span>;
@@ -109,7 +121,18 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
 
   useEffect(() => {
     const fetchReports = async () => {
-      if (summary) {
+      // Logic for conditional on-demand fetching
+      let shouldFetch = false;
+      if (activeSubTab === 'summary' && !summary) shouldFetch = true;
+      if (activeSubTab === 'state' && stateData.length === 0) shouldFetch = true;
+      if (activeSubTab === 'hsn' && hsnData.length === 0) shouldFetch = true;
+      if (activeSubTab === 'documents' && docsData.length === 0) shouldFetch = true;
+
+      // If refreshTrigger changed, we always fetch everything or just the current tab?
+      // For now, let's just fetch the current tab if shouldFetch is true or if it's a refresh.
+      if (!shouldFetch && !refreshTrigger) return;
+
+      if (summary || stateData.length > 0 || hsnData.length > 0 || docsData.length > 0) {
         setIsRefreshing(true);
       } else {
         setLoading(true);
@@ -129,32 +152,43 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
           endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
         }
 
-        const [sumRes, stateRes, hsnRes, docsRes] = await Promise.all([
-          fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`),
-          fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
-        ]);
+        const baseUrl = `${API_BASE}/api/reports`;
+        const queryParams = `?start_date=${startObj}&end_date=${endObj}`;
 
-        const sumData = await sumRes.json();
-        const sData = await stateRes.json();
-        const hData = await hsnRes.json();
-        const dData = await docsRes.json();
-
-        if (sumData.success) {
-          setSummary(sumData.summary);
-          setOpSummary([
-            { metric: 'Total Orders', count: sumData.summary.total_orders },
-            { metric: 'Cancelled Orders', count: sumData.summary.cancelled_orders },
-            { metric: 'Fulfilled Orders', count: sumData.summary.fulfilled_orders },
-            { metric: 'Unfulfilled Orders', count: sumData.summary.unfulfilled_orders },
-            { metric: 'Paid Orders', count: sumData.summary.paid_orders },
-            { metric: 'Invoices Generated', count: sumData.summary.invoices_generated }
-          ]);
+        if (activeSubTab === 'summary' || refreshTrigger) {
+          const res = await fetchWithAuth(`${baseUrl}/summary${queryParams}`);
+          const data = (await res.json()) as { success: boolean; summary: GSTSummary };
+          if (data.success) {
+            setSummary(data.summary);
+            setOpSummary([
+              { metric: 'Total Orders', count: data.summary.total_orders },
+              { metric: 'Cancelled Orders', count: data.summary.cancelled_orders },
+              { metric: 'Fulfilled Orders', count: data.summary.fulfilled_orders },
+              { metric: 'Unfulfilled Orders', count: data.summary.unfulfilled_orders },
+              { metric: 'Paid Orders', count: data.summary.paid_orders },
+              { metric: 'Invoices Generated', count: data.summary.invoices_generated }
+            ]);
+          }
         }
-        if (sData.success) setStateData(sData.data || []);
-        if (hData.success) setHsnData(hData.data || []);
-        if (dData.success) setDocsData(dData.data || []);
+
+        if (activeSubTab === 'state' || refreshTrigger) {
+          const res = await fetchWithAuth(`${baseUrl}/state-wise${queryParams}`);
+          const data = (await res.json()) as { success: boolean; data: StateReport[] };
+          if (data.success) setStateData(data.data || []);
+        }
+
+        if (activeSubTab === 'hsn' || refreshTrigger) {
+          const res = await fetchWithAuth(`${baseUrl}/hsn-wise${queryParams}`);
+          const data = (await res.json()) as { success: boolean; data: HSNReport[] };
+          if (data.success) setHsnData(data.data || []);
+        }
+
+        if (activeSubTab === 'documents' || refreshTrigger) {
+          const res = await fetchWithAuth(`${baseUrl}/documents-issued${queryParams}`);
+          const data = (await res.json()) as { success: boolean; data: DocumentIssued[] };
+          if (data.success) setDocsData(data.data || []);
+        }
+
       } catch (err) {
         console.error('Failed to fetch reports:', err);
       } finally {
@@ -164,12 +198,13 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     };
 
     fetchReports();
-  }, [startDate, endDate, fetchWithAuth, refreshTrigger]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, activeSubTab, fetchWithAuth, refreshTrigger]);
 
-  const downloadCSV = (data: any[], filename: string) => {
+  const downloadCSV = (data: Record<string, string | number | null>[], filename: string) => {
     if (data.length === 0) return;
     const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(obj => Object.values(obj).join(',')).join('\n');
+    const rows = data.map(obj => Object.values(obj).map(v => v === null ? '' : v).join(',')).join('\n');
     const csvContent = `data:text/csv;charset=utf-8,${headers}\n${rows}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
@@ -204,7 +239,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
         ].map((tab) => (
           <button 
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as any)}
+            onClick={() => setActiveSubTab(tab.id as 'summary' | 'state' | 'hsn' | 'documents')}
             style={{ 
               background: 'none', border: 'none', padding: '0.5rem 1.25rem', cursor: 'pointer',
               borderBottom: activeSubTab === tab.id ? '2px solid var(--accent-color)' : 'none',
@@ -310,16 +345,16 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
                     <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>No state-wise data for this period.</td>
                   </tr>
                 ) : (
-                  getSortedData(stateData).map((row, idx) => (
+                  sortedStateData.map((row, idx) => (
                     <tr key={idx}>
                       <td>{row.state || 'N/A'}</td>
                       <td>{row.orders}</td>
-                      <td>₹{row.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.taxable_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.cgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.sgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.total_gst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     </tr>
                   ))
                 )}
@@ -354,15 +389,15 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
                     <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>No HSN data for this period.</td>
                   </tr>
                 ) : (
-                  getSortedData(hsnData).map((row, idx) => (
+                  sortedHsnData.map((row, idx) => (
                     <tr key={idx}>
                       <td>{row.hsn_code}</td>
                       <td>{row.qty_sold}</td>
-                      <td>₹{row.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td>₹{row.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.taxable_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.igst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.cgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.sgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td>₹{(row.total_gst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     </tr>
                   ))
                 )}
