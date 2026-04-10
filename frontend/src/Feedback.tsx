@@ -8,6 +8,8 @@ interface CustomerFeedback {
   customer_name: string;
   rating: number;
   comment: string;
+  message?: string;
+  customer_phone?: string;
   created_at: string;
 }
 

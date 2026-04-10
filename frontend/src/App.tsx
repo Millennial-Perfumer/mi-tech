@@ -49,6 +49,7 @@ interface Order {
   source_id: string;
   customer_phone: string;
   feedback_status_id?: number;
+  feedback_sent_at?: string;
 }
 
 interface WebhookStatus {

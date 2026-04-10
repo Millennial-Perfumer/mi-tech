@@ -37,6 +37,8 @@ interface Order {
   tracking_number?: string;
   shipping_company?: string;
   tracking_url?: string;
+  feedback_status_id?: number;
+  feedback_sent_at?: string;
 }
 
 interface OrderDetailsModalProps {
