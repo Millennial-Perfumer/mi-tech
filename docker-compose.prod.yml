@@ -47,10 +47,7 @@ services:
       - app-network
 
   frontend-feedback:
-    build:
-      context: ./frontend-feedback
-      args:
-        - VITE_API_URL=https://mi-tech-api.millennialperfumer.in
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend-feedback:latest
     restart: always
     networks:
       - app-network
