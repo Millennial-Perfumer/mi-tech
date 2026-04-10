@@ -28,6 +28,7 @@ const availableVariables = [
   { value: 'tracking_link', label: 'Tracking Link' },
   { value: 'tracking_number', label: 'Tracking Number' },
   { value: 'shipping_company', label: 'Shipping Company' },
+  { value: 'feedback_url', label: 'Customer Feedback URL' },
 ];
 
 export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapperProps) {

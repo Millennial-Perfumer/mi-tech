@@ -7,24 +7,34 @@ import (
 
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
-	"mi-tech/internal/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInvoiceService_GeneratePDF(t *testing.T) {
-	db, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Skip("DB not available")
-	}
-	defer testutil.CleanupTestDB(db)
+type mockSettingsRepo struct {
+	repository.ISettingsRepository
+	settings map[string]string
+}
 
-	repo := repository.NewSettingsRepository(db)
-	service := NewInvoiceService(repo)
+func (m *mockSettingsRepo) Get(key string) (string, error) {
+	return m.settings[key], nil
+}
+
+func TestInvoiceService_GeneratePDF(t *testing.T) {
+	mockRepo := &mockSettingsRepo{
+		settings: map[string]string{
+			"business_name":          "Test Brand",
+			"business_gstin":         "1234567890",
+			"business_address_line1": "Test Street",
+			"business_address_line2": "Test City",
+			"business_phone":         "9999999999",
+		},
+	}
+	service := NewInvoiceService(mockRepo)
 
 	order := entity.Order{
-		OrderNumber: "1001",
-		CreatedAt:   time.Now(),
+		OrderNumber:  "1001",
+		CreatedAt:    time.Now(),
 		CustomerName: entity.StrPtr("John Doe"),
 	}
 	items := []entity.LineItem{
@@ -32,12 +42,7 @@ func TestInvoiceService_GeneratePDF(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = service.GeneratePDF(order, items, &buf)
-
-	if err != nil {
-		t.Logf("PDF generation failed: %v", err)
-		return
-	}
+	err := service.GeneratePDF(order, items, &buf)
 
 	assert.NoError(t, err)
 	assert.True(t, buf.Len() > 0)

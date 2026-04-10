@@ -232,10 +232,11 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
                   </td>
                   <td>
                     <div className="customer-info">
-                      <span className="order-badge">
+                      <span className={`order-badge ${!m.order_id && m.template_name?.includes('verification') ? 'system-badge' : ''}`}>
                         {m.order_number ? 
                           (String(m.order_number).startsWith('#') ? m.order_number : `#${m.order_number}`) : 
-                          (m.order_id ? (String(m.order_id).startsWith('#') ? m.order_id : `#${m.order_id}`) : 'Bulk/Test')}
+                          (m.order_id ? (String(m.order_id).startsWith('#') ? m.order_id : `#${m.order_id}`) : 
+                           (m.template_name?.includes('verification') ? 'System/Auth' : 'Bulk/Test'))}
                       </span>
                       {m.customer_name && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{m.customer_name}</span>}
                     </div>

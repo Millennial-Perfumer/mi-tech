@@ -9,6 +9,8 @@ interface Conversation {
   last_message: string;
   last_message_at: string;
   mode: 'auto' | 'human';
+  active_task_id?: number;
+  priority?: string;
 }
 
 interface ChatMessage {
@@ -20,11 +22,60 @@ interface ChatMessage {
   sender_role: string;
   status: string;
   sent_at: string;
+  is_issue?: boolean;
+  priority?: string;
   metadata?: any;
 }
 
 interface WhatsAppChatProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+}
+
+function WhatsAppMediaItem({ filename, fetchWithAuth, onImageLoad, type }: {
+  filename: string;
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  onImageLoad: () => void;
+  type: string;
+}) {
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [error, setError] = useState<boolean>(false);
+
+  useEffect(() => {
+    let objectUrl = '';
+    const loadMedia = async () => {
+      try {
+        const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/media?filename=${filename}`);
+        if (!resp.ok) throw new Error('Failed to load media');
+        
+        const blob = await resp.blob();
+        objectUrl = URL.createObjectURL(blob);
+        setImgUrl(objectUrl);
+      } catch (err) {
+        console.error('WhatsApp Media Load Error:', err);
+        setError(true);
+      }
+    };
+
+    loadMedia();
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [filename]);
+
+  if (error) return <div className="message-text">[Media could not be loaded]</div>;
+  if (!imgUrl) return <div className="message-text" style={{ opacity: 0.5 }}>Loading media...</div>;
+
+  return (
+    <>
+      <img 
+        src={imgUrl} 
+        alt="WhatsApp media" 
+        className="message-img"
+        onLoad={onImageLoad}
+      />
+      {type === 'sticker' && <span className="media-label">Sticker</span>}
+    </>
+  );
 }
 
 export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
@@ -332,10 +383,19 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                     <span className="conv-time">{formatTime(conv.last_message_at)}</span>
                   </div>
                   <div className="conv-last-msg">{conv.last_message}</div>
-                  <div style={{ marginTop: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
                     <span className={`conv-mode-badge mode-${conv.mode}`}>
                       {conv.mode.toUpperCase()}
                     </span>
+                    {conv.priority && (
+                      <span className={`priority-badge-mini ${conv.priority}`}>
+                         <span className={`priority-mini ${conv.priority}`}></span>
+                         {conv.priority.toUpperCase()}
+                      </span>
+                    )}
+                    {conv.active_task_id && (
+                      <span className="task-link-badge">Task #{conv.active_task_id}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,18 +451,19 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                 
                 return (
                   <div key={msg.id} className={`message-bubble message-${msg.direction} ${isImage ? 'message-media' : ''}`}>
+                    {msg.is_issue && (
+                      <div className={`issue-badge ${msg.priority || 'medium'}`}>
+                        ISSUE • {msg.priority?.toUpperCase() || 'MEDIUM'}
+                      </div>
+                    )}
                     {isImage && filename ? (
                       <div className="message-image-wrapper">
-                        <img 
-                          src={`${API_BASE}/api/automation/whatsapp/media?filename=${filename}`} 
-                          alt="WhatsApp media" 
-                          className="message-img"
-                          onLoad={() => {
-                            // Scroll to bottom when image loads to account for its height
-                            scrollToBottom('auto');
-                          }}
+                        <WhatsAppMediaItem 
+                          filename={filename} 
+                          fetchWithAuth={fetchWithAuth} 
+                          type={msg.type}
+                          onImageLoad={() => scrollToBottom('auto')}
                         />
-                        {msg.type === 'sticker' && <span className="media-label">Sticker</span>}
                       </div>
                     ) : (
                       <div className="message-text">{msg.text}</div>

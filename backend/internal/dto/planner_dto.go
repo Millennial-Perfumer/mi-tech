@@ -45,6 +45,7 @@ type PlannerTaskResponse struct {
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
 	Order       int              `json:"order"`
+	TicketID    *string          `json:"ticket_id"`
 }
 
 type CreateTaskRequest struct {
@@ -127,5 +128,6 @@ func PlannerTaskToResponse(e entity.PlannerTask) PlannerTaskResponse {
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
 		Order:       e.Order,
+		TicketID:    e.TicketID,
 	}
 }

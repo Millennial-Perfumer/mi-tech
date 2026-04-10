@@ -56,11 +56,11 @@ func (s *InvoiceService) CalculateInvoiceTotals(items []entity.LineItem) Invoice
 
 // InvoiceService handles PDF invoice generation.
 type InvoiceService struct {
-	settingsRepo *repository.SettingsRepository
+	settingsRepo repository.ISettingsRepository
 }
 
 // NewInvoiceService creates a new InvoiceService.
-func NewInvoiceService(settingsRepo *repository.SettingsRepository) *InvoiceService {
+func NewInvoiceService(settingsRepo repository.ISettingsRepository) *InvoiceService {
 	return &InvoiceService{settingsRepo: settingsRepo}
 }
 

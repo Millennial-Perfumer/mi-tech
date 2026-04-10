@@ -46,6 +46,15 @@ services:
     networks:
       - app-network
 
+  frontend-feedback:
+    build:
+      context: ./frontend-feedback
+      args:
+        - VITE_API_URL=https://mi-tech-api.millennialperfumer.in
+    restart: always
+    networks:
+      - app-network
+
   nginx:
     image: nginx:alpine
     restart: always
@@ -58,6 +67,7 @@ services:
       - ./certbot/www:/var/www/certbot
     depends_on:
       - frontend
+      - frontend-feedback
       - backend
     networks:
       - app-network

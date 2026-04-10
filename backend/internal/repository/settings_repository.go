@@ -15,6 +15,15 @@ type AppSetting struct {
 
 func (AppSetting) TableName() string { return "app_settings" }
 
+// ISettingsRepository defines the interface for settings management.
+type ISettingsRepository interface {
+	Get(key string) (string, error)
+	Set(key, value string) error
+	GetDateRange() (string, string, error)
+	SetDateRange(startDate, endDate string) error
+	GetAll(settings *[]AppSetting) error
+}
+
 // SettingsRepository handles app_settings CRUD.
 type SettingsRepository struct {
 	db *gorm.DB

@@ -70,33 +70,37 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient)
 	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
+	plannerService := service.NewPlannerService(plannerRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
-	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo)
+	notifService := whatsapp.NewNotificationService(settingsProvider)
+	agentService := whatsapp.NewAgentService(settingsProvider, plannerService, messagesRepo, whatsapp.NewMetaClient(settingsProvider), notifService)
+	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo, agentService)
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
 	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
 	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
-	plannerService := service.NewPlannerService(plannerRepo)
 	systemService := service.NewSystemService("../docs")
 	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := handler.NewSystemHandler(systemService)
 	smmHandler := handler.NewSMMHandler(socialService)
-	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo)
+	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
 
 	// Handlers
-	orderHandler := handler.NewOrderHandler(orderService, invoiceService)
+	orderHandler := handler.NewOrderHandler(orderService, invoiceService, mappingService)
 	syncHandler := handler.NewSyncHandler(syncService)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	reportHandler := handler.NewReportHandler(reportService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, settingsProvider)
-	automationHandler := whatsapp.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider)
+	automationHandler := whatsapp.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider, agentService)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	configsHandler := handler.NewConfigsHandler(configsRepo, db)
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	customerHandler := handler.NewCustomerHandler(customerService)
+	feedbackHandler := handler.NewFeedbackHandler(orderService, settingsProvider, mappingService)
+	
 	userHandler := handler.NewUserHandler(userService)
-	plannerHandler := handler.NewPlannerHandler(plannerService)
+	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)
 
 	RegisterRoutes(
 		mux,
@@ -117,6 +121,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		systemHandler,
 		smmHandler,
 		plannerHandler,
+		feedbackHandler,
 		authService,
 	)
 

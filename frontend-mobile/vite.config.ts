@@ -6,5 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5174,
+    allowedHosts: [
+      'unpresumptuously-nonapplicative-christi.ngrok-free.dev',
+      'feedback-form.millennialperfumer.in'
+    ]
   },
 })

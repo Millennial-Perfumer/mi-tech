@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -368,25 +369,31 @@ func (r *gormOrderRepository) CancelOrder(externalOrderID string, cancelledAt *s
 }
 
 func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
-	updates := map[string]interface{}{
+	commonUpdates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
 	if trackingNumber != "" {
-		updates["tracking_number"] = trackingNumber
+		commonUpdates["tracking_number"] = trackingNumber
 	}
 	if shippingCompany != "" {
-		updates["shipping_company"] = shippingCompany
+		commonUpdates["shipping_company"] = shippingCompany
 	}
 	if trackingUrl != "" {
-		updates["tracking_url"] = trackingUrl
-	}
-	if deliveryStatus != "" {
-		updates["delivery_status"] = deliveryStatus
+		commonUpdates["tracking_url"] = trackingUrl
 	}
 
-	return r.db.Model(&entity.Order{}).
-		Where("external_order_id = ?", externalOrderID).
-		Updates(updates).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(commonUpdates).Error; err != nil {
+			return err
+		}
+		if deliveryStatus != "" {
+			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
+			return tx.Model(&entity.Order{}).
+				Where("external_order_id = ? AND (delivery_status != 'delivered' OR delivery_status IS NULL)", externalOrderID).
+				Update("delivery_status", deliveryStatus).Error
+		}
+		return nil
+	})
 }
 
 func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
@@ -460,4 +467,61 @@ func (r *gormOrderRepository) TruncateAll() error {
 	}
 	log.Println("Successfully truncated orders, order_line_items, and webhook_events tables")
 	return nil
+}
+
+func (r *gormOrderRepository) MarkAsDelivered(id int64) error {
+	now := time.Now()
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"delivery_status": "delivered",
+		"delivered_at":    now,
+		"updated_at":      now,
+	}).Error
+}
+
+func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error) {
+	var orders []entity.Order
+	// Logic: Delivered but feedback is still 'pending' (status_id = 1) and delivered_at <= delayMinutes ago
+	threshold := time.Now().Add(time.Duration(-delayMinutes) * time.Minute)
+	err := r.db.Where("delivery_status = ? AND feedback_status_id = ? AND delivered_at <= ?", "delivered", 1, threshold).
+		Find(&orders).Error
+	return orders, err
+}
+
+func (r *gormOrderRepository) UpdateFeedbackStatus(id int64, statusID int) error {
+	updates := map[string]interface{}{
+		"feedback_status_id": statusID,
+	}
+	if statusID == 2 { // Sent
+		updates["feedback_sent_at"] = time.Now()
+	}
+	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func (r *gormOrderRepository) GetByIDAndPhone(id int64, phone string) (entity.Order, error) {
+	var order entity.Order
+	// Use LIKE to handle variations in phone format (e.g. with country code)
+	// We check if the stored phone ends with the provided phone or vice versa
+	searchPhone := phone
+	if len(phone) > 10 {
+		searchPhone = phone[len(phone)-10:]
+	}
+	err := r.db.Where("id = ? AND (customer_phone LIKE ? OR ? LIKE '%' || customer_phone)", id, "%"+searchPhone, phone).First(&order).Error
+	return order, err
+}
+
+func (r *gormOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedback) error {
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "order_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"rating", "message", "updated_at"}),
+	}).Create(&feedback).Error
+}
+
+func (r *gormOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
+	var results []dto.FeedbackResponse
+	err := r.db.Table("customer_feedback").
+		Select("customer_feedback.id, customer_feedback.order_id, orders.order_number, orders.customer_name, customer_feedback.rating, customer_feedback.message as comment, customer_feedback.created_at").
+		Joins("JOIN orders ON orders.id = customer_feedback.order_id").
+		Order("customer_feedback.created_at DESC").
+		Scan(&results).Error
+	return results, err
 }

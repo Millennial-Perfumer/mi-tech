@@ -39,6 +39,12 @@ func OrderEntityToResponse(e entity.Order) dto.OrderResponse {
 		CustomerAddress1:  deref(e.CustomerAddress1),
 		CustomerAddress2:  deref(e.CustomerAddress2),
 		CustomerZip:       deref(e.CustomerZip),
+		FeedbackStatusID:  e.FeedbackStatusID,
+	}
+
+	if e.FeedbackSentAt != nil {
+		sentAtStr := e.FeedbackSentAt.Format(time.RFC3339)
+		resp.FeedbackSentAt = &sentAtStr
 	}
 
 	if e.CancelledAt != nil {

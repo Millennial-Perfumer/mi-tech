@@ -46,6 +46,14 @@ type Trigger struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
+type AutomationEvent struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Topic       string    `json:"topic"`
+	Description string    `json:"description,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 type AutomationTemplate struct {
 	ID             int              `json:"id"`
 	StoreID        string           `json:"store_id"`
@@ -73,6 +81,8 @@ type Conversation struct {
 	LastMessage   string    `json:"last_message"`
 	LastMessageAt time.Time `json:"last_message_at"`
 	Mode          string    `json:"mode"`
+	ActiveTaskID  *int      `json:"active_task_id,omitempty"`
+	Priority      string    `json:"priority"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -86,6 +96,8 @@ type ChatMessage struct {
 	Direction      string          `json:"direction"`
 	SenderRole     string          `json:"sender_role"`
 	Status         string          `json:"status"`
+	IsIssue        bool            `json:"is_issue"`
+	Priority       string          `json:"priority"`
 	SentAt         time.Time       `json:"sent_at"`
 	Metadata       json.RawMessage `json:"metadata,omitempty"`
 }

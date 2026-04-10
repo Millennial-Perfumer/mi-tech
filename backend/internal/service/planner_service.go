@@ -150,6 +150,15 @@ func (s *PlannerService) CreateTask(req dto.CreateTaskRequest) (dto.PlannerTaskR
 		Metadata:    req.Metadata,
 	}
 
+	// Automatic Ticket Numbering for Support Board
+	board, err := s.repo.GetBoardByID(req.BoardID)
+	if err == nil && board.Name == "Support Tickets" {
+		nextID, err := s.repo.GetNextTicketNumber()
+		if err == nil {
+			task.TicketID = &nextID
+		}
+	}
+
 	if err := s.repo.CreateTask(task); err != nil {
 		return dto.PlannerTaskResponse{}, err
 	}

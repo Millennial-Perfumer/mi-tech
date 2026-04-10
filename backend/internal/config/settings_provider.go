@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"mi-tech/internal/repository"
@@ -14,7 +15,7 @@ func NewSettingsProvider(configsRepo *repository.ConfigsRepository) *SettingsPro
 	return &SettingsProvider{configsRepo: configsRepo}
 }
 
-func (p *SettingsProvider) get(key string) string {
+func (p *SettingsProvider) Get(key string) string {
 	val, err := p.configsRepo.Get(key)
 	if err != nil {
 		log.Printf("ERROR: failed to get config for key %s: %v", key, err)
@@ -23,19 +24,19 @@ func (p *SettingsProvider) get(key string) string {
 }
 
 func (p *SettingsProvider) GetShopifyStoreURL() string {
-	return p.get("shopify_store_url")
+	return p.Get("shopify_store_url")
 }
 
 func (p *SettingsProvider) GetShopifyAccessToken() string {
-	return p.get("shopify_access_token")
+	return p.Get("shopify_access_token")
 }
 
 func (p *SettingsProvider) GetShopifyWebhookSecret() string {
-	return p.get("shopify_webhook_secret")
+	return p.Get("shopify_webhook_secret")
 }
 
 func (p *SettingsProvider) GetWhatsAppPhoneNumberID() string {
-	return p.get("whatsapp_phone_number_id")
+	return p.Get("whatsapp_phone_number_id")
 }
 
 func (p *SettingsProvider) GetWhatsAppAccessToken() string {
@@ -43,15 +44,15 @@ func (p *SettingsProvider) GetWhatsAppAccessToken() string {
 }
 
 func (p *SettingsProvider) GetWhatsAppWABAID() string {
-	return p.get("whatsapp_waba_id")
+	return p.Get("whatsapp_waba_id")
 }
 
 func (p *SettingsProvider) GetWhatsAppAppID() string {
-	return p.get("whatsapp_app_id")
+	return p.Get("whatsapp_app_id")
 }
 
 func (p *SettingsProvider) GetWhatsAppAppSecret() string {
-	return p.get("whatsapp_app_secret")
+	return p.Get("whatsapp_app_secret")
 }
 
 func (p *SettingsProvider) GetJWTSecret() string {
@@ -59,11 +60,11 @@ func (p *SettingsProvider) GetJWTSecret() string {
 	if secret := os.Getenv("JWT_SECRET"); secret != "" {
 		return secret
 	}
-	return p.get("jwt_secret")
+	return p.Get("jwt_secret")
 }
 
 func (p *SettingsProvider) GetShopifyAPIVersion() string {
-	v := p.get("shopify_api_version")
+	v := p.Get("shopify_api_version")
 	if v == "" {
 		return "2026-01"
 	}
@@ -71,39 +72,39 @@ func (p *SettingsProvider) GetShopifyAPIVersion() string {
 }
 
 func (p *SettingsProvider) GetWhatsAppWebhookVerifyToken() string {
-	return p.get("whatsapp_webhook_verify_token")
+	return p.Get("whatsapp_webhook_verify_token")
 }
 
 func (p *SettingsProvider) IsPIIProtectionEnabled() bool {
-	return p.get("pii_protection") == "true"
+	return p.Get("pii_protection") == "true"
 }
 
 func (p *SettingsProvider) ShouldSendInvoice() bool {
-	return p.get("send_invoice") == "true"
+	return p.Get("send_invoice") == "true"
 }
 
 func (p *SettingsProvider) GetBusinessName() string {
-	return p.get("business_name")
+	return p.Get("business_name")
 }
 
 func (p *SettingsProvider) GetBusinessGSTIN() string {
-	return p.get("business_gstin")
+	return p.Get("business_gstin")
 }
 
 func (p *SettingsProvider) GetBusinessAddressLine1() string {
-	return p.get("business_address_line1")
+	return p.Get("business_address_line1")
 }
 
 func (p *SettingsProvider) GetBusinessAddressLine2() string {
-	return p.get("business_address_line2")
+	return p.Get("business_address_line2")
 }
 
 func (p *SettingsProvider) GetBusinessPhone() string {
-	return p.get("business_phone")
+	return p.Get("business_phone")
 }
 
 func (p *SettingsProvider) GetBulkTemplateSuffix() string {
-	s := p.get("bulk_template_suffix")
+	s := p.Get("bulk_template_suffix")
 	if s == "" {
 		return "_marketing"
 	}
@@ -111,7 +112,7 @@ func (p *SettingsProvider) GetBulkTemplateSuffix() string {
 }
 
 func (p *SettingsProvider) GetMetaSystemUserToken() string {
-	return p.get("meta_system_user_token")
+	return p.Get("meta_system_user_token")
 }
 
 func (p *SettingsProvider) GetMetaMarketingAccessToken() string {
@@ -119,29 +120,63 @@ func (p *SettingsProvider) GetMetaMarketingAccessToken() string {
 }
 
 func (p *SettingsProvider) GetMetaMarketingAdAccountID() string {
-	return p.get("meta_marketing_ad_account_id")
+	return p.Get("meta_marketing_ad_account_id")
 }
 
 func (p *SettingsProvider) GetMetaMarketingWebhookVerifyToken() string {
-	return p.get("meta_marketing_webhook_verify_token")
+	return p.Get("meta_marketing_webhook_verify_token")
 }
 
 func (p *SettingsProvider) GetMetaAppID() string {
-	return p.get("meta_app_id")
+	return p.Get("meta_app_id")
 }
 
 func (p *SettingsProvider) GetMetaAppSecret() string {
-	return p.get("meta_app_secret")
+	return p.Get("meta_app_secret")
 }
 
 func (p *SettingsProvider) GetFacebookPageID() string {
-	return p.get("facebook_page_id")
+	return p.Get("facebook_page_id")
 }
 
 func (p *SettingsProvider) GetInstagramBusinessID() string {
-	return p.get("instagram_business_id")
+	return p.Get("instagram_business_id")
 }
 
 func (p *SettingsProvider) GetThreadsUserID() string {
-	return p.get("threads_user_id")
+	return p.Get("threads_user_id")
+}
+
+func (p *SettingsProvider) GetFeedbackBaseURL() string {
+	val := p.Get("feedback_base_url")
+	if val == "" {
+		return "https://feedback-form.millennialperfumer.in"
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetFeedbackExpiryMinutes() int {
+	val := p.Get("feedback_link_expiry_minutes")
+	if val == "" {
+		return 2880 // 48 hours
+	}
+	var mins int
+	fmt.Sscanf(val, "%d", &mins)
+	if mins <= 0 {
+		return 2880
+	}
+	return mins
+}
+
+func (p *SettingsProvider) GetFeedbackAutomationDelayMinutes() int {
+	val := p.Get("feedback_automation_delay_minutes")
+	if val == "" {
+		return 60 // 1 hour
+	}
+	var mins int
+	fmt.Sscanf(val, "%d", &mins)
+	if mins <= 0 {
+		return 60
+	}
+	return mins
 }

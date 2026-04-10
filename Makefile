@@ -1,21 +1,24 @@
-.PHONY: install install-frontend install-frontend-mobile install-backend run frontend frontend-mobile backend build build-frontend build-backend clean db-up db-down
+.PHONY: install install-frontend install-frontend-mobile install-frontend-feedback install-backend run frontend frontend-mobile frontend-feedback backend build build-frontend build-frontend-feedback build-backend clean db-up db-down
 
 # Install dependencies for both frontend and backend
-install: install-frontend install-frontend-mobile install-backend
+install: install-frontend install-frontend-mobile install-frontend-feedback install-backend
 
 install-frontend:
-	cd frontend && npm install
+	cd frontend && npm install --legacy-peer-deps
 
 install-frontend-mobile:
-	cd frontend-mobile && npm install
+	cd frontend-mobile && npm install --legacy-peer-deps
+
+install-frontend-feedback:
+	cd frontend-feedback && npm install
 
 install-backend:
 	cd backend && go mod download
 
 # Run both applications (backend in background, frontend in foreground)
 run: db-up
-	@echo "Starting backend and frontend..."
-	@make backend & make frontend & wait
+	@echo "Starting backend and frontends..."
+	@make backend & make frontend & make frontend-feedback & wait
 
 # Start local PostgreSQL database container
 db-up:
@@ -33,14 +36,20 @@ frontend:
 frontend-mobile:
 	cd frontend-mobile && npm run dev
 
+frontend-feedback:
+	cd frontend-feedback && npm run dev
+
 backend:
 	cd backend && go run github.com/air-verse/air@latest -c .air.toml
 
 # Build both applications
-build: build-frontend build-backend
+build: build-frontend build-frontend-feedback build-backend
 
 build-frontend:
 	cd frontend && npm run build
+
+build-frontend-feedback:
+	cd frontend-feedback && npm run build
 
 build-backend:
 	cd backend && go build -o bin/api cmd/main.go
@@ -51,4 +60,6 @@ clean:
 	rm -rf frontend/node_modules
 	rm -rf frontend-mobile/dist
 	rm -rf frontend-mobile/node_modules
+	rm -rf frontend-feedback/dist
+	rm -rf frontend-feedback/node_modules
 	rm -rf backend/bin

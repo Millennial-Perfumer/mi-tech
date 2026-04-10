@@ -16,6 +16,9 @@ import { Users } from './Users';
 import { MarketingDashboard } from './MarketingDashboard';
 import { SocialDashboard } from './SocialDashboard';
 import { Planner } from './Planner';
+import { Tickets } from './Tickets';
+import { WhatsAppChat } from './WhatsAppChat';
+import Feedback from './Feedback';
 import OrderDetailsModal from './OrderDetailsModal';
 
 import { useToast } from './ToastContext';
@@ -45,6 +48,7 @@ interface Order {
   status: string;
   source_id: string;
   customer_phone: string;
+  feedback_status_id?: number;
 }
 
 interface WebhookStatus {
@@ -81,6 +85,7 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
   { id: 'source', label: 'Source', category: 'General', isDefault: true },
   { id: 'whatsapp', label: 'WhatsApp', category: 'General', isDefault: true },
   { id: 'gst_invoice', label: 'GST Invoice', category: 'General', isDefault: true },
+  { id: 'feedback_status', label: 'Feedback', category: 'Status', isDefault: false },
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
@@ -175,6 +180,7 @@ function App() {
   const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isMarkingAsDelivered, setIsMarkingAsDelivered] = useState<number | string | null>(null);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -290,6 +296,27 @@ function App() {
       toastError('Network error updating status');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleMarkAsDelivered = async (orderId: string | number) => {
+    setIsMarkingAsDelivered(orderId);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/delivered?id=${orderId}`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.success) {
+        toastSuccess('Order marked as delivered');
+        fetchDashboardData();
+      } else {
+        toastError(data.message || 'Failed to update delivery status');
+      }
+    } catch (error) {
+      console.error('Error marking as delivered:', error);
+      toastError('Network error updating delivery status');
+    } finally {
+      setIsMarkingAsDelivered(null);
     }
   };
 
@@ -678,6 +705,14 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             <span>Automation</span>
           </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'communication' ? 'active' : ''}`} onClick={() => setActiveTab('communication')} title={isSidebarCollapsed ? "Communication" : ""} style={{ animationDelay: '160ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>Communication</span>
+          </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'tickets' ? 'active' : ''}`} onClick={() => setActiveTab('tickets')} title={isSidebarCollapsed ? "Tickets" : ""} style={{ animationDelay: '170ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"></path><line x1="13" y1="5" x2="13" y2="19"></line></svg>
+            <span>Tickets</span>
+          </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')} title={isSidebarCollapsed ? "Orders" : ""} style={{ animationDelay: '200ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
             <span>Orders</span>
@@ -707,6 +742,10 @@ function App() {
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '375ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             <span>Planner</span>
+          </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'feedback' ? 'active' : ''}`} onClick={() => setActiveTab('feedback')} title={isSidebarCollapsed ? "Feedback" : ""} style={{ animationDelay: '380ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10h6"></path><path d="M9 14h6"></path></svg>
+            <span>Feedback</span>
           </a>
         </nav>
 
@@ -818,9 +857,9 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Hub' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and track WhatsApp communication." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
           {activeTab !== 'automation' && activeTab === 'settings' && userRole === 'admin' && (
@@ -839,7 +878,7 @@ function App() {
           )}
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1179,6 +1218,7 @@ function App() {
                   )}
                   {visibleColumns.includes('whatsapp') && <th>WhatsApp</th>}
                   {visibleColumns.includes('gst_invoice') && <th>GST Invoice</th>}
+                  {visibleColumns.includes('feedback_status') && <th>Feedback</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1270,23 +1310,31 @@ function App() {
                         <td>
                           {order.status?.toUpperCase() === 'CANCELLED' ? (
                             <span style={{color: 'var(--text-tertiary)', fontSize: '0.8rem'}}>—</span>
-                          ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' && (order.delivery_status !== 'success' || order.tracking_number || order.tracking_url) ? (
+                          ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
                             <div 
                               className="delivery-status-collapsed"
-                              title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} - ${order.shipping_company || 'Standard Tracking'}: ${order.tracking_number}`}
+                              title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} ${order.tracking_number ? `- ${order.shipping_company || 'Standard'}: ${order.tracking_number}` : ''}`}
                               onClick={(e) => {
-                                e.stopPropagation();
-                                setTrackingOrder(order);
+                                if (order.tracking_number) {
+                                  e.stopPropagation();
+                                  setTrackingOrder(order);
+                                }
                               }}
-                              style={{ cursor: 'pointer', display: 'inline-block' }}
+                              style={{ cursor: order.tracking_number ? 'pointer' : 'default', display: 'inline-block' }}
                             >
                               <span className="badge-pill badge-pill-info">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                {order.delivery_status?.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                <span className="dot"></span> {order.delivery_status?.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                               </span>
                             </div>
                           ) : (
-                            <span style={{color: 'var(--text-tertiary)', fontSize: '0.8rem'}}>—</span>
+                            <button 
+                              className="btn-secondary" 
+                              onClick={(e) => { e.stopPropagation(); handleMarkAsDelivered(order.id); }}
+                              disabled={isMarkingAsDelivered === order.id}
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', height: '28px', borderRadius: '6px' }}
+                            >
+                              {isMarkingAsDelivered === order.id ? 'Updating...' : 'Mark Delivered'}
+                            </button>
                           )}
                         </td>
                       )}
@@ -1358,7 +1406,6 @@ function App() {
                       )}
                       {visibleColumns.includes('gst_invoice') && (
                         <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-
                           <button 
                             onClick={() => handleDownloadInvoice(order.id, order.order_number)}
                             className="btn-primary" 
@@ -1366,6 +1413,81 @@ function App() {
                           >
                             Invoice
                           </button>
+                        </td>
+                      )}
+                      {visibleColumns.includes('feedback_status') && (
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {(() => {
+                              const sentAt = order.feedback_sent_at ? new Date(order.feedback_sent_at) : null;
+                              const statusId = order.feedback_status_id;
+                              
+                              if (statusId === 3) {
+                                return (
+                                  <span className="badge-pill badge-pill-success">
+                                    <span className="dot"></span> Received
+                                  </span>
+                                );
+                              }
+                              
+                              if (statusId === 2 && sentAt) {
+                                const expiryMins = parseInt(appConfigs?.feedback_link_expiry_minutes || '2880');
+                                const isExpired = (new Date().getTime() - sentAt.getTime()) > (expiryMins * 60 * 1000);
+                                const surveyURL = `${appConfigs?.feedback_base_url || 'https://feedback-form.millennialperfumer.in'}?o=${order.id}&p=${order.customer_phone}`;
+                                
+                                if (isExpired) {
+                                  return (
+                                    <span className="badge-pill badge-pill-danger" title={`Expired after ${expiryMins} mins`}>
+                                      <span className="dot"></span> Expired
+                                    </span>
+                                  );
+                                }
+                                
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span className="badge-pill badge-pill-info">
+                                      <span className="dot"></span> Sent
+                                    </span>
+                                    <button 
+                                      className="btn-icon-minimal" 
+                                      title="Copy Feedback Link"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(surveyURL);
+                                        const btn = e.currentTarget;
+                                        const original = btn.innerHTML;
+                                        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                                        setTimeout(() => btn.innerHTML = original, 2000);
+                                      }}
+                                      style={{ 
+                                        width: '24px', 
+                                        height: '24px', 
+                                        padding: 0, 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        borderRadius: '6px',
+                                        background: 'var(--bg-input)',
+                                        border: '1px solid var(--border-color)',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              
+                              return (
+                                <span className="badge-pill badge-pill-gray" style={{ opacity: 0.6 }}>
+                                   Pending
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -1425,6 +1547,14 @@ function App() {
             />
           )}
 
+          {activeTab === 'communication' && (
+            <WhatsAppChat fetchWithAuth={fetchWithAuth} />
+          )}
+
+          {activeTab === 'tickets' && (
+            <Tickets fetchWithAuth={fetchWithAuth} />
+          )}
+
           {activeTab === 'settings' && (
             <SettingsTab 
               fetchWithAuth={fetchWithAuth}
@@ -1447,6 +1577,10 @@ function App() {
               endDate={endDate}
               onUpdateDateRange={handleUpdateDateRange}
             />
+          )}
+
+          {activeTab === 'feedback' && (
+            <Feedback API_BASE={API_BASE} token={token} fetchWithAuth={fetchWithAuth} />
           )}
 
           {activeTab === 'customers' && (

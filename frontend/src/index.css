@@ -70,6 +70,13 @@
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Card Gradients (Light) */
+  --card-gradient-1: linear-gradient(135deg, #6366f1, #818cf8);
+  --card-gradient-2: linear-gradient(135deg, #10b981, #34d399);
+  --card-gradient-3: linear-gradient(135deg, #f59e0b, #fbbf24);
+  --card-gradient-4: linear-gradient(135deg, #ef4444, #f87171);
+  --card-gradient-5: linear-gradient(135deg, #8b5cf6, #a78bfa);
 }
 
 @keyframes fadeInUp {
@@ -154,6 +161,13 @@
   --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.6);
 
   color-scheme: dark;
+
+  /* Card Gradients (Dark) */
+  --card-gradient-1: linear-gradient(135deg, #4f46e5, #6366f1);
+  --card-gradient-2: linear-gradient(135deg, #059669, #10b981);
+  --card-gradient-3: linear-gradient(135deg, #d97706, #f59e0b);
+  --card-gradient-4: linear-gradient(135deg, #dc2626, #ef4444);
+  --card-gradient-5: linear-gradient(135deg, #7c3aed, #8b5cf6);
 }
 
 /* Custom Scrollbar for Dark Mode */
@@ -1257,11 +1271,11 @@ textarea {
   margin-bottom: 0.25rem;
 }
 
-.metric-icon-1 { background: var(--card-gradient-1); box-shadow: 0 6px 14px rgba(99,102,241,0.3); }
-.metric-icon-2 { background: var(--card-gradient-2); box-shadow: 0 6px 14px rgba(16,185,129,0.3); }
-.metric-icon-3 { background: var(--card-gradient-3); box-shadow: 0 6px 14px rgba(245,158,11,0.3); }
-.metric-icon-4 { background: var(--card-gradient-4); box-shadow: 0 6px 14px rgba(239,68,68,0.3); }
-.metric-icon-5 { background: var(--card-gradient-5); box-shadow: 0 6px 14px rgba(139,92,246,0.3); }
+.metric-icon-1 { background: var(--card-gradient-1); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2); }
+.metric-icon-2 { background: var(--card-gradient-2); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+.metric-icon-3 { background: var(--card-gradient-3); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); }
+.metric-icon-4 { background: var(--card-gradient-4); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
+.metric-icon-5 { background: var(--card-gradient-5); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2); }
 
 .metric-label {
   font-size: 0.7rem;

@@ -330,7 +330,7 @@ func (r *MessagesRepository) GetFailedCount(storeID string, startDate, endDate *
 }
 
 func (r *MessagesRepository) GetConversations() ([]Conversation, error) {
-	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, created_at, updated_at 
+	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, active_task_id, priority, created_at, updated_at 
 	          FROM whatsapp_conversations ORDER BY last_message_at DESC`
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -342,7 +342,7 @@ func (r *MessagesRepository) GetConversations() ([]Conversation, error) {
 	for rows.Next() {
 		var c Conversation
 		var contactName, lastMessage sql.NullString
-		err := rows.Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.CreatedAt, &c.UpdatedAt)
+		err := rows.Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.ActiveTaskID, &c.Priority, &c.CreatedAt, &c.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -354,7 +354,7 @@ func (r *MessagesRepository) GetConversations() ([]Conversation, error) {
 }
 
 func (r *MessagesRepository) GetChatMessages(conversationID int, limit, offset int) ([]ChatMessage, error) {
-	query := `SELECT id, conversation_id, message_id, text, type, direction, sender_role, status, sent_at, metadata 
+	query := `SELECT id, conversation_id, message_id, text, type, direction, sender_role, status, is_issue, priority, sent_at, metadata 
 	          FROM whatsapp_chat_messages WHERE conversation_id = $1 ORDER BY sent_at DESC LIMIT $2 OFFSET $3`
 	rows, err := r.db.Query(query, conversationID, limit, offset)
 	if err != nil {
@@ -367,7 +367,7 @@ func (r *MessagesRepository) GetChatMessages(conversationID int, limit, offset i
 		var m ChatMessage
 		var messageID, text, senderRole sql.NullString
 		var metadata interface{}
-		err := rows.Scan(&m.ID, &m.ConversationID, &messageID, &text, &m.Type, &m.Direction, &senderRole, &m.Status, &m.SentAt, &metadata)
+		err := rows.Scan(&m.ID, &m.ConversationID, &messageID, &text, &m.Type, &m.Direction, &senderRole, &m.Status, &m.IsIssue, &m.Priority, &m.SentAt, &metadata)
 		if err != nil {
 			log.Printf("Scan error in GetChatMessages: %v", err)
 			return nil, err
@@ -415,24 +415,24 @@ func (r *MessagesRepository) UpdateConversationMode(id int, mode string) error {
 
 func (r *MessagesRepository) SaveChatMessage(m ChatMessage) (int, error) {
 	query := `
-		INSERT INTO whatsapp_chat_messages (conversation_id, message_id, text, type, direction, sender_role, status, sent_at, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO whatsapp_chat_messages (conversation_id, message_id, text, type, direction, sender_role, status, is_issue, priority, sent_at, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id`
 	var id int
 	sentAt := m.SentAt
 	if sentAt.IsZero() {
 		sentAt = time.Now().UTC()
 	}
-	err := r.db.QueryRow(query, m.ConversationID, m.MessageID, m.Text, m.Type, m.Direction, m.SenderRole, m.Status, sentAt, m.Metadata).Scan(&id)
+	err := r.db.QueryRow(query, m.ConversationID, m.MessageID, m.Text, m.Type, m.Direction, m.SenderRole, m.Status, m.IsIssue, m.Priority, sentAt, m.Metadata).Scan(&id)
 	return id, err
 }
 
 func (r *MessagesRepository) GetConversationByPhone(phoneNumber string) (*Conversation, error) {
-	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, created_at, updated_at 
+	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, active_task_id, priority, created_at, updated_at 
 	          FROM whatsapp_conversations WHERE phone_number = $1`
 	var c Conversation
 	var contactName, lastMessage sql.NullString
-	err := r.db.QueryRow(query, phoneNumber).Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(query, phoneNumber).Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.ActiveTaskID, &c.Priority, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -442,4 +442,35 @@ func (r *MessagesRepository) GetConversationByPhone(phoneNumber string) (*Conver
 	c.ContactName = contactName.String
 	c.LastMessage = lastMessage.String
 	return &c, nil
+}
+
+func (r *MessagesRepository) GetIssuesSince(since time.Time) ([]ChatMessage, error) {
+	query := `SELECT id, conversation_id, message_id, text, type, direction, sender_role, status, is_issue, priority, sent_at, metadata 
+	          FROM whatsapp_chat_messages WHERE is_issue = true AND sent_at >= $1 ORDER BY sent_at DESC`
+	rows, err := r.db.Query(query, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []ChatMessage
+	for rows.Next() {
+		var m ChatMessage
+		var messageID, text, senderRole sql.NullString
+		var metadata interface{}
+		err := rows.Scan(&m.ID, &m.ConversationID, &messageID, &text, &m.Type, &m.Direction, &senderRole, &m.Status, &m.IsIssue, &m.Priority, &m.SentAt, &metadata)
+		if err != nil {
+			return nil, err
+		}
+		m.MessageID = messageID.String
+		m.Text = text.String
+		m.SenderRole = senderRole.String
+		if metadata != nil {
+			if bytes, ok := metadata.([]byte); ok {
+				m.Metadata = json.RawMessage(bytes)
+			}
+		}
+		messages = append(messages, m)
+	}
+	return messages, nil
 }

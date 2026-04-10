@@ -35,6 +35,7 @@ func RegisterRoutes(
 	systemHandler *handler.SystemHandler,
 	smmHandler *handler.SMMHandler,
 	plannerHandler *handler.PlannerHandler,
+	feedbackHandler *handler.FeedbackHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -81,6 +82,11 @@ func RegisterRoutes(
 		})
 	})).ServeHTTP)
 
+	// --- Feedback Routes ---
+	mux.HandleFunc("/api/feedback/submit", feedbackHandler.SubmitFeedback)
+	mux.HandleFunc("/api/feedback/validate", feedbackHandler.ValidateFeedback)
+	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
+
 	// --- Auth Routes ---
 	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)
 	mux.HandleFunc("/api/auth/verify-otp", metrics(cors(authHandler.VerifyOTP)).ServeHTTP)
@@ -110,6 +116,10 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
+	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
+	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
+	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))
+	mux.HandleFunc("/api/orders/feedback", protected(orderHandler.GetFeedback))
 	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
 	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))
 
@@ -220,10 +230,21 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/automation/whatsapp/chat", protected(automationHandler.GetChatMessages))
 	mux.HandleFunc("/api/automation/whatsapp/send-message", adminProtected(automationHandler.SendFreeTextMessage))
 	mux.HandleFunc("/api/automation/whatsapp/conversations/mode", adminProtected(automationHandler.UpdateConversationMode))
+	mux.HandleFunc("/api/automation/whatsapp/events", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(automationHandler.CreateEvent)(w, r)
+		case http.MethodDelete:
+			adminProtected(automationHandler.DeleteEvent)(w, r)
+		default:
+			automationHandler.GetEvents(w, r)
+		}
+	}))
 	mux.HandleFunc("/api/automation/whatsapp/send-manual", adminProtected(automationHandler.SendManualMessage))
 	mux.HandleFunc("/api/automation/whatsapp/send-bulk", adminProtected(automationHandler.SendBulkMarketing))
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", adminProtected(automationHandler.SyncAutomationMetrics))
 	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
+	mux.HandleFunc("/api/automation/whatsapp/telegram-webhook", automationHandler.TelegramWebhook)
 	mux.HandleFunc("/api/automation/whatsapp/media", protected(automationHandler.GetWhatsAppMedia))
 	// Marketing routes moved to top
 

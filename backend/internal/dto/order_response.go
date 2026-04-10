@@ -32,6 +32,8 @@ type OrderResponse struct {
 	CustomerAddress1  string `json:"customer_address1"`
 	CustomerAddress2  string `json:"customer_address2"`
 	CustomerZip       string `json:"customer_zip"`
+	FeedbackStatusID  int    `json:"feedback_status_id"`
+	FeedbackSentAt    *string `json:"feedback_sent_at,omitempty"`
 	LineItems         []LineItemResponse `json:"line_items,omitempty"`
 }
 

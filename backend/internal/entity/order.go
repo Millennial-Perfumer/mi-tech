@@ -42,9 +42,35 @@ type Order struct {
 	TotalDiscount      float64          `gorm:"column:total_discount"`
 	RawPayload         *json.RawMessage `gorm:"column:raw_payload;type:jsonb"`
 	LineItems          []LineItem       `gorm:"foreignKey:OrderID"`
+	
+	// Feedback System integration
+	DeliveredAt        *time.Time       `gorm:"column:delivered_at"`
+	FeedbackStatusID   int              `gorm:"column:feedback_status_id"`
+	FeedbackSentAt     *time.Time       `gorm:"column:feedback_sent_at"`
 }
 
 func (Order) TableName() string { return "orders" }
+
+// FeedbackStatus represents a state in the feedback lifecycle
+type FeedbackStatus struct {
+	ID   int    `gorm:"column:id;primaryKey"`
+	Name string `gorm:"column:name"`
+}
+
+func (FeedbackStatus) TableName() string { return "feedback_statuses" }
+
+// CustomerFeedback stores the actual rating and message from a customer
+type CustomerFeedback struct {
+	ID            int        `gorm:"column:id;primaryKey;autoIncrement"`
+	OrderID       int64      `gorm:"column:order_id"`
+	CustomerPhone string     `gorm:"column:customer_phone"`
+	Rating        int        `gorm:"column:rating"`
+	Message       string     `gorm:"column:message"`
+	CreatedAt     time.Time  `gorm:"column:created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at"`
+}
+
+func (CustomerFeedback) TableName() string { return "customer_feedback" }
 
 // LineItem represents a row in the "order_line_items" table.
 type LineItem struct {

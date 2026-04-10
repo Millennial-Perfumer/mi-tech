@@ -16,15 +16,17 @@ type MessagesService struct {
 	metaClient   *MetaClient
 	settings     *config.SettingsProvider
 	customerRepo *repository.CustomerRepository
+	agentService *AgentService
 }
 
-func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvider, customerRepo *repository.CustomerRepository) *MessagesService {
+func NewMessagesService(repo *MessagesRepository, settings *config.SettingsProvider, customerRepo *repository.CustomerRepository, agentService *AgentService) *MessagesService {
 	metaClient := NewMetaClient(settings)
 	s := &MessagesService{
 		repo:         repo,
 		metaClient:   metaClient,
 		settings:     settings,
 		customerRepo: customerRepo,
+		agentService: agentService,
 	}
 
 	// Trigger early cleanup and start daily ticker
@@ -224,7 +226,22 @@ func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messag
 		Metadata:       metadata,
 	}
 	_, err = s.repo.SaveChatMessage(chatMsg)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 3. Trigger Agent Service if mode is auto
+	conv, _ := s.repo.GetConversationByPhone(phoneNumber)
+	if conv != nil && conv.Mode == "auto" && s.agentService != nil {
+		// Run in background to not block webhook
+		go func() {
+			if err := s.agentService.ProcessMessage(convID, contactName, text); err != nil {
+				log.Printf("Agent Service Error: %v", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (s *MessagesService) DownloadAndStoreMedia(mediaID string) (string, error) {
