@@ -45,7 +45,7 @@ type Order struct {
 	
 	// Feedback System integration
 	DeliveredAt        *time.Time       `gorm:"column:delivered_at"`
-	FeedbackStatusID   int              `gorm:"column:feedback_status_id"`
+	FeedbackStatusID   *int             `gorm:"column:feedback_status_id"`
 	FeedbackSentAt     *time.Time       `gorm:"column:feedback_sent_at"`
 }
 

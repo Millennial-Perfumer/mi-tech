@@ -16,8 +16,8 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const o = params.get('o')
-    const p = params.get('p')
+    const o = params.get('o') || params.get('order_id')
+    const p = params.get('p') || params.get('phone')
     setOrderId(o)
     setPhone(p)
 
@@ -31,7 +31,7 @@ function App() {
 
   const validateRequest = async (o: string, p: string) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://mi-tech.millennialperfumer.in';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://mi-tech-api.millennialperfumer.in';
       const response = await fetch(`${apiUrl}/api/feedback/validate?o=${encodeURIComponent(o)}&p=${encodeURIComponent(p)}`)
       if (response.ok) {
         setIsValidated(true)

@@ -39,7 +39,7 @@ func OrderEntityToResponse(e entity.Order) dto.OrderResponse {
 		CustomerAddress1:  deref(e.CustomerAddress1),
 		CustomerAddress2:  deref(e.CustomerAddress2),
 		CustomerZip:       deref(e.CustomerZip),
-		FeedbackStatusID:  e.FeedbackStatusID,
+		FeedbackStatusID:  derefInt(e.FeedbackStatusID),
 	}
 
 	if e.FeedbackSentAt != nil {
@@ -96,4 +96,11 @@ func ptrFloat64ToStr(f *float64) string {
 		return "0.00"
 	}
 	return fmt.Sprintf("%.2f", *f)
+}
+
+func derefInt(i *int) int {
+	if i == nil {
+		return 1 // Default to 'Pending' (ID 1)
+	}
+	return *i
 }
