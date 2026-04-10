@@ -33,7 +33,12 @@ function App() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://mi-tech-api.millennialperfumer.in';
       const response = await fetch(`${apiUrl}/api/feedback/validate?o=${encodeURIComponent(o)}&p=${encodeURIComponent(p)}`)
+      const data = await response.json()
+
       if (response.ok) {
+        if (data.already_submitted) {
+          setSubmitted(true)
+        }
         setIsValidated(true)
       } else {
         setIsValidated(false)
