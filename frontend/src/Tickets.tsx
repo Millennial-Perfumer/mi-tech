@@ -148,7 +148,21 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
             placeholder="Search by ID or customer issue..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ paddingRight: searchQuery ? '2.5rem' : '1rem' }}
           />
+          {searchQuery && (
+            <button
+              className="clear-search-btn"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          )}
         </div>
         <div className="controls-actions">
           <button className="btn-secondary refresh-btn" onClick={loadData} disabled={isLoading}>
@@ -208,7 +222,13 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           <div className="modal-content glass-island-premium" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Raise New Ticket</h2>
-              <button className="btn-icon-minimal" onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>✕</button>
+              <button
+                className="btn-icon-minimal"
+                onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
+                title="Close modal"
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-secondary)' }}
+              >✕</button>
             </div>
             
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem 0' }}>
@@ -359,6 +379,27 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           gap: 0.75rem;
           height: 48px;
           box-shadow: var(--shadow-sm);
+          position: relative;
+        }
+        .clear-search-btn {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-tertiary);
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: all 0.2s;
+          cursor: pointer;
+          border: none;
+          background: transparent;
+        }
+        .clear-search-btn:hover {
+          color: var(--text-primary);
+          background: var(--bg-hover);
         }
         .search-box-premium input {
           background: none;
