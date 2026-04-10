@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 
@@ -112,9 +113,9 @@ func (m *MockOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedb
 	return args.Error(0)
 }
 
-func (m *MockOrderRepository) GetCustomerFeedback() ([]entity.CustomerFeedback, error) {
+func (m *MockOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
 	args := m.Called()
-	return args.Get(0).([]entity.CustomerFeedback), args.Error(1)
+	return args.Get(0).([]dto.FeedbackResponse), args.Error(1)
 }
 
 type MockLineItemRepository struct {

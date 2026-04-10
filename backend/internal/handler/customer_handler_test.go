@@ -24,7 +24,8 @@ func TestCustomerHandler_ListCustomers(t *testing.T) {
 	customerService := service.NewCustomerService(customerRepo, nil, nil)
 	handler := NewCustomerHandler(customerService)
 
-	// Seed one
+	// Seed one (and clear previous to ensure total=1)
+	db.Exec("DELETE FROM customers")
 	db.Exec("INSERT INTO customers (phone_number, first_name) VALUES (?, ?)", "+91123", "Alice")
 
 	req := httptest.NewRequest("GET", "/api/customers?page=1&pageSize=10", nil)
