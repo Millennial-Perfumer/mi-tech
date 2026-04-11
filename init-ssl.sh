@@ -8,7 +8,9 @@ set -e
 
 DOMAIN="mi-tech.millennialperfumer.in"
 API_DOMAIN="mi-tech-api.millennialperfumer.in"
-EMAIL="${LETSENCRYPT_EMAIL:-millennialperfumer.cc@gmail.com}"   # ← Change this to your real email in .env or via ENV var
+MONITORING_DOMAIN="mi-tech-monitoring.millennialperfumer.in"
+FEEDBACK_DOMAIN="feedback-form.millennialperfumer.in"
+EMAIL="${LETSENCRYPT_EMAIL:-millennialperfumer.cc@gmail.com}"
 CERT_PATH="./certbot/conf/live/$DOMAIN"
 COMPOSE_FILE="docker-compose.prod.yml"
 
@@ -58,7 +60,9 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   --agree-tos \
   --no-eff-email \
   -d $DOMAIN \
-  -d $API_DOMAIN
+  -d $API_DOMAIN \
+  -d $MONITORING_DOMAIN \
+  -d $FEEDBACK_DOMAIN
 
 echo "==> [5/5] Reloading Nginx with real certificate..."
 docker compose -f $COMPOSE_FILE exec nginx nginx -s reload

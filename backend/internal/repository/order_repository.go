@@ -483,6 +483,7 @@ func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.O
 	// Logic: Delivered but feedback is still 'pending' (status_id = 1) and delivered_at <= delayMinutes ago
 	threshold := time.Now().Add(time.Duration(-delayMinutes) * time.Minute)
 	err := r.db.Where("delivery_status = ? AND feedback_status_id = ? AND delivered_at <= ?", "delivered", 1, threshold).
+		Order("delivered_at DESC").
 		Find(&orders).Error
 	return orders, err
 }

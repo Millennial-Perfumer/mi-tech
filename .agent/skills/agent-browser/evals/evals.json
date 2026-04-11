@@ -1,0 +1,23 @@
+{
+  "skill_name": "agent-browser",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Open google.com and tell me the title of the page.",
+      "expected_output": "The title should be 'Google'",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Go to https://example.com and take a screenshot of the page.",
+      "expected_output": "A screenshot file should be generated.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Search for 'Millennial Perfumer' on Google and give me the first snippet of information you find.",
+      "expected_output": "Information about Millennial Perfumer should be extracted.",
+      "files": []
+    }
+  ]
+}

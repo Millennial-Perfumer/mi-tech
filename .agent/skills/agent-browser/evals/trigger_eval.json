@@ -1,0 +1,22 @@
+[
+  { "query": "Open google.com and take a screenshot of the homepage.", "should_trigger": true },
+  { "query": "What is the current price of Bitcoin on Binance? Check their website.", "should_trigger": true },
+  { "query": "I need to login to my dashboard at app.example.com and download the latest invoice.", "should_trigger": true },
+  { "query": "Search for 'best mechanical keyboards 2024' and give me the top 3 results from a legit review site.", "should_trigger": true },
+  { "query": "Check if the checkout button on millennialperfumer.in is clickable and describe any popups.", "should_trigger": true },
+  { "query": "Automate the signup form on this local test page: http://localhost:3000/signup", "should_trigger": true },
+  { "query": "Go to news.ycombinator.com and extract all the top story titles and URLs.", "should_trigger": true },
+  { "query": "Take a full page screenshot of the Wikipedia page for 'Artificial Intelligence'.", "should_trigger": true },
+  { "query": "Fill out the contact form on example.com/contact with my info: name=Test, email=test@test.com", "should_trigger": true },
+  { "query": "Tell me the title of the page at https://github.com/features", "should_trigger": true },
+  { "query": "Write a python script to calculate the area of a circle.", "should_trigger": false },
+  { "query": "What's the weather in New York right now?", "should_trigger": false },
+  { "query": "Fix the bug in this react component.", "should_trigger": false },
+  { "query": "Explain the difference between a list and a tuple in Python.", "should_trigger": false },
+  { "query": "Can you summarize this local text file: summary.txt", "should_trigger": false },
+  { "query": "Generate a logo for my new perfume brand.", "should_trigger": false },
+  { "query": "Add a new column to this CSV file.", "should_trigger": false },
+  { "query": "Draft an email to a potential investor.", "should_trigger": false },
+  { "query": "What is the capital of France?", "should_trigger": false },
+  { "query": "Run the unit tests in this project.", "should_trigger": false }
+]
