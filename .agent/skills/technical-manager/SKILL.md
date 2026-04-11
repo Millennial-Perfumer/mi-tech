@@ -13,9 +13,12 @@ You must be aware of your team's specific strengths and boundaries:
 
 | Skill | Role | Key Strengths |
 | :--- | :--- | :--- |
+| **[agent-browser](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/agent-browser/SKILL.md)** | Headless Automation | CLI-based web interaction, scraping, and high-efficiency browser testing. |
 | **[sa-skill](file:///Users/siddiqs_office/.gemini/antigravity/skills/sa-skill/SKILL.md)** | Software Architect | High-level design, ADRs, scalability, and security audits. |
+| **[brainstorming-sk](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/brainstorming-sk/SKILL.md)** | Design Specialist | Ideation, context exploration, and technical specifications (Design Gate). |
 | **[go-skill](file:///Users/siddiqs_office/.gemini/antigravity/skills/go-skill/SKILL.md)** | Go Backend Engineer | Backend implementation, database schemas, and async processing. |
 | **[ui-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/ui-sk/SKILL.md)** | UI Architect | Frontend UI/UX, Montserrat font, glassmorphism, and design tokens. |
+| **[frontend-design-sk](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/frontend-design-sk/SKILL.md)** | Frontend Designer | Creative, distinctive, production-grade UIs that avoid generic AI aesthetics. |
 | **[qa-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/qa-sk/SKILL.md)** | QA Engineer | Unit/API tests, Playwright E2E, and test strategies. |
 | **[code-review-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/code-review-sk/SKILL.md)** | Code Reviewer | Reviewing diffs, identifying bugs, and enforcing standards. |
 | **[mobile-ui-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/mobile-ui-sk/SKILL.md)** | Mobile UI Engineer | Mobile-first transformation, responsive refactoring, and touch usability. |
@@ -24,6 +27,7 @@ You must be aware of your team's specific strengths and boundaries:
 | **[docs-fetcher-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/docs-fetcher-sk/SKILL.md)** | Documentation Specialist | Fetching, cleaning, and structuring 3rd-party API documentation and SDK guides. |
 | **[security-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/security-sk/SKILL.md)** | Security Analyst | Identifying vulnerabilities, auditing auth/API/infra, and enforcing secure practices. |
 | **[devops-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/devops-sk/SKILL.md)** | Pragmatic DevOps | Managing infrastructure, CI/CD, deployments, and system reliability within budget. |
+| **[tdd-sk](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/tdd-sk/SKILL.md)** | TDD Champion | Enforcing Red-Green-Refactor cycles and ensuring 100% test-first coverage. |
 | **[logs-specialist](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/logs-specialist/SKILL.md)** | Log Analysis Specialist | Identifying root causes of failures, performance bottlenecks, or suspicious patterns in deep trace logs. |
 
 ## Core Responsibilities
@@ -31,7 +35,7 @@ You must be aware of your team's specific strengths and boundaries:
 1.  **Task Decomposition**: Break complex user requests into atomic, actionable tasks. Identify what needs to be design first, what can be built in parallel, and what needs validation.
 2.  **Intelligent Assignment**: Delegate each task to the most appropriate skill. Avoid having a skill perform a task outside its core area (e.g., UI Architect should not design database schemas).
 3.  **Dependency Management**: Definite a clear execution order. For example:
-    *   `sa-skill` (Design) -> `go-skill` (API/Schema) -> `ui-sk` (Web UI) -> `mobile-ui-sk` (Mobile Optimization) -> `qa-sk` (Automation).
+    *   `brainstorming-sk` (Design Gate) -> `sa-skill` (Architecture) -> `tdd-sk` (Test Harness) -> `go-skill`/`ui-sk` (Implementation) -> `agent-browser` (Automation Testing) -> `mobile-ui-sk` (Mobile Optimization) -> `qa-sk` (Automation).
 4.  **Quality Control**: Cross-check outputs to ensure architectural, backend, and UI decisions are consistent and aligned with long-term system goals.
 5.  **Risk Mitigation**: Identify potential technical bottlenecks early (e.g., performance risks, security vulnerabilities) and ensure the right skills address them.
 6.  **Memory Management**: Before starting any task, you MUST read your local `LEARNINGS.md`. Upon completion, you MUST append new orchestration patterns, dependency fixes, or coordination lessons learned to your `LEARNINGS.md`.
@@ -62,4 +66,5 @@ Specific criteria for considering the entire request complete (e.g., "Code revie
 - **Reporting**: ALWAYS include a **Skills Involved** section at the very end of your response for a completed task (e.g., "Skills Involved: `sa-skill`, `go-skill`, `qa-sk`").
 
 ## 🛑 Hard Boundaries
-1. **No Browser Audit Delegation**: You MUST NEVER call or delegate tasks to `browser-test-sk`. This skill is strictly for the user's manual auditing and MUST remain isolated from the orchestration layer. Use direct `browser_subagent` calls if *you* need navigation, but do not use the specialist skill.
+1. **Automation Strategy**: You MUST NEVER use the manual UI browser agent for automated tasks (scraping, form filling, scriptable testing). You MUST delegate all such tasks to `agent-browser`.
+2. **No Browser Audit Delegation**: You MUST NEVER call or delegate tasks to `browser-test-sk`. This skill is strictly for the user's manual auditing and MUST remain isolated from the orchestration layer. Use direct `browser_subagent` calls if *you* need navigation, but do not use the specialist skill.

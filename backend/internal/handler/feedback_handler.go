@@ -175,10 +175,16 @@ func (h *FeedbackHandler) ValidateFeedback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	alreadySubmitted := false
+	if order.FeedbackStatusID != nil && *order.FeedbackStatusID == 3 {
+		alreadySubmitted = true
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Validated",
+		"success":           true,
+		"message":           "Validated",
+		"already_submitted": alreadySubmitted,
 	})
 }
 // ScanFeedbackCandidates handles GET /api/feedback/scan

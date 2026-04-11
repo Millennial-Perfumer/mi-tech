@@ -9,6 +9,6 @@ type FeedbackResponse struct {
 	OrderNumber  string    `gorm:"column:order_number" json:"order_number"`
 	CustomerName string    `gorm:"column:customer_name" json:"customer_name"`
 	Rating       int       `gorm:"column:rating" json:"rating"`
-	Comment      string    `gorm:"column:comment" json:"comment"`
+	Comment      string    `gorm:"column:comment" json:"message"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at"`
 }

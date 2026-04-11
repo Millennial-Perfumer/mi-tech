@@ -27,6 +27,7 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const { error, success } = useToast();
 
   const fetchFeedbacks = async () => {
@@ -56,7 +57,8 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
       if (response.ok && data.success) {
         const orders = data.orders || [];
         setScanResults(orders);
-        setSelectedIds(orders.map((o: any) => o.id));
+        // Only auto-select orders that have a customer phone number
+        setSelectedIds(orders.filter((o: any) => o.customer_phone).map((o: any) => o.id));
         if (orders.length > 0) {
           setIsScanModalOpen(true);
         } else {
@@ -105,6 +107,26 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
       setIsSending(false);
     }
   };
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedScanResults = React.useMemo(() => {
+    if (!sortConfig) return scanResults;
+    return [...scanResults].sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [scanResults, sortConfig]);
 
   useEffect(() => {
     fetchFeedbacks();
@@ -226,13 +248,26 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
                         onChange={(e) => setSelectedIds(e.target.checked ? scanResults.map(c => c.id) : [])}
                       />
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Customer / Order</th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Delivered</th>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Order {sortConfig?.key === 'order_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </button>
+                    </th>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Customer {sortConfig?.key === 'customer_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </button>
+                    </th>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Delivered {sortConfig?.key === 'delivered_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </button>
+                    </th>
                     <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Preview Link</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {scanResults.map((item) => (
+                  {sortedScanResults.map((item) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.2s' }} className="hover-row">
                       <td style={{ padding: '1rem 2rem' }}>
                         <input 
@@ -241,9 +276,25 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
                           onChange={() => toggleSelect(item.id)}
                         />
                       </td>
+                      <td style={{ padding: '1rem 2rem' }} title={!item.customer_phone ? "No customer phone number found. WhatsApp feedback cannot be sent." : ""}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--accent-color)', fontWeight: 700, background: 'var(--accent-subtle)', display: 'inline-block', padding: '2px 8px', borderRadius: '6px' }}>
+                            {item.order_number}
+                          </div>
+                          {!item.customer_phone && (
+                            <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                              </svg>
+                              <span>(No Phone)</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ padding: '1rem 2rem' }}>
                         <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{item.customer_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: 600 }}>{item.order_number}</div>
                       </td>
                       <td style={{ padding: '1rem 2rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                         {new Date(item.delivered_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
