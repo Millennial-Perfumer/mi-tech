@@ -89,6 +89,7 @@ export const PostInsightsModal: React.FC<PostInsightsModalProps> = ({ post, isOp
       }} onClick={e => e.stopPropagation()}>
         <button 
           onClick={onClose}
+          aria-label="Close insights"
           style={{
             position: 'absolute',
             top: '20px',

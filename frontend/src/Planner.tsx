@@ -858,7 +858,7 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
                       </h2>
                    </div>
                    {isEditing && (
-                      <button className="delete-btn-lux" onClick={handleDeleteTask}>
+                      <button className="delete-btn-lux" onClick={handleDeleteTask} aria-label="Delete task">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                    )}
@@ -1015,7 +1015,7 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
                       </div>
                       <h2 style={{ margin: 0, fontWeight: 900, fontSize: '1rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{isEditingSprint ? 'Update Sprint' : 'Initialize Sprint'}</h2>
                    </div>
-                   <button className="close-btn-lux" onClick={() => setIsSprintModalOpen(false)}>×</button>
+                   <button className="close-btn-lux" onClick={() => setIsSprintModalOpen(false)} aria-label="Close modal">×</button>
                 </div>
               </div>
 

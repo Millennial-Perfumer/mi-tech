@@ -110,7 +110,7 @@ export const ManualWhatsAppModal: React.FC<ManualWhatsAppModalProps> = ({
       <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
         <div className="modal-header">
           <h3>Send Webhook Notification</h3>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close modal">&times;</button>
         </div>
         
         <div className="modal-body">
