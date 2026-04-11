@@ -24,9 +24,9 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string) (
 	query := `
 		SELECT 
 			COALESCE(SUM(total_price) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as total_revenue,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as cgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as sgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as igst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as cgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as sgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as igst,
 			COUNT(id) as total_orders,
 			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
 			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled') as fulfilled_orders,
@@ -127,7 +127,7 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
-	query := `
+		query := `
 		WITH LineItemShares AS (
 			SELECT 
 				li.order_id,
@@ -136,6 +136,8 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 				(li.price * li.quantity - li.discount) as line_val,
 				SUM(li.price * li.quantity - li.discount) OVER (PARTITION BY li.order_id) as line_sum,
 				o.total_price,
+				ROUND(o.total_price / 1.18, 2) as order_taxable,
+				(o.total_price - ROUND(o.total_price / 1.18, 2)) as order_tax,
 				COALESCE(o.customer_state, 'N/A') as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
@@ -145,9 +147,9 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 			hs_code as hsn_code,
 			COUNT(DISTINCT order_id) as product_count,
 			SUM(quantity) as qty_sold,
-			SUM(ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as taxable_value,
-			SUM(ROUND((line_val / line_sum) * total_price, 2) - ROUND((line_val / line_sum) * (total_price / 1.18), 2)) as total_gst,
-			SUM(ROUND((line_val / line_sum) * total_price, 2)) as revenue,
+			ROUND(SUM((line_val / line_sum) * order_taxable), 2) as taxable_value,
+			ROUND(SUM((line_val / line_sum) * order_tax), 2) as total_gst,
+			ROUND(SUM((line_val / line_sum) * total_price), 2) as revenue,
 			state
 		FROM LineItemShares
 		WHERE line_sum > 0
