@@ -208,22 +208,30 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			return fmt.Errorf("failed to upsert order: %w", err)
 		}
 
-		// 3. Explicitly synchronize line items in batch
-		// We delete all and re-create to ensure quantities and titles are fresh.
-		if err := tx.Where("order_id = ?", order.ID).Delete(&entity.LineItem{}).Error; err != nil {
-			return fmt.Errorf("failed to clean old line items: %w", err)
+		// 3. Diff-based synchronization of line items
+		var incomingIDs []string
+		for i := range order.LineItems {
+			order.LineItems[i].OrderID = order.ID
+			if order.LineItems[i].ID != "" {
+				incomingIDs = append(incomingIDs, order.LineItems[i].ID)
+			}
 		}
 
+		// Delete line items no longer present in the updated order
+		delQuery := tx.Where("order_id = ?", order.ID)
+		if len(incomingIDs) > 0 {
+			delQuery = delQuery.Where("id NOT IN ?", incomingIDs)
+		}
+		if err := delQuery.Delete(&entity.LineItem{}).Error; err != nil {
+			return fmt.Errorf("failed to sync line items (delete): %w", err)
+		}
+
+		// Optimization: Batch upsert line items in a single O(1) roundtrip.
 		if len(order.LineItems) > 0 {
-			// Optimization: Set OrderID by index to update original slice elements.
-			for i := range order.LineItems {
-				order.LineItems[i].OrderID = order.ID
-			}
-			// Optimization: Batch insert line items in a single O(1) roundtrip.
 			if err := tx.Clauses(clause.OnConflict{
 				UpdateAll: true,
 			}).Create(&order.LineItems).Error; err != nil {
-				return fmt.Errorf("failed to batch insert line items: %w", err)
+				return fmt.Errorf("failed to batch upsert line items: %w", err)
 			}
 		}
 
@@ -335,16 +343,16 @@ func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStat
 
 func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64, error) {
 	status = strings.ToUpper(status)
+	now := time.Now()
 	updates := map[string]interface{}{
 		"status":     status,
-		"updated_at": time.Now(),
+		"updated_at": now,
 	}
 
 	if status == "CANCELLED" {
 		updates["fulfillment_status"] = "restocked"
-		// Only set cancelled_at if not already set
-		r.db.Model(&entity.Order{}).Where("id = ? AND cancelled_at IS NULL", id).
-			Update("cancelled_at", time.Now())
+		// Optimization: Merge cancelled_at update into single query
+		updates["cancelled_at"] = clause.Expr{SQL: "COALESCE(cancelled_at, ?)", Vars: []interface{}{now}}
 	} else if status == "FULFILLED" || status == "UNFULFILLED" {
 		updates["fulfillment_status"] = strings.ToLower(status)
 	}
@@ -369,31 +377,28 @@ func (r *gormOrderRepository) CancelOrder(externalOrderID string, cancelledAt *s
 }
 
 func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
-	commonUpdates := map[string]interface{}{
+	updates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
 	if trackingNumber != "" {
-		commonUpdates["tracking_number"] = trackingNumber
+		updates["tracking_number"] = trackingNumber
 	}
 	if shippingCompany != "" {
-		commonUpdates["shipping_company"] = shippingCompany
+		updates["shipping_company"] = shippingCompany
 	}
 	if trackingUrl != "" {
-		commonUpdates["tracking_url"] = trackingUrl
+		updates["tracking_url"] = trackingUrl
 	}
 
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(commonUpdates).Error; err != nil {
-			return err
+	if deliveryStatus != "" {
+		// Optimization: Single query with conditional delivery_status protection
+		updates["delivery_status"] = clause.Expr{
+			SQL:  "CASE WHEN delivery_status = 'delivered' THEN delivery_status ELSE ? END",
+			Vars: []interface{}{deliveryStatus},
 		}
-		if deliveryStatus != "" {
-			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
-			return tx.Model(&entity.Order{}).
-				Where("external_order_id = ? AND (delivery_status != 'delivered' OR delivery_status IS NULL)", externalOrderID).
-				Update("delivery_status", deliveryStatus).Error
-		}
-		return nil
-	})
+	}
+
+	return r.db.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(updates).Error
 }
 
 func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
