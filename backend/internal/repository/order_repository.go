@@ -393,6 +393,8 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 			}
 			if deliveryStatus == "delivered" {
 				updates["delivered_at"] = time.Now()
+				// Initialize feedback status to 'Pending' (1) if it's not already set
+				updates["feedback_status_id"] = gorm.Expr("COALESCE(feedback_status_id, 1)")
 			}
 			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
 			return tx.Model(&entity.Order{}).
@@ -479,17 +481,20 @@ func (r *gormOrderRepository) TruncateAll() error {
 func (r *gormOrderRepository) MarkAsDelivered(id int64) error {
 	now := time.Now()
 	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"delivery_status": "delivered",
-		"delivered_at":    now,
-		"updated_at":      now,
+		"delivery_status":    "delivered",
+		"delivered_at":       now,
+		"updated_at":         now,
+		"feedback_status_id": gorm.Expr("COALESCE(feedback_status_id, 1)"),
 	}).Error
 }
 
 func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error) {
 	var orders []entity.Order
-	// Logic: Delivered but feedback is still 'pending' (status_id = 1) and delivered_at <= delayMinutes ago
+	// Logic: Delivered but feedback is still 'pending' (status_id = 1 or NULL) and delivered_at <= delayMinutes ago
 	threshold := time.Now().Add(time.Duration(-delayMinutes) * time.Minute)
-	err := r.db.Where("delivery_status = ? AND feedback_status_id = ? AND delivered_at <= ?", "delivered", 1, threshold).
+	
+	// Use TRIM(LOWER()) to be resilient against trailing spaces found in DB ('delivered ')
+	err := r.db.Where("TRIM(LOWER(delivery_status)) = ? AND (feedback_status_id = ? OR feedback_status_id IS NULL) AND delivered_at <= ?", "delivered", 1, threshold).
 		Order("delivered_at DESC").
 		Find(&orders).Error
 	return orders, err
