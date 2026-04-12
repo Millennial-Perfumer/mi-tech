@@ -85,6 +85,7 @@ func RegisterRoutes(
 	// --- Feedback Routes ---
 	mux.HandleFunc("/api/feedback/submit", feedbackHandler.SubmitFeedback)
 	mux.HandleFunc("/api/feedback/validate", feedbackHandler.ValidateFeedback)
+	mux.HandleFunc("/api/feedback/config-status", protected(feedbackHandler.GetConfigStatus))
 	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
 
 	// --- Auth Routes ---

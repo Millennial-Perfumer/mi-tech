@@ -97,7 +97,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	customerHandler := handler.NewCustomerHandler(customerService)
-	feedbackHandler := handler.NewFeedbackHandler(orderService, settingsProvider, mappingService)
+	feedbackHandler := handler.NewFeedbackHandler(orderService, settingsProvider, mappingService, whatsappRepo)
 	
 	userHandler := handler.NewUserHandler(userService)
 	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)

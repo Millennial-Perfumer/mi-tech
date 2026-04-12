@@ -17,9 +17,10 @@ interface FeedbackProps {
   API_BASE: string;
   token: string | null;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  onNavigate?: (tab: string) => void;
 }
 
-const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) => {
+const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onNavigate }) => {
   const [feedbacks, setFeedbacks] = useState<CustomerFeedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -27,7 +28,9 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [configStatus, setConfigStatus] = useState<{ is_configured: boolean, missing_items: string[] } | null>(null);
+  const [isCheckingConfig, setIsCheckingConfig] = useState(true);
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'delivered_at', direction: 'desc' });
   const { error, success } = useToast();
 
   const fetchFeedbacks = async () => {
@@ -46,6 +49,25 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
       error('Network error fetching feedback');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchConfigStatus = async () => {
+    if (!token) return;
+    setIsCheckingConfig(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/feedback/config-status`);
+      const data = await response.json();
+      if (data.success) {
+        setConfigStatus({
+          is_configured: data.is_configured,
+          missing_items: data.missing_items
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch config status:', err);
+    } finally {
+      setIsCheckingConfig(false);
     }
   };
 
@@ -130,6 +152,7 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
 
   useEffect(() => {
     fetchFeedbacks();
+    fetchConfigStatus();
   }, [token]);
 
   const renderStars = (rating: number) => {
@@ -249,13 +272,13 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
                       />
                     </th>
                     <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Order {sortConfig?.key === 'order_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      <button onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Customer {sortConfig?.key === 'customer_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
                     <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Customer {sortConfig?.key === 'customer_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      <button onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Order # {sortConfig?.key === 'order_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
                     <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
@@ -263,7 +286,7 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
                         Delivered {sortConfig?.key === 'delivered_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Preview Link</th>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -275,6 +298,9 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
                           checked={selectedIds.includes(item.id)}
                           onChange={() => toggleSelect(item.id)}
                         />
+                      </td>
+                      <td style={{ padding: '1rem 2rem' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{item.customer_name}</div>
                       </td>
                       <td style={{ padding: '1rem 2rem' }} title={!item.customer_phone ? "No customer phone number found. WhatsApp feedback cannot be sent." : ""}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -293,15 +319,13 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '1rem 2rem' }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{item.customer_name}</div>
-                      </td>
                       <td style={{ padding: '1rem 2rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        {new Date(item.delivered_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        <div style={{ fontWeight: 500 }}>{new Date(item.delivered_at).toLocaleDateString([], { day: '2-digit', month: 'short' })}</div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{new Date(item.delivered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       </td>
                       <td style={{ padding: '1rem 2rem' }}>
                         <a href={item.feedback_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--accent-color)', textDecoration: 'none', fontWeight: 600, border: '1px solid var(--accent-subtle)', padding: '4px 8px', borderRadius: '6px', background: 'var(--accent-subtle)' }}>
-                          Test Link
+                          Preview
                         </a>
                       </td>
                     </tr>
@@ -377,6 +401,84 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth }) =
           </tbody>
         </table>
       </div>
+
+      {/* --- SETUP WIZARD / ONBOARDING --- */}
+      {!isCheckingConfig && configStatus && !configStatus.is_configured && (
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000 }}>
+          <div className="premium-modal" style={{ maxWidth: '480px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', marginBottom: '1.5rem' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+            </div>
+            
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textAlign: 'center', marginBottom: '0.5rem' }}>Setup Required</h2>
+            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '1.5rem', fontSize: '0.85rem', lineHeight: 1.5 }}>
+              The feedback system is almost ready. Follow these steps to authorize and map your communication.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+              {[
+                { 
+                  id: 'template', 
+                  title: 'WhatsApp Template', 
+                  desc: 'Ensure your template is approved in Meta and added to your Automation Templates.',
+                  isFixed: !configStatus.missing_items.includes('template_name') && !configStatus.missing_items.includes('template_not_found')
+                },
+                { 
+                  id: 'mapping', 
+                  title: 'Variable Mapping', 
+                  desc: 'Ensure your template has defined variable mappings in the Automation tab.',
+                  isFixed: !configStatus.missing_items.includes('mapping_missing') && !configStatus.missing_items.includes('template_name') && !configStatus.missing_items.includes('template_not_found')
+                },
+                { 
+                  id: 'settings', 
+                  title: 'Configure Feedback', 
+                  desc: 'Go to Settings -> Feedback and pick your template and survey URL.',
+                  isFixed: !configStatus.missing_items.includes('template_name') && !configStatus.missing_items.includes('template_not_found') && !configStatus.missing_items.includes('base_url')
+                }
+              ].map((step, i) => (
+                <div key={step.id} style={{ display: 'flex', gap: '1rem', opacity: step.isFixed ? 0.6 : 1, background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ 
+                    width: '24px', 
+                    height: '24px', 
+                    borderRadius: '50%', 
+                    background: step.isFixed ? '#22c55e' : 'var(--bg-hover)',
+                    color: step.isFixed ? 'white' : 'var(--text-tertiary)',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    flexShrink: 0
+                  }}>
+                    {step.isFixed ? '✓' : i + 1}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '0.9rem', margin: 0, fontWeight: 700, color: step.isFixed ? '#22c55e' : 'var(--text-primary)' }}>{step.title}</h3>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0', lineHeight: 1.4 }}>{step.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                onClick={() => onNavigate ? onNavigate('settings') : window.location.hash = '#settings'} 
+                className="btn-primary" 
+                style={{ flex: 1, padding: '0.75rem', fontSize: '0.85rem' }}
+              >
+                Go to Settings
+              </button>
+              <button 
+                onClick={() => fetchConfigStatus()} 
+                className="btn-secondary" 
+                style={{ flex: 1, padding: '0.75rem', fontSize: '0.85rem' }}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

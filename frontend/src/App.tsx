@@ -664,7 +664,7 @@ function App() {
         </div>
       )}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-brand" style={{ justifyContent: 'space-between', paddingLeft: '1rem', paddingRight: '0.5rem', marginBottom: '2.5rem' }}>
+        <div className="sidebar-brand" style={{ justifyContent: 'space-between', paddingLeft: '1rem', paddingRight: '0.5rem', marginBottom: '1rem' }}>
           <img 
             src={isSidebarCollapsed ? halfLogo : (theme === 'dark' ? fullLogoDark : fullLogo)} 
             alt="Mi Tech" 
@@ -694,93 +694,114 @@ function App() {
           </button>
         </div>
         <nav className="sidebar-nav">
+          <div className="nav-group-label">OPERATIONS</div>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')} title={isSidebarCollapsed ? "Dashboard" : ""} style={{ animationDelay: '50ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             <span>Dashboard</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')} title={isSidebarCollapsed ? "GST Reports" : ""} style={{ animationDelay: '100ms' }}>
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            <span>GST Reports</span>
-          </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'automation' ? 'active' : ''}`} onClick={() => setActiveTab('automation')} title={isSidebarCollapsed ? "Automation" : ""} style={{ animationDelay: '150ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            <span>Automation</span>
-          </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'communication' ? 'active' : ''}`} onClick={() => setActiveTab('communication')} title={isSidebarCollapsed ? "Communication" : ""} style={{ animationDelay: '160ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span>Communication</span>
-          </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'tickets' ? 'active' : ''}`} onClick={() => setActiveTab('tickets')} title={isSidebarCollapsed ? "Tickets" : ""} style={{ animationDelay: '170ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"></path><line x1="13" y1="5" x2="13" y2="19"></line></svg>
-            <span>Tickets</span>
-          </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')} title={isSidebarCollapsed ? "Orders" : ""} style={{ animationDelay: '200ms' }}>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')} title={isSidebarCollapsed ? "Orders" : ""} style={{ animationDelay: '100ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
             <span>Orders</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')} title={isSidebarCollapsed ? "Customers" : ""} style={{ animationDelay: '250ms' }}>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')} title={isSidebarCollapsed ? "Customers" : ""} style={{ animationDelay: '150ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             <span>Customers</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => setActiveTab('marketing')} title={isSidebarCollapsed ? "Ads Intelligence" : ""} style={{ animationDelay: '275ms' }}>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')} title={isSidebarCollapsed ? "GST Reports" : ""} style={{ animationDelay: '200ms' }}>
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <span>GST Reports</span>
+          </a>
+
+          <div className="nav-group-label" style={{ animationDelay: '250ms' }}>ENGAGEMENT</div>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'communication' ? 'active' : ''}`} onClick={() => setActiveTab('communication')} title={isSidebarCollapsed ? "Communication" : ""} style={{ animationDelay: '300ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>Communication</span>
+          </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'tickets' ? 'active' : ''}`} onClick={() => setActiveTab('tickets')} title={isSidebarCollapsed ? "Tickets" : ""} style={{ animationDelay: '325ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"></path><line x1="13" y1="5" x2="13" y2="19"></line></svg>
+            <span>Tickets</span>
+          </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'feedback' ? 'active' : ''}`} onClick={() => setActiveTab('feedback')} title={isSidebarCollapsed ? "Feedback" : ""} style={{ animationDelay: '350ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10h6"></path><path d="M9 14h6"></path></svg>
+            <span>Feedback</span>
+          </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'automation' ? 'active' : ''}`} onClick={() => setActiveTab('automation')} title={isSidebarCollapsed ? "Automation" : ""} style={{ animationDelay: '375ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <span>Automation</span>
+          </a>
+
+          <div className="nav-group-label" style={{ animationDelay: '400ms' }}>GROWTH</div>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => setActiveTab('marketing')} title={isSidebarCollapsed ? "Ads Intelligence" : ""} style={{ animationDelay: '425ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h2M11 9h2M11 13h2M11 17h2M7 9h10v10c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2V9zM18 5c1.1 0 2 .9 2 2v2H4V7c0-1.1.9-2 2-2h12z"/></svg>
             <span>Ads</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'social' ? 'active' : ''}`} onClick={() => setActiveTab('social')} title={isSidebarCollapsed ? "Social Media" : ""} style={{ animationDelay: '285ms' }}>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'social' ? 'active' : ''}`} onClick={() => setActiveTab('social')} title={isSidebarCollapsed ? "Social Media" : ""} style={{ animationDelay: '450ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
             <span>Social Media</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} title={isSidebarCollapsed ? "Settings" : ""} style={{ animationDelay: '300ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            <span>Settings</span>
+
+          <div className="nav-group-label" style={{ animationDelay: '475ms' }}>SYSTEM</div>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '500ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Planner</span>
           </a>
           {userRole === 'admin' && (
-            <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')} title={isSidebarCollapsed ? "RBAC" : ""} style={{ animationDelay: '350ms' }}>
+            <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')} title={isSidebarCollapsed ? "RBAC" : ""} style={{ animationDelay: '525ms' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               <span>RBAC</span>
             </a>
           )}
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '375ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            <span>Planner</span>
-          </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'feedback' ? 'active' : ''}`} onClick={() => setActiveTab('feedback')} title={isSidebarCollapsed ? "Feedback" : ""} style={{ animationDelay: '380ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10h6"></path><path d="M9 14h6"></path></svg>
-            <span>Feedback</span>
-          </a>
         </nav>
 
         <div className="sidebar-footer">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0.25rem 0.5rem' }}>
+          <div className="sidebar-footer-top">
             <div className="sidebar-user">
               <div className="sidebar-user-avatar">{userRole === 'admin' ? 'A' : 'U'}</div>
-              <div className="sidebar-user-info">
-                <div className="sidebar-user-name">{userRole === 'admin' ? 'Admin' : 'User'}</div>
-                <div className="sidebar-user-role">{userRole}</div>
-              </div>
-            </div>
-            <button
-              className="theme-toggle"
-              onClick={toggleTheme}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              {!isSidebarCollapsed && (
+                <div className="sidebar-user-info">
+                  <div className="sidebar-user-name" title={userRole === 'admin' ? 'Admin' : 'User'}>
+                    {userRole === 'admin' ? 'Admin' : 'User'}
+                  </div>
+                  <div className="sidebar-user-role">{userRole}</div>
+                </div>
               )}
+            </div>
+          </div>
+          
+          <div className="sidebar-footer-bottom">
+            <div className="sidebar-footer-icons">
+              <button
+                className={`settings-footer-btn ${activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => setActiveTab('settings')}
+                title="Settings"
+                style={{ width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', transition: 'all 0.2s ease' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              </button>
+
+              <button
+                className="theme-toggle"
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                style={{ width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', transition: 'all 0.2s ease' }}
+              >
+                {theme === 'dark' ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                )}
+              </button>
+            </div>
+
+            <button
+              className="footer-logout-btn"
+              onClick={handleLogout}
+              title={isSidebarCollapsed ? "Sign Out" : ""}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              {!isSidebarCollapsed && <span>Logout</span>}
             </button>
           </div>
-          <button
-            className="nav-item"
-            onClick={handleLogout}
-            style={{ color: '#ef4444', width: '100%', textAlign: 'left' }}
-            title={isSidebarCollapsed ? "Sign Out" : ""}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            <span>Sign Out</span>
-          </button>
         </div>
       </aside>
 
@@ -1581,7 +1602,12 @@ function App() {
           )}
 
           {activeTab === 'feedback' && (
-            <Feedback API_BASE={API_BASE} token={token} fetchWithAuth={fetchWithAuth} />
+            <Feedback 
+              API_BASE={API_BASE} 
+              token={token} 
+              fetchWithAuth={fetchWithAuth} 
+              onNavigate={(tab) => setActiveTab(tab)}
+            />
           )}
 
           {activeTab === 'customers' && (

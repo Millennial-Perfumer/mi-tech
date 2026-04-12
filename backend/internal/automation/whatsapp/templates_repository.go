@@ -115,6 +115,18 @@ func (r *TemplatesRepository) GetTriggerByTopic(storeID, topic string) (*Trigger
 	return &t, err
 }
 
+func (r *TemplatesRepository) GetTemplateByName(storeID, name string) (*AutomationTemplate, error) {
+	query := `SELECT id, store_id, template_name, language, category, body, header, footer, buttons, status, COALESCE(meta_template_id, ''), variable_mappings 
+	          FROM automation_templates 
+	          WHERE store_id = $1 AND template_name = $2`
+	var t AutomationTemplate
+	err := r.db.QueryRow(query, storeID, name).Scan(&t.ID, &t.StoreID, &t.TemplateName, &t.Language, &t.Category, &t.Body, &t.Header, &t.Footer, &t.Buttons, &t.Status, &t.MetaTemplateID, &t.VariableMappings)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return &t, err
+}
+
 func (r *TemplatesRepository) GetTriggers(storeID string) ([]Trigger, error) {
 	query := `
 		SELECT 
@@ -238,6 +250,11 @@ func (r *TemplatesRepository) GetEvents() ([]AutomationEvent, error) {
 func (r *TemplatesRepository) SaveEvent(e AutomationEvent) error {
 	query := `INSERT INTO automation_events (name, topic, description) VALUES ($1, $2, $3) ON CONFLICT (topic) DO UPDATE SET name = $1, description = $3`
 	_, err := r.db.Exec(query, e.Name, e.Topic, e.Description)
+	if err != nil {
+		log.Printf("Repository ERROR: SaveEvent failed for topic '%s': %v", e.Topic, err)
+	} else {
+		log.Printf("Repository SUCCESS: Saved event topic '%s'", e.Topic)
+	}
 	return err
 }
 
