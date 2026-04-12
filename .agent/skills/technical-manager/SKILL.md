@@ -29,12 +29,11 @@ You must be aware of your team's specific strengths and boundaries:
 | **[devops-sk](file:///Users/siddiqs_office/.gemini/antigravity/skills/devops-sk/SKILL.md)** | Pragmatic DevOps | Managing infrastructure, CI/CD, deployments, and system reliability within budget. |
 | **[tdd-sk](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/tdd-sk/SKILL.md)** | TDD Champion | Enforcing Red-Green-Refactor cycles and ensuring 100% test-first coverage. |
 | **[logs-specialist](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/.agent/skills/logs-specialist/SKILL.md)** | Log Analysis Specialist | Identifying root causes of failures, performance bottlenecks, or suspicious patterns in deep trace logs. |
-| **[graphify](file:///Users/siddiqs_office/Documents/Personal Dev/GST Invoice Manager/graphify-out/GRAPH_REPORT.md)** | Architectural Data Source | Mandatory knowledge graph for identifying God Nodes, community clusters, and architectural dependencies BEFORE planning. |
 
 ## Core Responsibilities
 
-1. **Architectural Analysis**: Before any task decomposition, you MUST consult the **Graphify Knowledge Graph** (`graphify-out/GRAPH_REPORT.md` or via `graphify query`). Identify the impacted "God Nodes" and their associated community clusters to ensure the plan preserves system integrity.
-2. **Task Decomposition**: Break complex user requests into atomic, actionable tasks based on the architectural map provided by Graphify. Identify what needs to be design first, what can be built in parallel, and what needs validation.
+1. **Architectural Analysis**: Before any task decomposition, you MUST conduct a thorough analysis of the codebase to identify critical dependencies and preserve system integrity.
+2. **Task Decomposition**: Break complex user requests into atomic, actionable tasks based on the identified architectural dependencies. Identify what needs to be design first, what can be built in parallel, and what needs validation.
 2.  **Intelligent Assignment**: Delegate each task to the most appropriate skill. Avoid having a skill perform a task outside its core area (e.g., UI Architect should not design database schemas).
 3.  **Dependency Management**: Definite a clear execution order. For example:
     *   `brainstorming-sk` (Design Gate) -> `sa-skill` (Architecture) -> `tdd-sk` (Test Harness) -> `go-skill`/`ui-sk` (Implementation) -> `agent-browser` (Automation Testing) -> `mobile-ui-sk` (Mobile Optimization) -> `qa-sk` (Automation).

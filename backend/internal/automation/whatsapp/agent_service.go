@@ -34,11 +34,11 @@ func NewAgentService(settings *config.SettingsProvider, plannerService *service.
 }
 
 type AgentResponse struct {
-	Reply          string `json:"reply"`
-	Classification string `json:"classification"` // GENERAL, QUERY, ISSUE, URGENT
+	Reply            string `json:"reply"`
+	Classification   string `json:"classification"` // GENERAL, QUERY, ISSUE, URGENT
 	ShouldCreateTask bool   `json:"should_create_task"`
-	TaskTitle      string `json:"task_title,omitempty"`
-	TaskPriority   string `json:"task_priority,omitempty"`
+	TaskTitle        string `json:"task_title,omitempty"`
+	TaskPriority     string `json:"task_priority,omitempty"`
 }
 
 type ToolCall struct {
@@ -66,7 +66,7 @@ func (s *AgentService) ProcessMessage(convID int, contactName, text string) erro
 	}
 
 	baseURL := "https://opencode.ai/api/v1"
-	
+
 	messages := []map[string]string{
 		{
 			"role": "system",
@@ -112,7 +112,7 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 				"name":        "list_kanban_columns",
 				"description": "List all columns in the 'Support Tickets' board to know where to move tickets.",
 				"parameters": map[string]interface{}{
-					"type": "object",
+					"type":       "object",
 					"properties": map[string]interface{}{},
 				},
 			},
@@ -125,7 +125,7 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 				"parameters": map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{
-						"task_id": map[string]interface{}{"type": "number"},
+						"task_id":   map[string]interface{}{"type": "number"},
 						"column_id": map[string]interface{}{"type": "number"},
 					},
 					"required": []string{"task_id", "column_id"},
@@ -157,9 +157,9 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 		var completion struct {
 			Choices []struct {
 				Message struct {
-					Content   string      `json:"content"`
-					ToolCalls []ToolCall  `json:"tool_calls"`
-					Role      string      `json:"role"`
+					Content   string     `json:"content"`
+					ToolCalls []ToolCall `json:"tool_calls"`
+					Role      string     `json:"role"`
 				} `json:"message"`
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
@@ -180,7 +180,7 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 		if choice.FinishReason == "tool_calls" {
 			for _, tc := range choice.Message.ToolCalls {
 				resContent := "Error executing tool"
-				
+
 				// Handle Native Tools
 				if tc.Function.Name == "list_kanban_columns" {
 					boards, _ := s.plannerService.ListBoards()
@@ -266,7 +266,9 @@ func (s *AgentService) CreateKanbanTask(convID int, contactName, text string, re
 			break
 		}
 	}
-	if boardID == 0 { boardID = 1 }
+	if boardID == 0 {
+		boardID = 1
+	}
 
 	meta, _ := json.Marshal(map[string]interface{}{"conv_id": convID})
 	metaRaw := json.RawMessage(meta)
@@ -376,7 +378,7 @@ If you moved a task or performed an action, state it clearly.`,
 			"function": map[string]interface{}{
 				"name":        "list_kanban_columns",
 				"description": "List all columns in the board.",
-				"parameters": map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
+				"parameters":  map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
 			},
 		},
 		map[string]interface{}{
@@ -417,9 +419,9 @@ If you moved a task or performed an action, state it clearly.`,
 		var completion struct {
 			Choices []struct {
 				Message struct {
-					Content   string      `json:"content"`
-					ToolCalls []ToolCall  `json:"tool_calls"`
-					Role      string      `json:"role"`
+					Content   string     `json:"content"`
+					ToolCalls []ToolCall `json:"tool_calls"`
+					Role      string     `json:"role"`
 				} `json:"message"`
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
@@ -440,7 +442,9 @@ If you moved a task or performed an action, state it clearly.`,
 					data, _ := json.Marshal(board.Columns)
 					resContent = string(data)
 				} else if tc.Function.Name == "move_kanban_task" {
-					var args struct{ ColumnID uint `json:"column_id"` }
+					var args struct {
+						ColumnID uint `json:"column_id"`
+					}
 					json.Unmarshal([]byte(tc.Function.Arguments), &args)
 					s.plannerService.MoveTask(taskID, args.ColumnID, 0)
 					resContent = "Task moved successfully"
