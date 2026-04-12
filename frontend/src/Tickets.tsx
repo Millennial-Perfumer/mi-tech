@@ -224,7 +224,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           <div className="modal-content glass-island-premium" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Raise New Ticket</h2>
-              <button className="btn-icon-minimal" aria-label="Close modal" onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>✕</button>
+              <button className="btn-icon-minimal" aria-label="Close modal" title="Close modal" onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>✕</button>
             </div>
             
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem 0' }}>

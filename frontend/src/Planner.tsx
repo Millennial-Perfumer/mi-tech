@@ -609,7 +609,7 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
         </div>
         
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn-secondary" style={{ padding: '0.6rem 1rem' }} onClick={loadAllData}>
+          <button className="btn-secondary" style={{ padding: '0.6rem 1rem' }} onClick={loadAllData} aria-label="Refresh data" title="Refresh data">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
           <button 
@@ -858,7 +858,7 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
                       </h2>
                    </div>
                    {isEditing && (
-                      <button className="delete-btn-lux" onClick={handleDeleteTask}>
+                      <button className="delete-btn-lux" onClick={handleDeleteTask} aria-label="Delete task" title="Delete task">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                    )}
@@ -906,7 +906,7 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
                                         </div>
                                     </div>
                                     <span className="subtask-label-lux">{sub.title}</span>
-                                    <button className="subtask-remove-lux" onClick={() => deleteSubtask(sub.id)}>
+                                    <button className="subtask-remove-lux" onClick={() => deleteSubtask(sub.id)} aria-label="Remove subtask" title="Remove subtask">
                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                     </button>
                                 </div>
@@ -1015,7 +1015,7 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
                       </div>
                       <h2 style={{ margin: 0, fontWeight: 900, fontSize: '1rem', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{isEditingSprint ? 'Update Sprint' : 'Initialize Sprint'}</h2>
                    </div>
-                   <button className="close-btn-lux" onClick={() => setIsSprintModalOpen(false)}>×</button>
+                   <button className="close-btn-lux" onClick={() => setIsSprintModalOpen(false)} aria-label="Close" title="Close">×</button>
                 </div>
               </div>
 
