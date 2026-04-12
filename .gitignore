@@ -65,3 +65,15 @@ certbot/
 
 # Database backups
 backups/
+
+# Graphify / Architectural Analysis
+.venv.graphify/
+graphify-out/cache/
+graphify-out/memory/
+
+# Python
+__pycache__/
+*.pyc
+
+# Assistant Metadata
+.gemini/
