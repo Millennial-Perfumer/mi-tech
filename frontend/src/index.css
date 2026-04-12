@@ -335,8 +335,7 @@ textarea:focus-visible {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Prevent sidebar itself from scrolling to keep Brand/Footer fixed */
   transition: width var(--transition-slow), background-color var(--transition-slow);
 }
 
@@ -360,6 +359,18 @@ textarea:focus-visible {
   flex-direction: column;
   gap: 0.25rem;
   flex: 1;
+  overflow-y: auto; /* Only the nav items scroll */
+  overflow-x: hidden;
+  padding-bottom: 2rem;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 10px;
 }
 
 .nav-item {

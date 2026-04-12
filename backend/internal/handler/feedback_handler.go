@@ -17,13 +17,15 @@ type FeedbackHandler struct {
 	orderService     *service.OrderService
 	settingsProvider *config.SettingsProvider
 	mappingService   *whatsapp.WebhookMappingService
+	templatesRepo    *whatsapp.TemplatesRepository
 }
 
-func NewFeedbackHandler(orderService *service.OrderService, settingsProvider *config.SettingsProvider, mappingService *whatsapp.WebhookMappingService) *FeedbackHandler {
+func NewFeedbackHandler(orderService *service.OrderService, settingsProvider *config.SettingsProvider, mappingService *whatsapp.WebhookMappingService, templatesRepo *whatsapp.TemplatesRepository) *FeedbackHandler {
 	return &FeedbackHandler{
 		orderService:     orderService,
 		settingsProvider: settingsProvider,
 		mappingService:   mappingService,
+		templatesRepo:    templatesRepo,
 	}
 }
 
@@ -238,6 +240,23 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Fetch explicit feedback template name from settings
+	templateName := h.settingsProvider.Get("feedback_whatsapp_template_name")
+	if templateName == "" {
+		http.Error(w, "Feedback template name not configured in Settings", http.StatusBadRequest)
+		return
+	}
+
+	template, err := h.templatesRepo.GetTemplateByName("1", templateName)
+	if err != nil {
+		http.Error(w, "Error fetching feedback template", http.StatusInternalServerError)
+		return
+	}
+	if template == nil {
+		http.Error(w, fmt.Sprintf("Template '%s' not found", templateName), http.StatusBadRequest)
+		return
+	}
+
 	successCount := 0
 	errorCount := 0
 
@@ -249,9 +268,8 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 			continue
 		}
 
-		// Trigger feedback mapping
-		// Topic: orders/feedback_request - as previously defined in worker
-		err = h.mappingService.ExecuteMapping("1", "orders/feedback_request", order)
+		// Trigger explicit feedback send
+		err = h.mappingService.ExecuteManualSend("1", template.ID, order)
 		if err != nil {
 			log.Printf("Bulk Send Error: Failed to send feedback for order %d: %v", id, err)
 			errorCount++
@@ -268,5 +286,46 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 		"success": true,
 		"sent":    successCount,
 		"failed":  errorCount,
+	})
+}
+
+// GetConfigStatus checks if the feedback system is fully configured
+func (h *FeedbackHandler) GetConfigStatus(w http.ResponseWriter, r *http.Request) {
+	templateName := h.settingsProvider.Get("feedback_whatsapp_template_name")
+	baseURL := h.settingsProvider.Get("feedback_base_url")
+
+	// Verify template exists and has mappings
+	var templateFound bool
+	var mappingFound bool
+	if templateName != "" {
+		t, _ := h.templatesRepo.GetTemplateByName("1", templateName)
+		templateFound = t != nil
+		if templateFound && t.VariableMappings != nil {
+			mappingFound = len(*t.VariableMappings) > 2 // Check if it's more than just "[]" or "{}"
+		}
+	}
+
+	missing := []string{}
+	if templateName == "" {
+		missing = append(missing, "template_name")
+	} else if !templateFound {
+		missing = append(missing, "template_not_found")
+	} else if !mappingFound {
+		missing = append(missing, "mapping_missing")
+	}
+	
+	if baseURL == "" {
+		missing = append(missing, "base_url")
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":       true,
+		"is_configured": len(missing) == 0,
+		"missing_items": missing,
+		"config": map[string]string{
+			"template_name": templateName,
+			"base_url":      baseURL,
+		},
 	})
 }

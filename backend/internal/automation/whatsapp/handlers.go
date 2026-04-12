@@ -1100,21 +1100,26 @@ func (h *AutomationHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 func (h *AutomationHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	var req AutomationEvent
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("ERROR: Failed to decode CreateEvent request: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.Name == "" || req.Topic == "" {
+		log.Printf("ERROR: CreateEvent missing required fields: name='%s', topic='%s'", req.Name, req.Topic)
 		http.Error(w, "name and topic are required", http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("DEBUG: Attempting to save event: %+v", req)
 	err := h.templatesService.SaveEvent(req)
 	if err != nil {
-		http.Error(w, "Failed to save event", http.StatusInternalServerError)
+		log.Printf("ERROR: Failed to save event to database: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to save event: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("SUCCESS: Event created/updated: %s (%s)", req.Name, req.Topic)
 	w.WriteHeader(http.StatusCreated)
 }
 
