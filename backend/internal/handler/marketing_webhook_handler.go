@@ -1,10 +1,16 @@
 package handler
 
 import (
-	"fmt"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"io"
+	"log"
 	"mi-tech/internal/config"
 	"mi-tech/internal/marketing"
 	"net/http"
+	"strings"
 )
 
 type MarketingWebhookHandler struct {
@@ -43,20 +49,54 @@ func (h *MarketingWebhookHandler) verifyWebhook(w http.ResponseWriter, r *http.R
 
 	expectedToken := h.settings.GetMetaMarketingWebhookVerifyToken()
 
-	if mode == "subscribe" && token == expectedToken {
-		fmt.Printf("Meta Marketing Webhook verified successfully!\n")
+	// Use ConstantTimeCompare to prevent timing attacks
+	if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
+		log.Printf("Meta Marketing Webhook verified successfully!\n")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(challenge))
 		return
 	}
 
+	log.Printf("Meta Marketing Webhook verification failed\n")
 	http.Error(w, "Verification failed", http.StatusForbidden)
 }
 
 func (h *MarketingWebhookHandler) handleNotification(w http.ResponseWriter, r *http.Request) {
+	// Security: Enforce a 1MB limit for the request body to prevent DoS.
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading Meta Marketing Webhook body: %v", err)
+		http.Error(w, "Payload too large or unreadable", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	// Security: Verify X-Hub-Signature-256 to ensure payload integrity.
+	signature := r.Header.Get("X-Hub-Signature-256")
+	if !h.validateSignature(body, signature) {
+		log.Printf("Invalid Meta Marketing Webhook signature")
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
 	// For now, we just acknowledge and log.
 	// In a real implementation, we'd parse the 'ads_management' or 'ads_insights' payload.
-	fmt.Printf("Received Meta Marketing Notification\n")
+	log.Printf("Received Valid Meta Marketing Notification\n")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Acknowledged"))
+}
+
+func (h *MarketingWebhookHandler) validateSignature(body []byte, signature string) bool {
+	if signature == "" || !strings.HasPrefix(signature, "sha256=") {
+		return false
+	}
+
+	actualHash := signature[7:]
+	secret := h.settings.GetMetaAppSecret()
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	expectedHash := hex.EncodeToString(mac.Sum(nil))
+
+	return hmac.Equal([]byte(actualHash), []byte(expectedHash))
 }

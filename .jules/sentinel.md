@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-04-12 - [Webhook Integrity and Timing Attacks in Meta Marketing]
+**Vulnerability:** Meta Marketing Webhook (POST) lacked HMAC signature verification, and the verification token (GET) was compared using standard string equality.
+**Learning:** Webhooks without payload integrity checks (HMAC) are vulnerable to spoofing, and using standard string comparison for tokens can expose them to timing attacks. Webhook handlers also frequently lack body size limits, making them susceptible to DoS attacks.
+**Prevention:** Implement HMAC-SHA256 verification using a secure secret, use `subtle.ConstantTimeCompare` for token validation, and enforce request body size limits with `http.MaxBytesReader`.
