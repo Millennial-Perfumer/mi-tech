@@ -387,10 +387,17 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 			return err
 		}
 		if deliveryStatus != "" {
+			updates := map[string]interface{}{
+				"delivery_status": deliveryStatus,
+				"updated_at":      time.Now(),
+			}
+			if deliveryStatus == "delivered" {
+				updates["delivered_at"] = time.Now()
+			}
 			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
 			return tx.Model(&entity.Order{}).
 				Where("external_order_id = ? AND (delivery_status != 'delivered' OR delivery_status IS NULL)", externalOrderID).
-				Update("delivery_status", deliveryStatus).Error
+				Updates(updates).Error
 		}
 		return nil
 	})

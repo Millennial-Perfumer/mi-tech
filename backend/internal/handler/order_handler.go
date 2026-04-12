@@ -368,7 +368,8 @@ func (h *OrderHandler) MarkAsDelivered(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		// Use "orders/delivered" topic as per existing conventions in WebhookMappingService
 		go func() {
-			if err := h.mappingService.ExecuteMapping(order.SourceID, "orders/delivered", order); err != nil {
+			// Use hardcoded Store ID '1' as per minimal request
+			if err := h.mappingService.ExecuteMapping("1", "orders/delivered", order); err != nil {
 				log.Printf("Failed to send delivery notification for order %d: %v", id, err)
 			}
 		}()
