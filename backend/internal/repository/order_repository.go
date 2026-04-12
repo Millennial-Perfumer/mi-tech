@@ -335,16 +335,16 @@ func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStat
 
 func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64, error) {
 	status = strings.ToUpper(status)
+	now := time.Now()
 	updates := map[string]interface{}{
 		"status":     status,
-		"updated_at": time.Now(),
+		"updated_at": now,
 	}
 
 	if status == "CANCELLED" {
 		updates["fulfillment_status"] = "restocked"
-		// Only set cancelled_at if not already set
-		r.db.Model(&entity.Order{}).Where("id = ? AND cancelled_at IS NULL", id).
-			Update("cancelled_at", time.Now())
+		// Optimization: Consolidate cancelled_at update into the main query using COALESCE
+		updates["cancelled_at"] = clause.Expr{SQL: "COALESCE(cancelled_at, ?)", Vars: []interface{}{now}}
 	} else if status == "FULFILLED" || status == "UNFULFILLED" {
 		updates["fulfillment_status"] = strings.ToLower(status)
 	}
@@ -369,31 +369,29 @@ func (r *gormOrderRepository) CancelOrder(externalOrderID string, cancelledAt *s
 }
 
 func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
-	commonUpdates := map[string]interface{}{
+	updates := map[string]interface{}{
 		"updated_at": time.Now(),
 	}
 	if trackingNumber != "" {
-		commonUpdates["tracking_number"] = trackingNumber
+		updates["tracking_number"] = trackingNumber
 	}
 	if shippingCompany != "" {
-		commonUpdates["shipping_company"] = shippingCompany
+		updates["shipping_company"] = shippingCompany
 	}
 	if trackingUrl != "" {
-		commonUpdates["tracking_url"] = trackingUrl
+		updates["tracking_url"] = trackingUrl
 	}
 
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(commonUpdates).Error; err != nil {
-			return err
+	if deliveryStatus != "" {
+		// Optimization: Consolidate conditional delivery_status update into a single query using a CASE statement.
+		// This protects the 'delivered' status from being overwritten by earlier states in one O(1) roundtrip.
+		updates["delivery_status"] = clause.Expr{
+			SQL:  "CASE WHEN delivery_status = 'delivered' THEN delivery_status ELSE ? END",
+			Vars: []interface{}{deliveryStatus},
 		}
-		if deliveryStatus != "" {
-			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
-			return tx.Model(&entity.Order{}).
-				Where("external_order_id = ? AND (delivery_status != 'delivered' OR delivery_status IS NULL)", externalOrderID).
-				Update("delivery_status", deliveryStatus).Error
-		}
-		return nil
-	})
+	}
+
+	return r.db.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(updates).Error
 }
 
 func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
