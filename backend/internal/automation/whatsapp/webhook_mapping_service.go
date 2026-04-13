@@ -16,7 +16,10 @@ import (
 	"time"
 )
 
-var phoneRegex = regexp.MustCompile(`[^0-9]`)
+var (
+	phoneRegex          = regexp.MustCompile(`[^0-9]`)
+	templateParamsRegex = regexp.MustCompile(`\{\{(\d+)\}\}`)
+)
 
 func sanitizePhoneNumber(phone string) string {
 	if phone == "555-555-SHIP" {
@@ -427,8 +430,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 
 // countRequiredParams finds the maximum {{n}} placeholder in the template body.
 func (s *WebhookMappingService) countRequiredParams(body string) int {
-	re := regexp.MustCompile(`\{\{(\d+)\}\}`)
-	matches := re.FindAllStringSubmatch(body, -1)
+	matches := templateParamsRegex.FindAllStringSubmatch(body, -1)
 	max := 0
 	for _, m := range matches {
 		if len(m) > 1 {
