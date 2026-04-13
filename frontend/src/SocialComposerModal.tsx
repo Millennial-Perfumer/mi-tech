@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 
 interface SocialComposerModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface SocialComposerModalProps {
 }
 
 export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen, onClose, fetchWithAuth }) => {
+  const { success, error } = useToast();
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram']);
@@ -30,11 +32,11 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
           })
         });
       }
-      alert('Content published successfully to selected platforms!');
+      success('Content published successfully to selected platforms!');
       onClose();
     } catch (err) {
       console.error('Posting error:', err);
-      alert('Failed to publish content.');
+      error('Failed to publish content.');
     } finally {
       setIsPosting(false);
     }
@@ -42,7 +44,35 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
 
   return (
     <div className="modal-overlay" style={{ zIndex: 2000 }}>
-      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px' }}>
+      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px', position: 'relative' }}>
+        <button
+          onClick={onClose}
+          aria-label="Close modal"
+          title="Close"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'var(--bg-input)',
+            border: 'none',
+            color: 'var(--text-primary)',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--bg-input)'; }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
         <h2>Multi-Platform Composer</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
         
@@ -65,6 +95,9 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
               outline: 'none'
             }}
           />
+          <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.5rem' }}>
+            {content.length} characters
+          </div>
         </div>
 
         <div style={{ marginBottom: '2rem' }}>
@@ -92,7 +125,6 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
             className="btn-primary" 
             onClick={handlePost}
             disabled={isPosting || !content.trim() || selectedPlatforms.length === 0}
-            style={{ background: 'linear-gradient(135deg, var(--status-active), var(--status-active-bg))', color: 'var(--status-active)' }}
           >
             {isPosting ? 'Publishing...' : 'Publish Now'}
           </button>
