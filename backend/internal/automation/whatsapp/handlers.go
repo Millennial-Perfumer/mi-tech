@@ -1143,3 +1143,41 @@ func (h *AutomationHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(http.StatusOK)
 }
+
+// GetOrderMessages handles GET /api/automation/whatsapp/messages/order.
+// @Summary List messages for an order
+// @Description Retrieve all automation messages sent for a specific order.
+// @Tags automation
+// @Security Bearer
+// @Produce json
+// @Param order_id query string true "Order ID"
+// @Success 200 {array} AutomationMessage
+// @Router /automation/whatsapp/messages/order [get]
+func (h *AutomationHandler) GetOrderMessages(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := r.URL.Query().Get("order_id")
+	if orderIDStr == "" {
+		http.Error(w, "order_id is required", http.StatusBadRequest)
+		return
+	}
+
+	orderID, err := strconv.ParseInt(orderIDStr, 10, 64)
+	if err != nil {
+		// Try flexible lookup if it's an external ID
+		order, err := h.orderService.GetOrderFlexible(orderIDStr)
+		if err != nil {
+			http.Error(w, "Invalid order_id format", http.StatusBadRequest)
+			return
+		}
+		orderID = order.ID
+	}
+
+	messages, err := h.messagesService.GetMessagesByOrderID(orderID)
+	if err != nil {
+		http.Error(w, "Failed to fetch order messages", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
