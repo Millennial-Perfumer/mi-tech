@@ -73,3 +73,7 @@ __pycache__/
 
 # Assistant Metadata
 .gemini/
+
+/graphify-out
+
+/mi-tech-obsidian
