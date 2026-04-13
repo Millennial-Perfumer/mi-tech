@@ -8,13 +8,13 @@
 - **Navigation**: Use the Obsidian vault at `~/Documents/Personal Dev/GST Invoice Manager/mi-tech-obsidian` for rapid conceptual browsing.
 
 ## Graph Update Policy
-- **Triggers**: A graph refresh (Partially cached) MUST be triggered after completing:
-    - New backend handlers, services, or repository interfaces.
-    - Database schema migrations.
-    - Major architectural documentation (ADRs).
-    - Large-scale refactors.
-- **Exclusions**: Trivial UI tweaks, CSS adjustments, or single-line bug fixes do not require an immediate refresh.
-- **Efficiency**: Leverage the `.graphify_detect.json` cache to ensure only modified files are re-processed.
+- After any significant feature addition or architectural refactor, run `graphify` (AST mode is sufficient for structural changes) to keep the knowledge base fresh.
+- Technical Manager MUST review the `GRAPH_REPORT.md` to identify new "God Nodes" or unexpected coupling.
+
+## Data Integrity & Stickiness Policy
+- **Local Metadata Supremacy**: Metadata generated or stamped locally (e.g., `delivered_at`, `feedback_status_id`) must be protected from being overwritten by `nil` values during synchronization with external sources (Shopify, Meta).
+- **Sticky Upsert Pattern**: Use `Selective Stamping` and preservation logic in repository `Upsert` methods to ensure existing timestamps are not wiped by partial updates.
+- **Status Transition Logic**: All methods that update order status are responsible for stamping relevant lifecycle timestamps to maintain audit consistency.
 
 ## Coordination Patterns
 - **Extraction Mode**: When `agent-browser` is unavailable, manual semantic reading of docs/images is required to maintain graph integrity.

@@ -165,12 +165,28 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
 			Select("id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at").
 			First(&existing).Error
 
 		if err == nil {
 			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
 			r.mergePII(&existing, &order)
+			
+			// Preserve delivered_at if already set
+			if existing.DeliveredAt != nil {
+				order.DeliveredAt = existing.DeliveredAt
+			}
+		}
+
+		// Stamp delivered_at if status transition detected
+		if strings.ToLower(strings.TrimSpace(entity.DerefStr(order.DeliveryStatus))) == "delivered" && order.DeliveredAt == nil {
+			now := time.Now()
+			order.DeliveredAt = &now
+			// Initialize feedback status to 'Pending' (1) if it's not already set
+			if order.FeedbackStatusID == nil || *order.FeedbackStatusID == 0 {
+				pending := 1
+				order.FeedbackStatusID = &pending
+			}
 		}
 
 		// 1.5 Auto-Link Customer PII if phone is missing but external_id is present
@@ -202,7 +218,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 				"customer_city", "customer_state", "customer_country",
 				"customer_address1", "customer_address2", "customer_zip",
 				"customer_first_name", "customer_last_name", "raw_payload", "customer_external_id",
-				"total_discount",
+				"total_discount", "delivered_at",
 			}),
 		}).Omit("LineItems").Create(&order).Error; err != nil {
 			return fmt.Errorf("failed to upsert order: %w", err)
@@ -261,7 +277,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 		var existingOrders []entity.Order
 		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
 			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip").
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at").
 			Find(&existingOrders).Error
 
 		if err != nil {
@@ -282,6 +298,22 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			if existing, found := existingMap[key]; found {
 				orders[i].ID = existing.ID // Crucial to link line items correctly
 				r.mergePII(&existing, &orders[i])
+				
+				// Preserve delivered_at if already set
+				if existing.DeliveredAt != nil {
+					orders[i].DeliveredAt = existing.DeliveredAt
+				}
+			}
+
+			// Stamp delivered_at if status transition detected
+			if strings.ToLower(strings.TrimSpace(entity.DerefStr(orders[i].DeliveryStatus))) == "delivered" && orders[i].DeliveredAt == nil {
+				now := time.Now()
+				orders[i].DeliveredAt = &now
+				// Initialize feedback status to 'Pending' (1) if it's not already set
+				if orders[i].FeedbackStatusID == nil || *orders[i].FeedbackStatusID == 0 {
+					pending := 1
+					orders[i].FeedbackStatusID = &pending
+				}
 			}
 		}
 
@@ -295,7 +327,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "tracking_url",
 				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
-				"raw_payload", "customer_external_id", "total_discount",
+				"raw_payload", "customer_external_id", "total_discount", "delivered_at",
 			}),
 		}).Omit("LineItems").Create(&orders).Error; err != nil {
 			return fmt.Errorf("failed to batch upsert orders: %w", err)
@@ -347,6 +379,13 @@ func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64,
 			Update("cancelled_at", time.Now())
 	} else if status == "FULFILLED" || status == "UNFULFILLED" {
 		updates["fulfillment_status"] = strings.ToLower(status)
+	}
+
+	if status == "DELIVERED" {
+		updates["delivery_status"] = "delivered"
+		updates["delivered_at"] = time.Now()
+		// Initialize feedback status to 'Pending' (1) if it's not already set
+		updates["feedback_status_id"] = gorm.Expr("COALESCE(feedback_status_id, 1)")
 	}
 
 	result := r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(updates)
