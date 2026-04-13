@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-04-13 - [Fail-Open Webhook Verification]
+**Vulnerability:** Webhook signature validation was initially designed to return `true` if the shared secret was missing from the configuration.
+**Learning:** This "fail-open" logic creates a critical bypass if the environment is misconfigured or if a configuration key is accidentally deleted, effectively disabling security checks when they are most needed.
+**Prevention:** Always implement "fail-closed" logic for security verifications. If required credentials or secrets are missing, the validation must fail and deny the request.
