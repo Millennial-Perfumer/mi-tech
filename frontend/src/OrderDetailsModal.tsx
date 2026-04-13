@@ -187,7 +187,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
 
             <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
-              {isLoading ? 'Loading...' : `Order ${order?.order_number} • ${new Date(order?.created_at || '').toLocaleDateString()}`}
+              {isLoading ? 'Loading...' : `Order ${order?.order_number} • ${new Date(order?.created_at || '').toLocaleDateString()} ${new Date(order?.created_at || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
             </p>
           </div>
           {!isLoading && order && (
