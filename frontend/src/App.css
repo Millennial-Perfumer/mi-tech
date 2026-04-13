@@ -681,3 +681,36 @@
   height: 38px;
   justify-content: center;
 }
+
+/* --- Global Table Action Column Fixes --- */
+.col-fixed-whatsapp {
+  width: 90px;
+  min-width: 90px;
+  text-align: center;
+}
+
+.col-fixed-invoice {
+  width: 120px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.col-fixed-feedback {
+  width: 180px;
+  min-width: 180px;
+}
+
+.col-align-center {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.col-align-center-cell {
+  text-align: center !important;
+}
+
+/* Ensure table cells in action columns don't wrap unexpectedly */
+.col-fixed-whatsapp, .col-fixed-invoice, .col-fixed-feedback {
+  white-space: nowrap;
+}

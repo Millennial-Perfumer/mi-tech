@@ -1238,9 +1238,9 @@ function App() {
                       Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
                     </th>
                   )}
-                  {visibleColumns.includes('whatsapp') && <th>WhatsApp</th>}
-                  {visibleColumns.includes('gst_invoice') && <th>GST Invoice</th>}
-                  {visibleColumns.includes('feedback_status') && <th>Feedback</th>}
+                  {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp">WHATSAPP</th>}
+                  {visibleColumns.includes('gst_invoice') && <th className="col-fixed-invoice">INVOICE</th>}
+                  {visibleColumns.includes('feedback_status') && <th className="col-fixed-feedback">FEEDBACK</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1382,63 +1382,67 @@ function App() {
                         </td>
                       )}
                       {visibleColumns.includes('whatsapp') && (
-                        <td>
-                          {order.customer_phone ? (
-                            <button 
-                              className="btn-icon-minimal" 
-                              title="Send WhatsApp Message"
-                              aria-label="Send WhatsApp Message"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setWhatsappOrder(order);
-                              }}
-                              style={{ 
-                                background: 'var(--accent-color)', 
-                                color: 'white',
-                                borderRadius: '12px', 
-                                width: '32px', 
-                                height: '32px', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                border: '1px solid var(--border-color)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--accent-color)';
-                                e.currentTarget.style.color = 'var(--accent-color)';
-                                e.currentTarget.style.background = 'var(--accent-subtle)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = 'var(--border-color)';
-                                e.currentTarget.style.color = 'var(--text-secondary)';
-                                e.currentTarget.style.background = 'var(--surface-color)';
-                              }}
-                            >
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                              </svg>
-                            </button>
-                          ) : (
-                            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>No phone</span>
-                          )}
+                        <td className="col-fixed-whatsapp">
+                          <div className="col-align-center">
+                            {order.customer_phone ? (
+                              <button 
+                                className="btn-icon-minimal" 
+                                title="Send WhatsApp Message"
+                                aria-label="Send WhatsApp Message"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setWhatsappOrder(order);
+                                }}
+                                style={{ 
+                                  background: 'var(--accent-color)', 
+                                  color: 'white',
+                                  borderRadius: '10px', 
+                                  width: '32px', 
+                                  height: '32px', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center',
+                                  border: '1px solid var(--border-color)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = 'var(--accent-color)';
+                                  e.currentTarget.style.color = 'var(--accent-color)';
+                                  e.currentTarget.style.background = 'var(--accent-subtle)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                                  e.currentTarget.style.color = 'white';
+                                  e.currentTarget.style.background = 'var(--accent-color)';
+                                }}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                              </button>
+                            ) : (
+                              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
+                            )}
+                          </div>
                         </td>
                       )}
                       {visibleColumns.includes('gst_invoice') && (
-                        <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <button 
-                            onClick={() => handleDownloadInvoice(order.id, order.order_number)}
-                            className="btn-primary" 
-                            style={{fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-block', cursor: 'pointer', border: 'none'}}
-                          >
-                            Invoice
-                          </button>
+                        <td className="col-fixed-invoice">
+                          <div className="col-align-center">
+                            <button 
+                              onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                              className="btn-primary" 
+                              style={{fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none'}}
+                            >
+                              Invoice
+                            </button>
+                          </div>
                         </td>
                       )}
                       {visibleColumns.includes('feedback_status') && (
-                        <td>
+                        <td className="col-fixed-feedback">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             {(() => {
                               const sentAt = order.feedback_sent_at ? new Date(order.feedback_sent_at) : null;

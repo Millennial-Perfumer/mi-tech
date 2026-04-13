@@ -79,6 +79,11 @@ func (s *MessagesService) GetMessages(storeID string, startDate, endDate *time.T
 	return s.repo.GetMessages(storeID, startDate, endDate, search, templateName, limit, offset)
 }
 
+func (s *MessagesService) GetMessagesByOrderID(orderID int64) ([]AutomationMessage, error) {
+	return s.repo.GetMessagesByOrderID(orderID)
+}
+
+
 func (s *MessagesService) GetActiveTemplateNamesForFilter(storeID string, startDate, endDate *time.Time, search string) ([]string, error) {
 	return s.repo.GetActiveTemplateNamesForFilter(storeID, startDate, endDate, search)
 }

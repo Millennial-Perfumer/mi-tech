@@ -227,6 +227,8 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
+	mux.HandleFunc("/api/automation/whatsapp/messages/order", protected(automationHandler.GetOrderMessages))
+
 	mux.HandleFunc("/api/automation/whatsapp/conversations", protected(automationHandler.GetConversations))
 	mux.HandleFunc("/api/automation/whatsapp/chat", protected(automationHandler.GetChatMessages))
 	mux.HandleFunc("/api/automation/whatsapp/send-message", adminProtected(automationHandler.SendFreeTextMessage))
