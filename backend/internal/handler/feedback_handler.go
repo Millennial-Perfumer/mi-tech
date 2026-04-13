@@ -10,6 +10,7 @@ import (
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -260,26 +261,50 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 	successCount := 0
 	errorCount := 0
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	// Use a semaphore to limit concurrency to 5 total parallel sends
+	sem := make(chan struct{}, 5)
+
 	for _, id := range req.OrderIDs {
-		order, err := h.orderService.GetOrderEntity(id)
-		if err != nil {
-			log.Printf("Bulk Send Error: Failed to fetch order %d: %v", id, err)
-			errorCount++
-			continue
-		}
+		wg.Add(1)
+		go func(orderID int64) {
+			defer wg.Done()
+			
+			// Acquire semaphore
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		// Trigger explicit feedback send
-		err = h.mappingService.ExecuteManualSend("1", template.ID, order)
-		if err != nil {
-			log.Printf("Bulk Send Error: Failed to send feedback for order %d: %v", id, err)
-			errorCount++
-			continue
-		}
+			order, err := h.orderService.GetOrderEntity(orderID)
+			if err != nil {
+				log.Printf("Bulk Send Error: Failed to fetch order %d: %v", orderID, err)
+				mu.Lock()
+				errorCount++
+				mu.Unlock()
+				return
+			}
 
-		// Update feedback status to 'sent' (2)
-		_ = h.orderService.UpdateFeedbackStatus(order.ID, 2)
-		successCount++
+			// Trigger explicit feedback send
+			err = h.mappingService.ExecuteManualSend("1", template.ID, order)
+			if err != nil {
+				log.Printf("Bulk Send Error: Failed to send feedback for order %d: %v", orderID, err)
+				mu.Lock()
+				errorCount++
+				mu.Unlock()
+				return
+			}
+
+			// Update feedback status to 'sent' (2)
+			_ = h.orderService.UpdateFeedbackStatus(order.ID, 2)
+			
+			mu.Lock()
+			successCount++
+			mu.Unlock()
+		}(id)
 	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
