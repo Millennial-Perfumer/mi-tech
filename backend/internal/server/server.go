@@ -54,6 +54,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	customerRepo := repository.NewCustomerRepository(db)
 	socialRepo := repository.NewSocialRepository(db)
 	plannerRepo := repository.NewPlannerRepository(db)
+	inventoryRepo := repository.NewInventoryRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -71,6 +72,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	plannerService := service.NewPlannerService(plannerRepo)
+	inventoryService := service.NewInventoryService(inventoryRepo, shopifyClient)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	notifService := whatsapp.NewNotificationService(settingsProvider)
 	agentService := whatsapp.NewAgentService(settingsProvider, plannerService, messagesRepo, whatsapp.NewMetaClient(settingsProvider), notifService)
@@ -101,6 +103,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	
 	userHandler := handler.NewUserHandler(userService)
 	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)
+	inventoryHandler := handler.NewInventoryHandler(inventoryService)
 
 	RegisterRoutes(
 		mux,
@@ -122,6 +125,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		smmHandler,
 		plannerHandler,
 		feedbackHandler,
+		inventoryHandler,
 		authService,
 	)
 

@@ -504,6 +504,66 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 	return analyticsMap, nil
 }
 
+func (c *MetaClient) SendMediaMessage(phoneNumber, mediaID, mediaType, caption string) (string, error) {
+	phoneNumberID := c.settings.GetWhatsAppPhoneNumberID()
+	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/messages", c.apiVersion, phoneNumberID)
+
+	mediaPayload := map[string]string{
+		"id": mediaID,
+	}
+	if caption != "" && (mediaType == "image" || mediaType == "video" || mediaType == "document") {
+		mediaPayload["caption"] = caption
+	}
+
+	payload := map[string]interface{}{
+		"messaging_product": "whatsapp",
+		"recipient_type":    "individual",
+		"to":                phoneNumber,
+		"type":              mediaType,
+		mediaType:           mediaPayload,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	log.Printf("Meta API Response (SendMedia): %s", string(respBody))
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("meta api error: status %d, body: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Messages []struct {
+			ID string `json:"id"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", err
+	}
+
+	if len(result.Messages) > 0 {
+		return result.Messages[0].ID, nil
+	}
+
+	return "", nil
+}
+
 func (c *MetaClient) SendTextMessage(phoneNumber, text string) (string, error) {
 	phoneNumberID := c.settings.GetWhatsAppPhoneNumberID()
 	url := fmt.Sprintf("https://graph.facebook.com/%s/%s/messages", c.apiVersion, phoneNumberID)

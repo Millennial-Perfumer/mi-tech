@@ -94,8 +94,8 @@ func (h *AutomationHandler) CreateTemplate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Assuming storeID "1" for now
-	id, err := h.templatesService.CreateTemplate("1", req)
+	// Assuming storeID config.StoreIDShopify for now
+	id, err := h.templatesService.CreateTemplate(config.StoreIDShopify, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -130,10 +130,10 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	log.Printf("GetTemplates called for storeID: 1, start: %v, end: %v", start, end)
-	// DECOUPLED: Removed s.templatesService.SyncStatus("1") to eliminate GET latency.
+	log.Printf("GetTemplates called for storeID: %s, start: %v, end: %v", config.StoreIDShopify, start, end)
+	// DECOUPLED: Removed s.templatesService.SyncStatus(config.StoreIDShopify) to eliminate GET latency.
 
-	templates, err := h.templatesService.GetTemplates("1", start, end)
+	templates, err := h.templatesService.GetTemplates(config.StoreIDShopify, start, end)
 	if err != nil {
 		log.Printf("Error fetching templates: %v", err)
 		http.Error(w, "Failed to fetch templates", http.StatusInternalServerError)
@@ -154,8 +154,8 @@ func (h *AutomationHandler) GetTemplates(w http.ResponseWriter, r *http.Request)
 // @Success 200 {object} map[string]interface{}
 // @Router /automation/whatsapp/templates/sync [post]
 func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Request) {
-	log.Printf("SyncTemplateStatus called for storeID: 1")
-	err := h.templatesService.SyncStatus("1")
+	log.Printf("SyncTemplateStatus called for storeID: %s", config.StoreIDShopify)
+	err := h.templatesService.SyncStatus(config.StoreIDShopify)
 	if err != nil {
 		log.Printf("Error syncing statuses: %v", err)
 		http.Error(w, "Failed to sync template statuses", http.StatusInternalServerError)
@@ -222,6 +222,9 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 							} `json:"text"`
 							Type     string `json:"type"`
 							Image    *struct { ID string `json:"id"` } `json:"image,omitempty"`
+							Video    *struct { ID string `json:"id"` } `json:"video,omitempty"`
+							Audio    *struct { ID string `json:"id"` } `json:"audio,omitempty"`
+							Document *struct { ID string `json:"id"`; Filename string `json:"filename"` } `json:"document,omitempty"`
 							Sticker  *struct { ID string `json:"id"` } `json:"sticker,omitempty"`
 							Reaction *struct {
 								MessageID string `json:"message_id"`
@@ -280,6 +283,40 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 								mediaMetadata = map[string]interface{}{"media_id": msg.Image.ID, "filename": filename}
 							} else {
 								text = "[Image could not be downloaded]"
+							}
+						}
+					case "video":
+						if msg.Video != nil {
+							filename, err := h.messagesService.DownloadAndStoreMedia(msg.Video.ID)
+							if err == nil {
+								text = "Sent a video"
+								mediaMetadata = map[string]interface{}{"media_id": msg.Video.ID, "filename": filename}
+							} else {
+								text = "[Video could not be downloaded]"
+							}
+						}
+					case "audio":
+						if msg.Audio != nil {
+							filename, err := h.messagesService.DownloadAndStoreMedia(msg.Audio.ID)
+							if err == nil {
+								text = "Sent an audio message"
+								mediaMetadata = map[string]interface{}{"media_id": msg.Audio.ID, "filename": filename}
+							} else {
+								text = "[Audio could not be downloaded]"
+							}
+						}
+					case "document":
+						if msg.Document != nil {
+							filename, err := h.messagesService.DownloadAndStoreMedia(msg.Document.ID)
+							if err == nil {
+								text = fmt.Sprintf("Sent a document: %s", msg.Document.Filename)
+								mediaMetadata = map[string]interface{}{
+									"media_id": msg.Document.ID, 
+									"filename": filename,
+									"original_name": msg.Document.Filename,
+								}
+							} else {
+								text = "[Document could not be downloaded]"
 							}
 						}
 					case "sticker":
@@ -392,7 +429,7 @@ func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature str
 // @Success 200 {array} Trigger
 // @Router /automation/whatsapp/triggers [get]
 func (h *AutomationHandler) GetTriggers(w http.ResponseWriter, r *http.Request) {
-	triggers, err := h.templatesService.GetTriggers("1")
+	triggers, err := h.templatesService.GetTriggers(config.StoreIDShopify)
 	if err != nil {
 		http.Error(w, "Failed to fetch triggers", http.StatusInternalServerError)
 		return
@@ -420,7 +457,7 @@ func (h *AutomationHandler) CreateTrigger(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	err := h.templatesService.CreateTrigger("1", req.Topic, req.TemplateID)
+	err := h.templatesService.CreateTrigger(config.StoreIDShopify, req.Topic, req.TemplateID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -473,18 +510,18 @@ func (h *AutomationHandler) GetMessages(w http.ResponseWriter, r *http.Request) 
 	search := r.URL.Query().Get("search")
 	templateName := r.URL.Query().Get("template_name")
 
-	messages, err := h.messagesService.GetMessages("1", start, end, search, templateName, limit, offset)
+	messages, err := h.messagesService.GetMessages(config.StoreIDShopify, start, end, search, templateName, limit, offset)
 	if err != nil {
 		http.Error(w, "Failed to fetch messages", http.StatusInternalServerError)
 		return
 	}
 
-	totalCount, err := h.messagesService.GetMessagesCount("1", start, end, search, templateName)
+	totalCount, err := h.messagesService.GetMessagesCount(config.StoreIDShopify, start, end, search, templateName)
 	if err != nil {
 		log.Printf("Error fetching message count: %v", err)
 	}
 
-	activeTemplates, err := h.messagesService.GetActiveTemplateNamesForFilter("1", start, end, search)
+	activeTemplates, err := h.messagesService.GetActiveTemplateNamesForFilter(config.StoreIDShopify, start, end, search)
 	if err != nil {
 		log.Printf("Error fetching active templates: %v", err)
 	}
@@ -522,7 +559,7 @@ func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.
 		return
 	}
 
-	metrics, err := h.messagesService.GetAutomationMetrics("1", start, end)
+	metrics, err := h.messagesService.GetAutomationMetrics(config.StoreIDShopify, start, end)
 	if err != nil {
 		http.Error(w, "Failed to fetch metrics", http.StatusInternalServerError)
 		return
@@ -544,7 +581,7 @@ func (h *AutomationHandler) GetAutomationMetrics(w http.ResponseWriter, r *http.
 func (h *AutomationHandler) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	storeID, ok := r.Context().Value("storeID").(string)
 	if !ok || storeID == "" {
-		storeID = "1"
+		storeID = config.StoreIDShopify
 	}
 
 	var req AutomationTemplate
@@ -577,7 +614,7 @@ func (h *AutomationHandler) DeleteTemplate(w http.ResponseWriter, r *http.Reques
 	idStr := r.URL.Query().Get("id")
 	var id int
 	fmt.Sscanf(idStr, "%d", &id)
-	err := h.templatesService.DeleteTemplate(id, "1")
+	err := h.templatesService.DeleteTemplate(id, config.StoreIDShopify)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -604,7 +641,7 @@ func (h *AutomationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	err := h.templatesService.UpdateTrigger(req.ID, "1", req.Enabled)
+	err := h.templatesService.UpdateTrigger(req.ID, config.StoreIDShopify, req.Enabled)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -616,7 +653,7 @@ func (h *AutomationHandler) DeleteTrigger(w http.ResponseWriter, r *http.Request
 	idStr := r.URL.Query().Get("id")
 	var id int
 	fmt.Sscanf(idStr, "%d", &id)
-	err := h.templatesService.DeleteTrigger(id, "1")
+	err := h.templatesService.DeleteTrigger(id, config.StoreIDShopify)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -667,6 +704,12 @@ func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.R
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to upload to Meta: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// ALSO save locally for consistency and persistence (subject to 15-day cleanup)
+	_, err = h.messagesService.StoreMedia(handle, fileBytes, mimeType)
+	if err != nil {
+		log.Printf("Warning: Failed to save template media locally: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -761,7 +804,7 @@ func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Req
 	}
 
 	// 2. Execute send
-	err = h.mappingService.ExecuteManualSend("1", req.TemplateID, order)
+	err = h.mappingService.ExecuteManualSend(config.StoreIDShopify, req.TemplateID, order)
 	if err != nil {
 		log.Printf("Manual Send Error: Failed to execute send for order %s, template %d: %v", req.OrderID, req.TemplateID, err)
 		http.Error(w, fmt.Sprintf("Failed to send message: %v", err), http.StatusInternalServerError)
@@ -782,6 +825,118 @@ func (h *AutomationHandler) SendManualMessage(w http.ResponseWriter, r *http.Req
 // @Param body body object true "Bulk send request"
 // @Success 200 {object} map[string]interface{}
 // @Router /automation/whatsapp/send-bulk [post]
+// UploadChatMedia handles POST /api/automation/whatsapp/chat/upload.
+func (h *AutomationHandler) UploadChatMedia(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := r.ParseMultipartForm(20 << 20) // 20 MB limit
+	if err != nil {
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	mimeType := header.Header.Get("Content-Type")
+	filename := header.Filename
+
+	// 1. Forward to Meta
+	id, err := h.messagesService.metaClient.UploadWhatsAppMedia(fileBytes, filename, mimeType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to upload to Meta: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. ALSO save locally for better UI rendering
+	localFilename, err := h.messagesService.StoreMedia(id, fileBytes, mimeType)
+	if err != nil {
+		log.Printf("Warning: Failed to save outgoing media locally: %v", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"media_id": id,
+		"filename": localFilename,
+	})
+}
+
+// SendChatMedia handles POST /api/automation/whatsapp/chat/send-media.
+func (h *AutomationHandler) SendChatMedia(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PhoneNumber string `json:"phone_number"`
+		MediaID     string `json:"media_id"`
+		Type        string `json:"type"`
+		Caption     string `json:"caption"`
+		Filename    string `json:"filename"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Create metadata for the outgoing message to include the local filename
+	metadata := map[string]interface{}{
+		"media_id": req.MediaID,
+		"caption":  req.Caption,
+		"filename": req.Filename,
+	}
+	metadataBytes, _ := json.Marshal(metadata)
+
+	displayText := fmt.Sprintf("Sent a %s", req.Type)
+	if req.Caption != "" {
+		displayText = req.Caption
+	}
+
+	// 1. Send via Meta
+	msgID, err := h.messagesService.metaClient.SendMediaMessage(req.PhoneNumber, req.MediaID, req.Type, req.Caption)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to send media via Meta: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. Upsert conversation
+	convID, err := h.messagesService.repo.UpsertConversation(req.PhoneNumber, "", displayText)
+	if err != nil {
+		http.Error(w, "Failed to update conversation", http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Save message with metadata
+	chatMsg := ChatMessage{
+		ConversationID: convID,
+		MessageID:      msgID,
+		Text:           displayText,
+		Type:           req.Type,
+		Direction:      "outgoing",
+		SenderRole:     "human",
+		Status:         "sent",
+		SentAt:         time.Now().UTC(),
+		Metadata:       metadataBytes,
+	}
+	_, err = h.messagesService.repo.SaveChatMessage(chatMsg)
+	if err != nil {
+		http.Error(w, "Failed to save outgoing media message", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
 func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -882,7 +1037,7 @@ func (h *AutomationHandler) FetchTemplateFromMeta(w http.ResponseWriter, r *http
 func (h *AutomationHandler) SyncAllTemplates(w http.ResponseWriter, r *http.Request) {
 	storeID, ok := r.Context().Value("storeID").(string)
 	if !ok || storeID == "" {
-		storeID = "1" // Fallback to primary store ID
+		storeID = config.StoreIDShopify // Fallback to primary store ID
 	}
 
 	log.Printf("Handler: SyncAllTemplates called for store_id: %s", storeID)
@@ -900,7 +1055,7 @@ func (h *AutomationHandler) SyncAllTemplates(w http.ResponseWriter, r *http.Requ
 func (h *AutomationHandler) SyncSingleTemplate(w http.ResponseWriter, r *http.Request) {
 	storeID, ok := r.Context().Value("storeID").(string)
 	if !ok || storeID == "" {
-		storeID = "1"
+		storeID = config.StoreIDShopify
 	}
 
 	templateName := r.URL.Query().Get("name")

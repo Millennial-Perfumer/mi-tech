@@ -167,4 +167,20 @@ type PlannerRepository interface {
 	GetTaskLeadTime(taskID uint) (float64, error)
 	GetNextTicketNumber() (string, error)
 }
+// InventoryRepository defines all data access for the inventory hub and SKU mappings.
+type InventoryRepository interface {
+	// Items
+	ListItems(search string) ([]entity.InventoryItem, error)
+	GetItemBySKU(sku string) (entity.InventoryItem, error)
+	GetItemByID(id int) (entity.InventoryItem, error)
+	CreateItem(item *entity.InventoryItem) error
+	UpdateItem(item *entity.InventoryItem) error
+	AdjustStock(id int, delta int) error
+	GetMaxMISKU() (string, error) // For auto-generation
 
+	// Mappings
+	ListMappings() ([]entity.InventoryMapping, error)
+	GetMapping(platform, externalSKU string) (entity.InventoryMapping, error)
+	CreateMapping(mapping *entity.InventoryMapping) error
+	DeleteMapping(id int) error
+}

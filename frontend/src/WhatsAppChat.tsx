@@ -65,6 +65,27 @@ function WhatsAppMediaItem({ filename, fetchWithAuth, onImageLoad, type }: {
   if (error) return <div className="message-text">[Media could not be loaded]</div>;
   if (!imgUrl) return <div className="message-text" style={{ opacity: 0.5 }}>Loading media...</div>;
 
+  if (type === 'video') {
+    return (
+      <video 
+        src={imgUrl} 
+        controls 
+        className="message-video"
+        onLoadedData={onImageLoad}
+      />
+    );
+  }
+
+  if (type === 'audio') {
+    return (
+      <audio 
+        src={imgUrl} 
+        controls 
+        className="message-audio"
+      />
+    );
+  }
+
   return (
     <>
       <img 
@@ -92,7 +113,9 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<number | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (messagesAreaRef.current) {
@@ -214,6 +237,64 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
   };
 
   const activeConversation = conversations.find(c => c.id === selectedConversation?.id) || selectedConversation;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeConversation) return;
+
+    // Strict 16MB limit as requested by user
+    const MAX_SIZE = 16 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum allowed is 16MB.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setIsUploadingMedia(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // 1. Upload to backend (for Meta media ID)
+      const uploadResp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/chat/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadResp.ok) throw new Error('Upload failed');
+      const { media_id, filename } = await uploadResp.json();
+
+      // 2. Determine type
+      let type = 'document';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type.startsWith('audio/')) type = 'audio';
+
+      // 3. Send media message
+      const sendResp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/chat/send-media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone_number: activeConversation.phone_number,
+          media_id: media_id,
+          type: type,
+          caption: '', // Could add caption field later
+          filename: filename
+        })
+      });
+
+      if (sendResp.ok) {
+        fetchMessages(activeConversation.id);
+        fetchConversations();
+      }
+    } catch (err) {
+      console.error('Media upload error:', err);
+      alert('Failed to send media file');
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const sendMessage = async () => {
     if (!activeConversation || !inputText.trim() || isSending) return;
@@ -445,36 +526,104 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                   Loading older messages...
                 </div>
               )}
-              {messages.map(msg => {
+              {messages.map((msg, index) => {
+                const prevMsg = index > 0 ? messages[index - 1] : null;
+                const currentDate = new Date(msg.sent_at).toDateString();
+                const prevDate = prevMsg ? new Date(prevMsg.sent_at).toDateString() : null;
+                const isNewDay = currentDate !== prevDate;
+
                 const isImage = msg.type === 'image' || msg.type === 'sticker';
-                const filename = msg.metadata?.extracted_metadata?.filename;
+                const isVideo = msg.type === 'video';
+                const isAudio = msg.type === 'audio';
+                const isDocument = msg.type === 'document';
                 
+                const filename = msg.metadata?.extracted_metadata?.filename || msg.metadata?.filename;
+
+                const formatDividerDate = (dateStr: string) => {
+                  const date = new Date(dateStr);
+                  const today = new Date();
+                  const yesterday = new Date();
+                  yesterday.setDate(today.getDate() - 1);
+
+                  if (date.toDateString() === today.toDateString()) return 'Today';
+                  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                  
+                  return date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' });
+                };
+
+                const hasCaption = msg.metadata?.caption && msg.metadata.caption !== "";
+                const showText = !isImage && !isVideo && !isAudio && !isDocument;
+
                 return (
-                  <div key={msg.id} className={`message-bubble message-${msg.direction} ${isImage ? 'message-media' : ''}`}>
-                    {msg.is_issue && (
-                      <div className={`issue-badge ${msg.priority || 'medium'}`}>
-                        ISSUE • {msg.priority?.toUpperCase() || 'MEDIUM'}
+                  <div key={msg.id} style={{ display: 'contents' }}>
+                    {isNewDay && (
+                      <div className="chat-date-separator">
+                        <span>{formatDividerDate(msg.sent_at)}</span>
                       </div>
                     )}
-                    {isImage && filename ? (
-                      <div className="message-image-wrapper">
-                        <WhatsAppMediaItem 
-                          filename={filename} 
-                          fetchWithAuth={fetchWithAuth} 
-                          type={msg.type}
-                          onImageLoad={() => scrollToBottom('auto')}
-                        />
-                      </div>
-                    ) : (
-                      <div className="message-text">{msg.text}</div>
-                    )}
-                    <div className="message-info">
-                      <span className="message-time">{formatTime(msg.sent_at)}</span>
-                      {msg.direction === 'outgoing' && (
-                        <span className="message-status">
-                          {msg.status === 'read' ? '✓✓' : msg.status === 'delivered' ? '✓✓' : '✓'}
-                        </span>
+                    <div className={`message-bubble message-${msg.direction} ${isImage || isVideo || isAudio ? 'message-media' : ''}`}>
+                      {msg.is_issue && (
+                        <div className={`issue-badge ${msg.priority || 'medium'}`}>
+                          ISSUE • {msg.priority?.toUpperCase() || 'MEDIUM'}
+                        </div>
                       )}
+
+                      {/* Multimedia Rendering */}
+                      {(isImage || isVideo || isAudio) && filename ? (
+                        <div className="message-image-wrapper">
+                          <WhatsAppMediaItem 
+                            filename={filename} 
+                            fetchWithAuth={fetchWithAuth} 
+                            type={msg.type}
+                            onImageLoad={() => scrollToBottom('auto')}
+                          />
+                        </div>
+                      ) : isDocument && filename ? (
+                        <div className="message-document-wrapper">
+                          <div className="doc-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          </div>
+                          <div className="doc-info">
+                            <div className="doc-name" title={msg.metadata?.extracted_metadata?.original_name || filename}>
+                                {msg.metadata?.extracted_metadata?.original_name || filename}
+                            </div>
+                            <button 
+                              className="doc-download-btn"
+                              onClick={async () => {
+                                try {
+                                  const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/media?filename=${filename}`);
+                                  const blob = await resp.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = msg.metadata?.extracted_metadata?.original_name || filename;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  window.URL.revokeObjectURL(url);
+                                } catch (err) {
+                                  console.error('Download error:', err);
+                                }
+                              }}
+                            >
+                              Open
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {/* Show text only if it's a text message or a caption */}
+                      {(showText || hasCaption) && (
+                        <div className="message-text">{msg.text}</div>
+                      )}
+
+                      <div className="message-info">
+                        <span className="message-time">{formatTime(msg.sent_at)}</span>
+                        {msg.direction === 'outgoing' && (
+                          <span className={`message-status ${msg.status === 'read' ? 'read' : ''}`}>
+                            {msg.status === 'read' || msg.status === 'delivered' ? '✓✓' : '✓'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -483,6 +632,25 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
             </div>
 
             <div className="chat-input-area">
+              <button 
+                className="chat-upload-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingMedia || isSending}
+                title="Upload media"
+              >
+                {isUploadingMedia ? (
+                  <div className="mini-spinner"></div>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                )}
+              </button>
+              <input 
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+                accept="image/*,video/*,audio/*,application/pdf"
+              />
               <input 
                 type="text" 
                 className="chat-msg-input" 
@@ -494,7 +662,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
               <button 
                 className="chat-send-btn" 
                 onClick={sendMessage}
-                disabled={!inputText.trim() || isSending}
+                disabled={!inputText.trim() || isSending || isUploadingMedia}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               </button>

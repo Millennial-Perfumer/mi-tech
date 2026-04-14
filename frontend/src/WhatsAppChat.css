@@ -462,3 +462,202 @@
     color: var(--accent-color);
     border-color: var(--accent-subtle);
 }
+
+/* DATE SEPARATOR */
+/* BUBBLE DESIGN OVERHAUL (NATIVE WHATSAPP) */
+.message-bubble {
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 65%;
+    position: relative;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+    margin-bottom: 2px;
+}
+
+.message-incoming {
+    align-self: flex-start;
+    background: #ffffff;
+    color: #111b21;
+    border-top-left-radius: 0;
+    margin-left: 8px;
+}
+
+/* Incoming Tail */
+.message-incoming::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border-top: 0px solid transparent;
+    border-right: 12px solid #ffffff;
+    border-bottom: 20px solid transparent;
+    z-index: 0;
+}
+
+.message-outgoing {
+    align-self: flex-end;
+    background: #dcf8c6;
+    color: #111b21;
+    border-top-right-radius: 0;
+    margin-right: 8px;
+}
+
+/* Outgoing Tail */
+.message-outgoing::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -8px;
+    width: 0;
+    height: 0;
+    border-top: 0px solid transparent;
+    border-left: 12px solid #dcf8c6;
+    border-bottom: 20px solid transparent;
+    z-index: 0;
+}
+
+.chat-messages-area {
+    background-color: #efeae2;
+    background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+    background-blend-mode: overlay;
+    padding: 20px 7% 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* DATE SEPARATOR */
+.chat-date-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0;
+}
+
+.chat-date-separator span {
+    background: #ffffff;
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 0.75rem;
+    color: #54656f;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+/* MULTIMEDIA UI REFINE */
+.message-media {
+    padding: 3px;
+}
+
+.message-video {
+    width: 100%;
+    border-radius: 6px;
+    background: #000;
+}
+
+.message-document-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+}
+
+.message-outgoing .message-document-wrapper {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.doc-icon {
+    width: 44px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: #8696a0;
+    flex-shrink: 0;
+}
+
+.doc-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.doc-name {
+    font-size: 0.85rem;
+    color: #111b21;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doc-download-btn {
+    font-size: 0.7rem;
+    color: #008069;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.message-info {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    font-size: 0.65rem;
+    color: #667781;
+    margin-top: -2px;
+}
+
+.message-status {
+    color: #8696a0; /* Default grey for sent/delivered */
+    font-size: 0.85rem;
+    font-weight: normal;
+    display: inline-flex;
+    margin-left: 2px;
+}
+
+.message-status.read {
+    color: #53bdeb; /* Blue ticks for read status */
+}
+
+.chat-input-area {
+    background: #f0f2f5;
+    padding: 5px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid #d1d7db;
+}
+
+.chat-msg-input {
+    background: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    flex: 1;
+    font-size: 0.95rem;
+}
+
+.chat-upload-btn, .chat-send-btn {
+    color: #54656f;
+    background: transparent;
+    border: none;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-send-btn {
+    color: #00a884;
+}
