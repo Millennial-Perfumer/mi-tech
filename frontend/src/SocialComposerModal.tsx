@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 
 interface SocialComposerModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface SocialComposerModalProps {
 }
 
 export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen, onClose, fetchWithAuth }) => {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram']);
@@ -30,11 +32,11 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
           })
         });
       }
-      alert('Content published successfully to selected platforms!');
+      toastSuccess('Content published successfully to selected platforms!');
       onClose();
     } catch (err) {
       console.error('Posting error:', err);
-      alert('Failed to publish content.');
+      toastError('Failed to publish content.');
     } finally {
       setIsPosting(false);
     }
@@ -43,6 +45,17 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
   return (
     <div className="modal-overlay" style={{ zIndex: 2000 }}>
       <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px' }}>
+        <button
+          onClick={onClose}
+          className="modal-close-btn-premium"
+          aria-label="Close modal"
+          title="Close"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
         <h2>Multi-Platform Composer</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
         
@@ -65,6 +78,15 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
               outline: 'none'
             }}
           />
+          <div style={{
+            textAlign: 'right',
+            fontSize: '0.75rem',
+            color: 'var(--text-tertiary)',
+            marginTop: '0.5rem',
+            fontWeight: 500
+          }}>
+            {content.length} characters
+          </div>
         </div>
 
         <div style={{ marginBottom: '2rem' }}>
@@ -87,6 +109,29 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
         </div>
 
         <div className="modal-actions">
+          <style>{`
+            .modal-close-btn-premium {
+              position: absolute;
+              top: 1.5rem;
+              right: 1.5rem;
+              background: var(--bg-hover);
+              border: none;
+              width: 32px;
+              height: 32px;
+              borderRadius: 50%;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: var(--text-secondary);
+              transition: all 0.2s;
+              z-index: 10;
+            }
+            .modal-close-btn-premium:hover {
+              background: var(--border-color);
+              color: var(--text-primary);
+            }
+          `}</style>
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button 
             className="btn-primary" 
