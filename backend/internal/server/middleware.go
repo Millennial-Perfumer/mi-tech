@@ -19,13 +19,15 @@ import (
 // CORSMiddleware adds CORS headers to all requests.
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+		allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
+		allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 		origin := r.Header.Get("Origin")
 		isAllowed := false
 
 		if origin != "" {
 			for _, allowed := range allowedOrigins {
-				if origin == strings.TrimSpace(allowed) {
+				trimmed := strings.TrimSpace(allowed)
+				if trimmed == "*" || origin == trimmed {
 					isAllowed = true
 					break
 				}
@@ -41,7 +43,7 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
 		} else if origin != "" {
-			log.Printf("CORS: Origin %s not allowed (Allowed: %v)", origin, allowedOrigins)
+			log.Printf("CORS REJECTED: Origin=[%s] not in ALLOWED_ORIGINS=[%s]", origin, allowedOriginsEnv)
 		}
 
 		if r.Method == http.MethodOptions {

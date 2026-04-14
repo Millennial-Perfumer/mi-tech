@@ -59,7 +59,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/meta/campaigns", protected(marketingHandler.GetMetaCampaigns))
 	mux.HandleFunc("/api/marketing/meta/adsets", protected(marketingHandler.GetMetaAdSets))
 	mux.HandleFunc("/api/marketing/meta/ads", protected(marketingHandler.GetMetaAds))
-	mux.HandleFunc("/api/marketing/meta/webhook", marketingWebhookHandler.MetaWebhook)
+	mux.HandleFunc("/api/marketing/meta/webhook", metrics(cors(marketingWebhookHandler.MetaWebhook)).ServeHTTP)
 
 	// Social Media Management (SMM) Routes
 	mux.HandleFunc("/api/marketing/smm/overview", protected(smmHandler.GetOverview))
@@ -71,7 +71,7 @@ func RegisterRoutes(
 	log.Println("DEBUG: Marketing & SMM Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
-	mux.Handle("/api/metrics", promhttp.Handler())
+	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))
 
 	// Health check
 	mux.HandleFunc("/api/health", metrics(cors(func(w http.ResponseWriter, r *http.Request) {
@@ -84,8 +84,8 @@ func RegisterRoutes(
 	})).ServeHTTP)
 
 	// --- Feedback Routes ---
-	mux.HandleFunc("/api/feedback/submit", feedbackHandler.SubmitFeedback)
-	mux.HandleFunc("/api/feedback/validate", feedbackHandler.ValidateFeedback)
+	mux.HandleFunc("/api/feedback/submit", metrics(cors(feedbackHandler.SubmitFeedback)).ServeHTTP)
+	mux.HandleFunc("/api/feedback/validate", metrics(cors(feedbackHandler.ValidateFeedback)).ServeHTTP)
 	mux.HandleFunc("/api/feedback/config-status", protected(feedbackHandler.GetConfigStatus))
 	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
 
@@ -255,7 +255,7 @@ func RegisterRoutes(
 	// Marketing routes moved to top
 
 	// --- Swagger ---
-	mux.Handle("/api/swagger/", httpSwagger.WrapHandler)
+	mux.Handle("/api/swagger/", cors(httpSwagger.WrapHandler.ServeHTTP))
 
 	// --- Redirect Tracking ---
 	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
