@@ -12,9 +12,6 @@ UPDATE automation_templates SET store_id = 'shopify' WHERE store_id = '1';
 -- automation_whatsapp_settings
 UPDATE automation_whatsapp_settings SET store_id = 'shopify' WHERE store_id = '1';
 
--- shopify_orders
-UPDATE shopify_orders SET store_id = 'shopify' WHERE store_id = '1';
-
 -- orders
 UPDATE orders SET source_id = 'shopify' WHERE source_id = '1';
 UPDATE orders SET store_id = 'shopify' WHERE store_id = '1';
