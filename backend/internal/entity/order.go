@@ -47,6 +47,7 @@ type Order struct {
 	DeliveredAt        *time.Time       `gorm:"column:delivered_at"`
 	FeedbackStatusID   *int             `gorm:"column:feedback_status_id"`
 	FeedbackSentAt     *time.Time       `gorm:"column:feedback_sent_at"`
+	InventoryDeducted  bool             `gorm:"column:inventory_deducted;default:false"`
 }
 
 func (Order) TableName() string { return "orders" }

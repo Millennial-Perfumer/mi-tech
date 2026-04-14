@@ -63,26 +63,27 @@ func (r *MessagesRepository) HasSentTemplate(orderID int64, templateID int, sinc
 }
 
 func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error {
-	var query string
 	now := time.Now().UTC()
+	
+	// 1. Update automation_messages
+	var queryAuto string
 	switch status {
 	case "delivered":
-		query = `UPDATE automation_messages SET status = $1, delivered_at = $2 WHERE message_id = $3`
-		_, err := r.db.Exec(query, status, now, messageID)
-		return err
+		queryAuto = `UPDATE automation_messages SET status = $1, delivered_at = $2 WHERE message_id = $3`
+		_, _ = r.db.Exec(queryAuto, status, now, messageID)
 	case "read":
-		query = `UPDATE automation_messages SET status = $1, read_at = $2 WHERE message_id = $3`
-		_, err := r.db.Exec(query, status, now, messageID)
-		return err
-	case "failed":
-		query = `UPDATE automation_messages SET status = $1 WHERE message_id = $2`
-		_, err := r.db.Exec(query, status, messageID)
-		return err
+		queryAuto = `UPDATE automation_messages SET status = $1, read_at = $2 WHERE message_id = $3`
+		_, _ = r.db.Exec(queryAuto, status, now, messageID)
 	default:
-		query = `UPDATE automation_messages SET status = $1 WHERE message_id = $2`
-		_, err := r.db.Exec(query, status, messageID)
-		return err
+		queryAuto = `UPDATE automation_messages SET status = $1 WHERE message_id = $2`
+		_, _ = r.db.Exec(queryAuto, status, messageID)
 	}
+
+	// 2. Update whatsapp_chat_messages (the one used in Chat Hub)
+	queryChat := `UPDATE whatsapp_chat_messages SET status = $1 WHERE message_id = $2`
+	_, err := r.db.Exec(queryChat, status, messageID)
+	
+	return err
 }
 
 func (r *MessagesRepository) GetMessagesByOrderID(orderID int64) ([]AutomationMessage, error) {

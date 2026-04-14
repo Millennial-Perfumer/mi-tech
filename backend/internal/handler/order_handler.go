@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/service"
 	"mi-tech/internal/automation/whatsapp"
@@ -368,8 +369,8 @@ func (h *OrderHandler) MarkAsDelivered(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		// Use "orders/delivered" topic as per existing conventions in WebhookMappingService
 		go func() {
-			// Use hardcoded Store ID '1' as per minimal request
-			if err := h.mappingService.ExecuteMapping("1", "orders/delivered", order); err != nil {
+			// Use standardized Store ID
+			if err := h.mappingService.ExecuteMapping(config.StoreIDShopify, "orders/delivered", order); err != nil {
 				log.Printf("Failed to send delivery notification for order %d: %v", id, err)
 			}
 		}()

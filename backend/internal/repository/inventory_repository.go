@@ -1,0 +1,89 @@
+package repository
+
+import (
+	"mi-tech/internal/entity"
+
+	"gorm.io/gorm"
+)
+
+type gormInventoryRepository struct {
+	db *gorm.DB
+}
+
+func NewInventoryRepository(db *gorm.DB) InventoryRepository {
+	return &gormInventoryRepository{db: db}
+}
+
+func (r *gormInventoryRepository) ListItems(search string) ([]entity.InventoryItem, error) {
+	var items []entity.InventoryItem
+	query := r.db.Preload("Mappings")
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("mi_sku ILIKE ? OR title ILIKE ?", searchTerm, searchTerm)
+	}
+	err := query.Order("mi_sku ASC").Find(&items).Error
+	return items, err
+}
+
+func (r *gormInventoryRepository) GetItemBySKU(sku string) (entity.InventoryItem, error) {
+	var item entity.InventoryItem
+	err := r.db.Preload("Mappings").Where("mi_sku = ?", sku).First(&item).Error
+	return item, err
+}
+
+func (r *gormInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {
+	var item entity.InventoryItem
+	err := r.db.Preload("Mappings").First(&item, id).Error
+	return item, err
+}
+
+func (r *gormInventoryRepository) CreateItem(item *entity.InventoryItem) error {
+	return r.db.Create(item).Error
+}
+
+func (r *gormInventoryRepository) UpdateItem(item *entity.InventoryItem) error {
+	return r.db.Save(item).Error
+}
+
+func (r *gormInventoryRepository) AdjustStock(id int, delta int) error {
+	return r.db.Model(&entity.InventoryItem{}).
+		Where("id = ?", id).
+		Update("current_stock", gorm.Expr("current_stock + ?", delta)).Error
+}
+
+func (r *gormInventoryRepository) GetMaxMISKU() (string, error) {
+	var sku string
+	// Find the highest mi-XX using regex or simply by order since the format is fixed
+	// We use the raw order to get the lexicographically largest SKU
+	err := r.db.Model(&entity.InventoryItem{}).
+		Where("mi_sku LIKE 'mi-%'").
+		Order("mi_sku DESC").
+		Limit(1).
+		Pluck("mi_sku", &sku).Error
+		
+	if err == gorm.ErrRecordNotFound {
+		return "", nil
+	}
+	return sku, err
+}
+
+func (r *gormInventoryRepository) ListMappings() ([]entity.InventoryMapping, error) {
+	var mappings []entity.InventoryMapping
+	err := r.db.Find(&mappings).Error
+	return mappings, err
+}
+
+func (r *gormInventoryRepository) GetMapping(platform, externalSKU string) (entity.InventoryMapping, error) {
+	var mapping entity.InventoryMapping
+	err := r.db.Where("platform = ? AND external_sku = ?", platform, externalSKU).First(&mapping).Error
+	return mapping, err
+}
+
+func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
+	// Use OnConflict to handle case where SKU might already be mapped
+	return r.db.Save(mapping).Error
+}
+
+func (r *gormInventoryRepository) DeleteMapping(id int) error {
+	return r.db.Delete(&entity.InventoryMapping{}, id).Error
+}

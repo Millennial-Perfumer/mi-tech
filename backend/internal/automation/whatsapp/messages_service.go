@@ -2,6 +2,8 @@ package whatsapp
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"mi-tech/internal/config"
 	"mi-tech/internal/repository"
@@ -162,6 +164,44 @@ func (s *MessagesService) UpdateConversationMode(id int, mode string) error {
 	return s.repo.UpdateConversationMode(id, mode)
 }
 
+func (s *MessagesService) SendMediaMessage(phoneNumber, mediaID, mediaType, caption string, senderRole string) (int, error) {
+	// 1. Send via Meta API
+	msgID, err := s.metaClient.SendMediaMessage(phoneNumber, mediaID, mediaType, caption)
+	if err != nil {
+		return 0, err
+	}
+
+	// 2. Upsert conversation
+	displayText := fmt.Sprintf("Sent a %s", mediaType)
+	if caption != "" {
+		displayText = caption
+	}
+	convID, err := s.repo.UpsertConversation(phoneNumber, "", displayText)
+	if err != nil {
+		return 0, err
+	}
+
+	// 3. Save chat message
+	metadata := map[string]interface{}{
+		"media_id": mediaID,
+		"caption":  caption,
+	}
+	metadataBytes, _ := json.Marshal(metadata)
+
+	chatMsg := ChatMessage{
+		ConversationID: convID,
+		MessageID:      msgID,
+		Text:           displayText,
+		Type:           mediaType,
+		Direction:      "outgoing",
+		SenderRole:     senderRole,
+		Status:         "sent",
+		SentAt:         time.Now().UTC(),
+		Metadata:       metadataBytes,
+	}
+	return s.repo.SaveChatMessage(chatMsg)
+}
+
 func (s *MessagesService) SendFreeTextMessage(phoneNumber, text string, senderRole string) (int, error) {
 	// 1. Send via Meta API
 	msgID, err := s.metaClient.SendTextMessage(phoneNumber, text)
@@ -249,20 +289,8 @@ func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messag
 	return nil
 }
 
-func (s *MessagesService) DownloadAndStoreMedia(mediaID string) (string, error) {
-	// 1. Get URL from Meta
-	url, err := s.metaClient.GetMediaURL(mediaID)
-	if err != nil {
-		return "", err
-	}
-
-	// 2. Download binary
-	data, contentType, err := s.metaClient.DownloadMedia(url)
-	if err != nil {
-		return "", err
-	}
-
-	// 3. Determine extension
+func (s *MessagesService) StoreMedia(mediaID string, data []byte, contentType string) (string, error) {
+	// 1. Determine extension
 	ext := ".bin"
 	ct := strings.ToLower(contentType)
 	if strings.Contains(ct, "image/jpeg") || strings.Contains(ct, "image/jpg") {
@@ -271,10 +299,20 @@ func (s *MessagesService) DownloadAndStoreMedia(mediaID string) (string, error) 
 		ext = ".png"
 	} else if strings.Contains(ct, "image/webp") || strings.Contains(ct, "webp") {
 		ext = ".webp"
+	} else if strings.Contains(ct, "image/gif") {
+		ext = ".gif"
 	} else if strings.Contains(ct, "video/mp4") {
 		ext = ".mp4"
+	} else if strings.Contains(ct, "video/quicktime") {
+		ext = ".mov"
+	} else if strings.Contains(ct, "audio/mpeg") || strings.Contains(ct, "audio/mp3") {
+		ext = ".mp3"
+	} else if strings.Contains(ct, "audio/ogg") {
+		ext = ".ogg"
 	} else if strings.Contains(ct, "application/pdf") {
 		ext = ".pdf"
+	} else if strings.Contains(ct, "application/msword") || strings.Contains(ct, "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+		ext = ".docx"
 	}
 
 	filename := mediaID + ext
@@ -285,13 +323,30 @@ func (s *MessagesService) DownloadAndStoreMedia(mediaID string) (string, error) 
 	
 	fullPath := filepath.Join(dir, filename)
 
-	// 4. Save to disk
-	err = os.WriteFile(fullPath, data, 0644)
+	// 2. Save to disk
+	err := os.WriteFile(fullPath, data, 0644)
 	if err != nil {
 		return "", err
 	}
 
 	return filename, nil
+}
+
+func (s *MessagesService) DownloadAndStoreMedia(mediaID string) (string, error) {
+	// 1. Get media URL from Meta
+	url, err := s.metaClient.GetMediaURL(mediaID)
+	if err != nil {
+		return "", err
+	}
+
+	// 2. Download bytes
+	data, contentType, err := s.metaClient.DownloadMedia(url)
+	if err != nil {
+		return "", err
+	}
+
+	// 3. Store locally
+	return s.StoreMedia(mediaID, data, contentType)
 }
 
 func (s *MessagesService) CleanupOldMedia() {

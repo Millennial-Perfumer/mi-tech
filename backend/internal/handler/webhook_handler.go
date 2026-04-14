@@ -179,14 +179,14 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			}
 
 			if order.ID == 0 {
-				log.Printf("Automation Warning: Order %s not found in DB after ingestion. Skipping automation.", externalID)
+				log.Printf("Automation Warning: Order %s not found in DB after ingestion (Topic: %s). Skipping automation.", externalID, topic)
 				return
 			}
 
 			_ = h.webhookService.LinkWebhookToOrder(webhookDeliveryID, order.ID)
 
 			if h.mappingService != nil && automationTopic != "" {
-				log.Printf("Automation Info: Proceeding to trigger mapping for topic %s and Order %d", automationTopic, order.ID)
+				log.Printf("Automation Trace: Topic=%s, AutomationTopic=%s, OrderID=%d, CurrentDeliveryStatus=%v", topic, automationTopic, order.ID, entity.DerefStr(order.DeliveryStatus))
 
 				// Re-verify granular status ONLY for fulfillment updates.
 				if topic == "fulfillments/update" {
@@ -219,7 +219,7 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 					log.Printf("Automation Info: Topic %s detected for order %d. This might be a side-effect, but we will allow it if it is a manual edit.", automationTopic, order.ID)
 				}
 
-				err = h.mappingService.ExecuteMapping("1", automationTopic, order)
+				err = h.mappingService.ExecuteMapping(config.StoreIDShopify, automationTopic, order)
 				if err != nil {
 					log.Printf("Automation Error: Failed to execute mapping for order %d, topic %s: %v", order.ID, automationTopic, err)
 				} else {

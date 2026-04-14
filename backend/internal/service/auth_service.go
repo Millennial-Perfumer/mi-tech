@@ -112,8 +112,8 @@ func (s *AuthService) SendOTP(user *entity.User) error {
 	s.db.Raw("SELECT id FROM automation_templates WHERE template_name = ?", "login_verification_template").Scan(&templateID)
 
 	// Send via WhatsApp using the specific template
-	// storeID "1", orderID 0
-	return s.messagesService.SendTemplateMessage("1", templateID, 0, user.PhoneNumber, "login_verification_template", "en", components)
+	// storeID config.StoreIDShopify, orderID 0
+	return s.messagesService.SendTemplateMessage(config.StoreIDShopify, templateID, 0, user.PhoneNumber, "login_verification_template", "en", components)
 }
 
 func (s *AuthService) VerifyOTP(username, otp string) (string, error) {

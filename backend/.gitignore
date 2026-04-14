@@ -1,0 +1,10 @@
+# Go binaries
+main
+/replayer
+replayer.exe
+
+# Local environment
+.env
+
+# Migration generated files
+*.sql.save

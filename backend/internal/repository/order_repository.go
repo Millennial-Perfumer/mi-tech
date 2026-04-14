@@ -155,6 +155,35 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 	}
 }
 
+func (r *gormOrderRepository) deductInventory(tx *gorm.DB, order *entity.Order) error {
+	if order.InventoryDeducted {
+		return nil
+	}
+
+	for _, li := range order.LineItems {
+		if li.SKU == nil || *li.SKU == "" {
+			continue
+		}
+
+		var mapping entity.InventoryMapping
+		err := tx.Where("platform = ? AND external_sku = ?", order.SourceID, *li.SKU).First(&mapping).Error
+		if err != nil {
+			// No mapping for this SKU, skip
+			continue
+		}
+
+		// Deduct stock
+		if err := tx.Model(&entity.InventoryItem{}).
+			Where("id = ?", mapping.InventoryItemID).
+			Update("current_stock", gorm.Expr("current_stock - ?", li.Quantity)).Error; err != nil {
+			return fmt.Errorf("failed to deduct stock for %s: %w", *li.SKU, err)
+		}
+	}
+
+	order.InventoryDeducted = true
+	return nil
+}
+
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
 	if order.CustomerPhone != nil {
 		normalized := entity.NormalizePhone(*order.CustomerPhone)
@@ -165,7 +194,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
 			Select("id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at").
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
 			First(&existing).Error
 
 		if err == nil {
@@ -176,6 +205,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			if existing.DeliveredAt != nil {
 				order.DeliveredAt = existing.DeliveredAt
 			}
+			order.InventoryDeducted = existing.InventoryDeducted
 		}
 
 		// Stamp delivered_at if status transition detected
@@ -218,7 +248,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 				"customer_city", "customer_state", "customer_country",
 				"customer_address1", "customer_address2", "customer_zip",
 				"customer_first_name", "customer_last_name", "raw_payload", "customer_external_id",
-				"total_discount", "delivered_at",
+				"total_discount", "delivered_at", "inventory_deducted",
 			}),
 		}).Omit("LineItems").Create(&order).Error; err != nil {
 			return fmt.Errorf("failed to upsert order: %w", err)
@@ -242,6 +272,14 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 				return fmt.Errorf("failed to batch insert line items: %w", err)
 			}
 		}
+
+		// 4. Deduct Inventory
+		if err := r.deductInventory(tx, &order); err != nil {
+			return err
+		}
+
+		// Update order again with inventory_deducted flag
+		return tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error
 
 		return nil
 	})
@@ -277,7 +315,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 		var existingOrders []entity.Order
 		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
 			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at").
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
 			Find(&existingOrders).Error
 
 		if err != nil {
@@ -303,6 +341,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				if existing.DeliveredAt != nil {
 					orders[i].DeliveredAt = existing.DeliveredAt
 				}
+				orders[i].InventoryDeducted = existing.InventoryDeducted
 			}
 
 			// Stamp delivered_at if status transition detected
@@ -327,7 +366,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				"financial_status", "fulfillment_status", "delivery_status",
 				"tracking_number", "shipping_company", "tracking_url",
 				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
-				"raw_payload", "customer_external_id", "total_discount", "delivered_at",
+				"raw_payload", "customer_external_id", "total_discount", "delivered_at", "inventory_deducted",
 			}),
 		}).Omit("LineItems").Create(&orders).Error; err != nil {
 			return fmt.Errorf("failed to batch upsert orders: %w", err)
@@ -350,6 +389,19 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 				return fmt.Errorf("failed to batch upsert line items: %w", err)
 			}
 		}
+
+		// 4. Deduct Inventory for all orders in batch
+		for i := range orders {
+			if err := r.deductInventory(tx, &orders[i]); err != nil {
+				return err
+			}
+			// Update individual order flag
+			if err := tx.Model(&orders[i]).Update("inventory_deducted", orders[i].InventoryDeducted).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
 		return nil
 	})
 }

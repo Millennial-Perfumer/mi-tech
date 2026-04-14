@@ -555,6 +555,108 @@ func (c *Client) UpdateOrder(externalID string, updateData map[string]interface{
 	return nil
 }
 
+// FetchProducts fetches products and their variants from Shopify using GraphQL.
+func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+
+	if shopifyURL == "" || accessToken == "" {
+		return nil, fmt.Errorf("shopify credentials are not configured in DB")
+	}
+
+	var allProducts []dto.GraphQLProductNode
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
+
+	queryTemplate := `
+	query getProducts($cursor: String) {
+		products(first: 50, after: $cursor) {
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
+			edges {
+				node {
+					id
+					title
+					descriptionHtml
+					handle
+					variants(first: 50) {
+						edges {
+							node {
+								id
+								title
+								sku
+								price
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	`
+
+	var cursor *string
+
+	for {
+		payload := map[string]interface{}{
+			"query": queryTemplate,
+			"variables": map[string]interface{}{
+				"cursor": cursor,
+			},
+		}
+
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+
+		req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(payloadBytes)))
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Add("X-Shopify-Access-Token", accessToken)
+		req.Header.Add("Content-Type", "application/json")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("shopify graphql api error: %s - %s", resp.Status, string(body))
+		}
+
+		var result dto.GraphQLProductResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal graphql response: %w", err)
+		}
+
+		if len(result.Errors) > 0 {
+			log.Printf("Shopify Product GraphQL semi-successful with errors: %v", result.Errors)
+		}
+
+		edges := result.Data.Products.Edges
+		for _, edge := range edges {
+			allProducts = append(allProducts, edge.Node)
+		}
+
+		if result.Data.Products.PageInfo.HasNextPage && result.Data.Products.PageInfo.EndCursor != "" {
+			endCursor := result.Data.Products.PageInfo.EndCursor
+			cursor = &endCursor
+			time.Sleep(500 * time.Millisecond) // Rate limiting
+		} else {
+			break
+		}
+	}
+
+	return allProducts, nil
+}
+
 // extractNumericID converts a GID like "gid://shopify/Order/12345" to "12345"
 func (c *Client) extractNumericID(id string) string {
 	if strings.HasPrefix(id, "gid://shopify/") {
@@ -563,3 +665,4 @@ func (c *Client) extractNumericID(id string) string {
 	}
 	return id
 }
+

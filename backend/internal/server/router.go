@@ -36,6 +36,7 @@ func RegisterRoutes(
 	smmHandler *handler.SMMHandler,
 	plannerHandler *handler.PlannerHandler,
 	feedbackHandler *handler.FeedbackHandler,
+	inventoryHandler *handler.InventoryHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -231,6 +232,8 @@ func RegisterRoutes(
 
 	mux.HandleFunc("/api/automation/whatsapp/conversations", protected(automationHandler.GetConversations))
 	mux.HandleFunc("/api/automation/whatsapp/chat", protected(automationHandler.GetChatMessages))
+	mux.HandleFunc("/api/automation/whatsapp/chat/upload", adminProtected(automationHandler.UploadChatMedia))
+	mux.HandleFunc("/api/automation/whatsapp/chat/send-media", adminProtected(automationHandler.SendChatMedia))
 	mux.HandleFunc("/api/automation/whatsapp/send-message", adminProtected(automationHandler.SendFreeTextMessage))
 	mux.HandleFunc("/api/automation/whatsapp/conversations/mode", adminProtected(automationHandler.UpdateConversationMode))
 	mux.HandleFunc("/api/automation/whatsapp/events", protected(func(w http.ResponseWriter, r *http.Request) {
@@ -290,4 +293,17 @@ func RegisterRoutes(
 	}))
 	mux.HandleFunc("/api/planner/analytics", protected(plannerHandler.GetAnalytics))
 	
+	// --- Inventory Hub Routes ---
+	mux.HandleFunc("/api/inventory", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(inventoryHandler.CreateItem)(w, r)
+		default:
+			inventoryHandler.GetDashboard(w, r)
+		}
+	}))
+	mux.HandleFunc("/api/inventory/next-sku", protected(inventoryHandler.GetNextSKU))
+	mux.HandleFunc("/api/inventory/sync-shopify", adminProtected(inventoryHandler.SyncShopify))
+	mux.HandleFunc("/api/inventory/map", adminProtected(inventoryHandler.CreateMapping))
+	mux.HandleFunc("/api/inventory/adjust", adminProtected(inventoryHandler.AdjustStock))
 }

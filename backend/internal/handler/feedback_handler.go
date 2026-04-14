@@ -10,6 +10,7 @@ import (
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -248,7 +249,8 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 		return
 	}
 
-	template, err := h.templatesRepo.GetTemplateByName("1", templateName)
+	template, err := h.templatesRepo.GetTemplateByName(config.StoreIDShopify, templateName)
+
 	if err != nil {
 		http.Error(w, "Error fetching feedback template", http.StatusInternalServerError)
 		return
@@ -284,8 +286,11 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 				return
 			}
 
+			// Explicitly use standardized store ID
+			storeID := config.StoreIDShopify
+
 			// Trigger explicit feedback send
-			err = h.mappingService.ExecuteManualSend("1", template.ID, order)
+			err = h.mappingService.ExecuteManualSend(storeID, template.ID, order)
 			if err != nil {
 				log.Printf("Bulk Send Error: Failed to send feedback for order %d: %v", orderID, err)
 				mu.Lock()
@@ -316,17 +321,17 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 
 // GetConfigStatus checks if the feedback system is fully configured
 func (h *FeedbackHandler) GetConfigStatus(w http.ResponseWriter, r *http.Request) {
-	templateName := h.settingsProvider.Get("feedback_whatsapp_template_name")
-	baseURL := h.settingsProvider.Get("feedback_base_url")
+	templateName := strings.TrimSpace(h.settingsProvider.Get("feedback_whatsapp_template_name"))
+	baseURL := strings.TrimSpace(h.settingsProvider.Get("feedback_base_url"))
 
-	// Verify template exists and has mappings
+	// Verify template exists
 	var templateFound bool
-	var mappingFound bool
+	var actualStoreID string
 	if templateName != "" {
-		t, _ := h.templatesRepo.GetTemplateByName("1", templateName)
-		templateFound = t != nil
-		if templateFound && t.VariableMappings != nil {
-			mappingFound = len(*t.VariableMappings) > 2 // Check if it's more than just "[]" or "{}"
+		t, _ := h.templatesRepo.GetTemplateByName(config.StoreIDShopify, templateName)
+		if t != nil {
+			templateFound = true
+			actualStoreID = config.StoreIDShopify
 		}
 	}
 
@@ -335,8 +340,6 @@ func (h *FeedbackHandler) GetConfigStatus(w http.ResponseWriter, r *http.Request
 		missing = append(missing, "template_name")
 	} else if !templateFound {
 		missing = append(missing, "template_not_found")
-	} else if !mappingFound {
-		missing = append(missing, "mapping_missing")
 	}
 	
 	if baseURL == "" {
@@ -351,6 +354,7 @@ func (h *FeedbackHandler) GetConfigStatus(w http.ResponseWriter, r *http.Request
 		"config": map[string]string{
 			"template_name": templateName,
 			"base_url":      baseURL,
+			"store_id":      actualStoreID,
 		},
 	})
 }

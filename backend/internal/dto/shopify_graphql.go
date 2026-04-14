@@ -139,9 +139,52 @@ type DiscountAllocation struct {
 	AllocatedAmount ShopMoney `json:"allocatedAmount"`
 }
 
-// GraphQLLineVariant holds variant-level data such as HS codes.
+// GraphQLLineVariant holds variant-level data such as HS codes and inventory item IDs.
 type GraphQLLineVariant struct {
+	ID            string `json:"id"`
+	SKU           string `json:"sku"`
 	InventoryItem struct {
+		ID                   string `json:"id"`
 		HarmonizedSystemCode string `json:"harmonizedSystemCode"`
 	} `json:"inventoryItem"`
 }
+
+// GraphQLProductResponse represents the responsive data for a product fetch.
+type GraphQLProductResponse struct {
+	Data struct {
+		Products struct {
+			PageInfo struct {
+				HasNextPage bool   `json:"hasNextPage"`
+				EndCursor   string `json:"endCursor"`
+			} `json:"pageInfo"`
+			Edges []GraphQLProductEdge `json:"edges"`
+		} `json:"products"`
+	} `json:"data"`
+	Errors []interface{} `json:"errors"`
+}
+
+type GraphQLProductEdge struct {
+	Node GraphQLProductNode `json:"node"`
+}
+
+type GraphQLProductNode struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"descriptionHtml"` // body_html in REST, descriptionHtml in GraphQL
+	Handle      string `json:"handle"`
+	Variants    struct {
+		Edges []GraphQLVariantEdge `json:"edges"`
+	} `json:"variants"`
+}
+
+type GraphQLVariantEdge struct {
+	Node GraphQLVariantNode `json:"node"`
+}
+
+type GraphQLVariantNode struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	SKU   string `json:"sku"`
+	Price string `json:"price"`
+}
+
