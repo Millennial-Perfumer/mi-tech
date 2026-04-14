@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -175,17 +176,29 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 // @Success 200 {string} string "OK"
 // @Router /automation/whatsapp/webhook [post]
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
-	// 1. Hub Challenge for verification
+	// 1. Hub Challenge for verification (GET)
 	if r.Method == http.MethodGet {
-		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+		query := r.URL.Query()
+		mode := query.Get("hub.mode")
+		token := query.Get("hub.verify_token")
+		challenge := query.Get("hub.challenge")
+
+		expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+
+		// Secure comparison using ConstantTimeCompare to prevent timing attacks
+		if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
+			log.Printf("WhatsApp Webhook verified successfully!")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+
+		log.Printf("WhatsApp Webhook verification failed: mode=%s, token_match=%v", mode, token == expectedToken)
+		http.Error(w, "Verification failed", http.StatusForbidden)
+		return
 	}
 
-	// 2. Handle status updates
+	// 2. Handle data notifications (POST)
 	if r.Method == http.MethodPost {
 		// Read body for both validation and unmarshaling
 		body, err := io.ReadAll(r.Body)
