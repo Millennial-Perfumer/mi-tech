@@ -155,33 +155,101 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 	}
 }
 
-func (r *gormOrderRepository) deductInventory(tx *gorm.DB, order *entity.Order) error {
-	if order.InventoryDeducted {
+func (r *gormOrderRepository) deductInventoryBatch(tx *gorm.DB, orders []entity.Order) error {
+	var ordersToProcess []*entity.Order
+	for i := range orders {
+		if !orders[i].InventoryDeducted {
+			ordersToProcess = append(ordersToProcess, &orders[i])
+		}
+	}
+
+	if len(ordersToProcess) == 0 {
 		return nil
 	}
 
-	for _, li := range order.LineItems {
-		if li.SKU == nil || *li.SKU == "" {
-			continue
-		}
+	// 1. Collect unique platform:SKU pairs
+	type skuKey struct {
+		Platform string
+		SKU      string
+	}
+	skuMap := make(map[skuKey]bool)
+	var platforms []string
+	var skus []string
 
-		var mapping entity.InventoryMapping
-		err := tx.Where("platform = ? AND external_sku = ?", order.SourceID, *li.SKU).First(&mapping).Error
-		if err != nil {
-			// No mapping for this SKU, skip
-			continue
-		}
+	platformSet := make(map[string]bool)
+	skuSet := make(map[string]bool)
 
-		// Deduct stock
-		if err := tx.Model(&entity.InventoryItem{}).
-			Where("id = ?", mapping.InventoryItemID).
-			Update("current_stock", gorm.Expr("current_stock - ?", li.Quantity)).Error; err != nil {
-			return fmt.Errorf("failed to deduct stock for %s: %w", *li.SKU, err)
+	for _, o := range ordersToProcess {
+		for _, li := range o.LineItems {
+			if li.SKU != nil && *li.SKU != "" {
+				key := skuKey{Platform: o.SourceID, SKU: *li.SKU}
+				if !skuMap[key] {
+					skuMap[key] = true
+					if !platformSet[o.SourceID] {
+						platforms = append(platforms, o.SourceID)
+						platformSet[o.SourceID] = true
+					}
+					if !skuSet[*li.SKU] {
+						skus = append(skus, *li.SKU)
+						skuSet[*li.SKU] = true
+					}
+				}
+			}
 		}
 	}
 
-	order.InventoryDeducted = true
-	return nil
+	if len(skuMap) == 0 {
+		// Even if no SKUs to deduct, we must mark these orders as processed
+		return r.markOrdersAsDeducted(tx, ordersToProcess)
+	}
+
+	// 2. Fetch all relevant mappings in one go
+	var mappings []entity.InventoryMapping
+	if err := tx.Where("platform IN ? AND external_sku IN ?", platforms, skus).Find(&mappings).Error; err != nil {
+		return fmt.Errorf("failed to fetch inventory mappings: %w", err)
+	}
+
+	// Map platform:SKU -> InventoryItemID
+	mappingLookup := make(map[skuKey]int)
+	for _, m := range mappings {
+		mappingLookup[skuKey{Platform: m.Platform, SKU: m.ExternalSKU}] = m.InventoryItemID
+	}
+
+	// 3. Aggregate deductions by InventoryItemID
+	deductions := make(map[int]int)
+	for _, o := range ordersToProcess {
+		for _, li := range o.LineItems {
+			if li.SKU != nil && *li.SKU != "" {
+				if itemID, ok := mappingLookup[skuKey{Platform: o.SourceID, SKU: *li.SKU}]; ok {
+					deductions[itemID] += li.Quantity
+				}
+			}
+		}
+	}
+
+	// 4. Execute deductions
+	for itemID, qty := range deductions {
+		if err := tx.Model(&entity.InventoryItem{}).
+			Where("id = ?", itemID).
+			Update("current_stock", gorm.Expr("current_stock - ?", qty)).Error; err != nil {
+			return fmt.Errorf("failed to deduct stock for item %d: %w", itemID, err)
+		}
+	}
+
+	// 5. Mark orders as deducted and batch update
+	return r.markOrdersAsDeducted(tx, ordersToProcess)
+}
+
+func (r *gormOrderRepository) markOrdersAsDeducted(tx *gorm.DB, orders []*entity.Order) error {
+	var orderIDs []int64
+	for i := range orders {
+		orders[i].InventoryDeducted = true
+		orderIDs = append(orderIDs, orders[i].ID)
+	}
+
+	return tx.Model(&entity.Order{}).
+		Where("id IN ?", orderIDs).
+		Update("inventory_deducted", true).Error
 }
 
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
@@ -274,14 +342,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		}
 
 		// 4. Deduct Inventory
-		if err := r.deductInventory(tx, &order); err != nil {
-			return err
-		}
-
-		// Update order again with inventory_deducted flag
-		return tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error
-
-		return nil
+		return r.deductInventoryBatch(tx, []entity.Order{order})
 	})
 }
 
@@ -391,17 +452,10 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 		}
 
 		// 4. Deduct Inventory for all orders in batch
-		for i := range orders {
-			if err := r.deductInventory(tx, &orders[i]); err != nil {
-				return err
-			}
-			// Update individual order flag
-			if err := tx.Model(&orders[i]).Update("inventory_deducted", orders[i].InventoryDeducted).Error; err != nil {
-				return err
-			}
+		if err := r.deductInventoryBatch(tx, orders); err != nil {
+			return err
 		}
 
-		return nil
 		return nil
 	})
 }
