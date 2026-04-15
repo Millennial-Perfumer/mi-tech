@@ -12,6 +12,7 @@ This file acts as the persistent memory for the `security-sk` analyst. It tracks
 ## ✅ Remediations & Audited Areas
 *Resolved issues and verified secure components.*
 
+- **WhatsApp Webhook Verification**: Implemented secure token validation for WhatsApp Webhook (GET) using constant-time comparison. [Remediated 2026-04-15].
 - **Customer Repository Sorting**: Verified safe use of allowlists for dynamic sorting in `List` method. [Verified 2026-04-03].
 - **RBAC Coverage**: Standard endpoints in `router.go` are correctly wrapped in `protected` and `adminProtected` middleware.
 
