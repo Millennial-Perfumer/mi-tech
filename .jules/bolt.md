@@ -13,3 +13,7 @@
 ## 2026-03-27 - [Optimizing Reporting with SQL Aggregations and Window Functions]
 **Learning:** Combining multiple metrics into a single SQL query using `FILTER` and `CASE` (conditional aggregation) eliminates redundant database roundtrips and application-side processing. For HSN/line-item reports, replacing global CTE scans with window functions (`SUM(...) OVER (PARTITION BY order_id)`) within date-filtered JOINs ensures the database only processes relevant rows, significantly improving performance as the table grows.
 **Action:** Always prefer conditional SQL aggregation over multiple repository calls for dashboard/reporting logic. Use window functions for per-group aggregations within filtered result sets to avoid full table scans.
+
+## 2026-03-27 - [Batch Inventory Deduction]
+**Learning:** Sequential inventory deduction during batch order upserts creates an O(N*M) bottleneck (N orders, M items). By aggregating all SKUs in the batch, fetching mappings once, and summing quantities per internal item, database roundtrips are reduced to O(1) for mappings and O(Unique Items) for updates.
+**Action:** When processing batches of entities that trigger side effects (like inventory updates), always aggregate the side effects and perform them in bulk after the primary batch operation.

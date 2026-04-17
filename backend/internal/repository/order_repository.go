@@ -184,6 +184,92 @@ func (r *gormOrderRepository) deductInventory(tx *gorm.DB, order *entity.Order) 
 	return nil
 }
 
+// deductInventoryBatch performs inventory deduction for a batch of orders.
+// Optimization: Reduces database roundtrips by fetching all SKU mappings in one query
+// and aggregating stock updates per InventoryItem.
+func (r *gormOrderRepository) deductInventoryBatch(tx *gorm.DB, orders []entity.Order) error {
+	var ordersToProcess []*entity.Order
+	skuMap := make(map[string]map[string]bool) // platform -> external_sku -> true
+
+	for i := range orders {
+		if orders[i].InventoryDeducted {
+			continue
+		}
+		ordersToProcess = append(ordersToProcess, &orders[i])
+		if skuMap[orders[i].SourceID] == nil {
+			skuMap[orders[i].SourceID] = make(map[string]bool)
+		}
+		for _, li := range orders[i].LineItems {
+			if li.SKU != nil && *li.SKU != "" {
+				skuMap[orders[i].SourceID][*li.SKU] = true
+			}
+		}
+	}
+
+	if len(ordersToProcess) == 0 {
+		return nil
+	}
+
+	// Fetch mappings in batch
+	var allMappings []entity.InventoryMapping
+	for platform, skus := range skuMap {
+		var platformSkus []string
+		for sku := range skus {
+			platformSkus = append(platformSkus, sku)
+		}
+		var mappings []entity.InventoryMapping
+		if err := tx.Where("platform = ? AND external_sku IN ?", platform, platformSkus).Find(&mappings).Error; err != nil {
+			return fmt.Errorf("failed to fetch mappings for %s: %w", platform, err)
+		}
+		allMappings = append(allMappings, mappings...)
+	}
+
+	// Create a lookup map: platform:external_sku -> InventoryItemID
+	mappingLookup := make(map[string]int)
+	for _, m := range allMappings {
+		key := fmt.Sprintf("%s:%s", m.Platform, m.ExternalSKU)
+		mappingLookup[key] = m.InventoryItemID
+	}
+
+	// Aggregate deductions
+	deductions := make(map[int]int) // InventoryItemID -> total quantity to deduct
+	for _, o := range ordersToProcess {
+		for _, li := range o.LineItems {
+			if li.SKU == nil || *li.SKU == "" {
+				continue
+			}
+			key := fmt.Sprintf("%s:%s", o.SourceID, *li.SKU)
+			if itemID, ok := mappingLookup[key]; ok {
+				deductions[itemID] += li.Quantity
+			}
+		}
+	}
+
+	// Apply deductions
+	for itemID, qty := range deductions {
+		if err := tx.Model(&entity.InventoryItem{}).
+			Where("id = ?", itemID).
+			Update("current_stock", gorm.Expr("current_stock - ?", qty)).Error; err != nil {
+			return fmt.Errorf("failed to deduct stock for item %d: %w", itemID, err)
+		}
+	}
+
+	// Mark all as deducted
+	var orderIDs []int64
+	for _, o := range ordersToProcess {
+		o.InventoryDeducted = true
+		orderIDs = append(orderIDs, o.ID)
+	}
+
+	if len(orderIDs) > 0 {
+		if err := tx.Model(&entity.Order{}).Where("id IN ?", orderIDs).Update("inventory_deducted", true).Error; err != nil {
+			return fmt.Errorf("failed to update inventory_deducted flag: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (r *gormOrderRepository) Upsert(order entity.Order) error {
 	if order.CustomerPhone != nil {
 		normalized := entity.NormalizePhone(*order.CustomerPhone)
@@ -390,18 +476,11 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			}
 		}
 
-		// 4. Deduct Inventory for all orders in batch
-		for i := range orders {
-			if err := r.deductInventory(tx, &orders[i]); err != nil {
-				return err
-			}
-			// Update individual order flag
-			if err := tx.Model(&orders[i]).Update("inventory_deducted", orders[i].InventoryDeducted).Error; err != nil {
-				return err
-			}
+		// 4. Deduct Inventory for all orders in batch (Optimized)
+		if err := r.deductInventoryBatch(tx, orders); err != nil {
+			return err
 		}
 
-		return nil
 		return nil
 	})
 }
