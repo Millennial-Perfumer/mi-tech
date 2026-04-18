@@ -1,10 +1,17 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"log"
 	"mi-tech/internal/config"
 	"mi-tech/internal/marketing"
 	"net/http"
+	"strings"
 )
 
 type MarketingWebhookHandler struct {
@@ -43,7 +50,7 @@ func (h *MarketingWebhookHandler) verifyWebhook(w http.ResponseWriter, r *http.R
 
 	expectedToken := h.settings.GetMetaMarketingWebhookVerifyToken()
 
-	if mode == "subscribe" && token == expectedToken {
+	if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
 		fmt.Printf("Meta Marketing Webhook verified successfully!\n")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(challenge))
@@ -54,9 +61,50 @@ func (h *MarketingWebhookHandler) verifyWebhook(w http.ResponseWriter, r *http.R
 }
 
 func (h *MarketingWebhookHandler) handleNotification(w http.ResponseWriter, r *http.Request) {
+	// 1. Read body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading Meta marketing webhook body: %v", err)
+		http.Error(w, "Failed to read body", http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	// 2. Validate HMAC Signature
+	signature := r.Header.Get("X-Hub-Signature-256")
+	if !h.validateMetaSignature(body, signature) {
+		log.Printf("Invalid Meta Marketing X-Hub-Signature-256 received")
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
 	// For now, we just acknowledge and log.
 	// In a real implementation, we'd parse the 'ads_management' or 'ads_insights' payload.
-	fmt.Printf("Received Meta Marketing Notification\n")
+	fmt.Printf("Received Verified Meta Marketing Notification\n")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Acknowledged"))
+}
+
+func (h *MarketingWebhookHandler) validateMetaSignature(body []byte, signature string) bool {
+	if signature == "" {
+		return false
+	}
+
+	// Signature format: sha256=HEX_DIGEST
+	if !strings.HasPrefix(signature, "sha256=") {
+		return false
+	}
+	actualHash := signature[7:]
+
+	secret := h.settings.GetMetaAppSecret()
+	if secret == "" {
+		log.Printf("Meta Marketing Webhook Warning: No meta_app_secret configured")
+		return false
+	}
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	expectedHash := hex.EncodeToString(mac.Sum(nil))
+
+	return subtle.ConstantTimeCompare([]byte(actualHash), []byte(expectedHash)) == 1
 }
