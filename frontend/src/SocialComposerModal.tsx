@@ -65,6 +65,17 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
               outline: 'none'
             }}
           />
+          <div
+            style={{
+              marginTop: '0.5rem',
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+              textAlign: 'right'
+            }}
+            aria-live="polite"
+          >
+            {content.length} {content.length === 1 ? 'character' : 'characters'}
+          </div>
         </div>
 
         <div style={{ marginBottom: '2rem' }}>
