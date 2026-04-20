@@ -13,3 +13,7 @@
 ## 2026-03-27 - [Optimizing Reporting with SQL Aggregations and Window Functions]
 **Learning:** Combining multiple metrics into a single SQL query using `FILTER` and `CASE` (conditional aggregation) eliminates redundant database roundtrips and application-side processing. For HSN/line-item reports, replacing global CTE scans with window functions (`SUM(...) OVER (PARTITION BY order_id)`) within date-filtered JOINs ensures the database only processes relevant rows, significantly improving performance as the table grows.
 **Action:** Always prefer conditional SQL aggregation over multiple repository calls for dashboard/reporting logic. Use window functions for per-group aggregations within filtered result sets to avoid full table scans.
+
+## 2026-04-20 - [Efficient Regex Compilation]
+**Learning:** Compiling regular expressions inside functions that are called frequently (e.g., search query parsing or template parameter counting) introduces significant CPU overhead due to repeated compilation. Moving these to package-level variables using `regexp.MustCompile` ensures they are compiled once at startup.
+**Action:** Always declare frequently used regular expressions as package-level variables to avoid re-compilation costs.
