@@ -12,6 +12,7 @@ This file acts as the persistent memory for the `security-sk` analyst. It tracks
 ## ✅ Remediations & Audited Areas
 *Resolved issues and verified secure components.*
 
+- **Webhook Verification Hardening**: Enforced `hub.mode` checks and timing-safe `subtle.ConstantTimeCompare` for WhatsApp and Meta Marketing verification. Added HMAC-SHA256 signature validation for Meta Marketing POST notifications. [Remediated 2026-04-20].
 - **Customer Repository Sorting**: Verified safe use of allowlists for dynamic sorting in `List` method. [Verified 2026-04-03].
 - **RBAC Coverage**: Standard endpoints in `router.go` are correctly wrapped in `protected` and `adminProtected` middleware.
 
