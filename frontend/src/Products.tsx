@@ -32,6 +32,7 @@ export const Products: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSyncWizard, setShowSyncWizard] = useState(false);
   const [stagedProducts, setStagedProducts] = useState<StagedProduct[]>([]);
@@ -53,12 +54,13 @@ export const Products: React.FC<{ token: string | null }> = ({ token }) => {
     return fetch(url, { ...options, headers });
   };
 
-  const fetchInventory = async () => {
+  const fetchInventory = async (search: string = '') => {
     setIsLoading(true);
     try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/inventory`);
+      const url = search ? `${API_BASE}/api/inventory?search=${encodeURIComponent(search)}` : `${API_BASE}/api/inventory`;
+      const resp = await fetchWithAuth(url);
       const data = await resp.json();
-      setItems(data);
+      setItems(data || []);
     } catch (err) {
       toastError('Failed to fetch inventory');
     } finally {
@@ -146,11 +148,19 @@ export const Products: React.FC<{ token: string | null }> = ({ token }) => {
   };
 
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    if (searchQuery === '') {
+      fetchInventory('');
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchInventory(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   return (
     <div className="tab-content staggered-fade-in">
+      <StyleTag />
       <div className="section-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>Warehouse Authority</h2>
@@ -166,10 +176,48 @@ export const Products: React.FC<{ token: string | null }> = ({ token }) => {
         </div>
       </div>
 
+      <div className="search-container" style={{ marginBottom: '2rem' }}>
+        <div className="search-box-premium">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            type="text"
+            placeholder="Search by SKU or title..."
+            aria-label="Search products"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ paddingRight: searchQuery ? '2.5rem' : '1rem' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+              title="Clear search"
+              className="clear-search-btn"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="inventory-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
         {items.length === 0 && !isLoading && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', background: 'var(--surface-color)', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
-            <p style={{ color: 'var(--text-tertiary)' }}>No products in your warehouse yet.</p>
+            <p style={{ color: 'var(--text-tertiary)' }}>
+              {searchQuery ? `No products found matching "${searchQuery}"` : "No products in your warehouse yet."}
+            </p>
+            {searchQuery && (
+              <button
+                className="btn-secondary"
+                style={{ marginTop: '1rem' }}
+                onClick={() => setSearchQuery('')}
+              >
+                Clear Search
+              </button>
+            )}
           </div>
         )}
 
@@ -307,5 +355,55 @@ export const Products: React.FC<{ token: string | null }> = ({ token }) => {
     </div>
   );
 };
+
+const styles = `
+  .search-box-premium {
+    flex: 1;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    height: 48px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+  }
+  .search-box-premium input {
+    background: none;
+    border: none;
+    width: 100%;
+    color: var(--text-primary);
+    font-weight: 500;
+    outline: none;
+  }
+  .search-box-premium:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+  .clear-search-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+  }
+  .clear-search-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+`;
+
+const StyleTag = () => <style>{styles}</style>;
 
 export default Products;

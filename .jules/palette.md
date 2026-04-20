@@ -1,3 +1,3 @@
 ## 2025-05-15 - Consistent Search 'Clear' Pattern
-**Learning:** This app's design system favors using absolute-positioned 'Clear' buttons inside search inputs with manual hover state management via `onMouseEnter`/`onMouseLeave` inline styles. This ensures micro-UX consistency across different modules like Customers and Automation.
-**Action:** Always include a 'Clear' button for search inputs that resets both the query and pagination, using the established inline styling pattern for consistency.
+**Learning:** This app's design system favors using absolute-positioned 'Clear' buttons inside search inputs. While earlier implementations used inline `onMouseEnter`/`onMouseLeave` handlers, the more maintainable standard used in `Tickets.tsx` and now `Products.tsx` is to use CSS classes (`.search-box-premium`, `.clear-search-btn`) within a component-level `<style>` block.
+**Action:** Always include a 'Clear' button for search inputs that resets both the query and pagination, using standardized CSS classes in a component-level `<style>` block for hover/focus states.
