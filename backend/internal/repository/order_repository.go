@@ -155,32 +155,76 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 	}
 }
 
-func (r *gormOrderRepository) deductInventory(tx *gorm.DB, order *entity.Order) error {
-	if order.InventoryDeducted {
+func (r *gormOrderRepository) deductInventoryBatch(tx *gorm.DB, orders []*entity.Order) error {
+	type skuKey struct {
+		Platform string
+		SKU      string
+	}
+
+	uniqueKeys := make(map[skuKey]bool)
+	ordersToProcess := make([]*entity.Order, 0)
+
+	for _, o := range orders {
+		if o.InventoryDeducted {
+			continue
+		}
+		ordersToProcess = append(ordersToProcess, o)
+		for _, li := range o.LineItems {
+			if li.SKU != nil && *li.SKU != "" {
+				uniqueKeys[skuKey{Platform: o.SourceID, SKU: *li.SKU}] = true
+			}
+		}
+	}
+
+	if len(ordersToProcess) == 0 {
 		return nil
 	}
 
-	for _, li := range order.LineItems {
-		if li.SKU == nil || *li.SKU == "" {
-			continue
+	if len(uniqueKeys) > 0 {
+		// Build the tuple IN query for all platform-sku pairs
+		var mappings []entity.InventoryMapping
+		pairs := make([][]interface{}, 0, len(uniqueKeys))
+		for k := range uniqueKeys {
+			pairs = append(pairs, []interface{}{k.Platform, k.SKU})
 		}
 
-		var mapping entity.InventoryMapping
-		err := tx.Where("platform = ? AND external_sku = ?", order.SourceID, *li.SKU).First(&mapping).Error
-		if err != nil {
-			// No mapping for this SKU, skip
-			continue
+		// Batch fetch all relevant mappings
+		if err := tx.Where("(platform, external_sku) IN ?", pairs).Find(&mappings).Error; err != nil {
+			return fmt.Errorf("failed to fetch inventory mappings in batch: %w", err)
 		}
 
-		// Deduct stock
-		if err := tx.Model(&entity.InventoryItem{}).
-			Where("id = ?", mapping.InventoryItemID).
-			Update("current_stock", gorm.Expr("current_stock - ?", li.Quantity)).Error; err != nil {
-			return fmt.Errorf("failed to deduct stock for %s: %w", *li.SKU, err)
+		mappingMap := make(map[skuKey]int)
+		for _, m := range mappings {
+			mappingMap[skuKey{Platform: m.Platform, SKU: m.ExternalSKU}] = m.InventoryItemID
+		}
+
+		// Aggregate deductions by InventoryItemID
+		deductions := make(map[int]int)
+		for _, o := range ordersToProcess {
+			for _, li := range o.LineItems {
+				if li.SKU == nil || *li.SKU == "" {
+					continue
+				}
+				if itemID, found := mappingMap[skuKey{Platform: o.SourceID, SKU: *li.SKU}]; found {
+					deductions[itemID] += li.Quantity
+				}
+			}
+		}
+
+		// Perform one update per unique inventory item affected
+		for itemID, qty := range deductions {
+			if err := tx.Model(&entity.InventoryItem{}).
+				Where("id = ?", itemID).
+				Update("current_stock", gorm.Expr("current_stock - ?", qty)).Error; err != nil {
+				return fmt.Errorf("failed to deduct stock for inventory item %d: %w", itemID, err)
+			}
 		}
 	}
 
-	order.InventoryDeducted = true
+	for _, o := range ordersToProcess {
+		o.InventoryDeducted = true
+	}
+
 	return nil
 }
 
@@ -274,14 +318,12 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		}
 
 		// 4. Deduct Inventory
-		if err := r.deductInventory(tx, &order); err != nil {
+		if err := r.deductInventoryBatch(tx, []*entity.Order{&order}); err != nil {
 			return err
 		}
 
 		// Update order again with inventory_deducted flag
 		return tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error
-
-		return nil
 	})
 }
 
@@ -391,17 +433,29 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 		}
 
 		// 4. Deduct Inventory for all orders in batch
+		orderPtrs := make([]*entity.Order, len(orders))
+		orderIDs := make([]int64, 0, len(orders))
 		for i := range orders {
-			if err := r.deductInventory(tx, &orders[i]); err != nil {
-				return err
-			}
-			// Update individual order flag
-			if err := tx.Model(&orders[i]).Update("inventory_deducted", orders[i].InventoryDeducted).Error; err != nil {
-				return err
+			orderPtrs[i] = &orders[i]
+		}
+
+		if err := r.deductInventoryBatch(tx, orderPtrs); err != nil {
+			return err
+		}
+
+		// Update order flags in one batch
+		for i := range orders {
+			if orders[i].InventoryDeducted {
+				orderIDs = append(orderIDs, orders[i].ID)
 			}
 		}
 
-		return nil
+		if len(orderIDs) > 0 {
+			if err := tx.Model(&entity.Order{}).Where("id IN ?", orderIDs).Update("inventory_deducted", true).Error; err != nil {
+				return fmt.Errorf("failed to batch update inventory_deducted flag: %w", err)
+			}
+		}
+
 		return nil
 	})
 }
