@@ -13,3 +13,7 @@
 ## 2026-03-27 - [Optimizing Reporting with SQL Aggregations and Window Functions]
 **Learning:** Combining multiple metrics into a single SQL query using `FILTER` and `CASE` (conditional aggregation) eliminates redundant database roundtrips and application-side processing. For HSN/line-item reports, replacing global CTE scans with window functions (`SUM(...) OVER (PARTITION BY order_id)`) within date-filtered JOINs ensures the database only processes relevant rows, significantly improving performance as the table grows.
 **Action:** Always prefer conditional SQL aggregation over multiple repository calls for dashboard/reporting logic. Use window functions for per-group aggregations within filtered result sets to avoid full table scans.
+
+## 2026-04-22 - [Batch Inventory Deduction and Regex Pre-compilation]
+**Learning:** Iterative inventory mapping lookups and stock updates in bulk order processing create an N+1 bottleneck. Using a tuple IN query with `tx.Where("(platform, external_sku) IN ?", pairs)` consolidates mappings fetch, and aggregating deductions in-memory reduces the number of UPDATE statements to one per distinct InventoryItemID. Additionally, pre-compiling regular expressions at the package level in Go avoids significant overhead (benchmarked as a reduction from ~4900 ns/op to ~0.4 ns/op) compared to repeated `regexp.MustCompile` calls in hot paths like search parsing.
+**Action:** Always batch composite key lookups and aggregate child updates in GORM. Pre-compile all regular expressions used in service methods as package-level variables.
