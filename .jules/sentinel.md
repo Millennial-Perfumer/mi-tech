@@ -12,3 +12,13 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-04-22 - [Timing Attack & Insecure Webhook Verification]
+**Vulnerability:** Webhook verification endpoints for WhatsApp, Meta, and Shopify used non-constant-time string comparisons for tokens and HMACs. The WhatsApp handler also lacked token verification for GET requests, and the Shopify handler "failed open" when the secret was missing.
+**Learning:** Standard string comparison in Go is short-circuiting, leaking information about the matching prefix of a secret via execution time. Additionally, "fail open" logic during configuration errors can leave production systems vulnerable if a secret is accidentally omitted.
+**Prevention:** Always use  for secret tokens and HMACs. Implement "fail closed" logic to ensure security is enforced even if configuration is missing.
+
+## 2026-04-22 - [Timing Attack & Insecure Webhook Verification]
+**Vulnerability:** Webhook verification endpoints for WhatsApp, Meta, and Shopify used non-constant-time string comparisons for tokens and HMACs. The WhatsApp handler also lacked token verification for GET requests, and the Shopify handler "failed open" when the secret was missing.
+**Learning:** Standard string comparison in Go is short-circuiting, leaking information about the matching prefix of a secret via execution time. Additionally, "fail open" logic during configuration errors can leave production systems vulnerable if a secret is accidentally omitted.
+**Prevention:** Always use `subtle.ConstantTimeCompare` for secret tokens and HMACs. Implement "fail closed" logic to ensure security is enforced even if configuration is missing.
