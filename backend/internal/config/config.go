@@ -11,6 +11,17 @@ import (
 type Config struct {
 	Port  string
 	DBDSN string
+
+	// Amazon SP-API Config
+	AmazonLWAClientID     string
+	AmazonLWAClientSecret string
+	AmazonLWARefreshToken string
+	AmazonAWSAccessKey    string
+	AmazonAWSSecretKey    string
+	AmazonAWSRegion       string
+	AmazonAWSRoleARN      string
+	AmazonMarketplaceID   string
+	AmazonSellerID        string
 }
 
 func (c *Config) GetDBDSN() string {
@@ -47,5 +58,15 @@ func Load() *Config {
 	return &Config{
 		Port:  port,
 		DBDSN: dbDSN,
+
+		AmazonLWAClientID:     os.Getenv("AMAZON_LWA_CLIENT_ID"),
+		AmazonLWAClientSecret: os.Getenv("AMAZON_LWA_CLIENT_SECRET"),
+		AmazonLWARefreshToken: os.Getenv("AMAZON_LWA_REFRESH_TOKEN"),
+		AmazonAWSAccessKey:    os.Getenv("AMAZON_AWS_ACCESS_KEY"),
+		AmazonAWSSecretKey:    os.Getenv("AMAZON_AWS_SECRET_KEY"),
+		AmazonAWSRegion:       os.Getenv("AMAZON_AWS_REGION"),
+		AmazonAWSRoleARN:      os.Getenv("AMAZON_AWS_ROLE_ARN"),
+		AmazonMarketplaceID:   os.Getenv("AMAZON_MARKETPLACE_ID"),
+		AmazonSellerID:        os.Getenv("AMAZON_SELLER_ID"),
 	}
 }

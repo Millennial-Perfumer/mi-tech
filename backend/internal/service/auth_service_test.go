@@ -1,10 +1,11 @@
 package service
 
 import (
-	"testing"
-
+	"fmt"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/testutil"
+	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
@@ -22,8 +23,8 @@ func TestAuthService_Login(t *testing.T) {
 	_, _, err = service.Login("admin@millennialperfumer.in", "admin123")
 
 	if err != nil {
-		// We expect an error about nil settings if it tries to GenerateToken
-		assert.Contains(t, err.Error(), "invalid memory address")
+		// We expect an error about 2FA because SettingsProvider is nil/not found
+		assert.Contains(t, err.Error(), "2FA enabled but no phone number configured")
 	}
 }
 
@@ -35,13 +36,14 @@ func TestAuthService_Register(t *testing.T) {
 	defer testutil.CleanupTestDB(db)
 
 	service := NewAuthService(db, nil, nil)
-	err = service.Register("newuser@example.com", "password123")
+	username := fmt.Sprintf("user_%d@example.com", time.Now().UnixNano())
+	err = service.Register(username, "password123")
 	assert.NoError(t, err)
 
 	var user entity.User
-	err = db.Where("username = ?", "newuser@example.com").First(&user).Error
+	err = db.Where("username = ?", username).First(&user).Error
 	assert.NoError(t, err)
-	assert.Equal(t, "newuser@example.com", user.Username)
+	assert.Equal(t, username, user.Username)
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("password123"))
 	assert.NoError(t, err)

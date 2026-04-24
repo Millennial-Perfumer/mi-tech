@@ -10,12 +10,15 @@ import (
 
 // SyncHandler is a thin HTTP adapter for Shopify sync operations.
 type SyncHandler struct {
-	syncService *service.SyncService
+	syncService       *service.SyncService
+	amazonSyncService *service.AmazonSyncService
 }
 
-// NewSyncHandler creates a new SyncHandler.
-func NewSyncHandler(syncService *service.SyncService) *SyncHandler {
-	return &SyncHandler{syncService: syncService}
+func NewSyncHandler(syncService *service.SyncService, amazonSyncService *service.AmazonSyncService) *SyncHandler {
+	return &SyncHandler{
+		syncService:       syncService,
+		amazonSyncService: amazonSyncService,
+	}
 }
 
 // SyncRequest represents the body for sync operation.
@@ -123,7 +126,38 @@ func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1. Reset AND Sync: Wipe everything and then re-fetch from Shopify
 	count, err := h.syncService.ResetAndSync()
+	if err != nil {
+		http.Error(w, "Database reset and sync failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Database wiped and re-sync triggered successfully.",
+		"count":   count,
+	})
+}
+
+// SyncAmazon handles POST /api/amazon/sync.
+// @Summary Sync Amazon orders
+// @Description Fetch and update orders from Amazon India.
+// @Tags sync
+// @Security Bearer
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /amazon/sync [post]
+func (h *SyncHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// For now, sync last 48 hours by default
+	since := time.Now().Add(-48 * time.Hour)
+	count, err := h.amazonSyncService.SyncOrders(since)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,7 +166,7 @@ func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"message": "Reset and Sync completed successfully",
+		"message": "Amazon sync completed successfully",
 		"count":   count,
 	})
 }

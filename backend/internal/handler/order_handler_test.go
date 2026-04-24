@@ -16,7 +16,7 @@ import (
 
 func TestOrderHandler_GetOrders_Success(t *testing.T) {
 	mockOrderRepo := new(mocks.MockOrderRepository)
-	orderService := service.NewOrderService(mockOrderRepo, nil, nil, nil)
+	orderService := service.NewOrderService(mockOrderRepo, nil, nil, nil, nil)
 	handler := NewOrderHandler(orderService, nil, nil)
 
 	filter := repository.OrderFilter{Page: 1, Limit: 25}
@@ -37,7 +37,7 @@ func TestOrderHandler_GetOrders_Success(t *testing.T) {
 
 func TestOrderHandler_GetSources(t *testing.T) {
 	mockOrderRepo := new(mocks.MockOrderRepository)
-	orderService := service.NewOrderService(mockOrderRepo, nil, nil, nil)
+	orderService := service.NewOrderService(mockOrderRepo, nil, nil, nil, nil)
 	handler := NewOrderHandler(orderService, nil, nil)
 
 	sources := []entity.Source{{ID: "s1", Name: "Source 1"}}

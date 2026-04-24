@@ -6,6 +6,7 @@ import (
 	"mi-tech/internal/service"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type InventoryHandler struct {
@@ -58,6 +59,31 @@ func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(item)
 }
 
+// BulkCreate handles bulk product creation.
+func (h *InventoryHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
+	var items []entity.InventoryItem
+	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.BulkImport(r.Context(), items); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// Clear handles warehouse reset.
+func (h *InventoryHandler) Clear(w http.ResponseWriter, r *http.Request) {
+	if err := h.service.ClearAll(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // SyncShopify returns a list of staged products from Shopify for mapping.
 func (h *InventoryHandler) SyncShopify(w http.ResponseWriter, r *http.Request) {
 	staged, err := h.service.SyncShopifyProducts(r.Context())
@@ -101,6 +127,83 @@ func (h *InventoryHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
 	delta, _ := strconv.Atoi(deltaStr)
 
 	if err := h.service.AdjustStock(id, delta); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// UpdateStock handles absolute manual stock overrides.
+func (h *InventoryHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	valStr := r.URL.Query().Get("val")
+
+	id, _ := strconv.Atoi(idStr)
+	val, _ := strconv.Atoi(valStr)
+
+	if err := h.service.UpdateStockCount(id, val); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// GetLogs returns the stock movement history for an item.
+func (h *InventoryHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	id, _ := strconv.Atoi(idStr)
+
+	logs, err := h.service.GetLogs(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(logs)
+}
+
+// SyncAmazon triggers an immediate poll of Amazon orders.
+func (h *InventoryHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		StartDate string `json:"start_date"`
+		EndDate   string `json:"end_date"`
+	}
+	
+	// Optional body
+	json.NewDecoder(r.Body).Decode(&req)
+
+	var start, end *time.Time
+	if req.StartDate != "" {
+		t, err := time.Parse("2006-01-02", req.StartDate)
+		if err == nil {
+			start = &t
+		}
+	}
+	if req.EndDate != "" {
+		t, err := time.Parse("2006-01-02", req.EndDate)
+		if err == nil {
+			// Set end to 23:59:59 to include the entire end date
+			t = t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			end = &t
+		}
+	}
+
+	h.service.SyncAmazonOrders(r.Context(), start, end)
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// UpdateItem handles partial updates to a product.
+func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
+	var item entity.InventoryItem
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UpdateItem(r.Context(), &item); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

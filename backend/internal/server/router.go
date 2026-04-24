@@ -153,6 +153,7 @@ func RegisterRoutes(
 	// --- Sync Routes ---
 	mux.HandleFunc("/api/shopify/sync", adminProtected(syncHandler.SyncOrders))
 	mux.HandleFunc("/api/shopify/reset", adminProtected(syncHandler.ResetOrders))
+	mux.HandleFunc("/api/amazon/sync", adminProtected(syncHandler.SyncAmazon))
 
 	// --- Dashboard Metrics ---
 	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))
@@ -293,17 +294,23 @@ func RegisterRoutes(
 	}))
 	mux.HandleFunc("/api/planner/analytics", protected(plannerHandler.GetAnalytics))
 	
-	// --- Inventory Hub Routes ---
 	mux.HandleFunc("/api/inventory", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			adminProtected(inventoryHandler.CreateItem)(w, r)
+		case http.MethodDelete:
+			adminProtected(inventoryHandler.Clear)(w, r)
 		default:
 			inventoryHandler.GetDashboard(w, r)
 		}
 	}))
 	mux.HandleFunc("/api/inventory/next-sku", protected(inventoryHandler.GetNextSKU))
 	mux.HandleFunc("/api/inventory/sync-shopify", adminProtected(inventoryHandler.SyncShopify))
+	mux.HandleFunc("/api/inventory/bulk", adminProtected(inventoryHandler.BulkCreate))
 	mux.HandleFunc("/api/inventory/map", adminProtected(inventoryHandler.CreateMapping))
+	mux.HandleFunc("/api/inventory/stock", adminProtected(inventoryHandler.UpdateStock))
 	mux.HandleFunc("/api/inventory/adjust", adminProtected(inventoryHandler.AdjustStock))
+	mux.HandleFunc("/api/inventory/logs", adminProtected(inventoryHandler.GetLogs))
+	mux.HandleFunc("/api/inventory/amazon/sync", adminProtected(inventoryHandler.SyncAmazon))
+	mux.HandleFunc("/api/inventory/item", adminProtected(inventoryHandler.UpdateItem))
 }

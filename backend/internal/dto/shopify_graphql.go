@@ -168,13 +168,21 @@ type GraphQLProductEdge struct {
 }
 
 type GraphQLProductNode struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"descriptionHtml"` // body_html in REST, descriptionHtml in GraphQL
-	Handle      string `json:"handle"`
-	Variants    struct {
+	ID              string             `json:"id"`
+	Title           string             `json:"title"`
+	DescriptionHtml string             `json:"descriptionHtml"` // body_html in REST, descriptionHtml in GraphQL
+	Handle                 string            `json:"handle"`
+	DescriptionMetafield   *GraphQLMetafield `json:"descriptionMetafield"`
+	SpecificationMetafield *GraphQLMetafield `json:"specificationMetafield"`
+	Variants               struct {
 		Edges []GraphQLVariantEdge `json:"edges"`
 	} `json:"variants"`
+}
+
+type GraphQLMetafield struct {
+	Namespace string `json:"namespace"`
+	Key       string `json:"key"`
+	Value     string `json:"value"`
 }
 
 type GraphQLVariantEdge struct {
@@ -182,9 +190,47 @@ type GraphQLVariantEdge struct {
 }
 
 type GraphQLVariantNode struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	SKU   string `json:"sku"`
-	Price string `json:"price"`
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	SKU           string `json:"sku"`
+	Price         string `json:"price"`
+	InventoryItem struct {
+		ID              string                         `json:"id"`
+		InventoryLevels GraphQLInventoryLevelConnection `json:"inventoryLevels"`
+	} `json:"inventoryItem"`
 }
 
+type GraphQLInventoryLevelConnection struct {
+	Edges []GraphQLInventoryLevelEdge `json:"edges"`
+}
+
+type GraphQLInventoryLevelEdge struct {
+	Node GraphQLInventoryLevelNode `json:"node"`
+}
+
+type GraphQLInventoryLevelNode struct {
+	Location   GraphQLLocation            `json:"location"`
+	Quantities []GraphQLInventoryQuantity `json:"quantities"`
+}
+
+type GraphQLInventoryQuantity struct {
+	Name     string `json:"name"`
+	Quantity int    `json:"quantity"`
+}
+
+type GraphQLLocation struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	IsPrimary bool   `json:"isPrimary"`
+}
+
+type GraphQLLocationResponse struct {
+	Data struct {
+		Locations struct {
+			Edges []struct {
+				Node GraphQLLocation `json:"node"`
+			} `json:"edges"`
+		} `json:"locations"`
+	} `json:"data"`
+	Errors []interface{} `json:"errors"`
+}

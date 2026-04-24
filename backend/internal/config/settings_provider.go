@@ -16,6 +16,9 @@ func NewSettingsProvider(configsRepo *repository.ConfigsRepository) *SettingsPro
 }
 
 func (p *SettingsProvider) Get(key string) string {
+	if p == nil || p.configsRepo == nil {
+		return ""
+	}
 	val, err := p.configsRepo.Get(key)
 	if err != nil {
 		log.Printf("ERROR: failed to get config for key %s: %v", key, err)
@@ -33,6 +36,10 @@ func (p *SettingsProvider) GetShopifyAccessToken() string {
 
 func (p *SettingsProvider) GetShopifyWebhookSecret() string {
 	return p.Get("shopify_webhook_secret")
+}
+
+func (p *SettingsProvider) GetShopifyLocationID() string {
+	return p.Get("shopify_location_id")
 }
 
 func (p *SettingsProvider) GetWhatsAppPhoneNumberID() string {
@@ -179,4 +186,82 @@ func (p *SettingsProvider) GetFeedbackAutomationDelayMinutes() int {
 		return 60
 	}
 	return mins
+}
+
+func (p *SettingsProvider) GetAmazonLWAClientID() string {
+	val := p.Get("amazon_lwa_client_id")
+	if val == "" {
+		return os.Getenv("AMAZON_LWA_CLIENT_ID")
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonLWAClientSecret() string {
+	val := p.Get("amazon_lwa_client_secret")
+	if val == "" {
+		return os.Getenv("AMAZON_LWA_CLIENT_SECRET")
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonLWARefreshToken() string {
+	val := p.Get("amazon_lwa_refresh_token")
+	if val == "" {
+		return os.Getenv("AMAZON_LWA_REFRESH_TOKEN")
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonAWSAccessKey() string {
+	val := p.Get("amazon_aws_access_key")
+	if val == "" {
+		return os.Getenv("AMAZON_AWS_ACCESS_KEY")
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonAWSSecretKey() string {
+	val := p.Get("amazon_aws_secret_key")
+	if val == "" {
+		return os.Getenv("AMAZON_AWS_SECRET_KEY")
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonAWSRegion() string {
+	val := p.Get("amazon_aws_region")
+	if val == "" {
+		val = os.Getenv("AMAZON_AWS_REGION")
+	}
+	if val == "" {
+		return "eu-west-1"
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonAWSRoleARN() string {
+	val := p.Get("amazon_aws_role_arn")
+	if val == "" {
+		return os.Getenv("AMAZON_AWS_ROLE_ARN")
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonMarketplaceID() string {
+	val := p.Get("amazon_marketplace_id")
+	if val == "" {
+		val = os.Getenv("AMAZON_MARKETPLACE_ID")
+	}
+	if val == "" {
+		return "A21TJRUUN4KGV"
+	}
+	return val
+}
+
+func (p *SettingsProvider) GetAmazonSellerID() string {
+	val := p.Get("amazon_seller_id")
+	if val == "" {
+		return os.Getenv("AMAZON_SELLER_ID")
+	}
+	return val
 }

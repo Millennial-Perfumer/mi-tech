@@ -33,14 +33,14 @@ func (m *MockOrderRepository) GetByExternalID(externalID string) (entity.Order, 
 	return args.Get(0).(entity.Order), args.Error(1)
 }
 
-func (m *MockOrderRepository) Upsert(order entity.Order) error {
+func (m *MockOrderRepository) Upsert(order entity.Order) ([]int, error) {
 	args := m.Called(order)
-	return args.Error(0)
+	return args.Get(0).([]int), args.Error(1)
 }
 
-func (m *MockOrderRepository) UpsertBatch(orders []entity.Order) error {
+func (m *MockOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) {
 	args := m.Called(orders)
-	return args.Error(0)
+	return args.Get(0).([]int), args.Error(1)
 }
 
 func (m *MockOrderRepository) UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error {
@@ -135,4 +135,92 @@ func (m *MockLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items [
 func (m *MockLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) error {
 	args := m.Called(tx, orderID)
 	return args.Error(0)
+}
+type MockInventoryRepository struct {
+	mock.Mock
+}
+
+func (m *MockInventoryRepository) ListItems(search string) ([]entity.InventoryItem, error) {
+	args := m.Called(search)
+	return args.Get(0).([]entity.InventoryItem), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetItemBySKU(sku string) (entity.InventoryItem, error) {
+	args := m.Called(sku)
+	return args.Get(0).(entity.InventoryItem), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {
+	args := m.Called(id)
+	return args.Get(0).(entity.InventoryItem), args.Error(1)
+}
+
+func (m *MockInventoryRepository) CreateItem(item *entity.InventoryItem) error {
+	args := m.Called(item)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) UpdateItem(item *entity.InventoryItem) error {
+	args := m.Called(item)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) AdjustStock(id int, delta int) error {
+	args := m.Called(id, delta)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) UpdateStockCount(id int, val int) error {
+	args := m.Called(id, val)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) GetMaxMISKU() (string, error) {
+	args := m.Called()
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockInventoryRepository) ListMappings() ([]entity.InventoryMapping, error) {
+	args := m.Called()
+	return args.Get(0).([]entity.InventoryMapping), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetMapping(platform, externalSKU string) (entity.InventoryMapping, error) {
+	args := m.Called(platform, externalSKU)
+	return args.Get(0).(entity.InventoryMapping), args.Error(1)
+}
+
+func (m *MockInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
+	args := m.Called(mapping)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) DeleteMapping(id int) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) DeleteAll() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) BulkCreateItem(items []entity.InventoryItem) error {
+	args := m.Called(items)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) LogAdjustment(l *entity.InventoryLog) error {
+	args := m.Called(l)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) GetLogsByItemID(itemID int) ([]entity.InventoryLog, error) {
+	args := m.Called(itemID)
+	return args.Get(0).([]entity.InventoryLog), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error) {
+	args := m.Called(platform, externalSKU)
+	return args.Get(0).(entity.InventoryItem), args.Error(1)
 }

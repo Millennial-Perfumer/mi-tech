@@ -17,19 +17,25 @@ type SyncService struct {
 	shopifyClient   *shopify.Client
 	orderRepo       repository.OrderRepository
 	customerService *CustomerService
+	orchestrator    *SyncOrchestrator
 }
 
 // NewSyncService creates a new SyncService.
-func NewSyncService(shopifyClient *shopify.Client, orderRepo repository.OrderRepository, customerService *CustomerService) *SyncService {
+func NewSyncService(shopifyClient *shopify.Client, orderRepo repository.OrderRepository, customerService *CustomerService, orchestrator *SyncOrchestrator) *SyncService {
 	return &SyncService{
 		shopifyClient:   shopifyClient,
 		orderRepo:       orderRepo,
 		customerService: customerService,
+		orchestrator:    orchestrator,
 	}
 }
 
 // Sync fetches new/updated orders from Shopify and upserts them into the database.
 func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error) {
+	if s.shopifyClient == nil {
+		return 0, fmt.Errorf("shopify client not initialized")
+	}
+
 	var start, end time.Time
 
 	if startTime != nil {
@@ -68,8 +74,16 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 		orderEntities = append(orderEntities, order)
 	}
 
-	if err := s.orderRepo.UpsertBatch(orderEntities); err != nil {
+	affectedIDs, err := s.orderRepo.UpsertBatch(orderEntities)
+	if err != nil {
 		return 0, fmt.Errorf("failed to upsert batch: %w", err)
+	}
+
+	// Trigger global sync for all affected inventory items
+	if s.orchestrator != nil {
+		for _, id := range affectedIDs {
+			_ = s.orchestrator.GlobalSync(context.Background(), id, "shopify")
+		}
 	}
 
 	// Update customer metadata in batch to avoid N+1 queries
@@ -83,9 +97,17 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 	return len(orderEntities), nil
 }
 
+// ResetOnly wipes all orders locally but does not perform a resync.
+func (s *SyncService) ResetOnly() error {
+	return s.orderRepo.TruncateAll()
+}
+
 // ResetAndSync wipes all orders locally and performs a full sync.
 func (s *SyncService) ResetAndSync() (int, error) {
-	if err := s.orderRepo.TruncateAll(); err != nil {
+	if s.shopifyClient == nil {
+		return 0, fmt.Errorf("shopify client not initialized")
+	}
+	if err := s.ResetOnly(); err != nil {
 		return 0, err
 	}
 	return s.Sync(nil, nil)

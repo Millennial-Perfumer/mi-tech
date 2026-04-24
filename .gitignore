@@ -1,41 +1,59 @@
-# Binaries and executable files
+# --- Binaries and executable files ---
 bin/
+backend/bin/
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 backend/main
-/backend/replayer
-/replayer
+backend/replayer
+replayer
 
-# Test and Coverage
-*.test
-*.out
-coverage.txt
+# --- Database & Storage ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+backend/mi-tech.db
+backend/data.db
 
-# Go
-vendor/
-go.work
-go.work.sum
-
-# Node.js
-node_modules/
-dist/
-dist-ssr/
-*.local
-.npm
-.eslintcache
-
-# Logs
+# --- Logs ---
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 
-# Editor / IDE
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+
+# --- Node.js & Frontend ---
+node_modules/
+**/node_modules/
+dist/
+dist-ssr/
+.npm
+.eslintcache
+*.local
+
+# --- Go & Caches ---
+**/.gocache/
+**/.go_cache/
+**/.go-cache/
+**/.tmp/
+.go-cache/
+.tmp/
+vendor/
+go.work
+go.work.sum
+
+# --- Editor / IDE ---
 .vscode/
 .idea/
 *.suo
@@ -46,42 +64,33 @@ pnpm-debug.log*
 .project
 .settings/
 .classpath
-
-# OS generated files
 .DS_Store
 .DS_Store?
 ._*
 Thumbs.db
-ehthumbs.db
-Desktop.ini
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Temporary / Scratch
-tmp/
-temp/
-scratch/
-out/
-graphify-out/
-mi-tech-obsidian/
-
-# Python
+# --- Python ---
 __pycache__/
 *.pyc
 venv/
 .venv/
-env/
-.env/
 
-# Assistant / AI
+# --- Assistant / AI Artifacts ---
 .gemini/
 .system_generated/
 walkthrough.md
 task.md
 implementation_plan.md
 backfill_task.md
+
+# --- Project Specific ---
+graphify-out/
+mi-tech-obsidian/
+scratch/
+temp/
+out/
+db_backup_*.sql
+*.sql.gz
+*.html
+meta_raw_debug.json
+backend/tmp/

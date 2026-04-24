@@ -12,7 +12,7 @@ import (
 
 func TestOrderService_ListOrders(t *testing.T) {
 	mockOrderRepo := new(mocks.MockOrderRepository)
-	service := NewOrderService(mockOrderRepo, nil, nil, nil)
+	service := NewOrderService(mockOrderRepo, nil, nil, nil, nil)
 
 	filter := repository.OrderFilter{Page: 1, Limit: 25}
 	orders := []entity.Order{
@@ -32,7 +32,7 @@ func TestOrderService_ListOrders(t *testing.T) {
 func TestOrderService_GetOrder(t *testing.T) {
 	mockOrderRepo := new(mocks.MockOrderRepository)
 	mockLineItemRepo := new(mocks.MockLineItemRepository)
-	service := NewOrderService(mockOrderRepo, mockLineItemRepo, nil, nil)
+	service := NewOrderService(mockOrderRepo, mockLineItemRepo, nil, nil, nil)
 
 	order := entity.Order{ID: 1, OrderNumber: "ORD-1"}
 	items := []entity.LineItem{{ID: "LI-1", Title: entity.StrPtr("Item 1")}}

@@ -140,9 +140,9 @@ func TestCustomerService_UpdateFromOrder_RecalculatesStats(t *testing.T) {
 	}
 	
 	// We use orderRepo.Upsert to put them in the DB
-	err = orderRepo.Upsert(order1)
+	_, err = orderRepo.Upsert(order1)
 	assert.NoError(t, err)
-	err = orderRepo.Upsert(order2)
+	_, err = orderRepo.Upsert(order2)
 	assert.NoError(t, err)
 
 	// 3. Call UpdateFromOrder
