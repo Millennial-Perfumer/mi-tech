@@ -13,3 +13,7 @@
 ## 2026-03-27 - [Optimizing Reporting with SQL Aggregations and Window Functions]
 **Learning:** Combining multiple metrics into a single SQL query using `FILTER` and `CASE` (conditional aggregation) eliminates redundant database roundtrips and application-side processing. For HSN/line-item reports, replacing global CTE scans with window functions (`SUM(...) OVER (PARTITION BY order_id)`) within date-filtered JOINs ensures the database only processes relevant rows, significantly improving performance as the table grows.
 **Action:** Always prefer conditional SQL aggregation over multiple repository calls for dashboard/reporting logic. Use window functions for per-group aggregations within filtered result sets to avoid full table scans.
+
+## 2026-03-27 - [Multi-Column Batch Lookups with Tuple IN]
+**Learning:** When performing batch lookups based on composite keys (e.g., platform and external_sku), GORM's `Where("(col1, col2) IN ?", pairs)` with a slice of slices (`[][]interface{}`) is significantly more efficient than individual lookups or multiple `OR` clauses. This allows the database to use appropriate indexes and reduces round-trips to O(1).
+**Action:** Use tuple `IN` queries for batch lookups involving composite keys to avoid N+1 query patterns.
