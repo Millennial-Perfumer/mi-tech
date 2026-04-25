@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"mi-tech/internal/config"
 	"mi-tech/internal/marketing"
@@ -42,8 +43,14 @@ func (h *MarketingWebhookHandler) verifyWebhook(w http.ResponseWriter, r *http.R
 	challenge := query.Get("hub.challenge")
 
 	expectedToken := h.settings.GetMetaMarketingWebhookVerifyToken()
+	if expectedToken == "" {
+		fmt.Printf("Meta Marketing Webhook Warning: No verify token configured\n")
+		http.Error(w, "Forbidden: Webhook unconfigured", http.StatusForbidden)
+		return
+	}
 
-	if mode == "subscribe" && token == expectedToken {
+	// Use constant-time comparison to prevent timing attacks
+	if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
 		fmt.Printf("Meta Marketing Webhook verified successfully!\n")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(challenge))

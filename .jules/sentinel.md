@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-04-25 - [Fail-Open Webhook Verification and PII Leakage]
+**Vulnerability:** Webhook handlers (Shopify, WhatsApp) "failed open" if secrets were missing and logged raw request bodies containing customer PII.
+**Learning:** Defaulting to "isAllowed = true" when a security secret is unconfigured creates a silent bypass. Similarly, verbose debug logging of raw payloads (`log.Printf("%s", body)`) creates a permanent record of PII in application logs, violating data privacy standards.
+**Prevention:** Always implement "fail-closed" logic where a missing secret results in a rejection (403 Forbidden). Audit all webhook handlers to ensure raw payloads are never logged in production; log only non-sensitive metadata for auditing.

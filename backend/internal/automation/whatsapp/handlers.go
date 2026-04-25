@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -177,12 +178,28 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
-		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+		query := r.URL.Query()
+		mode := query.Get("hub.mode")
+		token := query.Get("hub.verify_token")
+		challenge := query.Get("hub.challenge")
+
+		expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+		if expectedToken == "" {
+			log.Printf("WhatsApp Webhook Warning: No verify token configured in Settings")
+			http.Error(w, "Forbidden: Webhook unconfigured", http.StatusForbidden)
+			return
+		}
+
+		if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
+			log.Printf("WhatsApp Webhook verified successfully!")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+
+		log.Printf("WhatsApp Webhook verification failed: mode=%s", mode)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
@@ -204,7 +221,8 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
+		// Security: Removed raw payload logging to prevent PII leakage (phone numbers, messages)
+		// log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
 
 		var payload struct {
 			Entry []struct {
@@ -403,6 +421,12 @@ func (h *AutomationHandler) TelegramWebhook(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature string) bool {
+	secret := h.settings.GetWhatsAppAppSecret()
+	if secret == "" {
+		log.Printf("WhatsApp Webhook Warning: No whatsapp_app_secret configured in Settings")
+		return false // Fail closed to prevent bypass with empty secret
+	}
+
 	if signature == "" {
 		return false
 	}
@@ -413,7 +437,7 @@ func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature str
 	}
 	actualHash := signature[7:]
 
-	mac := hmac.New(sha256.New, []byte(h.settings.GetWhatsAppAppSecret()))
+	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	expectedHash := hex.EncodeToString(mac.Sum(nil))
 

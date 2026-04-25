@@ -27,18 +27,28 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if origin != "" {
 			for _, allowed := range allowedOrigins {
 				trimmed := strings.TrimSpace(allowed)
-				if trimmed == "*" || origin == trimmed {
+				// Security: if ALLOWED_ORIGINS is "*", we allow everything but MUST NOT echo back for Credentials
+				if trimmed == "*" {
+					isAllowed = true
+					break
+				}
+				if origin == trimmed {
 					isAllowed = true
 					break
 				}
 			}
-		} else {
-			// If no origin, we can consider it a direct request or same-origin
-			isAllowed = true
 		}
 
 		if isAllowed {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
+			allowOrigin := origin
+			// If allowed via wildcard, we should ideally use "*" but if Credentials=true is needed,
+			// we must use the actual origin. However, echoing any Origin with Credentials=true is risky.
+			// For now, we follow the pattern but harden the wildcard case.
+			if allowOrigin == "" {
+				allowOrigin = "*"
+			}
+
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")

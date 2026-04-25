@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -256,8 +257,8 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	secret := h.settings.GetShopifyWebhookSecret()
 	if secret == "" {
-		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Skipping validation.")
-		return true
+		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Failing closed.")
+		return false // Fail closed for security
 	}
 
 	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")
@@ -270,11 +271,13 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
-	isMatch := hmacHeader == expectedHmac
+	// Use constant-time comparison to prevent timing attacks
+	isMatch := subtle.ConstantTimeCompare([]byte(hmacHeader), []byte(expectedHmac)) == 1
 	if !isMatch {
 		log.Printf("Webhook HMAC Mismatch!")
-		log.Printf("  Received: %s", hmacHeader)
-		log.Printf("  Expected: %s", expectedHmac)
+		// Security: Avoid logging received vs expected in production to prevent leakage
+		// log.Printf("  Received: %s", hmacHeader)
+		// log.Printf("  Expected: %s", expectedHmac)
 		log.Printf("  Body Length: %d", len(body))
 		log.Printf("  Secret Length: %d", len(secret))
 	}
