@@ -47,6 +47,3 @@ func (r *gormLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items [
 	return nil
 }
 
-func (r *gormLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) error {
-	return tx.Where("order_id = ?", orderID).Delete(&entity.LineItem{}).Error
-}

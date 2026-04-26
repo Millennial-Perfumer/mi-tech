@@ -11,13 +11,11 @@ import (
 // SyncHandler is a thin HTTP adapter for Shopify sync operations.
 type SyncHandler struct {
 	syncService       *service.SyncService
-	amazonSyncService *service.AmazonSyncService
 }
 
-func NewSyncHandler(syncService *service.SyncService, amazonSyncService *service.AmazonSyncService) *SyncHandler {
+func NewSyncHandler(syncService *service.SyncService) *SyncHandler {
 	return &SyncHandler{
 		syncService:       syncService,
-		amazonSyncService: amazonSyncService,
 	}
 }
 
@@ -141,35 +139,6 @@ func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// SyncAmazon handles POST /api/amazon/sync.
-// @Summary Sync Amazon orders
-// @Description Fetch and update orders from Amazon India.
-// @Tags sync
-// @Security Bearer
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Router /amazon/sync [post]
-func (h *SyncHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// For now, sync last 48 hours by default
-	since := time.Now().Add(-48 * time.Hour)
-	count, err := h.amazonSyncService.SyncOrders(since)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Amazon sync completed successfully",
-		"count":   count,
-	})
-}
 
 // endOfDay returns the latest nanosecond of the given date.
 func endOfDay(t time.Time) time.Time {

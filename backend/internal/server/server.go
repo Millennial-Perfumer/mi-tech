@@ -87,7 +87,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo, agentService)
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
 	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
-	amazonSyncService := service.NewAmazonSyncService(amazonClient, orderService)
 	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := service.NewSystemService("../docs")
 	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
@@ -98,7 +97,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService, mappingService)
-	syncHandler := handler.NewSyncHandler(syncService, amazonSyncService)
+	syncHandler := handler.NewSyncHandler(syncService)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	reportHandler := handler.NewReportHandler(reportService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, settingsProvider)
