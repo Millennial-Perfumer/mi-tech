@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 
 interface SocialComposerModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface SocialComposerModalProps {
 }
 
 export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen, onClose, fetchWithAuth }) => {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram']);
@@ -18,7 +20,7 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
     setIsPosting(true);
     try {
       for (const platform of selectedPlatforms) {
-        await fetchWithAuth(`${API_BASE}/api/marketing/smm/post`, {
+        const response = await fetchWithAuth(`${API_BASE}/api/marketing/smm/post`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -29,25 +31,64 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
             image_url: 'https://placeholder.com/image.jpg' // Example required for IG
           })
         });
+        if (!response.ok) throw new Error(`Failed to post to ${platform}`);
       }
-      alert('Content published successfully to selected platforms!');
+      toastSuccess('Content published successfully to selected platforms!');
       onClose();
+      setContent('');
     } catch (err) {
       console.error('Posting error:', err);
-      alert('Failed to publish content.');
+      toastError('Failed to publish content.');
     } finally {
       setIsPosting(false);
     }
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 2000 }}>
-      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px' }}>
+    <div className="modal-overlay" style={{ zIndex: 2000 }} onClick={onClose}>
+      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+        <button
+          onClick={onClose}
+          aria-label="Close modal"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'var(--bg-input)',
+            border: 'none',
+            color: 'var(--text-primary)',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            fontSize: '1.2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-input)')}
+        >
+          ×
+        </button>
         <h2>Multi-Platform Composer</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
         
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Post Content</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <label style={{ fontWeight: 600 }}>Post Content</label>
+            <span
+              aria-live="polite"
+              style={{
+                fontSize: '0.8rem',
+                color: content.length > 500 ? 'var(--status-danger)' : 'var(--text-tertiary)',
+                fontWeight: content.length > 500 ? 700 : 400
+              }}
+            >
+              {content.length} / 500
+            </span>
+          </div>
           <textarea 
             value={content}
             onChange={(e) => setContent(e.target.value)}
