@@ -409,10 +409,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
   };
 
-  // const handleSyncAmazon = () => {
-  //   setSyncMode('amazon');
-  //   setShowSyncModal(true);
-  // };
+  const handleSyncAmazon = () => {
+    setSyncMode('amazon');
+    setShowSyncModal(true);
+  };
 
   const handleStartSync = async () => {
     if (syncMode === 'shopify') {
