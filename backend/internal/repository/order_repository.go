@@ -14,6 +14,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+var orderListAllowedSortColumns = map[string]bool{
+	"created_at": true, "order_number": true, "total_price": true,
+	"customer_name": true, "source_id": true, "financial_status": true,
+	"fulfillment_status": true,
+}
+
 // gormOrderRepository is the GORM implementation of OrderRepository.
 type gormOrderRepository struct {
 	db *gorm.DB
@@ -65,12 +71,7 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 		if strings.ToUpper(filter.SortOrder) == "ASC" {
 			dir = "ASC"
 		}
-		allowed := map[string]bool{
-			"created_at": true, "order_number": true, "total_price": true,
-			"customer_name": true, "source_id": true, "financial_status": true,
-			"fulfillment_status": true,
-		}
-		if allowed[filter.SortBy] {
+		if orderListAllowedSortColumns[filter.SortBy] {
 			orderClause = filter.SortBy + " " + dir
 		}
 	}
