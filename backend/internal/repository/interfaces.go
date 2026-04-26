@@ -36,8 +36,8 @@ type OrderRepository interface {
 	GetByFlexibleID(id string) (entity.Order, error)
 	GetByID(id int64) (entity.Order, error)
 	GetByExternalID(externalID string) (entity.Order, error)
-	Upsert(order entity.Order) error
-	UpsertBatch(orders []entity.Order) error
+	Upsert(order entity.Order) ([]int, error)
+	UpsertBatch(orders []entity.Order) ([]int, error)
 	UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error
 	UpdateOrderStatus(id int64, status string) (int64, error)
 	CancelOrder(externalOrderID string, cancelledAt *string, reason string) error
@@ -176,6 +176,7 @@ type InventoryRepository interface {
 	CreateItem(item *entity.InventoryItem) error
 	UpdateItem(item *entity.InventoryItem) error
 	AdjustStock(id int, delta int) error
+	UpdateStockCount(id int, val int) error
 	GetMaxMISKU() (string, error) // For auto-generation
 
 	// Mappings
@@ -183,4 +184,13 @@ type InventoryRepository interface {
 	GetMapping(platform, externalSKU string) (entity.InventoryMapping, error)
 	CreateMapping(mapping *entity.InventoryMapping) error
 	DeleteMapping(id int) error
+
+	// Logs
+	LogAdjustment(log *entity.InventoryLog) error
+	GetLogsByItemID(itemID int) ([]entity.InventoryLog, error)
+
+	// Utilities
+	DeleteAll() error
+	BulkCreateItem(items []entity.InventoryItem) error
+	GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error)
 }

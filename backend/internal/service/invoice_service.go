@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
@@ -72,16 +73,43 @@ func (s *InvoiceService) getSetting(key, defaultValue string) string {
 	return val
 }
 
+// safeSetFont attempts to set a custom font (like Montserrat) and falls back to Arial if it's not available.
+func (s *InvoiceService) safeSetFont(pdf *gofpdf.Fpdf, family, style string, size float64, hasMontserrat bool) {
+	if family == "Montserrat" && !hasMontserrat {
+		pdf.SetFont("Arial", style, size)
+		return
+	}
+	pdf.SetFont(family, style, size)
+}
+
 // GeneratePDF creates a professional GST invoice PDF and writes it to the provided writer.
 func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem, w io.Writer) error {
 	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(10.6, 15, 10.6)
-
-	pdf.AddUTF8Font("Montserrat", "", "internal/fonts/Montserrat-Regular.ttf")
-	pdf.AddUTF8Font("Montserrat", "B", "internal/fonts/Montserrat-Bold.ttf")
-	pdf.AddUTF8Font("Montserrat", "I", "internal/fonts/Montserrat-SemiBold.ttf")
-
 	pdf.AddPage()
+	
+	// -- Font Path Discovery & Fallback --
+	// Montserrat is our premium font, but it requires local files.
+	// We try multiple paths (useful for tests) and fallback to Arial if missing.
+	fontPaths := []string{
+		"internal/fonts/",
+		"../../internal/fonts/",
+		"backend/internal/fonts/",
+	}
+	
+	regularName := "Montserrat-Regular.ttf"
+	boldName := "Montserrat-Bold.ttf"
+	semiBoldName := "Montserrat-SemiBold.ttf"
+
+	hasMontserrat := false
+	for _, p := range fontPaths {
+		if _, err := os.Stat(p + regularName); err == nil {
+			pdf.AddUTF8Font("Montserrat", "", p+regularName)
+			pdf.AddUTF8Font("Montserrat", "B", p+boldName)
+			pdf.AddUTF8Font("Montserrat", "I", p+semiBoldName)
+			hasMontserrat = true
+			break
+		}
+	}
 
 	// -- Header --
 	bizName := s.getSetting("business_name", DefaultBusinessName)
@@ -90,11 +118,11 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	addr2 := s.getSetting("business_address_line2", DefaultAddressLine2)
 	phone := s.getSetting("business_phone", DefaultBusinessPhone)
 
-	pdf.SetFont("Montserrat", "B", 13.5)
+	s.safeSetFont(pdf, "Montserrat", "B", 13.5, hasMontserrat)
 	pdf.CellFormat(100, 10, bizName, "0", 0, "L", false, 0, "")
 	pdf.CellFormat(80, 10, "TAX INVOICE", "0", 1, "R", false, 0, "")
 
-	pdf.SetFont("Montserrat", "", 7.5)
+	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.Ln(2)
 	pdf.CellFormat(100, 4, "GSTIN: "+gstin, "0", 1, "L", false, 0, "")
 	pdf.Ln(1)
@@ -108,7 +136,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	leftCol := 90.0
 	rightCol := 90.0
 
-	pdf.SetFont("Montserrat", "B", 9)
+	s.safeSetFont(pdf, "Arial", "B", 9, hasMontserrat)
 	pdf.CellFormat(leftCol, 6, "INVOICE DETAILS", "B", 0, "L", false, 0, "")
 	pdf.CellFormat(rightCol, 6, "BILL TO (CUSTOMER)", "B", 1, "L", false, 0, "")
 	pdf.Ln(3)
@@ -116,19 +144,19 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	metaYStart := pdf.GetY()
 
 	// Left side: Invoice meta
-	pdf.SetFont("Montserrat", "B", 7.5)
+	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.CellFormat(30, 4, "Invoice No:", "0", 0, "L", false, 0, "")
-	pdf.SetFont("Montserrat", "", 7.5)
+	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.CellFormat(60, 4, "INV-"+order.OrderNumber, "0", 1, "L", false, 0, "")
-
-	pdf.SetFont("Montserrat", "B", 7.5)
+	
+	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.CellFormat(30, 4, "Order No:", "0", 0, "L", false, 0, "")
-	pdf.SetFont("Montserrat", "", 7.5)
+	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.CellFormat(60, 4, order.OrderNumber, "0", 1, "L", false, 0, "")
-
-	pdf.SetFont("Montserrat", "B", 7.5)
+	
+	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.CellFormat(30, 4, "Date:", "0", 0, "L", false, 0, "")
-	pdf.SetFont("Montserrat", "", 7.5)
+	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.CellFormat(60, 4, order.CreatedAt.Format("2006-01-02"), "0", 1, "L", false, 0, "")
 
 	// Right side: Customer info
@@ -139,11 +167,11 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	if strings.TrimSpace(displayName) == "" {
 		displayName = "Valued Customer"
 	}
-	pdf.SetFont("Montserrat", "B", 8.25)
+	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 	pdf.SetX(leftCol + 15)
 	pdf.CellFormat(rightCol, 4, displayName, "0", 1, "L", false, 0, "")
-
-	pdf.SetFont("Montserrat", "", 7.5)
+	
+	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	if email := ns(order.CustomerEmail); email != "" {
 		pdf.SetX(leftCol + 15)
 		pdf.CellFormat(rightCol, 4, email, "0", 1, "L", false, 0, "")
@@ -169,20 +197,20 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 
 	// -- Items Table --
 	totals := s.CalculateInvoiceTotals(items)
-	s.renderItemsTable(pdf, items)
+	s.renderItemsTable(pdf, items, hasMontserrat)
 
 	// -- Totals --
-	s.renderTotals(pdf, order, items, totals)
+	s.renderTotals(pdf, order, items, totals, hasMontserrat)
 
 	// -- Footer Terms --
-	s.renderFooter(pdf)
+	s.renderFooter(pdf, hasMontserrat)
 
 	return pdf.Output(w)
 }
 
-func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem) {
+func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem, hasMontserrat bool) {
 	pdf.SetFillColor(245, 245, 245)
-	pdf.SetFont("Montserrat", "I", 7.5)
+	s.safeSetFont(pdf, "Montserrat", "I", 7.5, hasMontserrat)
 
 	wName := 76.2
 	wSKU := 14.5
@@ -205,7 +233,7 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 	pdf.CellFormat(wGSTPct, hHeader, "GST %", "1", 0, "C", true, 0, "")
 	pdf.CellFormat(wGSTAmt, hHeader, "GST Amt", "1", 1, "C", true, 0, "")
 
-	pdf.SetFont("Montserrat", "", 6.75)
+	s.safeSetFont(pdf, "Montserrat", "", 6.75, hasMontserrat)
 
 	totalTaxable := 0.0
 	totalTax := 0.0
@@ -273,7 +301,7 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 	}
 }
 
-func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, items []entity.LineItem, totals InvoiceTotals) {
+func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, items []entity.LineItem, totals InvoiceTotals, hasMontserrat bool) {
 	oGrandTotal := totals.GrandTotal
 
 	isInterState := true
@@ -287,9 +315,9 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 
 	pdf.Ln(5.8)
 	pdf.SetX(120)
-	pdf.SetFont("Montserrat", "B", 8.25)
+	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 	pdf.CellFormat(40, 5, "Subtotal (Gross):", "0", 0, "R", false, 0, "")
-	pdf.SetFont("Montserrat", "", 8.25)
+	s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
 	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totalGrossSubtotal), "0", 1, "R", false, 0, "")
 
 	discountLabel := "Discount"
@@ -315,37 +343,37 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 	if totalOrderDiscount > 0 {
 		pdf.Ln(1)
 		pdf.SetX(120)
-		pdf.SetFont("Montserrat", "B", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 		pdf.CellFormat(40, 5, discountLabel+":", "0", 0, "R", false, 0, "")
-		pdf.SetFont("Montserrat", "", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
 		pdf.CellFormat(30, 5, fmt.Sprintf("-%.2f", totalOrderDiscount), "0", 1, "R", false, 0, "")
 	}
 
 	pdf.Ln(1)
 	pdf.SetX(120)
-	pdf.SetFont("Montserrat", "B", 8.25)
+	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 	pdf.CellFormat(40, 5, "Net Taxable:", "0", 0, "R", false, 0, "")
-	pdf.SetFont("Montserrat", "", 8.25)
+	s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
 	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TaxableValue), "0", 1, "R", false, 0, "")
 	pdf.Ln(1)
 
 	if !isInterState {
 		pdf.SetX(120)
-		pdf.SetFont("Montserrat", "B", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 		pdf.CellFormat(40, 5, "CGST (9%):", "0", 0, "R", false, 0, "")
-		pdf.SetFont("Montserrat", "", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
 		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax/2), "0", 1, "R", false, 0, "")
 		pdf.Ln(1)
 		pdf.SetX(120)
-		pdf.SetFont("Montserrat", "B", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 		pdf.CellFormat(40, 5, "SGST (9%):", "0", 0, "R", false, 0, "")
-		pdf.SetFont("Montserrat", "", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
 		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax/2), "0", 1, "R", false, 0, "")
 	} else {
 		pdf.SetX(120)
-		pdf.SetFont("Montserrat", "B", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 		pdf.CellFormat(40, 5, "IGST (18%):", "0", 0, "R", false, 0, "")
-		pdf.SetFont("Montserrat", "", 8.25)
+		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
 		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax), "0", 1, "R", false, 0, "")
 	}
 
@@ -353,29 +381,29 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 	pdf.SetX(120)
 	pdf.CellFormat(70, 0, "", "T", 1, "R", false, 0, "")
 	pdf.SetX(120)
-	pdf.SetFont("Montserrat", "B", 10.5)
+	s.safeSetFont(pdf, "Montserrat", "B", 10.5, hasMontserrat)
 	pdf.CellFormat(40, 10, "GRAND TOTAL:", "0", 0, "R", false, 0, "")
 	pdf.CellFormat(30, 10, fmt.Sprintf("%.2f", oGrandTotal), "0", 1, "R", false, 0, "")
 	pdf.Ln(8.0)
 }
 
-func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf) {
+func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf, hasMontserrat bool) {
 	footerSize := 6.4
-	pdf.SetFont("Montserrat", "B", footerSize)
+	s.safeSetFont(pdf, "Montserrat", "B", footerSize, hasMontserrat)
 	pdf.CellFormat(0, 4, "Payment Terms:", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Montserrat", "", footerSize)
+	s.safeSetFont(pdf, "Montserrat", "", footerSize, hasMontserrat)
 	pdf.MultiCell(0, 3.5, "Full payment is required before the due date mentioned on the invoice.", "0", "L", false)
 	pdf.Ln(2)
 
-	pdf.SetFont("Montserrat", "B", footerSize)
+	s.safeSetFont(pdf, "Montserrat", "B", footerSize, hasMontserrat)
 	pdf.CellFormat(0, 4, "No Refunds & Returns:", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Montserrat", "", footerSize)
+	s.safeSetFont(pdf, "Montserrat", "", footerSize, hasMontserrat)
 	pdf.MultiCell(0, 3.5, "Due to the nature of our products, we do not accept returns or provide refunds once the item has been opened or used.", "0", "L", false)
 	pdf.Ln(2)
 
-	pdf.SetFont("Montserrat", "B", footerSize)
+	s.safeSetFont(pdf, "Montserrat", "B", footerSize, hasMontserrat)
 	pdf.CellFormat(0, 4, "Intellectual Property:", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Montserrat", "", footerSize)
+	s.safeSetFont(pdf, "Montserrat", "", footerSize, hasMontserrat)
 	bizName := s.getSetting("business_name", DefaultFooterBusiness)
 	pdf.MultiCell(0, 3.5, fmt.Sprintf("All branding and product names are trademarks of %s and may not be reproduced without permission.", bizName), "0", "L", false)
 }

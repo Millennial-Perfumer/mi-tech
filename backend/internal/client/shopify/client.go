@@ -1,6 +1,7 @@
 package shopify
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -580,6 +581,12 @@ func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
 					title
 					descriptionHtml
 					handle
+					descriptionMetafield: metafield(namespace: "custom", key: "product_description") {
+						value
+					}
+					specificationMetafield: metafield(namespace: "custom", key: "product_specification") {
+						value
+					}
 					variants(first: 50) {
 						edges {
 							node {
@@ -587,6 +594,20 @@ func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
 								title
 								sku
 								price
+								inventoryItem {
+									id
+									inventoryLevels(first: 10) {
+										edges {
+											node {
+												location { id }
+												quantities(names: ["available"]) {
+													name
+													quantity
+												}
+											}
+										}
+									}
+								}
 							}
 						}
 					}
@@ -631,6 +652,8 @@ func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
 			return nil, fmt.Errorf("shopify graphql api error: %s - %s", resp.Status, string(body))
 		}
 
+		log.Printf("[DEBUG] Shopify Response Body: %s", string(body))
+
 		var result dto.GraphQLProductResponse
 		if err := json.Unmarshal(body, &result); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal graphql response: %w", err)
@@ -639,6 +662,8 @@ func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
 		if len(result.Errors) > 0 {
 			log.Printf("Shopify Product GraphQL semi-successful with errors: %v", result.Errors)
 		}
+
+		log.Printf("[DEBUG] Fetched %d product edges", len(result.Data.Products.Edges))
 
 		edges := result.Data.Products.Edges
 		for _, edge := range edges {
@@ -666,3 +691,178 @@ func (c *Client) extractNumericID(id string) string {
 	return id
 }
 
+// GetLocationID retrieves the configured Shopify location ID from settings.
+func (c *Client) GetLocationID() string {
+	return c.settings.GetShopifyLocationID()
+}
+
+// DiscoverPrimaryLocationID fetches all locations and finds the best match.
+func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) {
+	shopifyURL := c.settings.GetShopifyStoreURL()
+	accessToken := c.settings.GetShopifyAccessToken()
+
+	if shopifyURL == "" || accessToken == "" {
+		return "", fmt.Errorf("shopify credentials not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
+
+	query := `
+	query {
+		locations(first: 20) {
+			edges {
+				node {
+					id
+					name
+					isPrimary
+				}
+			}
+		}
+	}
+	`
+
+	payload := map[string]interface{}{
+		"query": query,
+	}
+
+	payloadBytes, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", apiURL, strings.NewReader(string(payloadBytes)))
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("shopify graphql error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result dto.GraphQLLocationResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", err
+	}
+
+	if len(result.Errors) > 0 {
+		return "", fmt.Errorf("shopify graphql error: %v", result.Errors)
+	}
+
+	edges := result.Data.Locations.Edges
+	if len(edges) == 0 {
+		return "", fmt.Errorf("no locations found in shopify store")
+	}
+
+	// 1. Priority Match: "Millennial Perfumer - WH"
+	for _, edge := range edges {
+		if strings.TrimSpace(strings.ToLower(edge.Node.Name)) == "millennial perfumer - wh" {
+			log.Printf("Shopify Discovery: Matched target location by name: %s", edge.Node.Name)
+			return edge.Node.ID, nil
+		}
+	}
+
+	// 2. Secondary Match: isPrimary
+	for _, edge := range edges {
+		if edge.Node.IsPrimary {
+			log.Printf("Shopify Discovery: Using primary location: %s", edge.Node.Name)
+			return edge.Node.ID, nil
+		}
+	}
+
+	// 3. Last Resort: First one
+	log.Printf("Shopify Discovery: Using first available location: %s", edges[0].Node.Name)
+	return edges[0].Node.ID, nil
+}
+
+// AdjustInventoryLevel updates the stock level for a specific inventory item at a specific location.
+func (c *Client) AdjustInventoryLevel(inventoryItemID, locationID string, availableQuantity int) error {
+	accessToken := c.settings.GetShopifyAccessToken()
+	shopifyURL := c.settings.GetShopifyStoreURL()
+
+	if accessToken == "" || shopifyURL == "" {
+		return fmt.Errorf("shopify credentials not configured")
+	}
+
+	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
+
+	// Ensure IDs are in GID format
+	if !strings.HasPrefix(inventoryItemID, "gid://") {
+		inventoryItemID = "gid://shopify/InventoryItem/" + inventoryItemID
+	}
+	if !strings.HasPrefix(locationID, "gid://") {
+		locationID = "gid://shopify/Location/" + locationID
+	}
+
+	mutation := `
+	mutation inventorySet($inventoryItemId: ID!, $locationId: ID!, $available: Int!) {
+		inventorySetQuantities(input: {
+			name: "available",
+			reason: "correction",
+			ignoreCompareQuantity: true,
+			quantities: [
+				{
+					inventoryItemId: $inventoryItemId,
+					locationId: $locationId,
+					quantity: $available
+				}
+			]
+		}) {
+			inventoryAdjustmentGroup {
+				createdAt
+			}
+			userErrors {
+				field
+				message
+			}
+		}
+	}
+	`
+
+	payload := map[string]interface{}{
+		"query": mutation,
+		"variables": map[string]interface{}{
+			"inventoryItemId": inventoryItemID,
+			"locationId":      locationID,
+			"available":       availableQuantity,
+		},
+	}
+
+	payloadBytes, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", apiURL, strings.NewReader(string(payloadBytes)))
+	req.Header.Add("X-Shopify-Access-Token", accessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("shopify graphql error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Data struct {
+			InventorySetQuantities struct {
+				UserErrors []struct {
+					Field   []string `json:"field"`
+					Message string   `json:"message"`
+				} `json:"userErrors"`
+			} `json:"inventorySetQuantities"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return err
+	}
+
+	if len(result.Data.InventorySetQuantities.UserErrors) > 0 {
+		return fmt.Errorf("shopify mutation error: %s", result.Data.InventorySetQuantities.UserErrors[0].Message)
+	}
+
+	return nil
+}

@@ -16,15 +16,17 @@ type OrderService struct {
 	lineItemRepo    repository.LineItemRepository
 	customerService *CustomerService
 	shopifyClient   *shopify.Client
+	orchestrator    *SyncOrchestrator
 }
 
 // NewOrderService creates a new OrderService.
-func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo repository.LineItemRepository, customerService *CustomerService, shopifyClient *shopify.Client) *OrderService {
+func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo repository.LineItemRepository, customerService *CustomerService, shopifyClient *shopify.Client, orchestrator *SyncOrchestrator) *OrderService {
 	return &OrderService{
 		orderRepo:       orderRepo,
 		lineItemRepo:    lineItemRepo,
 		customerService: customerService,
 		shopifyClient:   shopifyClient,
+		orchestrator:    orchestrator,
 	}
 }
 
@@ -91,16 +93,51 @@ func (s *OrderService) GetLineItems(orderID int64) ([]entity.LineItem, error) {
 	return s.lineItemRepo.GetByOrderID(orderID)
 }
 
-// UpdateOrderStatus updates the status field of an order.
+// UpdateOrderStatus updates the status field of an order and handles side effects like inventory reversal on cancellation.
 func (s *OrderService) UpdateOrderStatus(id int64, status string) (int64, error) {
+	// 1. If cancelling, handle inventory reversal
+	if status == "cancelled" {
+		order, err := s.orderRepo.GetByID(id)
+		if err == nil && order.InventoryDeducted {
+			// Trigger reversal for each item
+			items, err := s.lineItemRepo.GetByOrderID(order.ID)
+			if err == nil {
+				for _, item := range items {
+					if item.SKU != nil && s.orchestrator != nil {
+						// For Amazon, we need to map the SKU back to the inventory item
+						// Actually, our orchestrator Handles deduction based on the Platform SKU
+						// but AdjustStock usually takes the InventoryItemID.
+						// The poller uses inventoryRepo.GetItemByPlatformSKU.
+						
+						// To keep it simple and consistent with the poller:
+						// We'll perform the same reversal logic here for Amazon orders.
+						if order.SourceID == "amazon" {
+							_ = s.orchestrator.AdjustStockByPlatformSKU(context.Background(), "amazon", *item.SKU, item.Quantity, "manual_cancellation", &order.ExternalOrderID)
+						}
+					}
+				}
+				// Mark as not deducted anymore
+				order.InventoryDeducted = false
+				s.orderRepo.UpdateOrderDetails(order.ID, order)
+			}
+		}
+	}
+
 	return s.orderRepo.UpdateOrderStatus(id, status)
 }
 
 // UpsertOrder inserts or updates a single order (used by webhooks).
 func (s *OrderService) UpsertOrder(order entity.Order) error {
-	if err := s.orderRepo.Upsert(order); err != nil {
+	affectedIDs, err := s.orderRepo.Upsert(order)
+	if err != nil {
 		return err
 	}
+
+	// Trigger global sync for all affected inventory items
+	for _, id := range affectedIDs {
+		_ = s.orchestrator.GlobalSync(context.Background(), id, order.SourceID)
+	}
+	
 	if s.customerService != nil {
 		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
 	}

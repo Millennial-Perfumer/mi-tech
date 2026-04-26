@@ -1,4 +1,7 @@
 .PHONY: install install-frontend install-frontend-mobile install-frontend-feedback install-backend run frontend frontend-mobile frontend-feedback backend build build-frontend build-frontend-feedback build-backend clean db-up db-down
+export GOMODCACHE=$(shell pwd)/backend/.gocache/mod
+export GOCACHE=$(shell pwd)/backend/.gocache/build
+export GOFLAGS=-buildvcs=false
 
 # Install dependencies for both frontend and backend
 install: install-frontend install-frontend-mobile install-frontend-feedback install-backend
@@ -63,3 +66,5 @@ clean:
 	rm -rf frontend-feedback/dist
 	rm -rf frontend-feedback/node_modules
 	rm -rf backend/bin
+	chmod -R +w backend/.gocache || true
+	rm -rf backend/.gocache

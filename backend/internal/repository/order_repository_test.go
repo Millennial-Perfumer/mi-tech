@@ -53,7 +53,7 @@ func (s *OrderRepositoryTestSuite) TestUpsertAndGet() {
 	}
 
 	// Test Upsert
-	err := s.repo.Upsert(order)
+	_, err := s.repo.Upsert(order)
 	assert.NoError(s.T(), err)
 
 	// Test GetByExternalID
@@ -77,8 +77,8 @@ func (s *OrderRepositoryTestSuite) TestListWithFilters() {
 	// Seed some orders
 	c1 := "User One"
 	c2 := "User Two"
-	s.repo.Upsert(entity.Order{ExternalOrderID: "e1", OrderNumber: "O1", SourceID: "s1", CustomerName: &c1})
-	s.repo.Upsert(entity.Order{ExternalOrderID: "e2", OrderNumber: "O2", SourceID: "s2", CustomerName: &c2})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "e1", OrderNumber: "O1", SourceID: "s1", CustomerName: &c1})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "e2", OrderNumber: "O2", SourceID: "s2", CustomerName: &c2})
 
 	// Filter by Source
 	orders, count, err := s.repo.List(OrderFilter{Source: "s1"})
@@ -94,7 +94,7 @@ func (s *OrderRepositoryTestSuite) TestListWithFilters() {
 }
 
 func (s *OrderRepositoryTestSuite) TestUpdateStatus() {
-	s.repo.Upsert(entity.Order{ExternalOrderID: "ext_update", OrderNumber: "U1", SourceID: "s1"})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "ext_update", OrderNumber: "U1", SourceID: "s1"})
 
 	err := s.repo.UpdateStatus("ext_update", "paid", "fulfilled")
 	assert.NoError(s.T(), err)
@@ -109,10 +109,10 @@ func (s *OrderRepositoryTestSuite) TestUpsertPIIMerge() {
 	strongName := "John Strong"
 
 	// 1. Upsert with strong name
-	s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "s1", CustomerName: &strongName})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "s1", CustomerName: &strongName})
 
 	// 2. Upsert same order with weak name
-	s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "s1", CustomerName: &weakName})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "s1", CustomerName: &weakName})
 
 	// 3. Verify strong name is preserved
 	fetched, _ := s.repo.GetByExternalID("pii_1")
@@ -125,7 +125,7 @@ func (s *OrderRepositoryTestSuite) TestUpsertBatch() {
 		{ExternalOrderID: "b2", OrderNumber: "BN2", SourceID: "s1"},
 	}
 
-	err := s.repo.UpsertBatch(orders)
+	_, err := s.repo.UpsertBatch(orders)
 	assert.NoError(s.T(), err)
 
 	_, count, _ := s.repo.List(OrderFilter{})

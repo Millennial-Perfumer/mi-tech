@@ -1,8 +1,10 @@
 package server
 
 import (
+	"context"
 	"log"
 	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/client/amazon"
 	"mi-tech/internal/client/shopify"
 	"mi-tech/internal/config"
 	"mi-tech/internal/database"
@@ -18,9 +20,10 @@ import (
 )
 
 type Server struct {
-	port string
-	mux  *http.ServeMux
-	db   *gorm.DB
+	port      string
+	mux       *http.ServeMux
+	db        *gorm.DB
+	amzPoller *service.AmazonOrderPoller
 }
 
 func New() (*Server, error) {
@@ -61,6 +64,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Clients
 	shopifyClient := shopify.NewClient(settingsProvider)
+	amazonClient := amazon.NewClient(settingsProvider)
+
+	// Orchestrators
+	syncOrchestrator := service.NewSyncOrchestrator(inventoryRepo, shopifyClient, amazonClient)
 
 	// Services
 	userService := service.NewUserService(db)
@@ -68,17 +75,19 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	reportService := service.NewReportService(reportRepo)
 	customerService := service.NewCustomerService(customerRepo, orderRepo, shopifyClient)
 	invoiceService := service.NewInvoiceService(settingsRepo)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient)
-	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService)
+	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient, syncOrchestrator)
+	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService, syncOrchestrator)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
+	amazonOrderPoller := service.NewAmazonOrderPoller(amazonClient, orderRepo, inventoryRepo, syncOrchestrator)
 	plannerService := service.NewPlannerService(plannerRepo)
-	inventoryService := service.NewInventoryService(inventoryRepo, shopifyClient)
+	inventoryService := service.NewInventoryService(inventoryRepo, shopifyClient, syncOrchestrator, settingsProvider, amazonOrderPoller)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	notifService := whatsapp.NewNotificationService(settingsProvider)
 	agentService := whatsapp.NewAgentService(settingsProvider, plannerService, messagesRepo, whatsapp.NewMetaClient(settingsProvider), notifService)
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo, agentService)
 	authService := service.NewAuthService(db, settingsProvider, messagesService)
 	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
+	amazonSyncService := service.NewAmazonSyncService(amazonClient, orderService)
 	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := service.NewSystemService("../docs")
 	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
@@ -89,7 +98,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Handlers
 	orderHandler := handler.NewOrderHandler(orderService, invoiceService, mappingService)
-	syncHandler := handler.NewSyncHandler(syncService)
+	syncHandler := handler.NewSyncHandler(syncService, amazonSyncService)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	reportHandler := handler.NewReportHandler(reportService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, settingsProvider)
@@ -130,9 +139,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	)
 
 	return &Server{
-		port: cfg.Port,
-		mux:  mux,
-		db:   db,
+		port:      cfg.Port,
+		mux:       mux,
+		db:        db,
+		amzPoller: amazonOrderPoller,
 	}
 }
 
@@ -147,5 +157,11 @@ func (s *Server) Run() error {
 	}
 
 	log.Printf("Server starting on port %s", s.port)
+
+	// Start background workers
+	if s.amzPoller != nil {
+		go s.amzPoller.Start(context.Background())
+	}
+
 	return server.ListenAndServe()
 }

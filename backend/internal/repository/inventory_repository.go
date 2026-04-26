@@ -51,6 +51,12 @@ func (r *gormInventoryRepository) AdjustStock(id int, delta int) error {
 		Update("current_stock", gorm.Expr("current_stock + ?", delta)).Error
 }
 
+func (r *gormInventoryRepository) UpdateStockCount(id int, val int) error {
+	return r.db.Model(&entity.InventoryItem{}).
+		Where("id = ?", id).
+		Update("current_stock", val).Error
+}
+
 func (r *gormInventoryRepository) GetMaxMISKU() (string, error) {
 	var sku string
 	// Find the highest mi-XX using regex or simply by order since the format is fixed
@@ -86,4 +92,39 @@ func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping
 
 func (r *gormInventoryRepository) DeleteMapping(id int) error {
 	return r.db.Delete(&entity.InventoryMapping{}, id).Error
+}
+
+func (r *gormInventoryRepository) DeleteAll() error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("TRUNCATE TABLE inventory_logs RESTART IDENTITY").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("TRUNCATE TABLE inventory_mappings RESTART IDENTITY").Error; err != nil {
+			return err
+		}
+		return tx.Exec("TRUNCATE TABLE inventory_items RESTART IDENTITY CASCADE").Error
+	})
+}
+
+func (r *gormInventoryRepository) BulkCreateItem(items []entity.InventoryItem) error {
+	return r.db.Create(&items).Error
+}
+
+func (r *gormInventoryRepository) LogAdjustment(l *entity.InventoryLog) error {
+	return r.db.Create(l).Error
+}
+
+func (r *gormInventoryRepository) GetLogsByItemID(itemID int) ([]entity.InventoryLog, error) {
+	var logs []entity.InventoryLog
+	err := r.db.Where("inventory_item_id = ?", itemID).Order("created_at DESC").Find(&logs).Error
+	return logs, err
+}
+
+func (r *gormInventoryRepository) GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error) {
+	var item entity.InventoryItem
+	err := r.db.Preload("Mappings").
+		Joins("JOIN inventory_mappings ON inventory_mappings.inventory_item_id = inventory_items.id").
+		Where("inventory_mappings.platform = ? AND inventory_mappings.external_sku = ?", platform, externalSKU).
+		First(&item).Error
+	return item, err
 }

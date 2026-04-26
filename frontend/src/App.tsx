@@ -152,6 +152,9 @@ function App() {
     setToken(null);
   };
 
+  const [isMarkingAsDelivered, setIsMarkingAsDelivered] = useState<number | string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const headers = {
       ...options.headers,
@@ -170,7 +173,6 @@ function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -182,10 +184,10 @@ function App() {
   const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isMarkingAsDelivered, setIsMarkingAsDelivered] = useState<number | string | null>(null);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncMode, setSyncMode] = useState<'shopify' | 'amazon'>('shopify');
   const [syncStartDate, setSyncStartDate] = useState(getTodayIST());
   const [syncEndDate, setSyncEndDate] = useState(getTodayIST());
 
@@ -256,6 +258,46 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ start_date: start, end_date: end }),
     }).catch(console.error);
+  };
+
+  const handleSyncAmazon = () => {
+    setSyncMode('amazon');
+    setShowSyncModal(true);
+  };
+
+  const handleSyncShopify = () => {
+    setSyncMode('shopify');
+    setShowSyncModal(true);
+  };
+
+  const handleStartSync = async () => {
+    setIsSyncing(true);
+    const endpoint = syncMode === 'shopify' 
+      ? `${API_BASE}/api/shopify/sync` 
+      : `${API_BASE}/api/amazon/sync`;
+    
+    try {
+      const resp = await fetchWithAuth(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_date: syncStartDate,
+          end_date: syncEndDate
+        })
+      });
+
+      if (resp.ok) {
+        toastSuccess(`${syncMode === 'shopify' ? 'Shopify' : 'Amazon'} sync triggered`);
+        setShowSyncModal(false);
+        triggerRefresh();
+      } else {
+        toastError(`Failed to trigger ${syncMode} sync`);
+      }
+    } catch (err) {
+      toastError(`Error triggering ${syncMode} sync`);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Close status popover when clicking elsewhere
@@ -430,40 +472,13 @@ function App() {
     }
   };
 
-  const syncShopify = async () => {
-    setIsSyncing(true);
-    setShowSyncModal(false);
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/shopify/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          start_date: syncStartDate,
-          end_date: syncEndDate
-        })
-      });
-      const data = await response.json();
-      if (data.success) {
-        toastSuccess(`Successfully synced ${data.count} orders!`);
-        triggerRefresh();
-        fetchDashboardData(false, true);
-      } else {
-        toastError(data.message || 'Failed to sync orders.');
-      }
-    } catch (error) {
-      console.error('Error syncing orders:', error);
-      toastError('Error occurred while syncing.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const resetShopify = async () => {
     const confirmed = await confirm({
-      title: 'Full Database Reset',
-      message: 'Are you sure you want to delete all historical synced data and force a full re-sync from January 2026? This cannot be undone.',
+      title: 'Database Wipe',
+      message: 'Are you sure you want to delete all historical synced data? This will clear all orders and customers and cannot be undone. You will need to manually sync to recover data.',
       variant: 'danger',
-      confirmLabel: 'Reset Everything'
+      confirmLabel: 'Wipe All Data'
     });
 
     if (!confirmed) return;
@@ -475,7 +490,7 @@ function App() {
       });
       const data = await response.json();
       if (data.success) {
-        toastSuccess(`Successfully wiped data and re-synced ${data.count} orders!`);
+        toastSuccess('Database wiped and re-sync triggered successfully.');
         fetchDashboardData();
       } else {
         toastError('Failed to reset orders.');
@@ -535,8 +550,8 @@ function App() {
   return (
     <div className="app-container">
       {showSyncModal && (
-        <div className="modal-overlay">
-          <div className="premium-modal wide">
+        <div className="modal-overlay" onClick={() => setShowSyncModal(false)}>
+          <div className="premium-modal wide" onClick={e => e.stopPropagation()}>
             <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
@@ -544,7 +559,7 @@ function App() {
             <h2 style={{ marginBottom: '0.5rem' }}>Manual Synchronization</h2>
             
             <div className="step-content">
-              <p style={{marginBottom: '2rem'}}>Select the date range you wish to synchronize from Shopify. Existing orders will be updated.</p>
+              <p style={{marginBottom: '2rem'}}>Select the date range you wish to synchronize from {syncMode === 'shopify' ? 'Shopify' : 'Amazon India'}. Existing orders will be updated.</p>
               
               <div className="sync-date-selector" style={{ marginBottom: '2rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px', marginBottom: '1.5rem' }}>
@@ -645,21 +660,37 @@ function App() {
                 </div>
               </div>
 
-              <div className="info-banner" style={{ marginTop: '1.5rem' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                <span>PII data (Customer Names, Emails, Phones) is preserved during synchronization.</span>
+              <div style={{ 
+                background: '#fffbeb', 
+                padding: '1rem', 
+                borderRadius: '12px', 
+                border: '1px solid #fef3c7',
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'center',
+                marginBottom: '2rem'
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <div style={{ fontSize: '0.875rem', color: '#92400e' }}>
+                  PII data (Customer Names, Emails, Phones) is preserved during synchronization.
+                </div>
               </div>
-
-              <div className="modal-actions" style={{marginTop: '2rem'}}>
-                <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
-                <button 
-                  className="btn-primary" 
-                  onClick={syncShopify}
-                  disabled={isSyncing}
-                >
-                  {isSyncing ? 'Syncing...' : 'Start Synchronization'}
-                </button>
-              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
+              <button 
+                className="btn-primary" 
+                onClick={handleStartSync}
+                disabled={isSyncing}
+                style={{ minWidth: '200px' }}
+              >
+                {isSyncing ? 'Synchronizing...' : 'Start Synchronization'}
+              </button>
             </div>
           </div>
         </div>
@@ -889,23 +920,9 @@ function App() {
               {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'products' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
-          {activeTab !== 'automation' && activeTab === 'settings' && userRole === 'admin' && (
-            <div style={{display: 'flex', gap: '1rem'}}>
-              {appSettings?.show_reset_button === 'true' && (
-                <button 
-                  className="btn-secondary" 
-                  style={{display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isResetting ? 0.7 : 1, backgroundColor: '#ef4444', color: 'white', borderColor: '#ef4444'}}
-                  onClick={resetShopify}
-                  disabled={isResetting || isSyncing}
-                >
-                  {isResetting ? 'Resetting...' : 'Reset & Resync'}
-                </button>
-              )}
-            </div>
-          )}
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'products' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1065,11 +1082,31 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>Stored Orders</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <button 
+                    className="btn-secondary" 
+                    onClick={handleSyncAmazon} 
+                    disabled={isSyncing}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem', 
+                      padding: '0.5rem 1rem', 
+                      fontSize: '0.85rem',
+                      height: '42px',
+                      borderRadius: '10px'
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                    {isSyncing && syncMode === 'amazon' ? 'Polling Amazon...' : 'Sync Amazon'}
+                  </button>
                   {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
                     <button 
                       className="btn-primary" 
                       title="Manually fetch orders from Shopify"
-                      onClick={() => setShowSyncModal(true)}
+                      onClick={handleSyncShopify}
                       style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
@@ -1087,6 +1124,29 @@ function App() {
                         <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
                       </svg>
                       Sync Shopify
+                    </button>
+                  )}
+                  {userRole === 'admin' && (appConfigs?.show_reset_button === 'true' || appSettings?.show_reset_button === 'true') && (
+                    <button 
+                      className="btn-secondary" 
+                      style={{
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        opacity: isResetting ? 0.7 : 1, 
+                        backgroundColor: '#ef4444', 
+                        color: 'white', 
+                        borderColor: '#ef4444',
+                        height: '42px',
+                        borderRadius: '10px',
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.85rem'
+                      }}
+                      onClick={resetShopify}
+                      disabled={isResetting || isSyncing}
+                    >
+                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                      {isResetting ? 'Resetting...' : 'Reset Orders Data'}
                     </button>
                   )}
                   <ColumnSelector
@@ -1641,7 +1701,7 @@ function App() {
           )}
 
           {activeTab === 'products' && (
-            <Products token={token} />
+            <Products token={token} userRole={userRole} appConfigs={appConfigs} />
           )}
         </div>
       </main>

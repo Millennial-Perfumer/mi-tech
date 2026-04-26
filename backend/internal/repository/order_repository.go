@@ -155,41 +155,60 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 	}
 }
 
-func (r *gormOrderRepository) deductInventory(tx *gorm.DB, order *entity.Order) error {
-	if order.InventoryDeducted {
-		return nil
+func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Order, oldItems []entity.LineItem) ([]int, error) {
+	var affectedIDs []int
+	
+	// Index by SKU: delta = New - Old
+	skuDeltas := make(map[string]int)
+
+	// New items (to be deducted)
+	for _, li := range order.LineItems {
+		if li.SKU != nil && *li.SKU != "" {
+			skuDeltas[*li.SKU] += li.Quantity
+		}
 	}
 
-	for _, li := range order.LineItems {
-		if li.SKU == nil || *li.SKU == "" {
+	// Old items (to be restocked)
+	for _, li := range oldItems {
+		if li.SKU != nil && *li.SKU != "" {
+			skuDeltas[*li.SKU] -= li.Quantity
+		}
+	}
+
+	for sku, delta := range skuDeltas {
+		if delta == 0 {
 			continue
 		}
 
 		var mapping entity.InventoryMapping
-		err := tx.Where("platform = ? AND external_sku = ?", order.SourceID, *li.SKU).First(&mapping).Error
+		err := tx.Where("platform = ? AND external_sku = ?", order.SourceID, sku).First(&mapping).Error
 		if err != nil {
 			// No mapping for this SKU, skip
 			continue
 		}
 
-		// Deduct stock
+		// Adjust stock: subtract the delta
+		// If delta is positive (more sold), stock decreases.
+		// If delta is negative (restocked), stock increases.
 		if err := tx.Model(&entity.InventoryItem{}).
 			Where("id = ?", mapping.InventoryItemID).
-			Update("current_stock", gorm.Expr("current_stock - ?", li.Quantity)).Error; err != nil {
-			return fmt.Errorf("failed to deduct stock for %s: %w", *li.SKU, err)
+			Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
+			return nil, fmt.Errorf("failed to adjust stock for %s (delta %d): %w", sku, delta, err)
 		}
+		affectedIDs = append(affectedIDs, mapping.InventoryItemID)
 	}
 
 	order.InventoryDeducted = true
-	return nil
+	return affectedIDs, nil
 }
 
-func (r *gormOrderRepository) Upsert(order entity.Order) error {
+func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
+	var affectedIDs []int
 	if order.CustomerPhone != nil {
 		normalized := entity.NormalizePhone(*order.CustomerPhone)
 		order.CustomerPhone = &normalized
 	}
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
@@ -255,6 +274,14 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 		}
 
 		// 3. Explicitly synchronize line items in batch
+		// First, fetch old line items to calculate inventory deltas
+		var oldLineItems []entity.LineItem
+		if order.ID != 0 {
+			if err := tx.Where("order_id = ?", order.ID).Find(&oldLineItems).Error; err != nil {
+				return fmt.Errorf("failed to fetch old line items: %w", err)
+			}
+		}
+
 		// We delete all and re-create to ensure quantities and titles are fresh.
 		if err := tx.Where("order_id = ?", order.ID).Delete(&entity.LineItem{}).Error; err != nil {
 			return fmt.Errorf("failed to clean old line items: %w", err)
@@ -273,31 +300,26 @@ func (r *gormOrderRepository) Upsert(order entity.Order) error {
 			}
 		}
 
-		// 4. Deduct Inventory
-		if err := r.deductInventory(tx, &order); err != nil {
+		// 4. Sync Inventory Deltas
+		ids, err := r.syncInventoryDeltas(tx, &order, oldLineItems)
+		if err != nil {
 			return err
 		}
+		affectedIDs = ids
 
 		// Update order again with inventory_deducted flag
 		return tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error
-
-		return nil
 	})
+	return affectedIDs, err
 }
 
-func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
+func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) {
+	var affectedIDs []int
 	if len(orders) == 0 {
-		return nil
+		return affectedIDs, nil
 	}
-
-	for i := range orders {
-		if orders[i].CustomerPhone != nil {
-			normalized := entity.NormalizePhone(*orders[i].CustomerPhone)
-			orders[i].CustomerPhone = &normalized
-		}
-	}
-
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	// ... (phone normalization)
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// 1. Fetch existing orders in one batch to preserve PII
 		externalIDs := make([]string, len(orders))
 		sourceIDs := make(map[string]bool)
@@ -356,6 +378,30 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			}
 		}
 
+		// 1.5 Fetch all existing line items for these orders to calculate deltas
+		orderIDs := make([]int64, 0)
+		for _, o := range orders {
+			if o.ID != 0 {
+				orderIDs = append(orderIDs, o.ID)
+			}
+		}
+		
+		oldLinesByOrder := make(map[int64][]entity.LineItem)
+		if len(orderIDs) > 0 {
+			var allOldLineItems []entity.LineItem
+			if err := tx.Where("order_id IN ?", orderIDs).Find(&allOldLineItems).Error; err != nil {
+				return fmt.Errorf("failed to fetch old line items: %w", err)
+			}
+			for _, li := range allOldLineItems {
+				oldLinesByOrder[li.OrderID] = append(oldLinesByOrder[li.OrderID], li)
+			}
+
+			// Clean old line items to handle removals correctly (Batch Sync)
+			if err := tx.Where("order_id IN ?", orderIDs).Delete(&entity.LineItem{}).Error; err != nil {
+				return fmt.Errorf("failed to clean old line items: %w", err)
+			}
+		}
+
 		// 2. Batch Upsert Orders (Omit LineItems to handle them separately)
 		if err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "external_order_id"}},
@@ -390,10 +436,15 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			}
 		}
 
-		// 4. Deduct Inventory for all orders in batch
+		// 4. Sync Inventory Deltas for all orders in batch
+		allAffected := make(map[int]bool)
 		for i := range orders {
-			if err := r.deductInventory(tx, &orders[i]); err != nil {
+			ids, err := r.syncInventoryDeltas(tx, &orders[i], oldLinesByOrder[orders[i].ID])
+			if err != nil {
 				return err
+			}
+			for _, id := range ids {
+				allAffected[id] = true
 			}
 			// Update individual order flag
 			if err := tx.Model(&orders[i]).Update("inventory_deducted", orders[i].InventoryDeducted).Error; err != nil {
@@ -401,9 +452,13 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) error {
 			}
 		}
 
-		return nil
+		for id := range allAffected {
+			affectedIDs = append(affectedIDs, id)
+		}
+
 		return nil
 	})
+	return affectedIDs, err
 }
 
 func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error {

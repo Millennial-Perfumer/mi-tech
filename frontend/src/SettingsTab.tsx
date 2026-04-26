@@ -64,6 +64,11 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
     title: 'Feedback',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10L11 12L15 8"></path></svg>,
     color: '#f59e0b'
+  },
+  amazon: {
+    title: 'Amazon SP-API',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
+    color: '#FF9900'
   }
 };
 
@@ -186,7 +191,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   });
 
   // Sort categories: Business > Shopify > Meta Shared > Marketing > Social Media > WhatsApp > System
-  const categoryOrder = ['business', 'shopify', 'meta_shared', 'marketing', 'social_media', 'whatsapp', 'feedback', 'system'];
+  const categoryOrder = ['business', 'shopify', 'amazon', 'meta_shared', 'marketing', 'social_media', 'whatsapp', 'feedback', 'system'];
   const sortedCategories = Object.keys(groupedConfigs).sort((a, b) => {
     const idxA = categoryOrder.indexOf(a);
     const idxB = categoryOrder.indexOf(b);
