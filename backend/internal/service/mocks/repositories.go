@@ -131,11 +131,6 @@ func (m *MockLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items [
 	args := m.Called(tx, orderID, items)
 	return args.Error(0)
 }
-
-func (m *MockLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) error {
-	args := m.Called(tx, orderID)
-	return args.Error(0)
-}
 type MockInventoryRepository struct {
 	mock.Mock
 }
@@ -143,11 +138,6 @@ type MockInventoryRepository struct {
 func (m *MockInventoryRepository) ListItems(search string) ([]entity.InventoryItem, error) {
 	args := m.Called(search)
 	return args.Get(0).([]entity.InventoryItem), args.Error(1)
-}
-
-func (m *MockInventoryRepository) GetItemBySKU(sku string) (entity.InventoryItem, error) {
-	args := m.Called(sku)
-	return args.Get(0).(entity.InventoryItem), args.Error(1)
 }
 
 func (m *MockInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {
@@ -185,18 +175,8 @@ func (m *MockInventoryRepository) ListMappings() ([]entity.InventoryMapping, err
 	return args.Get(0).([]entity.InventoryMapping), args.Error(1)
 }
 
-func (m *MockInventoryRepository) GetMapping(platform, externalSKU string) (entity.InventoryMapping, error) {
-	args := m.Called(platform, externalSKU)
-	return args.Get(0).(entity.InventoryMapping), args.Error(1)
-}
-
 func (m *MockInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
 	args := m.Called(mapping)
-	return args.Error(0)
-}
-
-func (m *MockInventoryRepository) DeleteMapping(id int) error {
-	args := m.Called(id)
 	return args.Error(0)
 }
 

@@ -153,7 +153,6 @@ func RegisterRoutes(
 	// --- Sync Routes ---
 	mux.HandleFunc("/api/shopify/sync", adminProtected(syncHandler.SyncOrders))
 	mux.HandleFunc("/api/shopify/reset", adminProtected(syncHandler.ResetOrders))
-	mux.HandleFunc("/api/amazon/sync", adminProtected(syncHandler.SyncAmazon))
 
 	// --- Dashboard Metrics ---
 	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))

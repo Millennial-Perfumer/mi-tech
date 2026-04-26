@@ -25,11 +25,6 @@ func (r *gormInventoryRepository) ListItems(search string) ([]entity.InventoryIt
 	return items, err
 }
 
-func (r *gormInventoryRepository) GetItemBySKU(sku string) (entity.InventoryItem, error) {
-	var item entity.InventoryItem
-	err := r.db.Preload("Mappings").Where("mi_sku = ?", sku).First(&item).Error
-	return item, err
-}
 
 func (r *gormInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {
 	var item entity.InventoryItem
@@ -79,20 +74,12 @@ func (r *gormInventoryRepository) ListMappings() ([]entity.InventoryMapping, err
 	return mappings, err
 }
 
-func (r *gormInventoryRepository) GetMapping(platform, externalSKU string) (entity.InventoryMapping, error) {
-	var mapping entity.InventoryMapping
-	err := r.db.Where("platform = ? AND external_sku = ?", platform, externalSKU).First(&mapping).Error
-	return mapping, err
-}
 
 func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
 	// Use OnConflict to handle case where SKU might already be mapped
 	return r.db.Save(mapping).Error
 }
 
-func (r *gormInventoryRepository) DeleteMapping(id int) error {
-	return r.db.Delete(&entity.InventoryMapping{}, id).Error
-}
 
 func (r *gormInventoryRepository) DeleteAll() error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
