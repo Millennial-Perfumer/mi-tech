@@ -22,36 +22,45 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
 		allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 		origin := r.Header.Get("Origin")
-		isAllowed := false
 
-		if origin != "" {
-			for _, allowed := range allowedOrigins {
-				trimmed := strings.TrimSpace(allowed)
-				if trimmed == "*" || origin == trimmed {
-					isAllowed = true
-					break
-				}
-			}
-		} else {
-			// If no origin, we can consider it a direct request or same-origin
-			isAllowed = true
+		if origin == "" {
+			next(w, r)
+			return
 		}
 
-		if isAllowed {
+		isExplicitlyAllowed := false
+		hasWildcard := false
+		for _, allowed := range allowedOrigins {
+			trimmed := strings.TrimSpace(allowed)
+			if trimmed == "*" {
+				hasWildcard = true
+			} else if origin == trimmed {
+				isExplicitlyAllowed = true
+				break
+			}
+		}
+
+		if isExplicitlyAllowed {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
-		} else if origin != "" {
+		} else if hasWildcard {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Credentials", "false")
+		} else {
 			log.Printf("CORS REJECTED: Origin=[%s] not in ALLOWED_ORIGINS=[%s]", origin, allowedOriginsEnv)
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			next(w, r)
+			return
 		}
 
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
+
 		if r.Method == http.MethodOptions {
-			if isAllowed {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusForbidden)
-			}
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
