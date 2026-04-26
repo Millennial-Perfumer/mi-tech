@@ -453,7 +453,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     // Amazon sync (Background)
     setIsSyncing(true);
     try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/amazon/sync`, {
+      const resp = await fetchWithAuth(`${API_BASE}/api/inventory/amazon/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

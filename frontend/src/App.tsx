@@ -274,7 +274,7 @@ function App() {
     setIsSyncing(true);
     const endpoint = syncMode === 'shopify' 
       ? `${API_BASE}/api/shopify/sync` 
-      : `${API_BASE}/api/amazon/sync`;
+      : `${API_BASE}/api/inventory/amazon/sync`;
     
     try {
       const resp = await fetchWithAuth(endpoint, {
