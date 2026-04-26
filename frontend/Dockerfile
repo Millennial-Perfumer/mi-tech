@@ -14,6 +14,8 @@ RUN npm ci --legacy-peer-deps
 # Copy all frontend files
 COPY . .
 
+RUN ls -la
+
 # Build the app for production
 RUN npm run build
 

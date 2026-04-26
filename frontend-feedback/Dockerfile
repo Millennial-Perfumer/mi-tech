@@ -8,6 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
+RUN ls -la
 RUN npm run build
 
 # Stage 2: Serve
