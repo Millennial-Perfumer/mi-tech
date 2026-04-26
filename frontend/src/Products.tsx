@@ -409,10 +409,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
   };
 
-  // const handleSyncAmazon = () => {
-  //   setSyncMode('amazon');
-  //   setShowSyncModal(true);
-  // };
+  const handleSyncAmazon = () => {
+    setSyncMode('amazon');
+    setShowSyncModal(true);
+  };
 
   const handleStartSync = async () => {
     if (syncMode === 'shopify') {
@@ -453,7 +453,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     // Amazon sync (Background)
     setIsSyncing(true);
     try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/inventory/amazon/sync`, {
+      const resp = await fetchWithAuth(`${API_BASE}/api/amazon/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
