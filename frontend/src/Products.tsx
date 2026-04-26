@@ -409,10 +409,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
   };
 
-  const handleSyncAmazon = () => {
-    setSyncMode('amazon');
-    setShowSyncModal(true);
-  };
+  // const handleSyncAmazon = () => {
+  //   setSyncMode('amazon');
+  //   setShowSyncModal(true);
+  // };
 
   const handleStartSync = async () => {
     if (syncMode === 'shopify') {
@@ -539,12 +539,20 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
             Reset Warehouse
           </button>
           {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
-            <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncShopify}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-              </svg>
-              Sync Shopify
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncShopify}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                </svg>
+                Sync Shopify
+              </button>
+              <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncAmazon}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                </svg>
+                Sync Amazon
+              </button>
+            </div>
           )}
           <button className="btn-primary" onClick={() => { setShowAddModal(true); fetchNextSKU(); }}>
             + Add New Product

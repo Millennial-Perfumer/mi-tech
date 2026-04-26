@@ -8,6 +8,7 @@ import (
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -96,6 +97,13 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 	for _, ao := range amazonOrders {
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
+		esStatus, _ := ao["EasyShipShipmentStatus"].(string)
+
+		slog.Info("AmazonOrderPoller: Processing order", 
+			"orderID", amazonOrderID, 
+			"status", amazonStatus, 
+			"esStatus", esStatus,
+		)
 
 		// 1. Sync the order to our DB first (Upsert)
 		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
@@ -187,18 +195,28 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		order.FinancialStatus = entity.StrPtr("paid")
 
 		// Dynamic Status Mapping
-		// Amazon Statuses: Pending, Unshipped, PartiallyShipped, Shipped, Canceled, Unfulfillable, etc.
-		switch amazonStatus {
-		case "Shipped":
+		// Amazon Statuses: Pending, Unshipped, PartiallyShipped, Shipped, Canceled, Unfulfillable, InvoiceConfirmation, etc.
+		
+		// Normalize for matching
+		matchStatus := strings.TrimSpace(amazonStatus)
+		
+		switch matchStatus {
+		case "Shipped", "InvoiceConfirmation":
 			order.FulfillmentStatus = entity.StrPtr("fulfilled")
-			// User requested to NOT update DeliveryStatus to "delivered" automatically, 
-			// just show tracking if available.
 		case "Canceled":
 			order.FulfillmentStatus = entity.StrPtr("cancelled")
 			cancelledAt := time.Now()
 			order.CancelledAt = &cancelledAt
 		case "Unshipped", "PartiallyShipped":
 			order.FulfillmentStatus = entity.StrPtr("unfulfilled")
+			
+			// Easy Ship Specific: If it's Unshipped but Picked Up, it's effectively fulfilled
+			if esStatus, ok := ao["EasyShipShipmentStatus"].(string); ok {
+				esStatus = strings.TrimSpace(esStatus)
+				if esStatus == "PickedUp" || esStatus == "OutForDelivery" || esStatus == "Delivered" {
+					order.FulfillmentStatus = entity.StrPtr("fulfilled")
+				}
+			}
 		default:
 			order.FulfillmentStatus = entity.StrPtr("unfulfilled")
 		}
@@ -217,8 +235,10 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			}
 		}
 
-		// 2. Logic for Stock Deduction (Unshipped/Shipped = Amazon has committed the inventory)
-		if (amazonStatus == "Unshipped" || amazonStatus == "Shipped") && !inventoryAlreadyDeducted {
+		// 2. Logic for Stock Deduction (Unshipped/Shipped/fulfilled = Amazon has committed or we have fulfilled the inventory)
+		isFulfilledOrCommitted := (matchStatus == "Unshipped" || matchStatus == "Shipped" || matchStatus == "InvoiceConfirmation" || (order.FulfillmentStatus != nil && *order.FulfillmentStatus == "fulfilled"))
+		
+		if isFulfilledOrCommitted && !inventoryAlreadyDeducted {
 			p.processDeduction(ctx, &order)
 		}
 
