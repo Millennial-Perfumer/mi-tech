@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-04-27 - [Webhook Verification Bypass via Empty Config]
+**Vulnerability:** Webhook verification logic for WhatsApp and Meta Marketing (GET) only checked if the provided token matched the configured one, but did not check if the configured token was actually set.
+**Learning:** If a security token is not configured (empty string), a request with an empty token parameter would successfully pass a simple equality check (`token == expectedToken`). This creates a "fail-open" state where the feature is unprotected by default.
+**Prevention:** Always explicitly verify that security secrets or tokens are not empty before performing a comparison. Use `subtle.ConstantTimeCompare` to mitigate timing attacks.
