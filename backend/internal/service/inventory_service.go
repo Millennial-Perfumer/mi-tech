@@ -76,14 +76,14 @@ func (s *InventoryService) UpdateItem(ctx context.Context, item *entity.Inventor
 	if err != nil {
 		return err
 	}
-	
+
 	if item.MISKU != "" {
 		existing.MISKU = item.MISKU
 	}
 	if item.Title != "" {
 		existing.Title = item.Title
 	}
-	
+
 	return s.repo.UpdateItem(&existing)
 }
 
@@ -127,23 +127,23 @@ func (s *InventoryService) SyncShopifyProducts(ctx context.Context) ([]entity.In
 
 		for _, v := range sp.Variants.Edges {
 			invItemID := v.Node.InventoryItem.ID
-			
+
 			// Find stock for configured location, with global fallback
 			availableStock := 0
 			foundLocationMatch := false
 
 			for _, lvl := range v.Node.InventoryItem.InventoryLevels.Edges {
 				slog.Info("[DEBUG] Inspecting level", "loc_id", lvl.Node.Location.ID, "loc_name", lvl.Node.Location.Name)
-				
+
 				// Ultra-flexible match:
 				// 1. Full GID match
 				// 2. Numeric ID suffix match
 				// 3. Name-based match (user provided the name in settings or explicitly)
-				isMatch := (lvl.Node.Location.ID == locationID) || 
-						  strings.HasSuffix(lvl.Node.Location.ID, "/"+locationID) ||
-						  (strings.HasPrefix(locationID, "gid://") && strings.HasSuffix(locationID, "/"+lvl.Node.Location.ID)) ||
-						  (strings.TrimSpace(strings.ToLower(lvl.Node.Location.Name)) == strings.TrimSpace(strings.ToLower(locationID))) ||
-						  (lvl.Node.Location.Name == "Millennial Perfumer - WH") // Hardcoded fallback for the user's specific case
+				isMatch := (lvl.Node.Location.ID == locationID) ||
+					strings.HasSuffix(lvl.Node.Location.ID, "/"+locationID) ||
+					(strings.HasPrefix(locationID, "gid://") && strings.HasSuffix(locationID, "/"+lvl.Node.Location.ID)) ||
+					(strings.TrimSpace(strings.ToLower(lvl.Node.Location.Name)) == strings.TrimSpace(strings.ToLower(locationID))) ||
+					(lvl.Node.Location.Name == "Millennial Perfumer - WH") // Hardcoded fallback for the user's specific case
 
 				locQty := 0
 				for _, q := range lvl.Node.Quantities {
@@ -160,7 +160,7 @@ func (s *InventoryService) SyncShopifyProducts(ctx context.Context) ([]entity.In
 					availableStock = locQty
 					foundLocationMatch = true
 					slog.Info("[DEBUG] Location matched!", "id_or_name", locationID, "matched_name", lvl.Node.Location.Name, "qty", availableStock)
-					break 
+					break
 				} else {
 					// Summative fallback logic in case no primary location is found later
 					availableStock += locQty
@@ -213,7 +213,7 @@ func (s *InventoryService) BulkImport(ctx context.Context, items []entity.Invent
 	if err != nil {
 		return fmt.Errorf("failed to load existing mappings: %w", err)
 	}
-	
+
 	mappedSKUs := make(map[string]bool)
 	for _, m := range existingMappings {
 		mappedSKUs[strings.ToLower(m.ExternalSKU)] = true
@@ -246,10 +246,15 @@ func (s *InventoryService) BulkImport(ctx context.Context, items []entity.Invent
 				break
 			}
 		}
-		
+
 		if hasCollision {
 			slog.Warn("Skipping bulk import for item because SKU is already mapped", "title", items[i].Title)
 			continue
+		}
+
+		// Prevent duplicates within the same batch by updating the map
+		for _, m := range items[i].Mappings {
+			mappedSKUs[strings.ToLower(m.ExternalSKU)] = true
 		}
 
 		// Assign next internal SKU based on Shopify numerals if available
@@ -287,18 +292,15 @@ func (s *InventoryService) BulkImport(ctx context.Context, items []entity.Invent
 		return nil
 	}
 
-	// 4. Batch Import using individual record creation to isolate failures.
-	// Since we already filtered collisions, this should largely succeed.
-	successCount := 0
-	for _, item := range toCreate {
-		if err := s.repo.CreateItem(&item); err != nil {
-			slog.Error("Bulk import item failure", "title", item.Title, "err", err)
-			continue // Gracefully continue with next item
-		}
-		successCount++
+	// 4. Batch Import using a single database roundtrip.
+	// Optimization: Replaces iterative CreateItem calls with BulkCreateItem for O(1) efficiency.
+	// Since we already filtered collisions, this is safe and much faster.
+	if err := s.repo.BulkCreateItem(toCreate); err != nil {
+		slog.Error("Bulk import failure", "err", err)
+		return fmt.Errorf("failed to bulk import items: %w", err)
 	}
 
-	slog.Info("Bulk import completed", "total", len(items), "successful", successCount)
+	slog.Info("Bulk import completed", "total", len(items), "imported", len(toCreate))
 	return nil
 }
 
