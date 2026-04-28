@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 
 interface SocialComposerModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface SocialComposerModalProps {
 }
 
 export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen, onClose, fetchWithAuth }) => {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram']);
@@ -30,19 +32,51 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
           })
         });
       }
-      alert('Content published successfully to selected platforms!');
+      toastSuccess('Content published successfully to selected platforms!');
       onClose();
     } catch (err) {
       console.error('Posting error:', err);
-      alert('Failed to publish content.');
+      toastError('Failed to publish content.');
     } finally {
       setIsPosting(false);
     }
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 2000 }}>
-      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px' }}>
+    <div className="modal-overlay" style={{ zIndex: 2000 }} onClick={onClose}>
+      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={onClose}
+          aria-label="Close modal"
+          style={{
+            position: 'absolute',
+            top: '1.5rem',
+            right: '1.5rem',
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-tertiary)',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '50%',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.background = 'var(--bg-hover)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-tertiary)';
+            e.currentTarget.style.background = 'none';
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
         <h2>Multi-Platform Composer</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
         
@@ -65,6 +99,18 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
               outline: 'none'
             }}
           />
+          <div
+            style={{
+              textAlign: 'right',
+              fontSize: '0.8rem',
+              marginTop: '0.5rem',
+              color: (content.length > 500 && selectedPlatforms.includes('threads')) ? 'var(--status-danger)' : 'var(--text-tertiary)',
+              fontWeight: 600
+            }}
+            aria-live="polite"
+          >
+            {content.length} characters {selectedPlatforms.includes('threads') && '(Threads limit: 500)'}
+          </div>
         </div>
 
         <div style={{ marginBottom: '2rem' }}>
@@ -91,7 +137,7 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
           <button 
             className="btn-primary" 
             onClick={handlePost}
-            disabled={isPosting || !content.trim() || selectedPlatforms.length === 0}
+            disabled={isPosting || !content.trim() || selectedPlatforms.length === 0 || (content.length > 500 && selectedPlatforms.includes('threads'))}
             style={{ background: 'linear-gradient(135deg, var(--status-active), var(--status-active-bg))', color: 'var(--status-active)' }}
           >
             {isPosting ? 'Publishing...' : 'Publish Now'}
