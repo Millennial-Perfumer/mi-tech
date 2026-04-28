@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 
 interface SocialComposerModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface SocialComposerModalProps {
 }
 
 export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen, onClose, fetchWithAuth }) => {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [content, setContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram']);
@@ -17,52 +19,76 @@ export const SocialComposerModal: React.FC<SocialComposerModalProps> = ({ isOpen
   const handlePost = async () => {
     setIsPosting(true);
     try {
-      for (const platform of selectedPlatforms) {
-        await fetchWithAuth(`${API_BASE}/api/marketing/smm/post`, {
+      await Promise.all(selectedPlatforms.map(platform =>
+        fetchWithAuth(`${API_BASE}/api/marketing/smm/post`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             platform,
-            message: content, // Facebook
-            caption: content, // Instagram
-            text: content,    // Threads
-            image_url: 'https://placeholder.com/image.jpg' // Example required for IG
+            message: content,
+            caption: content,
+            text: content,
+            image_url: 'https://placeholder.com/image.jpg'
           })
-        });
-      }
-      alert('Content published successfully to selected platforms!');
+        })
+      ));
+      toastSuccess('Published successfully!');
       onClose();
     } catch (err) {
-      console.error('Posting error:', err);
-      alert('Failed to publish content.');
+      toastError('Failed to publish content.');
     } finally {
       setIsPosting(false);
     }
   };
 
+  const isThreadsLimitExceeded = selectedPlatforms.includes('threads') && content.length > 500;
+
   return (
-    <div className="modal-overlay" style={{ zIndex: 2000 }}>
-      <div className="premium-modal glass-card-premium" style={{ maxWidth: '600px' }}>
+    <div className="modal-overlay" style={{ zIndex: 2000 }} onClick={onClose}>
+      <div
+        className="premium-modal glass-card-premium"
+        style={{ maxWidth: '600px', position: 'relative' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Close modal"
+          style={{
+            position: 'absolute', top: '1.5rem', right: '1.5rem',
+            background: 'none', border: 'none', color: 'var(--text-tertiary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-tertiary)'}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
         <h2>Multi-Platform Composer</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Draft once, publish across Meta.</p>
         
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Post Content</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <label htmlFor="post-content" style={{ fontWeight: 600 }}>Post Content</label>
+            <span
+              style={{ fontSize: '0.75rem', color: isThreadsLimitExceeded ? 'var(--status-danger)' : 'var(--text-tertiary)', fontWeight: 600 }}
+              aria-live="polite"
+            >
+              {content.length} characters {isThreadsLimitExceeded && "(Threads limit: 500)"}
+            </span>
+          </div>
           <textarea 
+            id="post-content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What's on your mind? (Use #hashtags for IG/Threads)"
             style={{
-              width: '100%',
-              height: '150px',
-              padding: '1rem',
-              borderRadius: '12px',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-primary)',
-              fontFamily: 'inherit',
-              resize: 'none',
-              outline: 'none'
+              width: '100%', height: '150px', padding: '1rem', borderRadius: '12px',
+              background: 'var(--bg-input)', border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)', fontFamily: 'inherit', resize: 'none', outline: 'none'
             }}
           />
         </div>
