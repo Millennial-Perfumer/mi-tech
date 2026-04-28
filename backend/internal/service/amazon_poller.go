@@ -209,16 +209,19 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			order.CancelledAt = &cancelledAt
 		case "Unshipped", "PartiallyShipped":
 			order.FulfillmentStatus = entity.StrPtr("unfulfilled")
-			
-			// Easy Ship Specific: If it's Unshipped but Picked Up, it's effectively fulfilled
-			if esStatus, ok := ao["EasyShipShipmentStatus"].(string); ok {
-				esStatus = strings.TrimSpace(esStatus)
-				if esStatus == "PickedUp" || esStatus == "OutForDelivery" || esStatus == "Delivered" {
-					order.FulfillmentStatus = entity.StrPtr("fulfilled")
-				}
-			}
 		default:
 			order.FulfillmentStatus = entity.StrPtr("unfulfilled")
+		}
+
+		// Easy Ship Specific: Override fulfillment and delivery status based on tracking
+		if esStatus, ok := ao["EasyShipShipmentStatus"].(string); ok {
+			esStatus = strings.TrimSpace(esStatus)
+			if esStatus == "PickedUp" || esStatus == "OutForDelivery" || esStatus == "Delivered" {
+				order.FulfillmentStatus = entity.StrPtr("fulfilled")
+			}
+			if strings.EqualFold(esStatus, "Delivered") {
+				order.DeliveryStatus = entity.StrPtr("delivered")
+			}
 		}
 
 		// Check if we already have this order to see if inventory was already deducted

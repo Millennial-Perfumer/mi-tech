@@ -85,7 +85,6 @@ func (s *MessagesService) GetMessagesByOrderID(orderID int64) ([]AutomationMessa
 	return s.repo.GetMessagesByOrderID(orderID)
 }
 
-
 func (s *MessagesService) GetActiveTemplateNamesForFilter(storeID string, startDate, endDate *time.Time, search string) ([]string, error) {
 	return s.repo.GetActiveTemplateNamesForFilter(storeID, startDate, endDate, search)
 }
@@ -277,8 +276,8 @@ func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messag
 
 	// 3. Send automated support redirect if this is not a reaction
 	if msgType != "reaction" {
-		replyText := "This WhatsApp number is solely maintained for sending updates and for marketing purposes. If you have any queries, kindly reach out to us at our WhatsApp support number: +91 7904769823.\n\nhttps://wa.me/917904769823"
-		
+		replyText := "Hi! This channel is used only for updates.\n\nFor support, please chat with our team here:\n👉 https://wa.me/917904769823"
+
 		go func() {
 			_, err := s.SendFreeTextMessage(phoneNumber, replyText, "system")
 			if err != nil {
@@ -332,7 +331,7 @@ func (s *MessagesService) StoreMedia(mediaID string, data []byte, contentType st
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
-	
+
 	fullPath := filepath.Join(dir, filename)
 
 	// 2. Save to disk
