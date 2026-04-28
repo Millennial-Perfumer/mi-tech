@@ -61,6 +61,7 @@ type OrderRepository interface {
 type LineItemRepository interface {
 	GetByOrderID(orderID int64) ([]entity.LineItem, error)
 	UpsertBatch(tx *gorm.DB, orderID int64, items []entity.LineItem) error
+	DeleteByOrderID(tx *gorm.DB, orderID int64) error
 }
 
 // WebhookEventRepository defines data access for the webhook_events table.
