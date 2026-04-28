@@ -131,6 +131,12 @@ func (m *MockLineItemRepository) UpsertBatch(tx *gorm.DB, orderID int64, items [
 	args := m.Called(tx, orderID, items)
 	return args.Error(0)
 }
+
+func (m *MockLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) error {
+	args := m.Called(tx, orderID)
+	return args.Error(0)
+}
+
 type MockInventoryRepository struct {
 	mock.Mock
 }

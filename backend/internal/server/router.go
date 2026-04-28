@@ -64,7 +64,7 @@ func RegisterRoutes(
 	// Social Media Management (SMM) Routes
 	mux.HandleFunc("/api/marketing/smm/overview", protected(smmHandler.GetOverview))
 	mux.HandleFunc("/api/marketing/smm/health", protected(smmHandler.CheckHealth))
-	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
+	mux.HandleFunc("/api/marketing/smm/post", adminProtected(smmHandler.PostContent))
 	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
 	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
 
@@ -117,10 +117,10 @@ func RegisterRoutes(
 			}
 		}
 	}))
-	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
-	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
-	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
-	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))
+	mux.HandleFunc("/api/orders/status", adminProtected(orderHandler.UpdateOrderStatus))
+	mux.HandleFunc("/api/orders/delivered", adminProtected(orderHandler.MarkAsDelivered))
+	mux.HandleFunc("/api/feedback/scan", adminProtected(feedbackHandler.ScanFeedbackCandidates))
+	mux.HandleFunc("/api/feedback/bulk-send", adminProtected(feedbackHandler.BulkSendFeedbackRequests))
 	mux.HandleFunc("/api/orders/feedback", protected(orderHandler.GetFeedback))
 	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
 	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))
