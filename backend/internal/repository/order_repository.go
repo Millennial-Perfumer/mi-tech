@@ -436,24 +436,76 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			}
 		}
 
-		// 4. Sync Inventory Deltas for all orders in batch
-		allAffected := make(map[int]bool)
+		// 4. Optimized Batch Sync Inventory Deltas
+		type skuKey struct {
+			Platform string
+			SKU      string
+		}
+		totalSKUDeltas := make(map[skuKey]int)
+		pairs := make([][]interface{}, 0)
+
 		for i := range orders {
-			ids, err := r.syncInventoryDeltas(tx, &orders[i], oldLinesByOrder[orders[i].ID])
-			if err != nil {
-				return err
+			// Calculate deltas for this order: New - Old
+			// Note: We use the same logic as syncInventoryDeltas to preserve behavior
+			orderSKUDeltas := make(map[string]int)
+			for _, li := range orders[i].LineItems {
+				if li.SKU != nil && *li.SKU != "" {
+					orderSKUDeltas[*li.SKU] += li.Quantity
+				}
 			}
-			for _, id := range ids {
-				allAffected[id] = true
+			for _, li := range oldLinesByOrder[orders[i].ID] {
+				if li.SKU != nil && *li.SKU != "" {
+					orderSKUDeltas[*li.SKU] -= li.Quantity
+				}
 			}
-			// Update individual order flag
-			if err := tx.Model(&orders[i]).Update("inventory_deducted", orders[i].InventoryDeducted).Error; err != nil {
-				return err
+
+			for sku, delta := range orderSKUDeltas {
+				if delta == 0 {
+					continue
+				}
+				key := skuKey{Platform: orders[i].SourceID, SKU: sku}
+				if _, exists := totalSKUDeltas[key]; !exists {
+					pairs = append(pairs, []interface{}{key.Platform, key.SKU})
+				}
+				totalSKUDeltas[key] += delta
+			}
+			orders[i].InventoryDeducted = true
+		}
+
+		if len(pairs) > 0 {
+			var mappings []entity.InventoryMapping
+			// Optimization: Batch fetch all relevant mappings in a single O(1) round-trip using tuple IN
+			if err := tx.Where("(platform, external_sku) IN ?", pairs).Find(&mappings).Error; err != nil {
+				return fmt.Errorf("failed to fetch mappings in batch: %w", err)
+			}
+
+			itemDeltas := make(map[int]int)
+			for _, m := range mappings {
+				key := skuKey{Platform: m.Platform, SKU: m.ExternalSKU}
+				itemDeltas[m.InventoryItemID] += totalSKUDeltas[key]
+			}
+
+			for itemID, delta := range itemDeltas {
+				if delta == 0 {
+					continue
+				}
+				// Optimization: Aggregate deltas by InventoryItemID to minimize update queries
+				if err := tx.Model(&entity.InventoryItem{}).
+					Where("id = ?", itemID).
+					Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
+					return fmt.Errorf("failed to adjust stock for item %d: %w", itemID, err)
+				}
+				affectedIDs = append(affectedIDs, itemID)
 			}
 		}
 
-		for id := range allAffected {
-			affectedIDs = append(affectedIDs, id)
+		// Optimization: Batch update inventory_deducted flag for all processed orders
+		orderIDsForFlag := make([]int64, len(orders))
+		for i := range orders {
+			orderIDsForFlag[i] = orders[i].ID
+		}
+		if err := tx.Model(&entity.Order{}).Where("id IN ?", orderIDsForFlag).Update("inventory_deducted", true).Error; err != nil {
+			return fmt.Errorf("failed to batch update inventory_deducted flag: %w", err)
 		}
 
 		return nil
