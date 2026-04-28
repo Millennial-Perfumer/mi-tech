@@ -275,7 +275,19 @@ func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messag
 		return err
 	}
 
-	// 3. Trigger Agent Service if mode is auto
+	// 3. Send automated support redirect if this is not a reaction
+	if msgType != "reaction" {
+		replyText := "This WhatsApp number is solely maintained for sending updates and for marketing purposes. If you have any queries, kindly reach out to us at our WhatsApp support number: +91 7904769823.\n\nhttps://wa.me/917904769823"
+		
+		go func() {
+			_, err := s.SendFreeTextMessage(phoneNumber, replyText, "system")
+			if err != nil {
+				log.Printf("Failed to send support redirect to %s: %v", phoneNumber, err)
+			}
+		}()
+	}
+
+	// 4. Trigger Agent Service if mode is auto
 	conv, _ := s.repo.GetConversationByPhone(phoneNumber)
 	if conv != nil && conv.Mode == "auto" && s.agentService != nil {
 		// Run in background to not block webhook
