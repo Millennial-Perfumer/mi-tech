@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 
@@ -74,6 +74,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [amazonSKUInput, setAmazonSKUInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [sortBy, setSortBy] = useState<string>('mi-sku-asc');
   const [isSyncing, setIsSyncing] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -574,16 +575,19 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <input 
+            ref={searchInputRef}
             type="text" 
             placeholder="Search by name, MI SKU, or platform SKU..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ 
               paddingLeft: '2.5rem',
+              paddingRight: searchQuery ? '2.5rem' : '1rem',
               height: '42px',
               fontSize: '0.85rem',
               border: '1px solid var(--border-color)',
-              background: 'var(--bg-input)'
+              background: 'var(--bg-input)',
+              width: '100%'
             }}
           />
           <svg 
@@ -599,6 +603,43 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           >
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
           </svg>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+              aria-label="Clear search"
+              title="Clear search"
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-tertiary)',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                transition: 'all 0.2s',
+                cursor: 'pointer',
+                border: 'none',
+                background: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.background = 'var(--bg-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
