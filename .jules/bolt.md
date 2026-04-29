@@ -17,3 +17,7 @@
 ## 2026-03-28 - [Batch Inventory Synchronization in UpsertBatch]
 **Learning:** Sequential inventory synchronization within a batch order upsert creates an N+1 bottleneck. Aggregating SKU deltas across the entire batch allows for fetching mappings in a single tuple `IN` query (`WHERE (platform, sku) IN ?`) and consolidating stock updates by `InventoryItemID`. Batching the final status flags (e.g., `inventory_deducted`) further reduces overhead.
 **Action:** When implementing batch operations that involve related entities or secondary updates (like inventory or status flags), always aggregate requirements and perform bulk queries/updates instead of iterating over the primary entities.
+
+## 2026-04-29 - [Regex Pre-compilation and Allowlist Map Pre-allocation]
+**Learning:** Compiling regular expressions (`regexp.MustCompile`) and allocating identical maps (e.g., sort allowlists) within frequently called functions (hot paths) introduces unnecessary overhead. Moving these to package-level variables ensures they are initialized once at startup, improving throughput and reducing garbage collection pressure without sacrificing thread safety.
+**Action:** Always move immutable regular expressions and lookup maps from function scope to package scope in critical paths like search parsing and listing repositories.

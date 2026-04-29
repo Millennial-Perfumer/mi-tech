@@ -18,6 +18,12 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	customerSearchEmptyRegex = regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
+	customerSearchRangeRegex = regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
+	customerSearchKVRegex    = regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
+)
+
 type CustomerService struct {
 	repo          *repository.CustomerRepository
 	orderRepo     repository.OrderRepository
@@ -423,10 +429,9 @@ func (s *CustomerService) ListCustomers(ctx context.Context, f CustomerFilter) (
 
 func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
 	f := CustomerFilter{}
-	
+
 	// Support "field = ''" or "field = \"\""
-	emptyRegex := regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
-	matches := emptyRegex.FindAllStringSubmatch(search, -1)
+	matches := customerSearchEmptyRegex.FindAllStringSubmatch(search, -1)
 	for _, m := range matches {
 		field := strings.ToLower(m[1])
 		switch field {
@@ -438,8 +443,7 @@ func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
 	}
 
 	// Support "field > 1000" or "field < 5000"
-	rangeRegex := regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
-	matches = rangeRegex.FindAllStringSubmatch(search, -1)
+	matches = customerSearchRangeRegex.FindAllStringSubmatch(search, -1)
 	for _, m := range matches {
 		field := strings.ToLower(m[1])
 		op := m[2]
@@ -454,8 +458,7 @@ func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
 	}
 
 	// Support "field:value" or "field=value"
-	kvRegex := regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
-	matches = kvRegex.FindAllStringSubmatch(search, -1)
+	matches = customerSearchKVRegex.FindAllStringSubmatch(search, -1)
 	for _, m := range matches {
 		field := strings.ToLower(m[1])
 		val := strings.Trim(m[2], `"'`)
