@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-04-30 - [CORS Authenticated Bypass and Timing Side-Channels]
+**Vulnerability:** Permissive CORS policy reflecting the `Origin` header while allowing credentials even with a wildcard `*` configuration. Standard string comparisons used for HMAC and OTP verification.
+**Learning:** Wildcard CORS configurations often inadvertently allow credential reflection if logic defaults to reflecting the `Origin` header. Timing attacks remain a viable threat for any string-based credential or signature verification that doesn't use constant-time operations.
+**Prevention:** Explicitly distinguish between wildcard and exact-match origins in CORS middleware; always use `crypto/subtle.ConstantTimeCompare` for sensitive verification.
