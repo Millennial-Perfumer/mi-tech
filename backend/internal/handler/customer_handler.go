@@ -270,3 +270,37 @@ func (h *CustomerHandler) BulkDeleteCustomers(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Bulk deletion completed"})
 }
+
+// ExportMetaCSV handles GET /api/customers/export-meta.
+// @Summary Export Meta audience CSV
+// @Description Export a CSV compatible with Meta Custom Audiences.
+// @Tags customers
+// @Security Bearer
+// @Param type query string false "Audience type: 'customer' or 'engaged'"
+// @Produce text/csv
+// @Success 200 {file} file
+// @Router /customers/export-meta [get]
+func (h *CustomerHandler) ExportMetaCSV(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	audienceType := r.URL.Query().Get("type")
+	boughtOnly := audienceType == "customer"
+
+	data, err := h.service.ExportMetaCSV(r.Context(), boughtOnly)
+	if err != nil {
+		http.Error(w, "Failed to generate CSV: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	filename := "meta_engaged_audience.csv"
+	if boughtOnly {
+		filename = "meta_customer_audience.csv"
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Write(data)
+}

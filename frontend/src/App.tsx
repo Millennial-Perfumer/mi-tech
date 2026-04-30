@@ -94,7 +94,7 @@ const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c
 
 function App() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const { confirm } = useConfirm();
+  const { } = useConfirm();
 
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -153,7 +153,6 @@ function App() {
   };
 
   const [isMarkingAsDelivered, setIsMarkingAsDelivered] = useState<number | string | null>(null);
-  const [isResetting, setIsResetting] = useState(false);
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const headers = {
@@ -170,6 +169,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem('gstAppActiveTab', activeTab);
   }, [activeTab]);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -179,6 +179,16 @@ function App() {
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
   const [appSettings, setAppSettings] = useState<Record<string, string>>({});
   const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
+
+  // Handle auto-redirection if a module is disabled via config
+  useEffect(() => {
+    if (activeTab === 'planner' && appConfigs['kanban_enabled'] === 'false') {
+      setActiveTab('dashboard');
+    }
+    if (activeTab === 'users' && userRole !== 'admin') {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, appConfigs, userRole]);
   const limit = 25;
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
@@ -473,35 +483,6 @@ function App() {
   };
 
 
-  const resetShopify = async () => {
-    const confirmed = await confirm({
-      title: 'Database Wipe',
-      message: 'Are you sure you want to delete all historical synced data? This will clear all orders and customers and cannot be undone. You will need to manually sync to recover data.',
-      variant: 'danger',
-      confirmLabel: 'Wipe All Data'
-    });
-
-    if (!confirmed) return;
-
-    setIsResetting(true);
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/shopify/reset`, {
-        method: 'POST',
-      });
-      const data = await response.json();
-      if (data.success) {
-        toastSuccess('Database wiped and re-sync triggered successfully.');
-        fetchDashboardData();
-      } else {
-        toastError('Failed to reset orders.');
-      }
-    } catch (error) {
-      console.error('Error resetting orders:', error);
-      toastError('Error occurred while resetting.');
-    } finally {
-      setIsResetting(false);
-    }
-  };
 
 
   useEffect(() => {
@@ -776,11 +757,15 @@ function App() {
             <span>Social Media</span>
           </a>
 
-          <div className="nav-group-label" style={{ animationDelay: '475ms' }}>SYSTEM</div>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '500ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            <span>Planner</span>
-          </a>
+          {(appConfigs['kanban_enabled'] === 'true' || userRole === 'admin') && (
+            <div className="nav-group-label" style={{ animationDelay: '475ms' }}>SYSTEM</div>
+          )}
+          {appConfigs['kanban_enabled'] === 'true' && (
+            <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '500ms' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <span>Planner</span>
+            </a>
+          )}
           {userRole === 'admin' && (
             <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')} title={isSidebarCollapsed ? "RBAC" : ""} style={{ animationDelay: '525ms' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -867,10 +852,12 @@ function App() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>More</span>
         </button>
-        <button className={`tab-btn nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} style={{ animationDelay: '350ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          <span>Plan</span>
-        </button>
+        {appConfigs['kanban_enabled'] === 'true' && (
+          <button className={`tab-btn nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} style={{ animationDelay: '350ms' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Plan</span>
+          </button>
+        )}
       </nav>
 
       <main className="main-content">
@@ -1126,29 +1113,7 @@ function App() {
                       Sync Shopify
                     </button>
                   )}
-                  {userRole === 'admin' && (appConfigs?.show_reset_button === 'true' || appSettings?.show_reset_button === 'true') && (
-                    <button 
-                      className="btn-secondary" 
-                      style={{
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        opacity: isResetting ? 0.7 : 1, 
-                        backgroundColor: '#ef4444', 
-                        color: 'white', 
-                        borderColor: '#ef4444',
-                        height: '42px',
-                        borderRadius: '10px',
-                        padding: '0.5rem 1rem', 
-                        fontSize: '0.85rem'
-                      }}
-                      onClick={resetShopify}
-                      disabled={isResetting || isSyncing}
-                    >
-                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                      {isResetting ? 'Resetting...' : 'Reset Orders Data'}
-                    </button>
-                  )}
+                  <div style={{ width: '1px', height: '32px', backgroundColor: 'var(--border-color)', margin: '0 0.5rem' }}></div>
                   <ColumnSelector
                     columns={AVAILABLE_COLUMNS}
                     visibleColumns={visibleColumns}
@@ -1690,7 +1655,7 @@ function App() {
 
 
 
-          {activeTab === 'planner' && (
+          {activeTab === 'planner' && appConfigs['kanban_enabled'] === 'true' && (
             <Planner fetchWithAuth={fetchWithAuth} />
           )}
 

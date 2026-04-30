@@ -96,6 +96,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
     const [isSaving, setIsSaving] = useState(false);
     const [syncToShopify, setSyncToShopify] = useState(false);
     const [customerForm, setCustomerForm] = useState<Partial<Customer>>({});
+    const [showExportMenu, setShowExportMenu] = useState(false);
     const limit = 25;
 
     useEffect(() => {
@@ -234,6 +235,17 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
         return () => clearTimeout(timer);
     }, [page, search, sortBy, sortOrder, filterSource, minSpent, maxSpent, minOrders, city, state]);
 
+    useEffect(() => {
+        if (!showExportMenu) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement).closest('.export-menu-container')) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showExportMenu]);
+
     const handleImport = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -327,6 +339,27 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
         }
     };
 
+    const handleMetaExport = async (type: 'customer' | 'engaged') => {
+        try {
+            const response = await fetchWithAuth(`${API_BASE}/api/customers/export-meta?type=${type}`);
+            if (!response.ok) throw new Error('Export failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `meta_${type}_audience.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            setShowExportMenu(false);
+            toastSuccess(`Meta ${type} audience exported successfully`);
+        } catch (error: any) {
+            console.error('Export error:', error);
+            toastError(`Failed to export Meta audience: ${error.message}`);
+        }
+    };
+
     return (
         <div className="tab-pane active">
             <div style={{ 
@@ -340,21 +373,21 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                 boxShadow: 'var(--shadow-md)',
                 border: '1px solid var(--border-color)',
                 borderTop: '4px solid var(--accent-color)',
-                position: 'relative',
-                overflow: 'hidden'
+                position: 'relative'
             }}>
-                {/* Decorative background element */}
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '-20px', 
-                    right: '-20px', 
-                    width: '120px', 
-                    height: '120px', 
-                    background: 'var(--accent-color)', 
-                    opacity: 0.03, 
-                    borderRadius: '50%',
-                    pointerEvents: 'none'
-                }}></div>
+                {/* Decorative background element container (handles clipping without affecting dropdowns) */}
+                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: '20px', pointerEvents: 'none' }}>
+                    <div style={{ 
+                        position: 'absolute', 
+                        top: '-20px', 
+                        right: '-20px', 
+                        width: '120px', 
+                        height: '120px', 
+                        background: 'var(--accent-color)', 
+                        opacity: 0.03, 
+                        borderRadius: '50%'
+                    }}></div>
+                </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
@@ -454,24 +487,98 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                             Import
                         </button>
-                        <button 
-                            className="btn-secondary" 
-                            style={{ 
-                                padding: '0.75rem 1.5rem', 
-                                fontSize: '0.875rem', 
-                                fontWeight: 600,
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '10px', 
-                                borderRadius: '12px',
-                                background: 'var(--surface-color)',
-                                border: '1px solid var(--border-color)',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Export
-                        </button>
+                        <div className="export-menu-container" style={{ position: 'relative' }}>
+                            <button 
+                                className="btn-secondary" 
+                                onClick={() => setShowExportMenu(!showExportMenu)}
+                                style={{ 
+                                    padding: '0.75rem 1.5rem', 
+                                    fontSize: '0.875rem', 
+                                    fontWeight: 600,
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '10px', 
+                                    borderRadius: '12px',
+                                    background: showExportMenu ? 'var(--hover-color)' : 'var(--surface-color)',
+                                    border: '1px solid var(--border-color)',
+                                    transition: 'all 0.2s',
+                                    color: showExportMenu ? 'var(--accent-color)' : 'var(--text-primary)'
+                                }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Export
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showExportMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            
+                            {showExportMenu && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 'calc(100% + 8px)',
+                                    right: 0,
+                                    background: 'var(--surface-color)',
+                                    borderRadius: '16px',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                    border: '1px solid var(--border-color)',
+                                    padding: '0.6rem',
+                                    zIndex: 100,
+                                    minWidth: '260px',
+                                    animation: 'slideIn 0.2s ease-out',
+                                    backdropFilter: 'blur(8px)'
+                                }}>
+                                    <div style={{ padding: '0.5rem 0.8rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Meta Audience Export
+                                    </div>
+                                    <button 
+                                        onClick={() => handleMetaExport('customer')}
+                                        style={{
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            padding: '0.75rem 1rem',
+                                            background: 'none',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            color: 'var(--text-primary)',
+                                            fontSize: '0.875rem',
+                                            fontWeight: 500,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                        Download Customer (Meta)
+                                    </button>
+                                    <button 
+                                        onClick={() => handleMetaExport('engaged')}
+                                        style={{
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            padding: '0.75rem 1rem',
+                                            background: 'none',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            color: 'var(--text-primary)',
+                                            fontSize: '0.875rem',
+                                            fontWeight: 500,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-color)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                        Download Engaged (Meta)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         
                         <div style={{ flex: 1 }}></div>
 

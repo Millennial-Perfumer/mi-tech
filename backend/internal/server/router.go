@@ -127,6 +127,7 @@ func RegisterRoutes(
 
 	// --- Customer Routes ---
 	mux.HandleFunc("/api/customers/import", adminProtected(customerHandler.ImportCSV))
+	mux.HandleFunc("/api/customers/export-meta", protected(customerHandler.ExportMetaCSV))
 	mux.HandleFunc("/api/customers/bulk-delete", adminProtected(customerHandler.BulkDeleteCustomers))
 	mux.HandleFunc("/api/customers", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

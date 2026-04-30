@@ -5,8 +5,10 @@ import (
 	"log"
 	"mi-tech/internal/client/amazon"
 	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/config"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
+	"os"
 )
 
 // SyncOrchestrator takes the lead on cross-platform stock consistency.
@@ -15,18 +17,35 @@ type SyncOrchestrator struct {
 	inventoryRepo repository.InventoryRepository
 	shopifyClient *shopify.Client
 	amazonClient  *amazon.Client
+	settings      *config.SettingsProvider
 }
 
 func NewSyncOrchestrator(
 	inventoryRepo repository.InventoryRepository,
 	shopifyClient *shopify.Client,
 	amazonClient *amazon.Client,
+	settings *config.SettingsProvider,
 ) *SyncOrchestrator {
 	return &SyncOrchestrator{
 		inventoryRepo: inventoryRepo,
 		shopifyClient: shopifyClient,
 		amazonClient:  amazonClient,
+		settings:      settings,
 	}
+}
+
+func (s *SyncOrchestrator) IsSyncAllowed() bool {
+	// 1. Check environment variable override (highest priority for local dev)
+	if os.Getenv("DISABLE_INVENTORY_SYNC") == "true" {
+		return false
+	}
+
+	// 2. Check database configuration
+	if s.settings != nil && !s.settings.IsInventorySyncEnabled() {
+		return false
+	}
+
+	return true
 }
 
 // GlobalSync updates all platforms for a specific internal inventory item.
@@ -38,6 +57,11 @@ func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePla
 	}
 
 	log.Printf("SyncOrchestrator: Triggering global sync for SKU %s (Qty: %d)", item.MISKU, item.CurrentStock)
+	
+	if !s.IsSyncAllowed() {
+		log.Printf("SyncOrchestrator: Global sync is DISABLED via configuration or environment")
+		return nil
+	}
 
 	for _, m := range item.Mappings {
 		if m.Platform == sourcePlatform {
@@ -80,6 +104,11 @@ func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePla
 
 // AdjustStock adjusts stock internally and then triggers a global sync.
 func (s *SyncOrchestrator) AdjustStock(ctx context.Context, itemID int, delta int, sourcePlatform string, reason string, externalOrderID *string) error {
+	if !s.IsSyncAllowed() {
+		log.Printf("SyncOrchestrator: Skipping internal stock adjustment (Sync DISABLED)")
+		return nil
+	}
+
 	err := s.inventoryRepo.AdjustStock(itemID, delta)
 	if err != nil {
 		return err
@@ -99,6 +128,11 @@ func (s *SyncOrchestrator) AdjustStock(ctx context.Context, itemID int, delta in
 
 // UpdateStock sets the absolute stock internally and then triggers a global sync.
 func (s *SyncOrchestrator) UpdateStock(ctx context.Context, itemID int, val int, sourcePlatform string, reason string) error {
+	if !s.IsSyncAllowed() {
+		log.Printf("SyncOrchestrator: Skipping internal stock update (Sync DISABLED)")
+		return nil
+	}
+
 	// For absolute updates, we need to know the delta for logging
 	item, _ := s.inventoryRepo.GetItemByID(itemID)
 	delta := val - item.CurrentStock

@@ -265,3 +265,11 @@ func (p *SettingsProvider) GetAmazonSellerID() string {
 	}
 	return val
 }
+
+func (p *SettingsProvider) IsInventorySyncEnabled() bool {
+	val := p.Get("enable_inventory_sync")
+	if val == "" {
+		return true // Default to true if not explicitly set
+	}
+	return val == "true"
+}

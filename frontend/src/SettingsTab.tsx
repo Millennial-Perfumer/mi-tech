@@ -69,6 +69,11 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
     title: 'Amazon SP-API',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
     color: '#FF9900'
+  },
+  inventory: {
+    title: 'Inventory',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>,
+    color: '#10b981'
   }
 };
 
@@ -176,6 +181,35 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
     await handleSaveConfig(cfg.key, newValue);
   };
 
+  const handleResetInventory = async () => {
+    if (!window.confirm("Are you sure you want to wipe the entire physical inventory and all mappings? This cannot be undone.")) return;
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/inventory`, { method: 'DELETE' });
+      if (resp.ok) {
+        toastSuccess('Warehouse reset complete');
+      } else {
+        toastError('Failed to reset warehouse');
+      }
+    } catch (err) {
+      toastError('Error resetting warehouse');
+    }
+  };
+
+  const handleResetOrders = async () => {
+    if (!window.confirm("Are you sure you want to delete all historical synced data? This will clear all orders and customers and cannot be undone. You will need to manually sync to recover data.")) return;
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/shopify/reset`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        toastSuccess('Database wiped and re-sync triggered successfully.');
+      } else {
+        toastError('Failed to reset orders.');
+      }
+    } catch (err) {
+      toastError('Error occurred while resetting.');
+    }
+  };
+
   const toggleCategory = (cat: string) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -190,8 +224,8 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
     groupedConfigs[cfg.category].push(cfg);
   });
 
-  // Sort categories: Business > Shopify > Meta Shared > Marketing > Social Media > WhatsApp > System
-  const categoryOrder = ['business', 'shopify', 'amazon', 'meta_shared', 'marketing', 'social_media', 'whatsapp', 'feedback', 'system'];
+  // Sort categories: Business > Shopify > Amazon > Inventory > Meta Shared > Marketing > Social Media > WhatsApp > System
+  const categoryOrder = ['business', 'shopify', 'amazon', 'inventory', 'meta_shared', 'marketing', 'social_media', 'whatsapp', 'feedback', 'system'];
   const sortedCategories = Object.keys(groupedConfigs).sort((a, b) => {
     const idxA = categoryOrder.indexOf(a);
     const idxB = categoryOrder.indexOf(b);
@@ -497,6 +531,67 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                         >
                           Launch Sync
                         </button>
+                      </div>
+                    )}
+                    {category === 'system' && configs.some(c => c.key === 'enable_danger_zone' && c.value === 'true') && (
+                      <div
+                        className="config-row"
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '1.5rem',
+                          padding: '1.5rem',
+                          background: 'rgba(239, 68, 68, 0.05)',
+                          borderRadius: '16px',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          marginTop: '2rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '10px', 
+                            background: '#ef4444', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: 'white',
+                            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                          }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#b91c1c' }}>Danger Zone</div>
+                            <div style={{ fontSize: '0.8rem', color: '#dc2626', opacity: 0.8 }}>Consolidated destructive actions. Use with extreme caution.</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                          <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
+                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Inventory Wipe</h5>
+                            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all physical products and SKUs. This will break all current mapping authority.</p>
+                            <button 
+                              className="btn-secondary" 
+                              onClick={handleResetInventory}
+                              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
+                            >
+                              Wipe Warehouse
+                            </button>
+                          </div>
+
+                          <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
+                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Orders Wipe</h5>
+                            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all synced orders and customers. Data must be re-synced manually.</p>
+                            <button 
+                              className="btn-secondary" 
+                              onClick={handleResetOrders}
+                              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
+                            >
+                              Wipe Shopify Orders
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
