@@ -9,7 +9,7 @@ import (
 
 func TestCORSMiddleware(t *testing.T) {
 	// Setup allowed origins
-	os.Setenv("ALLOWED_ORIGINS", "http://allowed.com, https://another.com")
+	os.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://mi-tech.millennialperfumer.in,https://feedback-form.millennialperfumer.in")
 	defer os.Unsetenv("ALLOWED_ORIGINS")
 
 	tests := []struct {
@@ -19,21 +19,27 @@ func TestCORSMiddleware(t *testing.T) {
 		expectedAllow  bool
 	}{
 		{
-			name:           "Allowed origin 1",
-			origin:         "http://allowed.com",
-			expectedOrigin: "http://allowed.com",
+			name:           "Production Domain - Admin UI",
+			origin:         "https://mi-tech.millennialperfumer.in",
+			expectedOrigin: "https://mi-tech.millennialperfumer.in",
 			expectedAllow:  true,
 		},
 		{
-			name:           "Allowed origin 2",
-			origin:         "https://another.com",
-			expectedOrigin: "https://another.com",
+			name:           "Production Domain - Admin UI with Slash",
+			origin:         "https://mi-tech.millennialperfumer.in/",
+			expectedOrigin: "https://mi-tech.millennialperfumer.in/",
 			expectedAllow:  true,
 		},
 		{
-			name:           "Allowed origin with trailing slash",
-			origin:         "http://allowed.com/",
-			expectedOrigin: "http://allowed.com/",
+			name:           "Production Domain - Feedback Form",
+			origin:         "https://feedback-form.millennialperfumer.in",
+			expectedOrigin: "https://feedback-form.millennialperfumer.in",
+			expectedAllow:  true,
+		},
+		{
+			name:           "Localhost Dev",
+			origin:         "http://localhost:5173",
+			expectedOrigin: "http://localhost:5173",
 			expectedAllow:  true,
 		},
 		{
