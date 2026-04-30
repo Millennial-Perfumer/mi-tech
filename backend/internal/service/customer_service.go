@@ -18,6 +18,12 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	customerSearchEmptyRegex = regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
+	customerSearchRangeRegex = regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
+	customerSearchKVRegex    = regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
+)
+
 type CustomerService struct {
 	repo          *repository.CustomerRepository
 	orderRepo     repository.OrderRepository
@@ -423,39 +429,48 @@ func (s *CustomerService) ListCustomers(ctx context.Context, f CustomerFilter) (
 
 func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
 	f := CustomerFilter{}
-	
+
 	// Support "field = ''" or "field = \"\""
-	emptyRegex := regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
-	matches := emptyRegex.FindAllStringSubmatch(search, -1)
+	// Performance: Use pre-compiled regex to avoid redundant allocations per request
+	matches := customerSearchEmptyRegex.FindAllStringSubmatch(search, -1)
 	for _, m := range matches {
 		field := strings.ToLower(m[1])
 		switch field {
-		case "first_name": f.FirstNameEmpty = true
-		case "last_name": f.LastNameEmpty = true
-		case "email": f.EmailEmpty = true
+		case "first_name":
+			f.FirstNameEmpty = true
+		case "last_name":
+			f.LastNameEmpty = true
+		case "email":
+			f.EmailEmpty = true
 		}
 		search = strings.Replace(search, m[0], "", 1)
 	}
 
 	// Support "field > 1000" or "field < 5000"
-	rangeRegex := regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
-	matches = rangeRegex.FindAllStringSubmatch(search, -1)
+	// Performance: Use pre-compiled regex to avoid redundant allocations per request
+	matches = customerSearchRangeRegex.FindAllStringSubmatch(search, -1)
 	for _, m := range matches {
 		field := strings.ToLower(m[1])
 		op := m[2]
 		val, _ := strconv.ParseFloat(m[3], 64)
 		switch field {
 		case "spent":
-			if op == ">" { f.MinSpent = val } else { f.MaxSpent = val }
+			if op == ">" {
+				f.MinSpent = val
+			} else {
+				f.MaxSpent = val
+			}
 		case "orders":
-			if op == ">" { f.MinOrders = int(val) }
+			if op == ">" {
+				f.MinOrders = int(val)
+			}
 		}
 		search = strings.Replace(search, m[0], "", 1)
 	}
 
 	// Support "field:value" or "field=value"
-	kvRegex := regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
-	matches = kvRegex.FindAllStringSubmatch(search, -1)
+	// Performance: Use pre-compiled regex to avoid redundant allocations per request
+	matches = customerSearchKVRegex.FindAllStringSubmatch(search, -1)
 	for _, m := range matches {
 		field := strings.ToLower(m[1])
 		val := strings.Trim(m[2], `"'`)
