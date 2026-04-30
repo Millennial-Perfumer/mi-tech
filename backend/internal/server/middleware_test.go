@@ -31,6 +31,12 @@ func TestCORSMiddleware(t *testing.T) {
 			expectedAllow:  true,
 		},
 		{
+			name:           "Allowed origin with trailing slash",
+			origin:         "http://allowed.com/",
+			expectedOrigin: "http://allowed.com/",
+			expectedAllow:  true,
+		},
+		{
 			name:           "Disallowed origin",
 			origin:         "http://evil.com",
 			expectedOrigin: "",
