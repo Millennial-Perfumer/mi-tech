@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"net/http"
@@ -22,7 +23,8 @@ func (h *InventoryHandler) GetDashboard(w http.ResponseWriter, r *http.Request) 
 	search := r.URL.Query().Get("search")
 	items, err := h.service.GetInventoryDashboard(search)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.GetDashboard error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -34,7 +36,8 @@ func (h *InventoryHandler) GetDashboard(w http.ResponseWriter, r *http.Request) 
 func (h *InventoryHandler) GetNextSKU(w http.ResponseWriter, r *http.Request) {
 	next, err := h.service.SuggestNextSKU()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.GetNextSKU error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -51,7 +54,8 @@ func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.CreateItem(r.Context(), &item); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.CreateItem error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -68,7 +72,8 @@ func (h *InventoryHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.BulkImport(r.Context(), items); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.BulkCreate error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -78,7 +83,8 @@ func (h *InventoryHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 // Clear handles warehouse reset.
 func (h *InventoryHandler) Clear(w http.ResponseWriter, r *http.Request) {
 	if err := h.service.ClearAll(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.Clear error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -88,7 +94,8 @@ func (h *InventoryHandler) Clear(w http.ResponseWriter, r *http.Request) {
 func (h *InventoryHandler) SyncShopify(w http.ResponseWriter, r *http.Request) {
 	staged, err := h.service.SyncShopifyProducts(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.SyncShopify error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -111,7 +118,8 @@ func (h *InventoryHandler) CreateMapping(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.service.MapProduct(r.Context(), req.InternalItemID, req.Platform, req.ExternalSKU, req.VariantID); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.CreateMapping error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -127,7 +135,8 @@ func (h *InventoryHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
 	delta, _ := strconv.Atoi(deltaStr)
 
 	if err := h.service.AdjustStock(id, delta); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.AdjustStock error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -143,7 +152,8 @@ func (h *InventoryHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
 	val, _ := strconv.Atoi(valStr)
 
 	if err := h.service.UpdateStockCount(id, val); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.UpdateStock error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -157,7 +167,8 @@ func (h *InventoryHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 
 	logs, err := h.service.GetLogs(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.GetLogs error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -204,7 +215,8 @@ func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdateItem(r.Context(), &item); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("InventoryHandler.UpdateItem error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 

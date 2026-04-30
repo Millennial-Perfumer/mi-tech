@@ -19,6 +19,14 @@ type gormOrderRepository struct {
 	db *gorm.DB
 }
 
+// orderListAllowedSortColumns defines the permitted columns for sorting to prevent SQL injection.
+// Hoisted to package level to avoid redundant map allocations per request.
+var orderListAllowedSortColumns = map[string]bool{
+	"created_at": true, "order_number": true, "total_price": true,
+	"customer_name": true, "source_id": true, "financial_status": true,
+	"fulfillment_status": true,
+}
+
 // NewOrderRepository creates a new GORM-backed OrderRepository.
 func NewOrderRepository(db *gorm.DB) OrderRepository {
 	return &gormOrderRepository{db: db}
@@ -65,12 +73,9 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 		if strings.ToUpper(filter.SortOrder) == "ASC" {
 			dir = "ASC"
 		}
-		allowed := map[string]bool{
-			"created_at": true, "order_number": true, "total_price": true,
-			"customer_name": true, "source_id": true, "financial_status": true,
-			"fulfillment_status": true,
-		}
-		if allowed[filter.SortBy] {
+		// Security: Use allowlist for sortBy to prevent SQL injection.
+		// Performance: Uses pre-allocated package-level map.
+		if orderListAllowedSortColumns[filter.SortBy] {
 			orderClause = filter.SortBy + " " + dir
 		}
 	}
