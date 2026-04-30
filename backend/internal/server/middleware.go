@@ -16,34 +16,43 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// normalizeOrigin trims spaces and trailing slashes from a URL string for consistent comparison.
+func normalizeOrigin(url string) string {
+	return strings.TrimRight(strings.TrimSpace(url), "/")
+}
+
 // CORSMiddleware adds CORS headers to all requests.
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
-		allowedOrigins := strings.Split(allowedOriginsEnv, ",")
-		origin := r.Header.Get("Origin")
+		rawOrigin := r.Header.Get("Origin")
+		origin := normalizeOrigin(rawOrigin)
 		isAllowed := false
 
-		if origin != "" {
+		if rawOrigin == "" {
+			// If no origin, we can consider it a direct request or same-origin
+			isAllowed = true
+		} else if allowedOriginsEnv != "" {
+			allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 			for _, allowed := range allowedOrigins {
-				trimmed := strings.TrimSpace(allowed)
+				trimmed := normalizeOrigin(allowed)
 				if trimmed == "*" || origin == trimmed {
 					isAllowed = true
 					break
 				}
 			}
-		} else {
-			// If no origin, we can consider it a direct request or same-origin
-			isAllowed = true
 		}
 
 		if isAllowed {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
-		} else if origin != "" {
-			log.Printf("CORS REJECTED: Origin=[%s] not in ALLOWED_ORIGINS=[%s]", origin, allowedOriginsEnv)
+			if rawOrigin != "" {
+				// Use the actual origin for the allow header to support multiple origins with credentials
+				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
+			}
+		} else {
+			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) not in ALLOWED_ORIGINS=[%s]", rawOrigin, origin, allowedOriginsEnv)
 		}
 
 		if r.Method == http.MethodOptions {
