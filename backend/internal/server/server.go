@@ -67,7 +67,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	amazonClient := amazon.NewClient(settingsProvider)
 
 	// Orchestrators
-	syncOrchestrator := service.NewSyncOrchestrator(inventoryRepo, shopifyClient, amazonClient)
+	syncOrchestrator := service.NewSyncOrchestrator(inventoryRepo, shopifyClient, amazonClient, settingsProvider)
 
 	// Services
 	userService := service.NewUserService(db)

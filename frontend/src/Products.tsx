@@ -329,20 +329,6 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
   };
 
-  const handleResetInventory = async () => {
-    if (!window.confirm("Are you sure you want to wipe the entire physical inventory and all mappings? This cannot be undone.")) return;
-    try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/inventory`, { method: 'DELETE' });
-      if (resp.ok) {
-        toastSuccess('Warehouse reset complete');
-        fetchInventory();
-      } else {
-        toastError('Failed to reset warehouse');
-      }
-    } catch (err) {
-      toastError('Error resetting warehouse');
-    }
-  };
 
   const fetchLogs = async (id: number) => {
     try {
@@ -535,9 +521,6 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Manage physical products and SKU mappings.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn-secondary" style={{ borderColor: 'var(--status-danger)', color: 'var(--status-danger)' }} onClick={handleResetInventory}>
-            Reset Warehouse
-          </button>
           {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncShopify}>

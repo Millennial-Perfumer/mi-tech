@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -709,4 +710,72 @@ func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) 
 		}
 	}
 	return nil
+}
+
+func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {
+	minOrders := 0
+	if boughtOnly {
+		minOrders = 1
+	}
+
+	// Fetch all matching customers (limit -1 or large number)
+	customers, _, err := s.repo.List(ctx, "", "updated_at", "DESC", "", 0, 0, minOrders, "", "", "", "", "", false, false, false, 0, 1000000)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch customers: %w", err)
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// Meta-recognized headers: phone, email, fn, ln
+	if err := writer.Write([]string{"phone", "email", "fn", "ln"}); err != nil {
+		return nil, err
+	}
+
+	seenPhones := make(map[string]bool)
+
+	for _, c := range customers {
+		phone := s.cleanMetaPhone(c.PhoneNumber)
+		// Deduplicate by phone
+		if phone == "" || seenPhones[phone] {
+			continue
+		}
+		seenPhones[phone] = true
+
+		email := ""
+		if c.Email != nil {
+			email = strings.ToLower(strings.TrimSpace(*c.Email))
+		}
+
+		fn := ""
+		if c.FirstName != nil {
+			fn = strings.TrimSpace(*c.FirstName)
+		}
+
+		ln := ""
+		if c.LastName != nil {
+			ln = strings.TrimSpace(*c.LastName)
+		}
+
+		if err := writer.Write([]string{phone, email, fn, ln}); err != nil {
+			return nil, err
+		}
+	}
+
+	writer.Flush()
+	return buf.Bytes(), nil
+}
+
+func (s *CustomerService) cleanMetaPhone(phone string) string {
+	// Replicate Python: re.sub(r"\D", "", phone)
+	reg := regexp.MustCompile(`\D`)
+	cleaned := reg.ReplaceAllString(phone, "")
+
+	if len(cleaned) == 10 {
+		return "91" + cleaned
+	}
+	if len(cleaned) == 12 && strings.HasPrefix(cleaned, "91") {
+		return cleaned
+	}
+	return ""
 }

@@ -80,8 +80,8 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		}
 	}
 
-	slog.Info("AmazonOrderPoller: Polling details", 
-		"afterTime", createdAfter.Format(time.RFC3339), 
+	slog.Info("AmazonOrderPoller: Polling details",
+		"afterTime", createdAfter.Format(time.RFC3339),
 		"beforeTime", createdBefore.Format(time.RFC3339),
 		"useLastUpdated", useLastUpdated,
 	)
@@ -99,9 +99,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		amazonStatus := ao["OrderStatus"].(string)
 		esStatus, _ := ao["EasyShipShipmentStatus"].(string)
 
-		slog.Info("AmazonOrderPoller: Processing order", 
-			"orderID", amazonOrderID, 
-			"status", amazonStatus, 
+		slog.Info("AmazonOrderPoller: Processing order",
+			"orderID", amazonOrderID,
+			"status", amazonStatus,
 			"esStatus", esStatus,
 		)
 
@@ -124,14 +124,14 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		}
 
 		order := entity.Order{
-			SourceID:        "amazon",
-			ExternalOrderID: amazonOrderID,
-			OrderNumber:      amazonOrderID, // Amazon uses OrderID as the display number
-			Status:           &amazonStatus,
-			FinancialStatus:  entity.StrPtr("paid"), // Usually paid on Amazon
+			SourceID:          "amazon",
+			ExternalOrderID:   amazonOrderID,
+			OrderNumber:       amazonOrderID, // Amazon uses OrderID as the display number
+			Status:            &amazonStatus,
+			FinancialStatus:   entity.StrPtr("paid"), // Usually paid on Amazon
 			FulfillmentStatus: entity.StrPtr("unfulfilled"),
-			LineItems:       lineItems,
-			CreatedAt:       p.parseAmazonDate(ao["PurchaseDate"].(string)),
+			LineItems:         lineItems,
+			CreatedAt:         p.parseAmazonDate(ao["PurchaseDate"].(string)),
 		}
 
 		// Billing/Shipping info mapping
@@ -196,10 +196,10 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 
 		// Dynamic Status Mapping
 		// Amazon Statuses: Pending, Unshipped, PartiallyShipped, Shipped, Canceled, Unfulfillable, InvoiceConfirmation, etc.
-		
+
 		// Normalize for matching
 		matchStatus := strings.TrimSpace(amazonStatus)
-		
+
 		switch matchStatus {
 		case "Shipped", "InvoiceConfirmation":
 			order.FulfillmentStatus = entity.StrPtr("fulfilled")
@@ -221,6 +221,12 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			}
 			if strings.EqualFold(esStatus, "Delivered") {
 				order.DeliveryStatus = entity.StrPtr("delivered")
+				now := time.Now()
+				order.DeliveredAt = &now
+				// Amazon orders lack customer phone numbers (PII restricted), so we skip feedback automation.
+				// Status 4 (expired/skipped) ensures they don't appear in the feedback trigger list.
+				pStatus := 4
+				order.FeedbackStatusID = &pStatus
 			}
 		}
 
@@ -231,16 +237,22 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			inventoryAlreadyDeducted = existing.InventoryDeducted
 			order.ID = existing.ID
 			order.InventoryDeducted = existing.InventoryDeducted
-			
-			// Preserve manually set DeliveryStatus if it was already "delivered"
-			if existing.DeliveryStatus != nil {
+
+			// Preserve manually set or previously discovered delivery data
+			if existing.DeliveryStatus != nil && *existing.DeliveryStatus == "delivered" {
 				order.DeliveryStatus = existing.DeliveryStatus
+				if existing.DeliveredAt != nil {
+					order.DeliveredAt = existing.DeliveredAt
+				}
+				if existing.FeedbackStatusID != nil {
+					order.FeedbackStatusID = existing.FeedbackStatusID
+				}
 			}
 		}
 
 		// 2. Logic for Stock Deduction (Unshipped/Shipped/fulfilled = Amazon has committed or we have fulfilled the inventory)
 		isFulfilledOrCommitted := (matchStatus == "Unshipped" || matchStatus == "Shipped" || matchStatus == "InvoiceConfirmation" || (order.FulfillmentStatus != nil && *order.FulfillmentStatus == "fulfilled"))
-		
+
 		if isFulfilledOrCommitted && !inventoryAlreadyDeducted {
 			p.processDeduction(ctx, &order)
 		}
@@ -256,6 +268,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 }
 
 func (p *AmazonOrderPoller) processDeduction(ctx context.Context, order *entity.Order) {
+	if !p.orchestrator.IsSyncAllowed() {
+		return
+	}
 	slog.Info("AmazonOrderPoller: Order moved to Unshipped, deducting inventory", "orderID", order.ExternalOrderID)
 	for _, item := range order.LineItems {
 		if item.SKU == nil {
@@ -271,6 +286,9 @@ func (p *AmazonOrderPoller) processDeduction(ctx context.Context, order *entity.
 }
 
 func (p *AmazonOrderPoller) processReversal(ctx context.Context, order *entity.Order) {
+	if !p.orchestrator.IsSyncAllowed() {
+		return
+	}
 	slog.Info("AmazonOrderPoller: Order Canceled, returning inventory to stock", "orderID", order.ExternalOrderID)
 	for _, item := range order.LineItems {
 		if item.SKU == nil {
