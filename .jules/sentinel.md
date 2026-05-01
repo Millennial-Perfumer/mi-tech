@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-03-30 - [Unauthenticated Webhook Verification Challenge]
+**Vulnerability:** The WhatsApp Webhook handler responded to verification challenges (`hub.challenge`) without validating the `hub.verify_token` or `hub.mode`.
+**Learning:** Webhook providers like Meta use a challenge-response handshake for initial verification. If the application echoes the challenge without verifying the secret token, it allows unauthorized entities to successfully "verify" their own webhook configuration against the application's endpoint, bypassing the handshake's security intent.
+**Prevention:** Implement strict verification of `hub.mode == "subscribe"` and use `crypto/subtle.ConstantTimeCompare` to validate the `hub.verify_token` against a stored secret before responding to the challenge.
