@@ -150,6 +150,8 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['APPROVED', 'PENDING', 'REJECTED']);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [isSearchHovered, setIsSearchHovered] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   const [showFetchModal, setShowFetchModal] = useState(false);
   const [fetchTemplateName, setFetchTemplateName] = useState('');
@@ -372,6 +374,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
           </svg>
           <input 
             type="text"
+            ref={searchInputRef}
             placeholder="Search within filtered results..."
             aria-label="Search templates"
             value={searchTerm}
@@ -390,7 +393,12 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
           />
           {searchTerm && (
             <button
-              onClick={() => setSearchTerm('')}
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setIsSearchHovered(false);
+                searchInputRef.current?.focus();
+              }}
               aria-label="Clear search"
               title="Clear search"
               style={{
@@ -398,7 +406,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
                 right: '8px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: 'var(--text-tertiary)',
+                color: isSearchHovered ? 'var(--text-primary)' : 'var(--text-tertiary)',
                 padding: '4px',
                 display: 'flex',
                 alignItems: 'center',
@@ -407,16 +415,10 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
                 transition: 'all 0.2s',
                 cursor: 'pointer',
                 border: 'none',
-                background: 'transparent'
+                background: isSearchHovered ? 'var(--bg-hover)' : 'transparent'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--text-primary)';
-                e.currentTarget.style.background = 'var(--bg-hover)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--text-tertiary)';
-                e.currentTarget.style.background = 'transparent';
-              }}
+              onMouseEnter={() => setIsSearchHovered(true)}
+              onMouseLeave={() => setIsSearchHovered(false)}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
