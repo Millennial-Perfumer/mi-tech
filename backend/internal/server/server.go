@@ -58,6 +58,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	socialRepo := repository.NewSocialRepository(db)
 	plannerRepo := repository.NewPlannerRepository(db)
 	inventoryRepo := repository.NewInventoryRepository(db)
+	oilRepo := repository.NewOilInventoryRepository(db)
+	supplierRepo := repository.NewSupplierRepository(db)
+	poRepo := repository.NewPurchaseOrderRepository(db)
+	mfgRepo := repository.NewManufacturingRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -81,6 +85,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	amazonOrderPoller := service.NewAmazonOrderPoller(amazonClient, orderRepo, inventoryRepo, syncOrchestrator)
 	plannerService := service.NewPlannerService(plannerRepo)
 	inventoryService := service.NewInventoryService(inventoryRepo, shopifyClient, syncOrchestrator, settingsProvider, amazonOrderPoller)
+	oilService := service.NewOilInventoryService(oilRepo)
+	supplierService := service.NewSupplierService(supplierRepo)
+	poService := service.NewPurchaseOrderService(poRepo, oilRepo)
+	mfgService := service.NewManufacturingService(mfgRepo, oilRepo, inventoryRepo)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	notifService := whatsapp.NewNotificationService(settingsProvider)
 	agentService := whatsapp.NewAgentService(settingsProvider, plannerService, messagesRepo, whatsapp.NewMetaClient(settingsProvider), notifService)
@@ -112,6 +120,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	userHandler := handler.NewUserHandler(userService)
 	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)
 	inventoryHandler := handler.NewInventoryHandler(inventoryService)
+	oilHandler := handler.NewOilInventoryHandler(oilService)
+	supplierHandler := handler.NewSupplierHandler(supplierService)
+	poHandler := handler.NewPurchaseOrderHandler(poService)
+	mfgHandler := handler.NewManufacturingHandler(mfgService)
 
 	RegisterRoutes(
 		mux,
@@ -134,6 +146,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		plannerHandler,
 		feedbackHandler,
 		inventoryHandler,
+		oilHandler,
+		supplierHandler,
+		poHandler,
+		mfgHandler,
 		authService,
 	)
 

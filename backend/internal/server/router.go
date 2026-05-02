@@ -37,6 +37,10 @@ func RegisterRoutes(
 	plannerHandler *handler.PlannerHandler,
 	feedbackHandler *handler.FeedbackHandler,
 	inventoryHandler *handler.InventoryHandler,
+	oilHandler *handler.OilInventoryHandler,
+	supplierHandler *handler.SupplierHandler,
+	poHandler *handler.PurchaseOrderHandler,
+	mfgHandler *handler.ManufacturingHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -313,4 +317,56 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/inventory/logs", adminProtected(inventoryHandler.GetLogs))
 	mux.HandleFunc("/api/inventory/amazon/sync", adminProtected(inventoryHandler.SyncAmazon))
 	mux.HandleFunc("/api/inventory/item", adminProtected(inventoryHandler.UpdateItem))
+	
+	// --- Oil Inventory Routes ---
+	mux.HandleFunc("/api/inventory/oil", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(oilHandler.CreateOil)(w, r)
+		case http.MethodPut:
+			adminProtected(oilHandler.UpdateOil)(w, r)
+		case http.MethodDelete:
+			adminProtected(oilHandler.DeleteOil)(w, r)
+		default:
+			oilHandler.ListOils(w, r)
+		}
+	}))
+
+	// --- Supplier Routes ---
+	mux.HandleFunc("/api/inventory/suppliers", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(supplierHandler.CreateSupplier)(w, r)
+		case http.MethodPut:
+			adminProtected(supplierHandler.UpdateSupplier)(w, r)
+		case http.MethodDelete:
+			adminProtected(supplierHandler.DeleteSupplier)(w, r)
+		default:
+			supplierHandler.ListSuppliers(w, r)
+		}
+	}))
+
+	// --- Purchase Order Routes ---
+	mux.HandleFunc("/api/inventory/po", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(poHandler.Create)(w, r)
+		case http.MethodDelete:
+			adminProtected(poHandler.Delete)(w, r)
+		default:
+			poHandler.List(w, r)
+		}
+	}))
+
+	// --- Manufacturing Routes ---
+	mux.HandleFunc("/api/inventory/manufacturing", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			adminProtected(mfgHandler.Create)(w, r)
+		case http.MethodDelete:
+			adminProtected(mfgHandler.Delete)(w, r)
+		default:
+			mfgHandler.List(w, r)
+		}
+	}))
 }

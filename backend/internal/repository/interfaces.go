@@ -191,3 +191,35 @@ type InventoryRepository interface {
 	BulkCreateItem(items []entity.InventoryItem) error
 	GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error)
 }
+
+// OilInventoryRepository defines all data access for raw material oil stock.
+type OilInventoryRepository interface {
+	List(search string) ([]entity.OilInventory, error)
+	GetByID(id int) (entity.OilInventory, error)
+	Create(item *entity.OilInventory) error
+	Update(item *entity.OilInventory) error
+	Delete(id int) error
+}
+
+// SupplierRepository defines all data access for vendors.
+type SupplierRepository interface {
+	List(search string) ([]entity.Supplier, error)
+	GetByID(id int) (entity.Supplier, error)
+	Create(supplier *entity.Supplier) error
+	Update(supplier *entity.Supplier) error
+	Delete(id int) error
+}
+
+// PurchaseOrderRepository defines all data access for raw material purchases.
+type PurchaseOrderRepository interface {
+	List() ([]entity.PurchaseOrder, error)
+	Create(po *entity.PurchaseOrder) error
+	Delete(id int) error
+}
+
+// ManufacturingRepository defines all data access for production logs.
+type ManufacturingRepository interface {
+	List() ([]entity.ManufacturingRecord, error)
+	Create(record *entity.ManufacturingRecord) error
+	Delete(id int) error
+}
