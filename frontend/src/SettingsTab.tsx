@@ -1,6 +1,7 @@
 import { API_BASE } from './api';
 import { useState, useEffect } from 'react';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 // Animation for collapsible sections
 const SLIDE_IN_ANIMATION = `
@@ -79,6 +80,7 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
 
 export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   // Configs state
   const [configs, setConfigs] = useState<AppConfig[]>([]);
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(true);
@@ -182,7 +184,13 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   };
 
   const handleResetInventory = async () => {
-    if (!window.confirm("Are you sure you want to wipe the entire physical inventory and all mappings? This cannot be undone.")) return;
+    const confirmed = await confirm({
+      title: 'Reset Physical Inventory',
+      message: 'Are you sure you want to wipe the entire physical inventory and all mappings? This cannot be undone.',
+      variant: 'danger',
+      confirmLabel: 'Wipe Warehouse'
+    });
+    if (!confirmed) return;
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory`, { method: 'DELETE' });
       if (resp.ok) {
@@ -196,7 +204,13 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   };
 
   const handleResetOrders = async () => {
-    if (!window.confirm("Are you sure you want to delete all historical synced data? This will clear all orders and customers and cannot be undone. You will need to manually sync to recover data.")) return;
+    const confirmed = await confirm({
+      title: 'Wipe Historical Data',
+      message: 'Are you sure you want to delete all historical synced data? This will clear all orders and customers and cannot be undone. You will need to manually sync to recover data.',
+      variant: 'danger',
+      confirmLabel: 'Wipe Shopify Orders'
+    });
+    if (!confirmed) return;
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/shopify/reset`, { method: 'POST' });
       const data = await resp.json();
