@@ -9,7 +9,7 @@ interface OilStock {
   purchase_price_per_kg: number | null;
   grams_left: number | null;
   supplier_id?: number | null;
-  inventory_item?: { title: string };
+  inventory_item?: { title: string; mi_sku: string };
   supplier?: { name: string };
 }
 
