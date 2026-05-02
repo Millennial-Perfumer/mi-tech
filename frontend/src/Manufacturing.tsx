@@ -140,6 +140,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
 
   const [formData, setFormData] = useState({
     notes: '',
+    manufacturing_date: '',
     additions: [{ 
       oil_id: '', 
       oil_grams: '', 
@@ -212,6 +213,9 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     setEditingRecordId(r.id);
     setFormData({
       notes: r.notes || '',
+      manufacturing_date: (r.manufacturing_date && !r.manufacturing_date.startsWith('0001')) 
+        ? r.manufacturing_date 
+        : new Date().toISOString(),
       additions: r.oils.map((o, index) => ({
         oil_id: o.oil_inventory_id.toString(),
         oil_grams: o.quantity_grams.toString(),
@@ -230,6 +234,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     const body = {
       id: editingRecordId,
       notes: formData.notes,
+      manufacturing_date: formData.manufacturing_date || new Date().toISOString(),
       oils: formData.additions
         .filter(a => a.oil_id && a.oil_grams)
         .map(a => ({
@@ -257,6 +262,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
         toastSuccess(editingRecordId ? 'Manufacturing record updated' : 'Manufacturing record created');
         setShowAddModal(false);
         setEditingRecordId(null);
+        setFormData({ notes: '', manufacturing_date: '', additions: [{ oil_id: '', oil_grams: '', product_id: '', product_qty: '', deduct_inventory: true, add_stock: true }] });
         fetchData();
       }
     } catch (err) {
@@ -285,7 +291,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
           }}
           onClick={() => { 
             setEditingRecordId(null);
-            setFormData({ notes: '', additions: [{ oil_id: '', oil_grams: '', product_id: '', product_qty: '', deduct_inventory: true, add_stock: true }] }); 
+            setFormData({ notes: '', manufacturing_date: new Date().toISOString(), additions: [{ oil_id: '', oil_grams: '', product_id: '', product_qty: '', deduct_inventory: true, add_stock: true }] }); 
             setShowAddModal(true); 
           }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -468,6 +474,33 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
             </div>
 
             <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '2.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Production Date</label>
+                  <input 
+                    type="date"
+                    value={formData.manufacturing_date ? formData.manufacturing_date.split('T')[0] : new Date().toISOString().split('T')[0]}
+                    onChange={e => setFormData({ ...formData, manufacturing_date: new Date(e.target.value).toISOString() })}
+                    style={{
+                      borderRadius: '16px',
+                      padding: '0.85rem 1.25rem',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                      color: '#1e293b',
+                      background: '#f8fafc',
+                      width: '100%'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                   <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Batch Identifier</label>
+                   <div style={{ padding: '0.85rem 1.25rem', background: '#f1f5f9', borderRadius: '16px', color: '#64748b', fontWeight: 700, fontSize: '1rem' }}>
+                     {editingRecordId ? `MAN-BATCH-${editingRecordId.toString().padStart(4, '0')}` : 'AUTO-GENERATED'}
+                   </div>
+                </div>
+              </div>
+
               <div style={{ marginBottom: '2.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '0 0.5rem' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Batch Composition</label>

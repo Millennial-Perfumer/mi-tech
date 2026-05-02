@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 )
@@ -25,6 +26,11 @@ func (s *ManufacturingService) List() ([]entity.ManufacturingRecord, error) {
 }
 
 func (s *ManufacturingService) Create(record *entity.ManufacturingRecord) error {
+	// 0. Ensure date is set
+	if record.ManufacturingDate.IsZero() {
+		record.ManufacturingDate = time.Now()
+	}
+
 	// 1. Create the manufacturing record
 	if err := s.mfgRepo.Create(record); err != nil {
 		return err
