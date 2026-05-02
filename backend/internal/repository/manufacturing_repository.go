@@ -23,6 +23,10 @@ func (r *pgManufacturingRepository) Create(record *entity.ManufacturingRecord) e
 	return r.db.Create(record).Error
 }
 
+func (r *pgManufacturingRepository) Update(record *entity.ManufacturingRecord) error {
+	return r.db.Save(record).Error
+}
+
 func (r *pgManufacturingRepository) Delete(id int) error {
 	return r.db.Delete(&entity.ManufacturingRecord{}, id).Error
 }

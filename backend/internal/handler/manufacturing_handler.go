@@ -42,6 +42,21 @@ func (h *ManufacturingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(record)
 }
 
+func (h *ManufacturingHandler) Update(w http.ResponseWriter, r *http.Request) {
+	var record entity.ManufacturingRecord
+	if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.svc.Update(&record); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(record)
+}
+
 func (h *ManufacturingHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)

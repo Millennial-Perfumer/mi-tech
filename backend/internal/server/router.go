@@ -363,6 +363,8 @@ func RegisterRoutes(
 		switch r.Method {
 		case http.MethodPost:
 			adminProtected(mfgHandler.Create)(w, r)
+		case http.MethodPut:
+			adminProtected(mfgHandler.Update)(w, r)
 		case http.MethodDelete:
 			adminProtected(mfgHandler.Delete)(w, r)
 		default:

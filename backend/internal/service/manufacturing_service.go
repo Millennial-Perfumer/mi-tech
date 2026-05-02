@@ -32,6 +32,9 @@ func (s *ManufacturingService) Create(record *entity.ManufacturingRecord) error 
 
 	// 2. Deduct Fragrance Oils from Stock
 	for _, mo := range record.Oils {
+		if !mo.DeductInventory {
+			continue
+		}
 		oil, err := s.oilRepo.GetByID(mo.OilInventoryID)
 		if err != nil {
 			return fmt.Errorf("failed to find oil stock for oil ID %d: %w", mo.OilInventoryID, err)
@@ -51,6 +54,9 @@ func (s *ManufacturingService) Create(record *entity.ManufacturingRecord) error 
 
 	// 3. Update Finished Product Stock (Warehouse Authority)
 	for _, mp := range record.Products {
+		if !mp.AddStock {
+			continue
+		}
 		product, err := s.invRepo.GetItemByID(mp.InventoryItemID)
 		if err != nil {
 			continue // Log error and continue with other products
@@ -63,6 +69,13 @@ func (s *ManufacturingService) Create(record *entity.ManufacturingRecord) error 
 	}
 
 	return nil
+}
+
+func (s *ManufacturingService) Update(record *entity.ManufacturingRecord) error {
+	// For now, we only update metadata. 
+	// Adjusting inventory based on composition changes is complex 
+	// and should probably be handled by delete/re-create or specific adjustment logic.
+	return s.mfgRepo.Update(record)
 }
 
 func (s *ManufacturingService) Delete(id int) error {

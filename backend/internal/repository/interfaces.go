@@ -221,5 +221,6 @@ type PurchaseOrderRepository interface {
 type ManufacturingRepository interface {
 	List() ([]entity.ManufacturingRecord, error)
 	Create(record *entity.ManufacturingRecord) error
+	Update(record *entity.ManufacturingRecord) error
 	Delete(id int) error
 }

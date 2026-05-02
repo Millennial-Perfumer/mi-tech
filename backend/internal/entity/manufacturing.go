@@ -48,6 +48,7 @@ type ManufacturingOil struct {
 	ManufacturingRecordID int           `gorm:"column:manufacturing_record_id" json:"manufacturing_record_id"`
 	OilInventoryID        int           `gorm:"column:oil_inventory_id" json:"oil_inventory_id"`
 	QuantityGrams         float64       `gorm:"column:quantity_grams" json:"quantity_grams"`
+	DeductInventory       bool          `gorm:"column:deduct_inventory" json:"deduct_inventory"`
 	CreatedAt             time.Time     `json:"created_at"`
 	UpdatedAt             time.Time     `json:"updated_at"`
 
@@ -65,6 +66,7 @@ type ManufacturingProduct struct {
 	ManufacturingRecordID int           `gorm:"column:manufacturing_record_id" json:"manufacturing_record_id"`
 	InventoryItemID       int           `gorm:"column:inventory_item_id" json:"inventory_item_id"`
 	QuantityProduced      int           `gorm:"column:quantity_produced" json:"quantity_produced"`
+	AddStock              bool          `gorm:"column:add_stock" json:"add_stock"`
 	CreatedAt             time.Time     `json:"created_at"`
 	UpdatedAt             time.Time     `json:"updated_at"`
 
