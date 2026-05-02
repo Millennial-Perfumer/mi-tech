@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 import './App.css';
 
 interface PlannerProps {
@@ -170,6 +171,7 @@ const DroppableColumn = ({ col, tasks, openEditModal }: { col: Column, tasks: Ta
 
 export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
   const { success, error } = useToast();
+  const { confirm } = useConfirm();
   const [activeBoard, setActiveBoard] = useState<Board | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
@@ -429,7 +431,13 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
   };
 
   const handleDeleteSprint = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this sprint? Tasks will move to backlog.')) return;
+    const confirmed = await confirm({
+      title: 'Delete Sprint',
+      message: 'Are you sure you want to delete this sprint? Tasks will move to backlog.',
+      variant: 'danger',
+      confirmLabel: 'Delete Sprint'
+    });
+    if (!confirmed) return;
     
     try {
       const res = await fetchWithAuth(`${API_BASE}/api/planner/sprints?id=${id}`, {
@@ -496,7 +504,14 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
 
   const handleDeleteTask = async () => {
     if (!editingTask.id) return;
-    if (!window.confirm('Are you sure you want to delete this task?')) return;
+
+    const confirmed = await confirm({
+      title: 'Delete Task',
+      message: 'Are you sure you want to delete this task? This action cannot be undone.',
+      variant: 'danger',
+      confirmLabel: 'Delete Task'
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetchWithAuth(`${API_BASE}/api/planner/tasks?id=${editingTask.id}`, {
