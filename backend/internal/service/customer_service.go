@@ -23,6 +23,7 @@ var (
 	customerSearchEmptyRegex = regexp.MustCompile(`(\w+)\s*=\s*['"]{2}`)
 	customerSearchRangeRegex = regexp.MustCompile(`(\w+)\s*([><])\s*(\d+)`)
 	customerSearchKVRegex    = regexp.MustCompile(`(\w+)[:=]\s*([^ ]+)`)
+	nonDigitRegex            = regexp.MustCompile(`\D`)
 )
 
 type CustomerService struct {
@@ -783,8 +784,7 @@ func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([
 
 func (s *CustomerService) cleanMetaPhone(phone string) string {
 	// Replicate Python: re.sub(r"\D", "", phone)
-	reg := regexp.MustCompile(`\D`)
-	cleaned := reg.ReplaceAllString(phone, "")
+	cleaned := nonDigitRegex.ReplaceAllString(phone, "")
 
 	if len(cleaned) == 10 {
 		return "91" + cleaned

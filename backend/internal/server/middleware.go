@@ -29,6 +29,9 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		origin := normalizeOrigin(rawOrigin)
 		isAllowed := false
 
+		// Always set Vary: Origin to handle caching behind proxies/CDNs
+		w.Header().Add("Vary", "Origin")
+
 		if rawOrigin == "" {
 			// If no origin, we can consider it a direct request or same-origin
 			isAllowed = true
@@ -49,10 +52,12 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token")
+				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 			}
 		} else {
-			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) not in ALLOWED_ORIGINS=[%s]", rawOrigin, origin, allowedOriginsEnv)
+			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) Method=[%s] Path=[%s] not in ALLOWED_ORIGINS=[%s]", 
+				rawOrigin, origin, r.Method, r.URL.Path, allowedOriginsEnv)
 		}
 
 		if r.Method == http.MethodOptions {
