@@ -6,15 +6,22 @@ import (
 	"gorm.io/gorm"
 )
 
-type gormOilInventoryRepository struct {
+type pgOilInventoryRepository struct {
 	db *gorm.DB
 }
 
 func NewOilInventoryRepository(db *gorm.DB) OilInventoryRepository {
-	return &gormOilInventoryRepository{db: db}
+	return &pgOilInventoryRepository{db: db}
 }
 
-func (r *gormOilInventoryRepository) List(search string) ([]entity.OilInventory, error) {
+func (r *pgOilInventoryRepository) WithTx(tx *gorm.DB) OilInventoryRepository {
+	if tx == nil {
+		return r
+	}
+	return &pgOilInventoryRepository{db: tx}
+}
+
+func (r *pgOilInventoryRepository) List(search string) ([]entity.OilInventory, error) {
 	var items []entity.OilInventory
 	query := r.db.Preload("InventoryItem").Preload("Supplier")
 	if search != "" {
@@ -24,20 +31,20 @@ func (r *gormOilInventoryRepository) List(search string) ([]entity.OilInventory,
 	return items, err
 }
 
-func (r *gormOilInventoryRepository) GetByID(id int) (entity.OilInventory, error) {
+func (r *pgOilInventoryRepository) GetByID(id int) (entity.OilInventory, error) {
 	var item entity.OilInventory
 	err := r.db.Preload("InventoryItem").Preload("Supplier").First(&item, id).Error
 	return item, err
 }
 
-func (r *gormOilInventoryRepository) Create(item *entity.OilInventory) error {
+func (r *pgOilInventoryRepository) Create(item *entity.OilInventory) error {
 	return r.db.Create(item).Error
 }
 
-func (r *gormOilInventoryRepository) Update(item *entity.OilInventory) error {
+func (r *pgOilInventoryRepository) Update(item *entity.OilInventory) error {
 	return r.db.Save(item).Error
 }
 
-func (r *gormOilInventoryRepository) Delete(id int) error {
+func (r *pgOilInventoryRepository) Delete(id int) error {
 	return r.db.Delete(&entity.OilInventory{}, id).Error
 }

@@ -13,6 +13,13 @@ func NewManufacturingRepository(db *gorm.DB) ManufacturingRepository {
 	return &pgManufacturingRepository{db: db}
 }
 
+func (r *pgManufacturingRepository) WithTx(tx *gorm.DB) ManufacturingRepository {
+	if tx == nil {
+		return r
+	}
+	return &pgManufacturingRepository{db: tx}
+}
+
 func (r *pgManufacturingRepository) List() ([]entity.ManufacturingRecord, error) {
 	var records []entity.ManufacturingRecord
 	err := r.db.Preload("Oils.OilInventory").Preload("Products.InventoryItem").Order("manufacturing_date desc").Find(&records).Error

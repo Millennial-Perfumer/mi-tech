@@ -14,6 +14,13 @@ func NewInventoryRepository(db *gorm.DB) InventoryRepository {
 	return &gormInventoryRepository{db: db}
 }
 
+func (r *gormInventoryRepository) WithTx(tx *gorm.DB) InventoryRepository {
+	if tx == nil {
+		return r
+	}
+	return &gormInventoryRepository{db: tx}
+}
+
 func (r *gormInventoryRepository) ListItems(search string) ([]entity.InventoryItem, error) {
 	var items []entity.InventoryItem
 	query := r.db.Preload("Mappings")
@@ -43,7 +50,7 @@ func (r *gormInventoryRepository) UpdateItem(item *entity.InventoryItem) error {
 func (r *gormInventoryRepository) AdjustStock(id int, delta int) error {
 	return r.db.Model(&entity.InventoryItem{}).
 		Where("id = ?", id).
-		Update("current_stock", gorm.Expr("current_stock + ?", delta)).Error
+		Update("current_stock", gorm.Expr("GREATEST(current_stock + ?, 0)", delta)).Error
 }
 
 func (r *gormInventoryRepository) UpdateStockCount(id int, val int) error {

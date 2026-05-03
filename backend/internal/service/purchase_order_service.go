@@ -103,10 +103,13 @@ func (s *PurchaseOrderService) Update(po *entity.PurchaseOrder) error {
 
 	// 4. Always update latest price and supplier on the oil record
 	oil, err := s.oilRepo.GetByID(po.OilInventoryID)
-	if err == nil {
-		oil.PurchasePricePerKg = &po.UnitPricePerKg
-		oil.SupplierID = &po.SupplierID
-		s.oilRepo.Update(&oil)
+	if err != nil {
+		return fmt.Errorf("failed to find oil for metadata update: %w", err)
+	}
+	oil.PurchasePricePerKg = &po.UnitPricePerKg
+	oil.SupplierID = &po.SupplierID
+	if err := s.oilRepo.Update(&oil); err != nil {
+		return fmt.Errorf("failed to update oil metadata: %w", err)
 	}
 
 	return s.poRepo.Update(po)
@@ -115,9 +118,13 @@ func (s *PurchaseOrderService) Update(po *entity.PurchaseOrder) error {
 func (s *PurchaseOrderService) Delete(id int) error {
 	// 1. Get the record to revert stock
 	po, err := s.poRepo.GetByID(id)
-	if err == nil {
-		// Revert stock
-		s.adjustOilStock(po.OilInventoryID, -po.QuantityGrams)
+	if err != nil {
+		return fmt.Errorf("failed to find purchase order: %w", err)
+	}
+
+	// 2. Revert stock — block deletion if this fails
+	if err := s.adjustOilStock(po.OilInventoryID, -po.QuantityGrams); err != nil {
+		return fmt.Errorf("failed to revert oil stock: %w", err)
 	}
 
 	return s.poRepo.Delete(id)

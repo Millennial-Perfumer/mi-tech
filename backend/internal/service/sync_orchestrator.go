@@ -34,6 +34,18 @@ func NewSyncOrchestrator(
 	}
 }
 
+func (s *SyncOrchestrator) WithTx(tx *gorm.DB) *SyncOrchestrator {
+	if tx == nil {
+		return s
+	}
+	return &SyncOrchestrator{
+		inventoryRepo: s.inventoryRepo.WithTx(tx),
+		shopifyClient: s.shopifyClient,
+		amazonClient:  s.amazonClient,
+		settings:      s.settings,
+	}
+}
+
 func (s *SyncOrchestrator) IsSyncAllowed() bool {
 	// 1. Check environment variable override (highest priority for local dev)
 	if os.Getenv("DISABLE_INVENTORY_SYNC") == "true" {
@@ -102,26 +114,36 @@ func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePla
 	return nil
 }
 
-// AdjustStock adjusts stock internally and then triggers a global sync.
-func (s *SyncOrchestrator) AdjustStock(ctx context.Context, itemID int, delta int, sourcePlatform string, reason string, externalOrderID *string) error {
-	if !s.IsSyncAllowed() {
-		log.Printf("SyncOrchestrator: Skipping internal stock adjustment (Sync DISABLED)")
-		return nil
-	}
-
+// AdjustStockInternal performs only the local DB updates and logging.
+// It does NOT trigger external synchronization.
+func (s *SyncOrchestrator) AdjustStockInternal(ctx context.Context, itemID int, delta int, sourcePlatform string, reason string, externalOrderID *string) error {
+	// ALWAYS update local stock — this must happen regardless of sync setting
 	err := s.inventoryRepo.AdjustStock(itemID, delta)
 	if err != nil {
 		return err
 	}
 
 	// Log the movement
-	s.inventoryRepo.LogAdjustment(&entity.InventoryLog{
+	return s.inventoryRepo.LogAdjustment(&entity.InventoryLog{
 		InventoryItemID: itemID,
 		Delta:           delta,
 		Reason:          reason,
 		Platform:        sourcePlatform,
 		ExternalOrderID: externalOrderID,
 	})
+}
+
+// AdjustStock adjusts stock internally and then triggers a global sync.
+func (s *SyncOrchestrator) AdjustStock(ctx context.Context, itemID int, delta int, sourcePlatform string, reason string, externalOrderID *string) error {
+	if err := s.AdjustStockInternal(ctx, itemID, delta, sourcePlatform, reason, externalOrderID); err != nil {
+		return err
+	}
+
+	// Only push to external platforms if sync is enabled
+	if !s.IsSyncAllowed() {
+		log.Printf("SyncOrchestrator: Local stock adjusted for item %d (delta: %d), but external sync is DISABLED", itemID, delta)
+		return nil
+	}
 
 	return s.GlobalSync(ctx, itemID, sourcePlatform)
 }

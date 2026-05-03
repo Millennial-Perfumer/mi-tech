@@ -143,7 +143,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
           quantity_grams: qty,
           unit_price_per_kg: price,
           total_price: (qty / 1000) * price,
-          purchase_date: new Date(formData.purchase_date).toISOString()
+          purchase_date: formData.purchase_date + 'T00:00:00Z'
         };
 
         const resp = await fetchWithAuth(`${API_BASE}/api/inventory/po`, {
@@ -163,7 +163,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
             quantity_grams: qty,
             unit_price_per_kg: price,
             total_price: (qty / 1000) * price,
-            purchase_date: new Date(formData.purchase_date).toISOString()
+            purchase_date: formData.purchase_date + 'T00:00:00Z'
           };
         });
 

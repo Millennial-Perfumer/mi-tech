@@ -169,6 +169,7 @@ type PlannerRepository interface {
 }
 // InventoryRepository defines all data access for the inventory hub and SKU mappings.
 type InventoryRepository interface {
+	WithTx(tx *gorm.DB) InventoryRepository
 	// Items
 	ListItems(search string) ([]entity.InventoryItem, error)
 	GetItemByID(id int) (entity.InventoryItem, error)
@@ -194,6 +195,7 @@ type InventoryRepository interface {
 
 // OilInventoryRepository defines all data access for raw material oil stock.
 type OilInventoryRepository interface {
+	WithTx(tx *gorm.DB) OilInventoryRepository
 	List(search string) ([]entity.OilInventory, error)
 	GetByID(id int) (entity.OilInventory, error)
 	Create(item *entity.OilInventory) error
@@ -221,6 +223,7 @@ type PurchaseOrderRepository interface {
 
 // ManufacturingRepository defines all data access for production logs.
 type ManufacturingRepository interface {
+	WithTx(tx *gorm.DB) ManufacturingRepository
 	List() ([]entity.ManufacturingRecord, error)
 	GetByID(id int) (*entity.ManufacturingRecord, error)
 	Create(record *entity.ManufacturingRecord) error

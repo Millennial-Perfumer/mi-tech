@@ -212,8 +212,8 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
   const handleEdit = (r: ManufacturingRecord) => {
     setEditingRecordId(r.id);
     const mDate = (r.manufacturing_date && !r.manufacturing_date.startsWith('0001')) 
-      ? r.manufacturing_date 
-      : new Date().toISOString();
+      ? r.manufacturing_date.split('T')[0] 
+      : new Date().toISOString().split('T')[0];
     
     setFormData({
       notes: r.notes || '',
@@ -253,7 +253,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     const body = {
       id: editingRecordId,
       notes: formData.notes,
-      manufacturing_date: formData.manufacturing_date ? new Date(formData.manufacturing_date).toISOString() : new Date().toISOString(),
+      manufacturing_date: formData.manufacturing_date ? formData.manufacturing_date.split('T')[0] + 'T00:00:00Z' : new Date().toISOString(),
       oils: formData.additions
         .filter(a => a.oil_id && a.oil_grams)
         .map(a => ({
@@ -283,6 +283,9 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
         setEditingRecordId(null);
         setFormData({ notes: '', manufacturing_date: '', additions: [{ oil_id: '', oil_grams: '', product_id: '', product_qty: '', deduct_inventory: true, add_stock: true }] });
         fetchData();
+      } else {
+        const errText = await resp.text();
+        toastError(`Failed: ${errText || resp.statusText}`);
       }
     } catch (err) {
       toastError('Error saving record');
@@ -509,7 +512,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                   <input 
                     type="date"
                     value={formData.manufacturing_date ? formData.manufacturing_date.split('T')[0] : new Date().toISOString().split('T')[0]}
-                    onChange={e => setFormData({ ...formData, manufacturing_date: new Date(e.target.value).toISOString() })}
+                    onChange={e => setFormData({ ...formData, manufacturing_date: e.target.value })}
                     style={{
                       borderRadius: '16px',
                       padding: '0.85rem 1.25rem',
