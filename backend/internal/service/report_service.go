@@ -77,35 +77,23 @@ func (s *ReportService) GetHSNSummary(startDate, endDate string) ([]dto.HSNSumma
 		return nil, err
 	}
 
-	// Aggregate by HSN code (results are per HSN+State)
-	hsnMap := make(map[string]*dto.HSNSummaryRow)
+	var rows []dto.HSNSummaryRow
 	for _, r := range results {
 		hsn := r.HSNCode
 		if hsn == "" {
 			hsn = "33029019"
 		}
-
-		if _, ok := hsnMap[hsn]; !ok {
-			hsnMap[hsn] = &dto.HSNSummaryRow{HSNCode: hsn}
-		}
-		row := hsnMap[hsn]
-		row.ProductCount += r.ProductCount
-		row.QtySold += r.QtySold
-		row.TaxableValue += r.TaxableValue
-		row.TotalGST += r.TotalGST
-		row.Revenue += r.Revenue
-
-		if isTamilNadu(r.State) {
-			row.CGST += r.TotalGST / 2
-			row.SGST += r.TotalGST / 2
-		} else {
-			row.IGST += r.TotalGST
-		}
-	}
-
-	var rows []dto.HSNSummaryRow
-	for _, v := range hsnMap {
-		rows = append(rows, *v)
+		rows = append(rows, dto.HSNSummaryRow{
+			HSNCode:      hsn,
+			ProductCount: r.ProductCount,
+			QtySold:      r.QtySold,
+			TaxableValue: r.TaxableValue,
+			TotalGST:     r.TotalGST,
+			CGST:         r.CGST,
+			SGST:         r.SGST,
+			IGST:         r.IGST,
+			Revenue:      r.Revenue,
+		})
 	}
 	return rows, nil
 }

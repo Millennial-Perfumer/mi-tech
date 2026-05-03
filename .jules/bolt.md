@@ -21,3 +21,7 @@
 ## 2026-04-30 - [Regex Pre-compilation and static sort allowlisting]
 **Learning:** Avoid repeatedly calling `regexp.MustCompile` or allocating the same map within high-frequency functions (like request handlers or search parsers). Hoisting these to package-level variables reduces CPU cycles and memory allocations per request.
 **Action:** Always check for repeated regex compilation or constant map allocations in hot paths and move them to package-level variables.
+
+## 2026-05-15 - [Pushing Aggregation to Database]
+**Learning:** Application-side aggregation of report data (e.g., using maps to group by HSN code and manual loops for tax splits) is less efficient than SQL-level aggregation. Pushing `GROUP BY` and conditional logic (`CASE WHEN`) into the database reduces data transfer and leverages the DB's optimized execution engine.
+**Action:** Always evaluate if reporting metrics can be fully computed in a single SQL query before resorting to application-side post-processing. Use `COALESCE` and `NULLIF` to ensure consistent grouping keys when dealing with nullable or empty string columns.

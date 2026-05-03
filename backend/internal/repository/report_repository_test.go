@@ -143,6 +143,9 @@ func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
 			found = true
 			assert.Equal(s.T(), 100.0, r.TaxableValue)
 			assert.Equal(s.T(), 18.0, r.TotalGST)
+			assert.Equal(s.T(), 9.0, r.CGST)
+			assert.Equal(s.T(), 9.0, r.SGST)
+			assert.Equal(s.T(), 0.0, r.IGST)
 			assert.Equal(s.T(), 118.0, r.Revenue)
 		}
 	}

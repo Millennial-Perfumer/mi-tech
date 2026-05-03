@@ -127,11 +127,11 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
-		query := `
+	query := `
 		WITH LineItemShares AS (
 			SELECT 
 				li.order_id,
-				COALESCE(li.hs_code, '33029019') as hs_code,
+				COALESCE(NULLIF(li.hs_code, ''), '33029019') as hs_code,
 				li.quantity,
 				(li.price * li.quantity - li.discount) as line_val,
 				SUM(li.price * li.quantity - li.discount) OVER (PARTITION BY li.order_id) as line_sum,
@@ -149,11 +149,13 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 			SUM(quantity) as qty_sold,
 			ROUND(SUM((line_val / line_sum) * order_taxable), 2) as taxable_value,
 			ROUND(SUM((line_val / line_sum) * order_tax), 2) as total_gst,
-			ROUND(SUM((line_val / line_sum) * total_price), 2) as revenue,
-			state
+			ROUND(SUM(CASE WHEN LOWER(state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (line_val / line_sum) * order_tax / 2 ELSE 0 END), 2) as cgst,
+			ROUND(SUM(CASE WHEN LOWER(state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (line_val / line_sum) * order_tax / 2 ELSE 0 END), 2) as sgst,
+			ROUND(SUM(CASE WHEN COALESCE(LOWER(state), '') NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (line_val / line_sum) * order_tax ELSE 0 END), 2) as igst,
+			ROUND(SUM((line_val / line_sum) * total_price), 2) as revenue
 		FROM LineItemShares
 		WHERE line_sum > 0
-		GROUP BY hs_code, state
+		GROUP BY hs_code
 		ORDER BY revenue DESC
 	`
 

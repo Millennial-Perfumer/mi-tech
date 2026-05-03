@@ -116,11 +116,13 @@ type StateSummaryResult struct {
 
 type HSNSummaryResult struct {
 	HSNCode      string
-	State        string
 	ProductCount int
 	QtySold      int
 	TaxableValue float64
 	TotalGST     float64
+	CGST         float64
+	SGST         float64
+	IGST         float64
 	Revenue      float64
 }
 
