@@ -211,11 +211,13 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
 
   const handleEdit = (r: ManufacturingRecord) => {
     setEditingRecordId(r.id);
+    const mDate = (r.manufacturing_date && !r.manufacturing_date.startsWith('0001')) 
+      ? r.manufacturing_date 
+      : new Date().toISOString();
+    
     setFormData({
       notes: r.notes || '',
-      manufacturing_date: (r.manufacturing_date && !r.manufacturing_date.startsWith('0001')) 
-        ? r.manufacturing_date 
-        : new Date().toISOString(),
+      manufacturing_date: mDate,
       additions: r.oils.map((o, index) => ({
         oil_id: o.oil_inventory_id.toString(),
         oil_grams: o.quantity_grams.toString(),
@@ -228,13 +230,30 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     setShowAddModal(true);
   };
 
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setEditingRecordId(null);
+    setFormData({ 
+      notes: '', 
+      manufacturing_date: new Date().toISOString(), 
+      additions: [{ 
+        oil_id: '', 
+        oil_grams: '', 
+        product_id: '', 
+        product_qty: '', 
+        deduct_inventory: true, 
+        add_stock: true 
+      }] 
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const body = {
       id: editingRecordId,
       notes: formData.notes,
-      manufacturing_date: formData.manufacturing_date || new Date().toISOString(),
+      manufacturing_date: formData.manufacturing_date ? new Date(formData.manufacturing_date).toISOString() : new Date().toISOString(),
       oils: formData.additions
         .filter(a => a.oil_id && a.oil_grams)
         .map(a => ({
@@ -324,7 +343,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
               records.map(r => (
                 <tr key={r.id} className="hover-row" style={{ borderBottom: '1px solid #f1f5f9' }}>
                    <td style={{ padding: '1.5rem 2rem' }}>
-                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{new Date(r.manufacturing_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{new Date(r.manufacturing_date).toLocaleDateString('en-GB')}</div>
                     <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>Batch #{r.id.toString().padStart(4, '0')}</div>
                    </td>
                    <td style={{ padding: '1.5rem 1rem' }}>
@@ -413,9 +432,18 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                         onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                         onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
                         onClick={async () => {
-                          if (window.confirm('Delete this record? Inventory will NOT be automatically reverted.')) {
-                            await fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?id=${r.id}`, { method: 'DELETE' });
-                            fetchData();
+                          if (window.confirm('Are you sure you want to delete this production record? Inventory levels across all platforms and oil stocks will be automatically reverted.')) {
+                            try {
+                              const resp = await fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?id=${r.id}`, { method: 'DELETE' });
+                              if (resp.ok) {
+                                toastSuccess('Record deleted and inventory reverted');
+                                fetchData();
+                              } else {
+                                toastError('Failed to delete record');
+                              }
+                            } catch (err) {
+                              toastError('Error during deletion');
+                            }
                           }
                         }}
                       >
@@ -431,7 +459,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
       </div>
 
       {showAddModal && (
-        <div className="modal-overlay" style={{ backdropFilter: 'blur(12px)', backgroundColor: 'rgba(15, 23, 42, 0.6)' }} onClick={() => setShowAddModal(false)}>
+        <div className="modal-overlay" style={{ backdropFilter: 'blur(12px)', backgroundColor: 'rgba(15, 23, 42, 0.6)', zIndex: 1000 }} onClick={handleCloseModal}>
           <div className="premium-modal" onClick={e => e.stopPropagation()} 
             style={{ 
               maxWidth: '960px', 
@@ -442,10 +470,11 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
               overflowY: 'auto',
               border: '1px solid rgba(255,255,255,0.2)',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              position: 'relative'
+              position: 'relative',
+              background: '#ffffff'
             }}>
             
-            <button onClick={() => setShowAddModal(false)} style={{ position: 'absolute', top: '2rem', right: '2rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <button onClick={handleCloseModal} style={{ position: 'absolute', top: '2rem', right: '2rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
@@ -703,18 +732,19 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.25rem', marginTop: '1rem' }}>
-                <button type="button" onClick={() => { setShowAddModal(false); setEditingRecordId(null); }} className="btn-secondary" style={{ padding: '0.8rem 2.5rem', borderRadius: '14px', fontWeight: 700 }}>Dismiss</button>
+                <button type="button" onClick={handleCloseModal} className="btn-secondary" style={{ padding: '0.8rem 2.5rem', borderRadius: '14px', fontWeight: 700 }}>Dismiss</button>
                 <button type="submit" className="btn-primary" 
                   style={{ 
                     padding: '0.8rem 2.5rem', 
                     borderRadius: '14px', 
                     fontWeight: 700, 
-                    background: 'linear-gradient(135deg, var(--accent-color), #34d399)',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
                     border: 'none',
                     boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.3)',
-                    color: 'white'
+                    color: 'white',
+                    cursor: 'pointer'
                   }}>
-                  {editingRecordId ? 'Update Record' : 'Execute Production Cycle'}
+                  {editingRecordId ? 'Update Production Record' : 'Execute Production Cycle'}
                 </button>
               </div>
             </form>

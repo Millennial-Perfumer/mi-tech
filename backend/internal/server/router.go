@@ -351,12 +351,15 @@ func RegisterRoutes(
 		switch r.Method {
 		case http.MethodPost:
 			adminProtected(poHandler.Create)(w, r)
+		case http.MethodPut:
+			adminProtected(poHandler.Update)(w, r)
 		case http.MethodDelete:
 			adminProtected(poHandler.Delete)(w, r)
 		default:
 			poHandler.List(w, r)
 		}
 	}))
+	mux.HandleFunc("/api/inventory/po/bulk", adminProtected(poHandler.BulkCreate))
 
 	// --- Manufacturing Routes ---
 	mux.HandleFunc("/api/inventory/manufacturing", protected(func(w http.ResponseWriter, r *http.Request) {

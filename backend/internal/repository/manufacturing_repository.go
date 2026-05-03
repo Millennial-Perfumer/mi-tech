@@ -19,12 +19,28 @@ func (r *pgManufacturingRepository) List() ([]entity.ManufacturingRecord, error)
 	return records, err
 }
 
+func (r *pgManufacturingRepository) GetByID(id int) (*entity.ManufacturingRecord, error) {
+	var record entity.ManufacturingRecord
+	err := r.db.Preload("Oils").Preload("Products").First(&record, id).Error
+	return &record, err
+}
+
 func (r *pgManufacturingRepository) Create(record *entity.ManufacturingRecord) error {
 	return r.db.Create(record).Error
 }
 
 func (r *pgManufacturingRepository) Update(record *entity.ManufacturingRecord) error {
-	return r.db.Save(record).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Clear existing associations to prevent duplication when IDs are not tracked in frontend
+		if err := tx.Where("manufacturing_record_id = ?", record.ID).Delete(&entity.ManufacturingOil{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("manufacturing_record_id = ?", record.ID).Delete(&entity.ManufacturingProduct{}).Error; err != nil {
+			return err
+		}
+		// Save with new associations
+		return tx.Save(record).Error
+	})
 }
 
 func (r *pgManufacturingRepository) Delete(id int) error {

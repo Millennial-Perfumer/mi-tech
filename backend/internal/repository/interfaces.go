@@ -213,13 +213,16 @@ type SupplierRepository interface {
 // PurchaseOrderRepository defines all data access for raw material purchases.
 type PurchaseOrderRepository interface {
 	List() ([]entity.PurchaseOrder, error)
+	GetByID(id int) (*entity.PurchaseOrder, error)
 	Create(po *entity.PurchaseOrder) error
+	Update(po *entity.PurchaseOrder) error
 	Delete(id int) error
 }
 
 // ManufacturingRepository defines all data access for production logs.
 type ManufacturingRepository interface {
 	List() ([]entity.ManufacturingRecord, error)
+	GetByID(id int) (*entity.ManufacturingRecord, error)
 	Create(record *entity.ManufacturingRecord) error
 	Update(record *entity.ManufacturingRecord) error
 	Delete(id int) error
