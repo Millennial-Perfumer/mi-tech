@@ -268,39 +268,60 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 }
 
 func (p *AmazonOrderPoller) processDeduction(ctx context.Context, order *entity.Order) {
-	if !p.orchestrator.IsSyncAllowed() {
+	slog.Info("AmazonOrderPoller: Deducting inventory", "orderID", order.ExternalOrderID, "itemCount", len(order.LineItems))
+
+	if len(order.LineItems) == 0 {
+		slog.Warn("AmazonOrderPoller: No line items found, skipping deduction", "orderID", order.ExternalOrderID)
 		return
 	}
-	slog.Info("AmazonOrderPoller: Order moved to Unshipped, deducting inventory", "orderID", order.ExternalOrderID)
+
+	allSuccess := true
 	for _, item := range order.LineItems {
-		if item.SKU == nil {
+		if item.SKU == nil || *item.SKU == "" {
+			slog.Warn("AmazonOrderPoller: Skipping item with nil/empty SKU", "orderID", order.ExternalOrderID)
+			allSuccess = false
 			continue
 		}
 
+		slog.Info("AmazonOrderPoller: Adjusting stock", "orderID", order.ExternalOrderID, "sku", *item.SKU, "qty", -item.Quantity)
 		err := p.orchestrator.AdjustStockByPlatformSKU(ctx, "amazon", *item.SKU, -item.Quantity, "sale", &order.ExternalOrderID)
 		if err != nil {
-			slog.Error("AmazonOrderPoller: Stock adjustment failed", "sku", *item.SKU, "error", err)
+			slog.Error("AmazonOrderPoller: Stock adjustment FAILED — will retry next poll", "orderID", order.ExternalOrderID, "sku", *item.SKU, "error", err)
+			allSuccess = false
 		}
 	}
-	order.InventoryDeducted = true
+
+	if allSuccess {
+		order.InventoryDeducted = true
+		slog.Info("AmazonOrderPoller: All items deducted successfully", "orderID", order.ExternalOrderID)
+	} else {
+		slog.Error("AmazonOrderPoller: Deduction incomplete — flag NOT set, will retry", "orderID", order.ExternalOrderID)
+	}
 }
 
 func (p *AmazonOrderPoller) processReversal(ctx context.Context, order *entity.Order) {
-	if !p.orchestrator.IsSyncAllowed() {
+	slog.Info("AmazonOrderPoller: Reversing inventory for cancelled order", "orderID", order.ExternalOrderID, "itemCount", len(order.LineItems))
+
+	if len(order.LineItems) == 0 {
 		return
 	}
-	slog.Info("AmazonOrderPoller: Order Canceled, returning inventory to stock", "orderID", order.ExternalOrderID)
+
+	allSuccess := true
 	for _, item := range order.LineItems {
-		if item.SKU == nil {
+		if item.SKU == nil || *item.SKU == "" {
 			continue
 		}
 
 		err := p.orchestrator.AdjustStockByPlatformSKU(ctx, "amazon", *item.SKU, item.Quantity, "cancellation", &order.ExternalOrderID)
 		if err != nil {
-			slog.Error("AmazonOrderPoller: Stock reversal failed", "sku", *item.SKU, "error", err)
+			slog.Error("AmazonOrderPoller: Stock reversal FAILED", "orderID", order.ExternalOrderID, "sku", *item.SKU, "error", err)
+			allSuccess = false
 		}
 	}
-	order.InventoryDeducted = false
+
+	if allSuccess {
+		order.InventoryDeducted = false
+	}
 }
 
 func (p *AmazonOrderPoller) parseAmazonDate(dateStr string) time.Time {
