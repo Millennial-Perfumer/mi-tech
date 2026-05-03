@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
+
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 type ManufacturingService struct {

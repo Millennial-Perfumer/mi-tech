@@ -9,6 +9,8 @@ import (
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 	"os"
+
+	"gorm.io/gorm"
 )
 
 // SyncOrchestrator takes the lead on cross-platform stock consistency.
