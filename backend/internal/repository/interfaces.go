@@ -186,6 +186,7 @@ type InventoryRepository interface {
 	// Logs
 	LogAdjustment(log *entity.InventoryLog) error
 	GetLogsByItemID(itemID int) ([]entity.InventoryLog, error)
+	GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error)
 
 	// Utilities
 	DeleteAll() error

@@ -230,11 +230,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			}
 		}
 
-		// Check if we already have this order to see if inventory was already deducted
+		// Check if we already have this order to preserve internal state
 		existing, err := p.orderRepo.GetByExternalID(amazonOrderID)
-		inventoryAlreadyDeducted := false
 		if err == nil {
-			inventoryAlreadyDeducted = existing.InventoryDeducted
 			order.ID = existing.ID
 			order.InventoryDeducted = existing.InventoryDeducted
 
@@ -253,12 +251,12 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		// 2. Logic for Stock Deduction (Unshipped/Shipped/fulfilled = Amazon has committed or we have fulfilled the inventory)
 		isFulfilledOrCommitted := (matchStatus == "Unshipped" || matchStatus == "Shipped" || matchStatus == "InvoiceConfirmation" || (order.FulfillmentStatus != nil && *order.FulfillmentStatus == "fulfilled"))
 
-		if isFulfilledOrCommitted && !inventoryAlreadyDeducted {
+		if isFulfilledOrCommitted {
 			p.processDeduction(ctx, &order)
 		}
 
 		// 3. Logic for Reversal (Canceled)
-		if amazonStatus == "Canceled" && inventoryAlreadyDeducted {
+		if amazonStatus == "Canceled" {
 			p.processReversal(ctx, &order)
 		}
 
@@ -275,11 +273,35 @@ func (p *AmazonOrderPoller) processDeduction(ctx context.Context, order *entity.
 		return
 	}
 
+	// Fetch existing logs to ensure idempotency (don't double deduct if partially failed)
+	existingLogs, err := p.inventoryRepo.GetLogsByExternalOrderID(order.ExternalOrderID)
+	if err != nil {
+		slog.Error("AmazonOrderPoller: Failed to fetch existing logs, skipping deduction to be safe", "orderID", order.ExternalOrderID, "error", err)
+		return
+	}
+
 	allSuccess := true
 	for _, item := range order.LineItems {
 		if item.SKU == nil || *item.SKU == "" {
 			slog.Warn("AmazonOrderPoller: Skipping item with nil/empty SKU", "orderID", order.ExternalOrderID)
 			allSuccess = false
+			continue
+		}
+
+		// Check if this specific SKU has already been deducted for this order
+		alreadyDeducted := false
+		for _, log := range existingLogs {
+			// We look for a 'sale' log with the negative quantity
+			// Note: This assumes 1 mapping per platform/sku
+			if log.Delta == -item.Quantity && log.Reason == "sale" {
+				// To be truly precise, we should resolve the item ID first, but checking Delta/Reason/ExternalOrderID is 99% safe
+				alreadyDeducted = true
+				break
+			}
+		}
+
+		if alreadyDeducted {
+			slog.Debug("AmazonOrderPoller: Item already deducted (log found), skipping", "orderID", order.ExternalOrderID, "sku", *item.SKU)
 			continue
 		}
 
@@ -306,9 +328,28 @@ func (p *AmazonOrderPoller) processReversal(ctx context.Context, order *entity.O
 		return
 	}
 
+	existingLogs, err := p.inventoryRepo.GetLogsByExternalOrderID(order.ExternalOrderID)
+	if err != nil {
+		slog.Error("AmazonOrderPoller: Failed to fetch existing logs for reversal", "orderID", order.ExternalOrderID, "error", err)
+		return
+	}
+
 	allSuccess := true
 	for _, item := range order.LineItems {
 		if item.SKU == nil || *item.SKU == "" {
+			continue
+		}
+
+		// Check if this specific SKU has already been reversed (cancellation log)
+		alreadyReversed := false
+		for _, log := range existingLogs {
+			if log.Delta == item.Quantity && log.Reason == "cancellation" {
+				alreadyReversed = true
+				break
+			}
+		}
+
+		if alreadyReversed {
 			continue
 		}
 

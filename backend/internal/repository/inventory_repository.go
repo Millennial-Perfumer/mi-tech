@@ -114,6 +114,12 @@ func (r *gormInventoryRepository) GetLogsByItemID(itemID int) ([]entity.Inventor
 	return logs, err
 }
 
+func (r *gormInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
+	var logs []entity.InventoryLog
+	err := r.db.Where("external_order_id = ?", externalOrderID).Order("created_at DESC").Find(&logs).Error
+	return logs, err
+}
+
 func (r *gormInventoryRepository) GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error) {
 	var item entity.InventoryItem
 	err := r.db.Preload("Mappings").

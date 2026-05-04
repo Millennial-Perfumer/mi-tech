@@ -88,87 +88,77 @@ func (s *ManufacturingService) Update(ctx context.Context, record *entity.Manufa
 			return fmt.Errorf("failed to find existing manufacturing record: %w", err)
 		}
 
-		// 2. Compute oil inventory deltas
-		oldOilMap := make(map[int]oilState)
+		// 2. Aggregate Oil Inventory State
+		// We sum up grams per oil ID to handle cases where the same oil appears multiple times
+		oldOils := make(map[int]float64)
 		for _, mo := range oldRecord.Oils {
-			oldOilMap[mo.OilInventoryID] = oilState{grams: mo.QuantityGrams, deduct: mo.DeductInventory}
-		}
-		for _, mo := range record.Oils {
-			old, exists := oldOilMap[mo.OilInventoryID]
-			if !exists {
-				if mo.DeductInventory {
-					if err := s.adjustOilStockWithTx(tx, mo.OilInventoryID, -mo.QuantityGrams); err != nil {
-						return err
-					}
-				}
-			} else {
-				oldDeducted := 0.0
-				if old.deduct {
-					oldDeducted = old.grams
-				}
-				newDeducted := 0.0
-				if mo.DeductInventory {
-					newDeducted = mo.QuantityGrams
-				}
-				delta := oldDeducted - newDeducted
-				if delta != 0 {
-					if err := s.adjustOilStockWithTx(tx, mo.OilInventoryID, delta); err != nil {
-						return err
-					}
-				}
-				delete(oldOilMap, mo.OilInventoryID)
+			if mo.DeductInventory {
+				oldOils[mo.OilInventoryID] += mo.QuantityGrams
 			}
 		}
-		for oilID, old := range oldOilMap {
-			if old.deduct {
-				if err := s.adjustOilStockWithTx(tx, oilID, old.grams); err != nil {
+
+		newOils := make(map[int]float64)
+		for _, mo := range record.Oils {
+			if mo.DeductInventory {
+				newOils[mo.OilInventoryID] += mo.QuantityGrams
+			}
+		}
+
+		// Apply Oil deltas
+		// Find all affected oil IDs (union of old and new)
+		allOilIDs := make(map[int]bool)
+		for id := range oldOils {
+			allOilIDs[id] = true
+		}
+		for id := range newOils {
+			allOilIDs[id] = true
+		}
+
+		for id := range allOilIDs {
+			oldGrams := oldOils[id]
+			newGrams := newOils[id]
+			delta := oldGrams - newGrams // Positive delta means we return stock, negative means we deduct more
+			if delta != 0 {
+				if err := s.adjustOilStockWithTx(tx, id, delta); err != nil {
 					return err
 				}
 			}
 		}
 
-		// 3. Compute product inventory deltas
-		oldProdMap := make(map[int]prodState)
+		// 3. Aggregate Product Inventory State
+		oldProds := make(map[int]int)
 		for _, mp := range oldRecord.Products {
-			oldProdMap[mp.InventoryItemID] = prodState{qty: mp.QuantityProduced, addStock: mp.AddStock}
-		}
-		for _, mp := range record.Products {
-			old, exists := oldProdMap[mp.InventoryItemID]
-			if !exists {
-				if mp.AddStock {
-					reason := fmt.Sprintf("Production Batch #%d", record.ID)
-					if err := s.orchestrator.WithTx(tx).AdjustStockInternal(ctx, mp.InventoryItemID, mp.QuantityProduced, "internal", reason, nil); err != nil {
-						return err
-					}
-					productsToSync = append(productsToSync, mp.InventoryItemID)
-				}
-			} else {
-				oldAdded := 0
-				if old.addStock {
-					oldAdded = old.qty
-				}
-				newAdded := 0
-				if mp.AddStock {
-					newAdded = mp.QuantityProduced
-				}
-				delta := newAdded - oldAdded
-				if delta != 0 {
-					reason := fmt.Sprintf("Production Batch #%d Adjustment", record.ID)
-					if err := s.orchestrator.WithTx(tx).AdjustStockInternal(ctx, mp.InventoryItemID, delta, "internal", reason, nil); err != nil {
-						return err
-					}
-					productsToSync = append(productsToSync, mp.InventoryItemID)
-				}
-				delete(oldProdMap, mp.InventoryItemID)
+			if mp.AddStock {
+				oldProds[mp.InventoryItemID] += mp.QuantityProduced
 			}
 		}
-		for itemID, old := range oldProdMap {
-			if old.addStock {
-				reason := fmt.Sprintf("Production Batch #%d Product Removed", record.ID)
-				if err := s.orchestrator.WithTx(tx).AdjustStockInternal(ctx, itemID, -old.qty, "internal", reason, nil); err != nil {
+
+		newProds := make(map[int]int)
+		for _, mp := range record.Products {
+			if mp.AddStock {
+				newProds[mp.InventoryItemID] += mp.QuantityProduced
+			}
+		}
+
+		// Apply Product deltas
+		allProdIDs := make(map[int]bool)
+		for id := range oldProds {
+			allProdIDs[id] = true
+		}
+		for id := range newProds {
+			allProdIDs[id] = true
+		}
+
+		for id := range allProdIDs {
+			oldQty := oldProds[id]
+			newQty := newProds[id]
+			delta := newQty - oldQty
+			if delta != 0 {
+				reason := fmt.Sprintf("Production Batch #%d Adjustment", record.ID)
+				if err := s.orchestrator.WithTx(tx).AdjustStockInternal(ctx, id, delta, "internal", reason, nil); err != nil {
 					return err
 				}
-				productsToSync = append(productsToSync, itemID)
+				productsToSync = append(productsToSync, id)
 			}
 		}
 
