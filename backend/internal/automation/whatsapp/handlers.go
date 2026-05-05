@@ -177,12 +177,22 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+
+		expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+
+		// Security: Use constant-time comparison to prevent timing attacks
+		if mode == "subscribe" && hmac.Equal([]byte(token), []byte(expectedToken)) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+
+		log.Printf("WhatsApp Webhook Verification Failed: mode=%s", mode)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
