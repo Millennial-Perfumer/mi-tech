@@ -209,3 +209,12 @@ func (m *MockInventoryRepository) GetItemByPlatformSKU(platform, externalSKU str
 	args := m.Called(platform, externalSKU)
 	return args.Get(0).(entity.InventoryItem), args.Error(1)
 }
+
+func (m *MockInventoryRepository) WithTx(tx *gorm.DB) repository.InventoryRepository {
+	return m
+}
+
+func (m *MockInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
+	args := m.Called(externalOrderID)
+	return args.Get(0).([]entity.InventoryLog), args.Error(1)
+}
