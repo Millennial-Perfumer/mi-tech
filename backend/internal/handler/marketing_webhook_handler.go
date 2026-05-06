@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/hmac"
 	"fmt"
 	"mi-tech/internal/config"
 	"mi-tech/internal/marketing"
@@ -43,7 +44,7 @@ func (h *MarketingWebhookHandler) verifyWebhook(w http.ResponseWriter, r *http.R
 
 	expectedToken := h.settings.GetMetaMarketingWebhookVerifyToken()
 
-	if mode == "subscribe" && token == expectedToken {
+	if mode == "subscribe" && hmac.Equal([]byte(token), []byte(expectedToken)) {
 		fmt.Printf("Meta Marketing Webhook verified successfully!\n")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(challenge))
