@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -163,6 +163,31 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
   useEffect(() => {
     localStorage.setItem('gstAutomationVisibleCols', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
+
+  /**
+   * Performance Optimization: Memoized filtering and sorting.
+   * This eliminates redundant filtering operations and prevents expensive
+   * O(N log N) sorting from running on every re-render.
+   * Expected Impact: Reduces computation overhead during search and filter interactions.
+   */
+  const filteredAndSortedTemplates = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+
+    return templates
+      .filter(t =>
+        t.template_name.toLowerCase().includes(searchLower) &&
+        selectedStatuses.includes((t.status || 'PENDING').toUpperCase()) &&
+        selectedCategories.includes(t.category.toUpperCase()) &&
+        selectedLanguages.includes(t.language)
+      )
+      .sort((a, b) => {
+        const order: Record<string, number> = { 'APPROVED': 1, 'PENDING': 2, 'REJECTED': 3, 'ARCHIVED': 4 };
+        const valA = order[(a.status || 'PENDING').toUpperCase()] || 5;
+        const valB = order[(b.status || 'PENDING').toUpperCase()] || 5;
+        if (valA !== valB) return valA - valB;
+        return a.template_name.localeCompare(b.template_name);
+      });
+  }, [templates, searchTerm, selectedStatuses, selectedCategories, selectedLanguages]);
 
   const fetchTemplates = async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -481,29 +506,10 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
           <tbody>
             {isLoading ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>Loading templates...</td></tr>
-            ) : templates.filter(t => 
-                t.template_name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-                selectedStatuses.includes((t.status || 'PENDING').toUpperCase()) &&
-                selectedCategories.includes(t.category.toUpperCase()) &&
-                selectedLanguages.includes(t.language)
-              ).length === 0 ? (
+            ) : filteredAndSortedTemplates.length === 0 ? (
               <tr><td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>No templates matching your criteria found.</td></tr>
             ) : (
-              templates
-                .filter(t => 
-                  t.template_name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-                  selectedStatuses.includes((t.status || 'PENDING').toUpperCase()) &&
-                  selectedCategories.includes(t.category.toUpperCase()) &&
-                  selectedLanguages.includes(t.language)
-                )
-                .sort((a, b) => {
-                  const order: Record<string, number> = { 'APPROVED': 1, 'PENDING': 2, 'REJECTED': 3, 'ARCHIVED': 4 };
-                  const valA = order[(a.status || 'PENDING').toUpperCase()] || 5;
-                  const valB = order[(b.status || 'PENDING').toUpperCase()] || 5;
-                  if (valA !== valB) return valA - valB;
-                  return a.template_name.localeCompare(b.template_name);
-                })
-                .map(t => (
+              filteredAndSortedTemplates.map(t => (
                   <tr key={t.id}>
                   {visibleColumns.includes('template_name') && <td><strong style={{ color: 'var(--text-primary)' }}>{t.template_name}</strong></td>}
                   {visibleColumns.includes('category') && <td><span className="badge" style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>{t.category}</span></td>}
