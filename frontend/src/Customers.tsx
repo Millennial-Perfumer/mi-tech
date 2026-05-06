@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -69,6 +69,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isImporting, setIsImporting] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
@@ -625,6 +626,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                         <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         <input 
                             type="text" 
+                            ref={searchInputRef}
                             placeholder="Search (e.g. city:Mumbai spent>1000 or first_name='')" 
                             aria-label="Search customers"
                             value={search}
@@ -633,7 +635,12 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                         />
                         {search && (
                             <button
-                                onClick={() => { setSearch(''); setPage(1); }}
+                                type="button"
+                                onClick={() => {
+                                    setSearch('');
+                                    setPage(1);
+                                    searchInputRef.current?.focus();
+                                }}
                                 aria-label="Clear search"
                                 title="Clear search"
                                 style={{
