@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface OilStock {
   id: number;
@@ -57,6 +58,7 @@ const SupplierAvatar: React.FC<{ name: string }> = ({ name }) => {
 
 export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [oils, setOils] = useState<OilStock[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -64,6 +66,7 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -132,16 +135,12 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this oil stock record?')) return;
+    const confirmed = await confirm({ title: 'Delete Oil Stock', message: 'Delete this record? This action cannot be undone.', confirmLabel: 'Delete', variant: 'danger' });
+    if (!confirmed) return;
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory/oil?id=${id}`, { method: 'DELETE' });
-      if (resp.ok) {
-        toastSuccess('Oil record deleted');
-        fetchData();
-      }
-    } catch (err) {
-      toastError('Error deleting record');
-    }
+      if (resp.ok) { toastSuccess('Oil record deleted'); fetchData(); }
+    } catch (err) { toastError('Error deleting record'); }
   };
 
   const toggleSort = (key: any) => {
@@ -172,7 +171,8 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
 
   const handleBulkSupplierUpdate = async (supplierId: string) => {
     if (!supplierId || selectedIds.size === 0) return;
-    if (!window.confirm(`Update supplier for ${selectedIds.size} selected oils?`)) return;
+    const confirmed = await confirm({ title: 'Bulk Update', message: `Update supplier for ${selectedIds.size} selected oils?` });
+    if (!confirmed) return;
 
     setIsLoading(true);
     try {
@@ -251,15 +251,28 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
         </button>
       </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '1.5rem', position: 'relative', maxWidth: '400px' }}>
         <input 
+          ref={searchInputRef}
           type="text" 
           placeholder="Search by oil name, product, or supplier..." 
           className="search-input" 
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px' }}
+          style={{ width: '100%', paddingRight: searchQuery ? '2.5rem' : '1rem' }}
         />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+            style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            aria-label="Clear search"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="table-container glass-card-premium">
@@ -461,10 +474,16 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
           <button 
             className="toolbar-btn" 
             style={{ color: 'var(--status-danger)' }}
-            onClick={() => {
-              if (window.confirm(`Delete ${selectedIds.size} selected oils?`)) {
-                Promise.all(Array.from(selectedIds).map(id => handleDelete(id))).then(() => setSelectedIds(new Set()));
-              }
+            onClick={async () => {
+              const confirmed = await confirm({ title: 'Bulk Delete', message: `Delete ${selectedIds.size} records?`, confirmLabel: 'Delete', variant: 'danger' });
+              if (!confirmed) return;
+              try {
+                const deletions = Array.from(selectedIds).map(id => fetchWithAuth(`${API_BASE}/api/inventory/oil?id=${id}`, { method: 'DELETE' }));
+                await Promise.all(deletions);
+                toastSuccess('Bulk deletion complete');
+                setSelectedIds(new Set());
+                fetchData();
+              } catch (err) { toastError('Error during bulk deletion'); }
             }}
           >
             Bulk Delete
