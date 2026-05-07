@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"io"
 	"io/ioutil"
 	"log"
@@ -18,6 +19,10 @@ import (
 type Client struct {
 	settings   *config.SettingsProvider
 	httpClient *http.Client
+
+	// Performance: Cache the discovered location ID to avoid redundant GraphQL calls
+	locationCacheMu      sync.RWMutex
+	discoveredLocationID string
 }
 
 func NewClient(settings *config.SettingsProvider) *Client {
@@ -698,6 +703,15 @@ func (c *Client) GetLocationID() string {
 
 // DiscoverPrimaryLocationID fetches all locations and finds the best match.
 func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) {
+	// Performance: Return cached location ID if available
+	c.locationCacheMu.RLock()
+	if c.discoveredLocationID != "" {
+		id := c.discoveredLocationID
+		c.locationCacheMu.RUnlock()
+		return id, nil
+	}
+	c.locationCacheMu.RUnlock()
+
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -755,25 +769,39 @@ func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) 
 		return "", fmt.Errorf("no locations found in shopify store")
 	}
 
+	var finalID string
 	// 1. Priority Match: "Millennial Perfumer - WH"
 	for _, edge := range edges {
 		if strings.TrimSpace(strings.ToLower(edge.Node.Name)) == "millennial perfumer - wh" {
 			log.Printf("Shopify Discovery: Matched target location by name: %s", edge.Node.Name)
-			return edge.Node.ID, nil
+			finalID = edge.Node.ID
+			break
 		}
 	}
 
 	// 2. Secondary Match: isPrimary
-	for _, edge := range edges {
-		if edge.Node.IsPrimary {
-			log.Printf("Shopify Discovery: Using primary location: %s", edge.Node.Name)
-			return edge.Node.ID, nil
+	if finalID == "" {
+		for _, edge := range edges {
+			if edge.Node.IsPrimary {
+				log.Printf("Shopify Discovery: Using primary location: %s", edge.Node.Name)
+				finalID = edge.Node.ID
+				break
+			}
 		}
 	}
 
 	// 3. Last Resort: First one
-	log.Printf("Shopify Discovery: Using first available location: %s", edges[0].Node.Name)
-	return edges[0].Node.ID, nil
+	if finalID == "" {
+		log.Printf("Shopify Discovery: Using first available location: %s", edges[0].Node.Name)
+		finalID = edges[0].Node.ID
+	}
+
+	// Performance: Update cache
+	c.locationCacheMu.Lock()
+	c.discoveredLocationID = finalID
+	c.locationCacheMu.Unlock()
+
+	return finalID, nil
 }
 
 // AdjustInventoryLevel updates the stock level for a specific inventory item at a specific location.
