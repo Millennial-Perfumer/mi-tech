@@ -56,6 +56,28 @@ func TestCORSMiddleware(t *testing.T) {
 		},
 	}
 
+	t.Run("Wildcard Origin - No Credentials", func(t *testing.T) {
+		os.Setenv("ALLOWED_ORIGINS", "*")
+		defer os.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://mi-tech.millennialperfumer.in,https://feedback-form.millennialperfumer.in")
+
+		handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest("GET", "/api/health", nil)
+		req.Header.Set("Origin", "https://evil.com")
+		res := httptest.NewRecorder()
+
+		handler.ServeHTTP(res, req)
+
+		if res.Header().Get("Access-Control-Allow-Origin") != "*" {
+			t.Errorf("Expected Origin header '*', got %q", res.Header().Get("Access-Control-Allow-Origin"))
+		}
+		if res.Header().Get("Access-Control-Allow-Credentials") != "" {
+			t.Errorf("Expected Access-Control-Allow-Credentials to be empty for wildcard origin")
+		}
+	})
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {

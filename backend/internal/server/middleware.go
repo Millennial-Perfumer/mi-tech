@@ -27,41 +27,47 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
 		rawOrigin := r.Header.Get("Origin")
 		origin := normalizeOrigin(rawOrigin)
-		isAllowed := false
 
 		// Always set Vary: Origin to handle caching behind proxies/CDNs
 		w.Header().Add("Vary", "Origin")
 
+		allowOrigin := ""
+		allowCredentials := false
+
 		if rawOrigin == "" {
-			// If no origin, we can consider it a direct request or same-origin
-			isAllowed = true
+			// Same-origin or direct request; no CORS headers needed
 		} else if allowedOriginsEnv != "" {
 			allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 			for _, allowed := range allowedOrigins {
 				trimmed := normalizeOrigin(allowed)
-				if trimmed == "*" || origin == trimmed {
-					isAllowed = true
+				if trimmed == "*" {
+					allowOrigin = "*"
+				} else if origin == trimmed {
+					allowOrigin = rawOrigin
+					allowCredentials = true
 					break
 				}
 			}
 		}
 
-		if isAllowed {
-			if rawOrigin != "" {
-				// Use the actual origin for the allow header to support multiple origins with credentials
-				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
+		if allowOrigin != "" {
+			// Use specific origin and allow credentials only if it matched an explicit entry in the allowlist.
+			// Wildcard '*' match will use '*' and NOT allow credentials.
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+			if allowCredentials {
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
-				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 			}
-		} else {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+		} else if rawOrigin != "" {
 			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) Method=[%s] Path=[%s] not in ALLOWED_ORIGINS=[%s]", 
 				rawOrigin, origin, r.Method, r.URL.Path, allowedOriginsEnv)
 		}
 
 		if r.Method == http.MethodOptions {
-			if isAllowed {
+			// Allow if it's not a CORS request or if the origin is allowed
+			if allowOrigin != "" || rawOrigin == "" {
 				w.WriteHeader(http.StatusOK)
 			} else {
 				w.WriteHeader(http.StatusForbidden)
