@@ -21,3 +21,7 @@
 ## 2026-04-30 - [Regex Pre-compilation and static sort allowlisting]
 **Learning:** Avoid repeatedly calling `regexp.MustCompile` or allocating the same map within high-frequency functions (like request handlers or search parsers). Hoisting these to package-level variables reduces CPU cycles and memory allocations per request.
 **Action:** Always check for repeated regex compilation or constant map allocations in hot paths and move them to package-level variables.
+
+## 2026-05-20 - [Redundant Calculations in Variable Resolution]
+**Learning:** In template-based message systems, resolving multiple variables (like order total, subtotal, tax) can lead to redundant (N)$ calculations if each resolution independently triggers an iteration over line items. Hoisting these calculations to the template execution level and passing them as context allows for (1)$ lookup per variable after a single (N)$ preparation step.
+**Action:** Always check if multiple variables in a template depend on the same expensive computation (like order totals) and pass pre-calculated results to the resolution logic.

@@ -17,11 +17,11 @@ func TestResolveVariable(t *testing.T) {
 	}
 
 	service := &WebhookMappingService{}
-	assert.Equal(t, "Alice", service.resolveVariable("customer_name", order))
-	assert.Equal(t, "1001", service.resolveVariable("order_id", order))
-	assert.Equal(t, "500.50", service.resolveVariable("order_total", order))
-	assert.Equal(t, "Mumbai", service.resolveVariable("customer_city", order))
-	assert.Equal(t, "", service.resolveVariable("unknown", order))
+	assert.Equal(t, "Alice", service.resolveVariable("customer_name", order, nil))
+	assert.Equal(t, "1001", service.resolveVariable("order_id", order, nil))
+	assert.Equal(t, "500.50", service.resolveVariable("order_total", order, nil))
+	assert.Equal(t, "Mumbai", service.resolveVariable("customer_city", order, nil))
+	assert.Equal(t, "", service.resolveVariable("unknown", order, nil))
 }
 
 func TestSanitizePhoneNumber(t *testing.T) {

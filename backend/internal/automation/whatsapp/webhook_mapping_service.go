@@ -116,22 +116,24 @@ func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int
 	return s.executeWithTemplate(storeID, template, order, "manual")
 }
 
-func (s *WebhookMappingService) resolveVariable(field string, order entity.Order) string {
-	// If the field is a pricing variable, ensure we have line items and use the centralized calculation logic
-	switch field {
-	case "order_total", "order_grand_total", "order_subtotal", "order_discount", "order_tax":
-		if len(order.LineItems) > 0 {
-			totals := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
-			switch field {
-			case "order_total", "order_grand_total":
-				return fmt.Sprintf("%.2f", totals.GrandTotal)
-			case "order_subtotal":
-				return fmt.Sprintf("%.2f", totals.GrossSubtotal)
-			case "order_discount":
-				return fmt.Sprintf("%.2f", totals.OrderDiscount)
-			case "order_tax":
-				return fmt.Sprintf("%.2f", totals.TotalTax)
-			}
+func (s *WebhookMappingService) resolveVariable(field string, order entity.Order, totals *service.InvoiceTotals) string {
+	// If the field is a pricing variable, use the pre-calculated totals if available
+	// Performance: Hoisted from callers to avoid redundant O(N) calculations per variable
+	if totals == nil && len(order.LineItems) > 0 {
+		t := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
+		totals = &t
+	}
+
+	if totals != nil {
+		switch field {
+		case "order_total", "order_grand_total":
+			return fmt.Sprintf("%.2f", totals.GrandTotal)
+		case "order_subtotal":
+			return fmt.Sprintf("%.2f", totals.GrossSubtotal)
+		case "order_discount":
+			return fmt.Sprintf("%.2f", totals.OrderDiscount)
+		case "order_tax":
+			return fmt.Sprintf("%.2f", totals.TotalTax)
 		}
 	}
 
@@ -196,6 +198,14 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 			order.LineItems = items
 		}
 	}
+
+	// Performance: Pre-calculate invoice totals once to avoid redundant O(N) calculations in resolveVariable
+	var totals *service.InvoiceTotals
+	if len(order.LineItems) > 0 {
+		t := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
+		totals = &t
+	}
+
 	// Deduplication Check (only for automated topics)
 	if topic != "manual" {
 		// For most automated cases (creation, cancellation, delivery), keep it strictly once per order.
@@ -237,14 +247,14 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		for i := 1; i <= requiredCount; i++ {
 			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
 			fieldToMap := mappings[mapKey]
-			val := s.resolveVariable(fieldToMap, order)
+			val := s.resolveVariable(fieldToMap, order, totals)
 			
 			// Fallback logic for legacy templates that were not mapped yet
 			if val == "" {
 				if i == 1 {
-					val = s.resolveVariable("customer_name", order)
+					val = s.resolveVariable("customer_name", order, totals)
 				} else if i == 2 {
-					val = s.resolveVariable("order_id", order)
+					val = s.resolveVariable("order_id", order, totals)
 				}
 			}
 			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": val})
@@ -266,10 +276,10 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
 						fieldToMap := mappings[mapKey]
 						
-						val := s.resolveVariable(fieldToMap, order)
+						val := s.resolveVariable(fieldToMap, order, totals)
 						if val == "" {
 							// Legacy fallback for embedded tracking loop
-							val = s.resolveVariable("internal_order_id", order)
+							val = s.resolveVariable("internal_order_id", order, totals)
 						}
 
 						components = append(components, map[string]interface{}{
@@ -309,7 +319,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 				var headerParams []map[string]string
 				for i := 1; i <= reqCount; i++ {
 					mapKey := fmt.Sprintf("header_text_0_{{%d}}", i)
-					val := s.resolveVariable(mappings[mapKey], order)
+					val := s.resolveVariable(mappings[mapKey], order, totals)
 					headerParams = append(headerParams, map[string]string{"type": "text", "text": val})
 				}
 				components = append(components, map[string]interface{}{
