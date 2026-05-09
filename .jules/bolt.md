@@ -21,3 +21,7 @@
 ## 2026-04-30 - [Regex Pre-compilation and static sort allowlisting]
 **Learning:** Avoid repeatedly calling `regexp.MustCompile` or allocating the same map within high-frequency functions (like request handlers or search parsers). Hoisting these to package-level variables reduces CPU cycles and memory allocations per request.
 **Action:** Always check for repeated regex compilation or constant map allocations in hot paths and move them to package-level variables.
+
+## 2026-05-01 - [Redundant Telemetry and Efficient Label Conversion]
+**Learning:** Redundant operations in global middlewares (like double-incrementing a Prometheus counter) significantly impact the request hot path. Furthermore, using `fmt.Sprintf` for simple integer-to-string conversion in these paths is less efficient than `strconv.Itoa`, and incorrect type conversions (like `string(rune(status))`) can lead to invalid label values.
+**Action:** Ensure global middlewares are lean and only perform necessary telemetry. Use `strconv.Itoa` for efficient status code labeling in high-frequency monitoring paths.

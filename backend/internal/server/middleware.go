@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"os"
 	"strings"
 
@@ -172,14 +172,7 @@ func MetricsMiddleware(next http.Handler) http.Handler {
 		
 		// Clean up path for cardinality (e.g. /api/orders/1 -> /api/orders/:id if possible)
 		// For now simple path tracking
-		telemetry.HttpRequestsTotal.With(prometheus.Labels{
-			"path":   path,
-			"method": r.Method,
-			"status": string(rune(rw.status)), // This is slightly wrong, should be string representation
-		}).Inc()
-		
-		// Better status as string
-		statusStr := fmt.Sprintf("%d", rw.status)
+		statusStr := strconv.Itoa(rw.status)
 		telemetry.HttpRequestsTotal.With(prometheus.Labels{
 			"path":   path,
 			"method": r.Method,
