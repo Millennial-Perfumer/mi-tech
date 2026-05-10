@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"mi-tech/internal/config"
@@ -18,6 +19,11 @@ import (
 type Client struct {
 	settings   *config.SettingsProvider
 	httpClient *http.Client
+
+	// discoveredLocationID caches the primary location ID to avoid redundant GraphQL calls.
+	// protected by mu RWMutex for thread safety.
+	mu                   sync.RWMutex
+	discoveredLocationID string
 }
 
 func NewClient(settings *config.SettingsProvider) *Client {
@@ -697,7 +703,16 @@ func (c *Client) GetLocationID() string {
 }
 
 // DiscoverPrimaryLocationID fetches all locations and finds the best match.
+// It caches the result in-memory to prevent redundant API calls during batch syncs.
 func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) {
+	c.mu.RLock()
+	if c.discoveredLocationID != "" {
+		cached := c.discoveredLocationID
+		c.mu.RUnlock()
+		return cached, nil
+	}
+	c.mu.RUnlock()
+
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -759,6 +774,11 @@ func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) 
 	for _, edge := range edges {
 		if strings.TrimSpace(strings.ToLower(edge.Node.Name)) == "millennial perfumer - wh" {
 			log.Printf("Shopify Discovery: Matched target location by name: %s", edge.Node.Name)
+
+			c.mu.Lock()
+			c.discoveredLocationID = edge.Node.ID
+			c.mu.Unlock()
+
 			return edge.Node.ID, nil
 		}
 	}
@@ -767,12 +787,22 @@ func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) 
 	for _, edge := range edges {
 		if edge.Node.IsPrimary {
 			log.Printf("Shopify Discovery: Using primary location: %s", edge.Node.Name)
+
+			c.mu.Lock()
+			c.discoveredLocationID = edge.Node.ID
+			c.mu.Unlock()
+
 			return edge.Node.ID, nil
 		}
 	}
 
 	// 3. Last Resort: First one
 	log.Printf("Shopify Discovery: Using first available location: %s", edges[0].Node.Name)
+
+	c.mu.Lock()
+	c.discoveredLocationID = edges[0].Node.ID
+	c.mu.Unlock()
+
 	return edges[0].Node.ID, nil
 }
 

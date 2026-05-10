@@ -39,6 +39,12 @@ func (r *gormInventoryRepository) GetItemByID(id int) (entity.InventoryItem, err
 	return item, err
 }
 
+func (r *gormInventoryRepository) GetItemsByIDs(ids []int) ([]entity.InventoryItem, error) {
+	var items []entity.InventoryItem
+	err := r.db.Preload("Mappings").Where("id IN ?", ids).Find(&items).Error
+	return items, err
+}
+
 func (r *gormInventoryRepository) CreateItem(item *entity.InventoryItem) error {
 	return r.db.Create(item).Error
 }

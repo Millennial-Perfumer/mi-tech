@@ -173,6 +173,7 @@ type InventoryRepository interface {
 	// Items
 	ListItems(search string) ([]entity.InventoryItem, error)
 	GetItemByID(id int) (entity.InventoryItem, error)
+	GetItemsByIDs(ids []int) ([]entity.InventoryItem, error)
 	CreateItem(item *entity.InventoryItem) error
 	UpdateItem(item *entity.InventoryItem) error
 	AdjustStock(id int, delta int) error

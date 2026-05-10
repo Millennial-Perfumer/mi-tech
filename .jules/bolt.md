@@ -21,3 +21,7 @@
 ## 2026-04-30 - [Regex Pre-compilation and static sort allowlisting]
 **Learning:** Avoid repeatedly calling `regexp.MustCompile` or allocating the same map within high-frequency functions (like request handlers or search parsers). Hoisting these to package-level variables reduces CPU cycles and memory allocations per request.
 **Action:** Always check for repeated regex compilation or constant map allocations in hot paths and move them to package-level variables.
+
+## 2026-05-15 - [Batch Sync and Location ID Caching]
+**Learning:** Sequential external API calls (Shopify GraphQL) and database lookups for related entities (Inventory Items) during high-frequency sync operations create significant O(N) overhead. Combining these into O(1) batch queries and using thread-safe in-memory caching for semi-static configuration (like Location ID) drastically reduces latency and network saturation.
+**Action:** Always prefer batching lookups and caching singleton remote configurations during bulk data processing.
