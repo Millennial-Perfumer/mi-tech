@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface ManufacturingProduct {
   inventory_item_id: number;
@@ -131,6 +132,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
 
 export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [records, setRecords] = useState<ManufacturingRecord[]>([]);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -416,6 +418,8 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                         onMouseOver={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
                         onMouseOut={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)'}
                         onClick={() => handleEdit(r)}
+                        aria-label="Edit production record"
+                        title="Edit production record"
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                       </button>
@@ -434,8 +438,16 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                         }}
                         onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                         onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                        aria-label="Delete production record"
+                        title="Delete production record"
                         onClick={async () => {
-                          if (window.confirm('Are you sure you want to delete this production record? Inventory levels across all platforms and oil stocks will be automatically reverted.')) {
+                          const confirmed = await confirm({
+                            title: 'Delete Production Record',
+                            message: 'Are you sure you want to delete this production record? Inventory levels across all platforms and oil stocks will be automatically reverted.',
+                            variant: 'danger',
+                            confirmLabel: 'Delete'
+                          });
+                          if (confirmed) {
                             try {
                               const resp = await fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?id=${r.id}`, { method: 'DELETE' });
                               if (resp.ok) {
@@ -477,7 +489,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
               background: '#ffffff'
             }}>
             
-            <button onClick={handleCloseModal} style={{ position: 'absolute', top: '2rem', right: '2rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%' }}>
+            <button type="button" aria-label="Close modal" onClick={handleCloseModal} style={{ position: 'absolute', top: '2rem', right: '2rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
@@ -586,6 +598,8 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                             }}
                             onMouseOver={e => e.currentTarget.style.color = '#ef4444'}
                             onMouseOut={e => e.currentTarget.style.color = '#cbd5e1'}
+                            aria-label="Remove item"
+                            title="Remove item"
                           >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           </button>
