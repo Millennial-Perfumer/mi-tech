@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -175,14 +176,29 @@ func (h *AutomationHandler) SyncTemplateStatus(w http.ResponseWriter, r *http.Re
 // @Success 200 {string} string "OK"
 // @Router /automation/whatsapp/webhook [post]
 func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Request) {
-	// 1. Hub Challenge for verification
+	// 1. Hub Challenge for verification (GET)
 	if r.Method == http.MethodGet {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+
+		verifyToken := h.settings.GetWhatsAppWebhookVerifyToken()
+		if verifyToken == "" {
+			log.Printf("WhatsApp Webhook Warning: No whatsapp_webhook_verify_token configured.")
+		}
+
+		// Security: Validate mode and token using constant-time comparison.
+		// If verifyToken is not set, we allow it for backward compatibility but log a warning.
+		if mode == "subscribe" && (verifyToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(verifyToken)) == 1) {
+			log.Printf("WhatsApp Webhook: Verified challenge successfully")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+
+		log.Printf("WhatsApp Webhook Error: Verification failed. Mode=%s, Token Mismatch", mode)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
