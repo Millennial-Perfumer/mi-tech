@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 import './App.css';
@@ -39,6 +39,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('New Issue');
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium' });
   const [isSaving, setIsSaving] = useState(false);
@@ -146,6 +147,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input 
             type="text" 
+            ref={searchInputRef}
             placeholder="Search by ID or customer issue..." 
             aria-label="Search tickets"
             value={searchQuery}
@@ -154,7 +156,11 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                searchInputRef.current?.focus();
+              }}
               aria-label="Clear search"
               title="Clear search"
               className="clear-search-btn"
