@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface OilStock {
   id: number;
@@ -57,6 +58,7 @@ const SupplierAvatar: React.FC<{ name: string }> = ({ name }) => {
 
 export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [oils, setOils] = useState<OilStock[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -131,8 +133,17 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this oil stock record?')) return;
+  const handleDelete = async (id: number, skipConfirm: boolean = false) => {
+    if (!skipConfirm) {
+      const confirmed = await confirm({
+        title: 'Delete Oil Stock',
+        message: 'Are you sure you want to delete this oil stock record? This action cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        variant: 'danger'
+      });
+      if (!confirmed) return;
+    }
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory/oil?id=${id}`, { method: 'DELETE' });
       if (resp.ok) {
@@ -172,7 +183,13 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
 
   const handleBulkSupplierUpdate = async (supplierId: string) => {
     if (!supplierId || selectedIds.size === 0) return;
-    if (!window.confirm(`Update supplier for ${selectedIds.size} selected oils?`)) return;
+    const confirmed = await confirm({
+      title: 'Bulk Update Supplier',
+      message: `Are you sure you want to update the supplier for ${selectedIds.size} selected oils?`,
+      confirmLabel: 'Update',
+      cancelLabel: 'Cancel'
+    });
+    if (!confirmed) return;
 
     setIsLoading(true);
     try {
@@ -461,9 +478,16 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
           <button 
             className="toolbar-btn" 
             style={{ color: 'var(--status-danger)' }}
-            onClick={() => {
-              if (window.confirm(`Delete ${selectedIds.size} selected oils?`)) {
-                Promise.all(Array.from(selectedIds).map(id => handleDelete(id))).then(() => setSelectedIds(new Set()));
+            onClick={async () => {
+              const confirmed = await confirm({
+                title: 'Bulk Delete Oils',
+                message: `Are you sure you want to delete ${selectedIds.size} selected oils? This action cannot be undone.`,
+                confirmLabel: 'Delete All',
+                cancelLabel: 'Cancel',
+                variant: 'danger'
+              });
+              if (confirmed) {
+                Promise.all(Array.from(selectedIds).map(id => handleDelete(id, true))).then(() => setSelectedIds(new Set()));
               }
             }}
           >

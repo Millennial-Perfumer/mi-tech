@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface PurchaseOrder {
   id: number;
@@ -26,6 +27,7 @@ interface Supplier {
 
 export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -114,7 +116,14 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this record? This will revert oil stock.')) return;
+    const confirmed = await confirm({
+      title: 'Delete Purchase Order',
+      message: 'Are you sure you want to delete this record? This will revert oil stock. This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory/po?id=${id}`, { method: 'DELETE' });
       if (resp.ok) {

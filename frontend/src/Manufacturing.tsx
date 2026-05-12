@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface ManufacturingProduct {
   inventory_item_id: number;
@@ -131,6 +132,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
 
 export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [records, setRecords] = useState<ManufacturingRecord[]>([]);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -435,7 +437,14 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                         onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                         onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
                         onClick={async () => {
-                          if (window.confirm('Are you sure you want to delete this production record? Inventory levels across all platforms and oil stocks will be automatically reverted.')) {
+                          const confirmed = await confirm({
+                            title: 'Delete Production Record',
+                            message: 'Are you sure you want to delete this production record? Inventory levels across all platforms and oil stocks will be automatically reverted. This action cannot be undone.',
+                            confirmLabel: 'Delete Record',
+                            cancelLabel: 'Cancel',
+                            variant: 'danger'
+                          });
+                          if (confirmed) {
                             try {
                               const resp = await fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?id=${r.id}`, { method: 'DELETE' });
                               if (resp.ok) {
