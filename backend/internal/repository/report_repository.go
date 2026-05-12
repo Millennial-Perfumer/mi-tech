@@ -23,14 +23,14 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string) (
 
 	query := `
 		SELECT 
-			COALESCE(SUM(total_price) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as total_revenue,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as cgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as sgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as igst,
+			COALESCE(SUM(total_price) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as total_revenue,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as cgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as sgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst,
 			COUNT(id) as total_orders,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled_orders,
+			COUNT(id) FILTER (WHERE LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')) as cancelled_orders,
 			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled') as fulfilled_orders,
-			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND (status IS NULL OR LOWER(status) != 'cancelled')) as unfulfilled_orders
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))) as unfulfilled_orders
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ?
 	`
@@ -72,16 +72,16 @@ func (r *gormReportRepository) GetGSTSummary(startDate, endDate string) (GSTSumm
 	query := `
 		SELECT 
 			COUNT(id),
-			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled'),
+			COUNT(id) FILTER (WHERE LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')),
 			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) = 'fulfilled'),
-			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND (status IS NULL OR LOWER(status) != 'cancelled')),
+			COUNT(id) FILTER (WHERE LOWER(fulfillment_status) != 'fulfilled' AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))),
 			COUNT(id) FILTER (WHERE LOWER(financial_status) = 'paid'),
-			COALESCE(SUM(total_price) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as revenue,
-			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as taxable,
-			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as tax,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as cgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as sgst,
-			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE status IS NULL OR LOWER(status) != 'cancelled'), 0) as igst
+			COALESCE(SUM(total_price) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as revenue,
+			COALESCE(SUM(ROUND(total_price / 1.18, 2)) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as taxable,
+			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as tax,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as cgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as sgst,
+			COALESCE(SUM(CASE WHEN LOWER(customer_state) NOT IN ('tamil nadu', 'tn', 'tamilnadu') THEN (total_price - ROUND(total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ?
 	`
@@ -106,14 +106,14 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 
 	query := `
 		SELECT 
-			COALESCE(customer_state, 'N/A') as state,
+			INITCAP(COALESCE(customer_state, 'N/A')) as state,
 			COUNT(id) as orders,
 			COALESCE(SUM(ROUND(total_price / 1.18, 2)), 0) as taxable_value,
 			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as total_gst,
 			COALESCE(SUM(total_price), 0) as revenue
 		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR LOWER(status) != 'cancelled')
-		GROUP BY customer_state
+		WHERE created_at >= ? AND created_at <= ? AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
+		GROUP BY INITCAP(COALESCE(customer_state, 'N/A'))
 		ORDER BY revenue DESC
 	`
 
@@ -138,10 +138,10 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 				o.total_price,
 				ROUND(o.total_price / 1.18, 2) as order_taxable,
 				(o.total_price - ROUND(o.total_price / 1.18, 2)) as order_tax,
-				COALESCE(o.customer_state, 'N/A') as state
+				INITCAP(COALESCE(o.customer_state, 'N/A')) as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
-			WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR LOWER(o.status) != 'cancelled')
+			WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		)
 		SELECT 
 			hs_code as hsn_code,
@@ -172,7 +172,7 @@ func (r *gormReportRepository) GetDocumentsIssued(startDate, endDate string) (mi
 			MIN(NULLIF(regexp_replace(order_number, '[^0-9]', '', 'g'), '')::bigint) as min_val,
 			MAX(NULLIF(regexp_replace(order_number, '[^0-9]', '', 'g'), '')::bigint) as max_val,
 			COUNT(id) as total,
-			COUNT(id) FILTER (WHERE LOWER(status) = 'cancelled') as cancelled
+			COUNT(id) FILTER (WHERE LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')) as cancelled
 		FROM orders
 		WHERE created_at >= ? AND created_at <= ?
 	`
