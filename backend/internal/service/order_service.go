@@ -133,9 +133,9 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 		return err
 	}
 
-	// Trigger global sync for all affected inventory items
-	for _, id := range affectedIDs {
-		_ = s.orchestrator.GlobalSync(context.Background(), id, order.SourceID)
+	// Trigger global sync for all affected inventory items in batch
+	if s.orchestrator != nil && len(affectedIDs) > 0 {
+		_ = s.orchestrator.GlobalSyncBatch(context.Background(), affectedIDs, order.SourceID)
 	}
 	
 	if s.customerService != nil {

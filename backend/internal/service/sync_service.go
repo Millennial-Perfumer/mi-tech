@@ -79,11 +79,9 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 		return 0, fmt.Errorf("failed to upsert batch: %w", err)
 	}
 
-	// Trigger global sync for all affected inventory items
-	if s.orchestrator != nil {
-		for _, id := range affectedIDs {
-			_ = s.orchestrator.GlobalSync(context.Background(), id, "shopify")
-		}
+	// Trigger global sync for all affected inventory items in batch
+	if s.orchestrator != nil && len(affectedIDs) > 0 {
+		_ = s.orchestrator.GlobalSyncBatch(context.Background(), affectedIDs, "shopify")
 	}
 
 	// Update customer metadata in batch to avoid N+1 queries

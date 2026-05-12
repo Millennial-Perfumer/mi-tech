@@ -21,3 +21,7 @@
 ## 2026-04-30 - [Regex Pre-compilation and static sort allowlisting]
 **Learning:** Avoid repeatedly calling `regexp.MustCompile` or allocating the same map within high-frequency functions (like request handlers or search parsers). Hoisting these to package-level variables reduces CPU cycles and memory allocations per request.
 **Action:** Always check for repeated regex compilation or constant map allocations in hot paths and move them to package-level variables.
+
+## 2026-05-12 - [Batch Inventory Sync and Client-side Caching]
+**Learning:** Sequential external syncs (like updating multiple Shopify variants) after a batch database operation create a significant N+1 network bottleneck. Aggregating affected IDs and performing a single batch sync reduces database lookups to O(1). Additionally, redundant discovery calls (like fetching Shopify Location ID) should be cached in-memory with thread-safety (sync.RWMutex) to eliminate unnecessary GraphQL API roundtrips.
+**Action:** Always implement batch versions of sync methods (e.g., GlobalSyncBatch) when handling multiple entities, and use thread-safe in-memory caching for frequently accessed, slow-changing remote metadata.

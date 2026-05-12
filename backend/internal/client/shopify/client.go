@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"mi-tech/internal/config"
@@ -16,8 +17,10 @@ import (
 )
 
 type Client struct {
-	settings   *config.SettingsProvider
-	httpClient *http.Client
+	settings             *config.SettingsProvider
+	httpClient           *http.Client
+	discoveredLocationID string
+	mu                   sync.RWMutex
 }
 
 func NewClient(settings *config.SettingsProvider) *Client {
@@ -697,7 +700,15 @@ func (c *Client) GetLocationID() string {
 }
 
 // DiscoverPrimaryLocationID fetches all locations and finds the best match.
+// Optimization: Results are cached in-memory to avoid redundant GraphQL calls.
 func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) {
+	c.mu.RLock()
+	if c.discoveredLocationID != "" {
+		defer c.mu.RUnlock()
+		return c.discoveredLocationID, nil
+	}
+	c.mu.RUnlock()
+
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -755,10 +766,14 @@ func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) 
 		return "", fmt.Errorf("no locations found in shopify store")
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// 1. Priority Match: "Millennial Perfumer - WH"
 	for _, edge := range edges {
 		if strings.TrimSpace(strings.ToLower(edge.Node.Name)) == "millennial perfumer - wh" {
 			log.Printf("Shopify Discovery: Matched target location by name: %s", edge.Node.Name)
+			c.discoveredLocationID = edge.Node.ID
 			return edge.Node.ID, nil
 		}
 	}
@@ -767,12 +782,14 @@ func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) 
 	for _, edge := range edges {
 		if edge.Node.IsPrimary {
 			log.Printf("Shopify Discovery: Using primary location: %s", edge.Node.Name)
+			c.discoveredLocationID = edge.Node.ID
 			return edge.Node.ID, nil
 		}
 	}
 
 	// 3. Last Resort: First one
 	log.Printf("Shopify Discovery: Using first available location: %s", edges[0].Node.Name)
+	c.discoveredLocationID = edges[0].Node.ID
 	return edges[0].Node.ID, nil
 }
 

@@ -192,6 +192,7 @@ type InventoryRepository interface {
 	DeleteAll() error
 	BulkCreateItem(items []entity.InventoryItem) error
 	GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error)
+	GetItemsByIDs(ids []int) ([]entity.InventoryItem, error)
 }
 
 // OilInventoryRepository defines all data access for raw material oil stock.

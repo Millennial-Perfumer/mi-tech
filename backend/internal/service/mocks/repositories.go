@@ -205,7 +205,22 @@ func (m *MockInventoryRepository) GetLogsByItemID(itemID int) ([]entity.Inventor
 	return args.Get(0).([]entity.InventoryLog), args.Error(1)
 }
 
+func (m *MockInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
+	args := m.Called(externalOrderID)
+	return args.Get(0).([]entity.InventoryLog), args.Error(1)
+}
+
+func (m *MockInventoryRepository) WithTx(tx *gorm.DB) repository.InventoryRepository {
+	args := m.Called(tx)
+	return args.Get(0).(repository.InventoryRepository)
+}
+
 func (m *MockInventoryRepository) GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error) {
 	args := m.Called(platform, externalSKU)
 	return args.Get(0).(entity.InventoryItem), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetItemsByIDs(ids []int) ([]entity.InventoryItem, error) {
+	args := m.Called(ids)
+	return args.Get(0).([]entity.InventoryItem), args.Error(1)
 }

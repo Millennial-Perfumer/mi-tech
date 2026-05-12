@@ -65,50 +65,63 @@ func (s *SyncOrchestrator) IsSyncAllowed() bool {
 // GlobalSync updates all platforms for a specific internal inventory item.
 // sourcePlatform allows us to avoid "echo" updates back to the source.
 func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePlatform string) error {
-	item, err := s.inventoryRepo.GetItemByID(itemID)
+	return s.GlobalSyncBatch(ctx, []int{itemID}, sourcePlatform)
+}
+
+// GlobalSyncBatch updates all platforms for a set of internal inventory items.
+// Optimization: Reduces database roundtrips by fetching all items in a single query.
+// sourcePlatform allows us to avoid "echo" updates back to the source.
+func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, sourcePlatform string) error {
+	if len(itemIDs) == 0 {
+		return nil
+	}
+
+	items, err := s.inventoryRepo.GetItemsByIDs(itemIDs)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("SyncOrchestrator: Triggering global sync for SKU %s (Qty: %d)", item.MISKU, item.CurrentStock)
-	
 	if !s.IsSyncAllowed() {
 		log.Printf("SyncOrchestrator: Global sync is DISABLED via configuration or environment")
 		return nil
 	}
 
-	for _, m := range item.Mappings {
-		if m.Platform == sourcePlatform {
-			continue // Don't push back to the platform that triggered the change
-		}
+	for _, item := range items {
+		log.Printf("SyncOrchestrator: Triggering global sync for SKU %s (Qty: %d)", item.MISKU, item.CurrentStock)
 
-		switch m.Platform {
-		case "shopify":
-			if m.ExternalVariantID != nil {
-				log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
-				locationID := s.shopifyClient.GetLocationID()
-				if locationID == "" {
-					discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
-					if err != nil {
-						log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
-						continue
-					}
-					locationID = discoveredID
-					log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", locationID)
-				}
-
-				if locationID != "" {
-					err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, locationID, item.CurrentStock)
-					if err != nil {
-						log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
-					}
-				}
+		for _, m := range item.Mappings {
+			if m.Platform == sourcePlatform {
+				continue // Don't push back to the platform that triggered the change
 			}
-		case "amazon":
-			log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
-			err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
-			if err != nil {
-				log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
+
+			switch m.Platform {
+			case "shopify":
+				if m.ExternalVariantID != nil {
+					log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
+					locationID := s.shopifyClient.GetLocationID()
+					if locationID == "" {
+						discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
+						if err != nil {
+							log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+							continue
+						}
+						locationID = discoveredID
+						log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", locationID)
+					}
+
+					if locationID != "" {
+						err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, locationID, item.CurrentStock)
+						if err != nil {
+							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
+						}
+					}
+				}
+			case "amazon":
+				log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
+				err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
+				if err != nil {
+					log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
+				}
 			}
 		}
 	}

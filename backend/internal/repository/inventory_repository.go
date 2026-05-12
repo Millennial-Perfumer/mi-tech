@@ -128,3 +128,9 @@ func (r *gormInventoryRepository) GetItemByPlatformSKU(platform, externalSKU str
 		First(&item).Error
 	return item, err
 }
+
+func (r *gormInventoryRepository) GetItemsByIDs(ids []int) ([]entity.InventoryItem, error) {
+	var items []entity.InventoryItem
+	err := r.db.Preload("Mappings").Where("id IN ?", ids).Find(&items).Error
+	return items, err
+}
