@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2025-05-20 - [Timing Attack in OTP Verification]
+**Vulnerability:** `AuthService.VerifyOTP` used standard string comparison (`!=`) for 6-digit OTP verification.
+**Learning:** Standard string comparisons in many languages (including Go) exit early as soon as a mismatch is found. In the context of a short, numeric OTP, an attacker can measure these micro-differences in response time to brute-force the code character-by-character, significantly reducing the effective entropy.
+**Prevention:** Use `crypto/subtle.ConstantTimeCompare` for all sensitive credential comparisons, including OTPs, API keys, and signatures.
