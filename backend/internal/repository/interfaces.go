@@ -39,6 +39,7 @@ type OrderRepository interface {
 	Upsert(order entity.Order) ([]int, error)
 	UpsertBatch(orders []entity.Order) ([]int, error)
 	UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error
+	UpdateFinancialStatus(id int64, status string) error
 	UpdateOrderStatus(id int64, status string) (int64, error)
 	CancelOrder(externalOrderID string, cancelledAt *string, reason string) error
 	UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error

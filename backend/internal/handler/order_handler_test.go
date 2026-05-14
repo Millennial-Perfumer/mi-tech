@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -53,4 +54,24 @@ func TestOrderHandler_GetSources(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.Equal(t, true, resp["success"])
 	assert.Len(t, resp["sources"], 1)
+}
+
+func TestOrderHandler_UpdatePaymentStatus(t *testing.T) {
+	mockOrderRepo := new(mocks.MockOrderRepository)
+	orderService := service.NewOrderService(mockOrderRepo, nil, nil, nil, nil)
+	handler := NewOrderHandler(orderService, nil, nil)
+
+	mockOrderRepo.On("UpdateFinancialStatus", int64(123), "paid").Return(nil)
+
+	body, _ := json.Marshal(map[string]string{"status": "paid"})
+	req := httptest.NewRequest("PUT", "/api/orders/payment-status?id=123", bytes.NewBuffer(body))
+	w := httptest.NewRecorder()
+
+	handler.UpdatePaymentStatus(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, true, resp["success"])
+	assert.Equal(t, "Payment status updated successfully", resp["message"])
 }

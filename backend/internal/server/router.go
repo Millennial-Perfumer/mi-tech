@@ -122,6 +122,7 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
+	mux.HandleFunc("/api/orders/payment-status", protected(orderHandler.UpdatePaymentStatus))
 	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
 	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
 	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))

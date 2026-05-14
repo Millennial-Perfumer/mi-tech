@@ -224,6 +224,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/automation/whatsapp/feedback": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Retrieve a list of all customer ratings and messages",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "feedback"
+                ],
+                "summary": "List customer feedback",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/automation/whatsapp/messages": {
             "get": {
                 "security": [
@@ -283,6 +309,43 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/automation/whatsapp/messages/order": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Retrieve all automation messages sent for a specific order.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "automation"
+                ],
+                "summary": "List messages for an order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "order_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_automation_whatsapp.AutomationMessage"
+                            }
                         }
                     }
                 }
@@ -1113,6 +1176,39 @@ const docTemplate = `{
                 }
             }
         },
+        "/customers/export-meta": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Export a CSV compatible with Meta Custom Audiences.",
+                "produces": [
+                    "text/csv"
+                ],
+                "tags": [
+                    "customers"
+                ],
+                "summary": "Export Meta audience CSV",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Audience type: 'customer' or 'engaged'",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    }
+                }
+            }
+        },
         "/customers/import": {
             "post": {
                 "security": [
@@ -1400,6 +1496,156 @@ const docTemplate = `{
                 }
             }
         },
+        "/marketing/smm/health": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Audit the visibility and linkage of configured Meta Page and Instagram IDs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "social"
+                ],
+                "summary": "SMM Health Check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/mi-tech_internal_marketing.AssetHealth"
+                        }
+                    }
+                }
+            }
+        },
+        "/marketing/smm/overview": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Fetch historical engagement metrics and growth insights for FB, IG, or Threads.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "social"
+                ],
+                "summary": "Social Media Overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Platform (facebook, instagram, threads)",
+                        "name": "platform",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/marketing/smm/post": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Publish content to FB, IG, or Threads.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "social"
+                ],
+                "summary": "Cross-platform Post",
+                "parameters": [
+                    {
+                        "description": "Post content",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/marketing/smm/sync": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Manually trigger a deep sync of metrics and post history.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "social"
+                ],
+                "summary": "Sync Social Data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Platform (facebook, instagram, threads)",
+                        "name": "platform",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/metrics/dashboard": {
             "get": {
                 "security": [
@@ -1571,6 +1817,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/orders/delivered": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Set delivery_status = 'delivered' and stamp delivered_at time. Trigger immediate WhatsApp notification.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Mark order as delivered",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/orders/detail": {
             "get": {
                 "security": [
@@ -1630,6 +1911,48 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "file"
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/payment-status": {
+            "put": {
+                "description": "Update the financial status of an order manually",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Update order payment status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "New payment status",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.UpdateStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -2188,6 +2511,53 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "internal_automation_whatsapp.AutomationMessage": {
+            "type": "object",
+            "properties": {
+                "customer_name": {
+                    "type": "string"
+                },
+                "delivered_at": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "store_id": {
+                    "type": "string"
+                },
+                "template_id": {
+                    "type": "integer"
+                },
+                "template_name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_automation_whatsapp.AutomationTemplate": {
             "type": "object",
             "properties": {
@@ -2266,6 +2636,9 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_issue": {
+                    "type": "boolean"
+                },
                 "message_id": {
                     "type": "string"
                 },
@@ -2274,6 +2647,9 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                },
+                "priority": {
+                    "type": "string"
                 },
                 "sender_role": {
                     "type": "string"
@@ -2295,6 +2671,9 @@ const docTemplate = `{
         "internal_automation_whatsapp.Conversation": {
             "type": "object",
             "properties": {
+                "active_task_id": {
+                    "type": "integer"
+                },
                 "contact_name": {
                     "type": "string"
                 },
@@ -2314,6 +2693,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone_number": {
+                    "type": "string"
+                },
+                "priority": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -2600,6 +2982,23 @@ const docTemplate = `{
                 },
                 "zip_code": {
                     "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_marketing.AssetHealth": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "instagram_authorized": {
+                    "type": "boolean"
+                },
+                "instagram_linked": {
+                    "type": "boolean"
+                },
+                "page_authorized": {
+                    "type": "boolean"
                 }
             }
         },

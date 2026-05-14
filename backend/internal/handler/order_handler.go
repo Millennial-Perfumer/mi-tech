@@ -138,6 +138,52 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// UpdatePaymentStatus handles PUT /api/orders/payment-status.
+// @Summary Update order payment status
+// @Description Update the financial status of an order manually
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id query string true "Order ID"
+// @Param body body UpdateStatusRequest true "New payment status"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/payment-status [put]
+func (h *OrderHandler) UpdatePaymentStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodOptions {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "Missing order id", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid order id", http.StatusBadRequest)
+		return
+	}
+
+	var reqBody UpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.orderService.UpdateOrderPaymentStatus(id, reqBody.Status); err != nil {
+		http.Error(w, "Failed to update payment status: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Payment status updated successfully",
+	})
+}
+
 // GenerateInvoice handles GET /api/orders/invoice and streams a PDF.
 // @Summary Generate invoice PDF
 // @Description Generate and download a GST invoice PDF for an order

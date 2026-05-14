@@ -53,6 +53,11 @@ func (m *MockOrderRepository) UpdateOrderStatus(id int64, status string) (int64,
 	return int64(args.Int(0)), args.Error(1)
 }
 
+func (m *MockOrderRepository) UpdateFinancialStatus(id int64, status string) error {
+	args := m.Called(id, status)
+	return args.Error(0)
+}
+
 func (m *MockOrderRepository) CancelOrder(externalOrderID string, cancelledAt *string, reason string) error {
 	args := m.Called(externalOrderID, cancelledAt, reason)
 	return args.Error(0)
@@ -140,6 +145,11 @@ type MockInventoryRepository struct {
 	mock.Mock
 }
 
+func (m *MockInventoryRepository) WithTx(tx *gorm.DB) repository.InventoryRepository {
+	args := m.Called(tx)
+	return args.Get(0).(repository.InventoryRepository)
+}
+
 func (m *MockInventoryRepository) ListItems(search string) ([]entity.InventoryItem, error) {
 	args := m.Called(search)
 	return args.Get(0).([]entity.InventoryItem), args.Error(1)
@@ -202,6 +212,11 @@ func (m *MockInventoryRepository) LogAdjustment(l *entity.InventoryLog) error {
 
 func (m *MockInventoryRepository) GetLogsByItemID(itemID int) ([]entity.InventoryLog, error) {
 	args := m.Called(itemID)
+	return args.Get(0).([]entity.InventoryLog), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
+	args := m.Called(externalOrderID)
 	return args.Get(0).([]entity.InventoryLog), args.Error(1)
 }
 

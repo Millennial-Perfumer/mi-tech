@@ -557,8 +557,17 @@ func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStat
 		}).Error
 }
 
+func (r *gormOrderRepository) UpdateFinancialStatus(id int64, status string) error {
+	return r.db.Model(&entity.Order{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"financial_status": status,
+			"updated_at":       time.Now(),
+		}).Error
+}
+
 func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64, error) {
-	status = strings.ToUpper(status)
+	status = strings.ToLower(status)
 	updates := map[string]interface{}{
 		"status":     status,
 		"updated_at": time.Now(),

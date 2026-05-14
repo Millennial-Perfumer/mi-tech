@@ -194,6 +194,8 @@ function App() {
   const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [editingPaymentStatusId, setEditingPaymentStatusId] = useState<string | number | null>(null);
+  const [isUpdatingPaymentStatus, setIsUpdatingPaymentStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -314,6 +316,7 @@ function App() {
   useEffect(() => {
     const handleOutsideClick = () => {
       if (editingStatusId) setEditingStatusId(null);
+      if (editingPaymentStatusId) setEditingPaymentStatusId(null);
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
@@ -350,6 +353,30 @@ function App() {
       toastError('Network error updating status');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handlePaymentStatusUpdate = async (orderId: string | number, newStatus: string) => {
+    setIsUpdatingPaymentStatus(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/payment-status?id=${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toastSuccess('Payment status updated');
+        fetchDashboardData();
+        setEditingPaymentStatusId(null);
+      } else {
+        toastError(data.message || 'Failed to update payment status');
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toastError('Network error updating payment status');
+    } finally {
+      setIsUpdatingPaymentStatus(false);
     }
   };
 
@@ -1313,10 +1340,42 @@ function App() {
                       {visibleColumns.includes('time') && <td>{new Date(order.created_at).toLocaleTimeString()}</td>}
                       {visibleColumns.includes('amount') && <td>₹{order.total_price}</td>}
                       {visibleColumns.includes('financial_status') && (
-                        <td>
-                          <span className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : 'warning'}`}>
-                            <span className="dot"></span> {order.financial_status?.charAt(0).toUpperCase() + order.financial_status?.slice(1) || 'Unknown'}
+                        <td style={{ position: 'relative' }}>
+                          <span 
+                            className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : (order.financial_status === 'pending' ? 'warning' : 'yellow')}`}
+                            style={{ cursor: isUpdatingPaymentStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 }}
+                            onClick={(e) => {
+                              if (isUpdatingPaymentStatus) return;
+                              e.stopPropagation();
+                              setEditingPaymentStatusId(editingPaymentStatusId === order.id ? null : order.id);
+                            }}
+                          >
+                            <span className="dot"></span> {isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 'Updating...' : (order.financial_status?.toLowerCase().charAt(0).toUpperCase() + order.financial_status?.toLowerCase().slice(1) || 'Unknown')}
                           </span>
+
+                          {editingPaymentStatusId === order.id && (
+                            <div className="status-popover" onClick={e => e.stopPropagation()}>
+                              <div className="status-popover-header">Update Payment</div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handlePaymentStatusUpdate(order.id, 'paid')}
+                              >
+                                <span className="badge-pill badge-pill-success"><span className="dot"></span> Paid</span>
+                              </div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handlePaymentStatusUpdate(order.id, 'pending')}
+                              >
+                                <span className="badge-pill badge-pill-warning"><span className="dot"></span> Pending</span>
+                              </div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handlePaymentStatusUpdate(order.id, 'partially_paid')}
+                              >
+                                <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Partial</span>
+                              </div>
+                            </div>
+                          )}
                         </td>
                       )}
                       {visibleColumns.includes('fulfillment_status') && (
@@ -1330,7 +1389,7 @@ function App() {
                               setEditingStatusId(editingStatusId === order.id ? null : order.id);
                             }}
                           >
-                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.charAt(0).toUpperCase() + order.fulfillment_status?.slice(1) || 'Unfulfilled'))}
+                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.toLowerCase().charAt(0).toUpperCase() + order.fulfillment_status?.toLowerCase().slice(1) || 'Unfulfilled'))}
                           </span>
 
                           {editingStatusId === order.id && (

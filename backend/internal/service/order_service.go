@@ -143,6 +143,11 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 	}
 	return nil
 }
+	
+// UpdateOrderPaymentStatus updates the financial status of an order using its internal ID.
+func (s *OrderService) UpdateOrderPaymentStatus(id int64, status string) error {
+	return s.orderRepo.UpdateFinancialStatus(id, status)
+}
 
 // UpdatePaymentStatus updates the financial status of an order.
 func (s *OrderService) UpdatePaymentStatus(externalOrderID string, status string) error {

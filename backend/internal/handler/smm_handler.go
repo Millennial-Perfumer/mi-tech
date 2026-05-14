@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"mi-tech/internal/service"
+	_ "mi-tech/internal/marketing"
 	"net/http"
 )
 
