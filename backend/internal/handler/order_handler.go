@@ -11,6 +11,7 @@ import (
 
 	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
+	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
 	"mi-tech/internal/automation/whatsapp"
 )
@@ -121,7 +122,8 @@ func (h *OrderHandler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	rowsAffected, err := h.orderService.UpdateOrderStatus(order.ID, reqBody.Status)
+	// Use UpdateOrderStatusWithEntity to avoid redundant DB lookup if status is 'cancelled'
+	rowsAffected, err := h.orderService.UpdateOrderStatusWithEntity(order.ID, reqBody.Status, &order)
 	if err != nil {
 		http.Error(w, "Failed to update database", http.StatusInternalServerError)
 		return
@@ -215,6 +217,8 @@ func (h *OrderHandler) GenerateInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch line items - note: we could optimize this further by including items in GetOrderFlexible
+	// but GenerateInvoice requires items separately to pass to the invoice service.
 	items, err := h.orderService.GetLineItems(order.ID)
 	if err != nil {
 		http.Error(w, "Database error fetching items", http.StatusInternalServerError)
@@ -282,19 +286,9 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try to parse as int64 first (internal ID)
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		// If not an int, it might be an external ID string
-		order, err := h.orderService.GetOrderFlexible(idStr)
-		if err != nil {
-			http.Error(w, "Order not found", http.StatusNotFound)
-			return
-		}
-		id = order.ID
-	}
-
-	orderResp, err := h.orderService.GetOrder(id)
+	// Consistently handle both internal and external IDs in a single service call
+	// This reduces database lookups by avoiding separate resolution and retrieval steps
+	orderResp, err := h.orderService.GetOrderResponseFlexible(idStr)
 	if err != nil {
 		http.Error(w, "Order not found", http.StatusNotFound)
 		return
@@ -374,6 +368,7 @@ func (h *OrderHandler) MarkAsDelivered(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	var id int64
 	var err error
+	var order entity.Order
 
 	if idStr == "" && r.Method == http.MethodPost {
 		var body struct {
@@ -390,7 +385,7 @@ func (h *OrderHandler) MarkAsDelivered(w http.ResponseWriter, r *http.Request) {
 
 	if id == 0 && idStr != "" && err != nil {
 		// Try flexible look up if it's an external ID
-		order, err := h.orderService.GetOrderFlexible(idStr)
+		order, err = h.orderService.GetOrderFlexible(idStr)
 		if err != nil {
 			http.Error(w, "Order not found", http.StatusNotFound)
 			return
@@ -410,13 +405,22 @@ func (h *OrderHandler) MarkAsDelivered(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Trigger "Order Delivered" WhatsApp notification
-	// Fetch the updated order to get full details for template mapping
-	order, err := h.orderService.GetOrderEntity(id)
-	if err == nil {
+	// We already have the order entity from the flexible lookup above if it was an external ID,
+	// or we can fetch it once here. The previous code was fetching it even if 'id' was already known.
+	// To minimize lookups, we use the 'order' variable which was either populated by GetOrderFlexible
+	// or remains empty if id was parsed from int.
+	var orderToNotify entity.Order
+	if order.ID != 0 {
+		orderToNotify = order
+	} else {
+		orderToNotify, _ = h.orderService.GetOrderEntity(id)
+	}
+
+	if orderToNotify.ID != 0 {
 		// Use "orders/delivered" topic as per existing conventions in WebhookMappingService
 		go func() {
 			// Use standardized Store ID
-			if err := h.mappingService.ExecuteMapping(config.StoreIDShopify, "orders/delivered", order); err != nil {
+			if err := h.mappingService.ExecuteMapping(config.StoreIDShopify, "orders/delivered", orderToNotify); err != nil {
 				log.Printf("Failed to send delivery notification for order %d: %v", id, err)
 			}
 		}()
