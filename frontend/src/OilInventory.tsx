@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 
@@ -64,6 +64,7 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -251,15 +252,55 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
         </button>
       </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
-        <input 
-          type="text" 
-          placeholder="Search by oil name, product, or supplier..." 
-          className="search-input" 
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px' }}
-        />
+      <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search by oil name, product, or supplier..."
+            className="search-input"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ width: '100%', paddingRight: searchQuery ? '2.5rem' : '1rem' }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+              style={{
+                position: 'absolute',
+                right: '0.75rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-tertiary)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.background = 'var(--bg-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="table-container glass-card-premium">
