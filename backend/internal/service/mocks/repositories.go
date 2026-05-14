@@ -140,6 +140,14 @@ type MockInventoryRepository struct {
 	mock.Mock
 }
 
+func (m *MockInventoryRepository) WithTx(tx *gorm.DB) repository.InventoryRepository {
+	args := m.Called(tx)
+	if args.Get(0) == nil {
+		return m
+	}
+	return args.Get(0).(repository.InventoryRepository)
+}
+
 func (m *MockInventoryRepository) ListItems(search string) ([]entity.InventoryItem, error) {
 	args := m.Called(search)
 	return args.Get(0).([]entity.InventoryItem), args.Error(1)
@@ -208,4 +216,9 @@ func (m *MockInventoryRepository) GetLogsByItemID(itemID int) ([]entity.Inventor
 func (m *MockInventoryRepository) GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error) {
 	args := m.Called(platform, externalSKU)
 	return args.Get(0).(entity.InventoryItem), args.Error(1)
+}
+
+func (m *MockInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
+	args := m.Called(externalOrderID)
+	return args.Get(0).([]entity.InventoryLog), args.Error(1)
 }
