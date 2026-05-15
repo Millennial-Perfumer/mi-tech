@@ -74,8 +74,8 @@ func RegisterRoutes(
 
 	log.Println("DEBUG: Marketing & SMM Routes Registered")
 
-	// Metrics endpoint (unprotected for scraping, but could be internal-only)
-	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))
+	// Metrics endpoint (protected to prevent unauthorized exposure of system internals)
+	mux.HandleFunc("/api/metrics", adminProtected(promhttp.Handler().ServeHTTP))
 
 	// Health check
 	mux.HandleFunc("/api/health", metrics(cors(func(w http.ResponseWriter, r *http.Request) {

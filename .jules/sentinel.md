@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-05-15 - [Public Exposure of Internal Metrics]
+**Vulnerability:** The `/api/metrics` Prometheus endpoint was unprotected and publicly accessible.
+**Learning:** Internal system metrics can leak sensitive infrastructure details (memory usage, internal paths, active sessions). While useful for monitoring, these endpoints must be restricted to authorized users or internal scraping agents.
+**Prevention:** Always apply authentication/authorization middleware (e.g., `adminProtected`) to diagnostic and metrics endpoints.
