@@ -116,12 +116,16 @@ func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int
 	return s.executeWithTemplate(storeID, template, order, "manual")
 }
 
-func (s *WebhookMappingService) resolveVariable(field string, order entity.Order) string {
+func (s *WebhookMappingService) resolveVariable(field string, order entity.Order, totals *service.InvoiceTotals) string {
 	// If the field is a pricing variable, ensure we have line items and use the centralized calculation logic
 	switch field {
 	case "order_total", "order_grand_total", "order_subtotal", "order_discount", "order_tax":
 		if len(order.LineItems) > 0 {
-			totals := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
+			// Performance Optimization: Use pre-calculated totals if provided to avoid O(N) recalculation
+			if totals == nil {
+				calc := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
+				totals = &calc
+			}
 			switch field {
 			case "order_total", "order_grand_total":
 				return fmt.Sprintf("%.2f", totals.GrandTotal)
@@ -228,6 +232,28 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		mappings = make(map[string]string)
 	}
 
+	// Performance Optimization: Pre-calculate invoice totals once if any pricing variable is used in the template.
+	// This avoids O(N) recalculations within the resolveVariable loop for each placeholder.
+	var preCalculatedTotals *service.InvoiceTotals
+	pricingKeys := []string{"order_total", "order_grand_total", "order_subtotal", "order_discount", "order_tax"}
+	needsTotals := false
+	for _, v := range mappings {
+		for _, pk := range pricingKeys {
+			if v == pk {
+				needsTotals = true
+				break
+			}
+		}
+		if needsTotals {
+			break
+		}
+	}
+
+	if needsTotals && len(order.LineItems) > 0 {
+		calc := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
+		preCalculatedTotals = &calc
+	}
+
 	var components []interface{}
 
 	// 1. Body Mapping
@@ -237,14 +263,14 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 		for i := 1; i <= requiredCount; i++ {
 			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
 			fieldToMap := mappings[mapKey]
-			val := s.resolveVariable(fieldToMap, order)
+			val := s.resolveVariable(fieldToMap, order, preCalculatedTotals)
 			
 			// Fallback logic for legacy templates that were not mapped yet
 			if val == "" {
 				if i == 1 {
-					val = s.resolveVariable("customer_name", order)
+					val = s.resolveVariable("customer_name", order, preCalculatedTotals)
 				} else if i == 2 {
-					val = s.resolveVariable("order_id", order)
+					val = s.resolveVariable("order_id", order, preCalculatedTotals)
 				}
 			}
 			bodyParams = append(bodyParams, map[string]string{"type": "text", "text": val})
@@ -266,10 +292,10 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
 						fieldToMap := mappings[mapKey]
 						
-						val := s.resolveVariable(fieldToMap, order)
+						val := s.resolveVariable(fieldToMap, order, preCalculatedTotals)
 						if val == "" {
 							// Legacy fallback for embedded tracking loop
-							val = s.resolveVariable("internal_order_id", order)
+							val = s.resolveVariable("internal_order_id", order, preCalculatedTotals)
 						}
 
 						components = append(components, map[string]interface{}{
@@ -309,7 +335,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 				var headerParams []map[string]string
 				for i := 1; i <= reqCount; i++ {
 					mapKey := fmt.Sprintf("header_text_0_{{%d}}", i)
-					val := s.resolveVariable(mappings[mapKey], order)
+					val := s.resolveVariable(mappings[mapKey], order, preCalculatedTotals)
 					headerParams = append(headerParams, map[string]string{"type": "text", "text": val})
 				}
 				components = append(components, map[string]interface{}{

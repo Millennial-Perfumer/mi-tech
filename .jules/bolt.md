@@ -25,3 +25,7 @@
 ## 2026-05-14 - [Consolidating Flexible ID Lookups]
 **Learning:** Flexible ID lookups (supporting both internal numeric and external string IDs) often lead to N+1 database roundtrips if handlers first resolve the ID and then call a separate service method to fetch the full object or DTO. Consolidating this into a single service-side "GetByFlexibleID" flow that returns the final DTO (including associations like line items) reduces per-request latency.
 **Action:** When an API supports both internal and external IDs, implement a single service method that performs resolution and fetching of all required data in one path. Re-use resolved entities for subsequent logic (like notifications or status updates) to avoid redundant DB hits.
+
+## 2026-05-15 - [Optimizing Redundant Template Variable Resolution]
+**Learning:** In systems that resolve multiple dynamic placeholders in a single template (like WhatsApp message templates), individual resolution functions often trigger redundant (N)$ operations (like recalculating order totals from line items). Pre-calculating these shared values once before entering the resolution loop and passing them as context reduces complexity from (M \cdot N)$ to (M + N)$.
+**Action:** Always check if a loop calling a variable resolver can pre-calculate shared data (totals, expensive lookups, or metadata) once per execution cycle. Pass these pre-calculated values as optional pointers to the resolver to maintain flexibility and performance.
