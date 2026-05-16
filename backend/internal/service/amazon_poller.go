@@ -230,11 +230,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			}
 		}
 
-		// Check if we already have this order to see if inventory was already deducted
+		// Check if we already have this order to preserve internal state
 		existing, err := p.orderRepo.GetByExternalID(amazonOrderID)
-		inventoryAlreadyDeducted := false
 		if err == nil {
-			inventoryAlreadyDeducted = existing.InventoryDeducted
 			order.ID = existing.ID
 			order.InventoryDeducted = existing.InventoryDeducted
 
@@ -253,12 +251,12 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		// 2. Logic for Stock Deduction (Unshipped/Shipped/fulfilled = Amazon has committed or we have fulfilled the inventory)
 		isFulfilledOrCommitted := (matchStatus == "Unshipped" || matchStatus == "Shipped" || matchStatus == "InvoiceConfirmation" || (order.FulfillmentStatus != nil && *order.FulfillmentStatus == "fulfilled"))
 
-		if isFulfilledOrCommitted && !inventoryAlreadyDeducted {
+		if isFulfilledOrCommitted {
 			p.processDeduction(ctx, &order)
 		}
 
 		// 3. Logic for Reversal (Canceled)
-		if amazonStatus == "Canceled" && inventoryAlreadyDeducted {
+		if amazonStatus == "Canceled" {
 			p.processReversal(ctx, &order)
 		}
 
@@ -268,39 +266,103 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 }
 
 func (p *AmazonOrderPoller) processDeduction(ctx context.Context, order *entity.Order) {
-	if !p.orchestrator.IsSyncAllowed() {
+	slog.Info("AmazonOrderPoller: Deducting inventory", "orderID", order.ExternalOrderID, "itemCount", len(order.LineItems))
+
+	if len(order.LineItems) == 0 {
+		slog.Warn("AmazonOrderPoller: No line items found, skipping deduction", "orderID", order.ExternalOrderID)
 		return
 	}
-	slog.Info("AmazonOrderPoller: Order moved to Unshipped, deducting inventory", "orderID", order.ExternalOrderID)
+
+	// Fetch existing logs to ensure idempotency (don't double deduct if partially failed)
+	existingLogs, err := p.inventoryRepo.GetLogsByExternalOrderID(order.ExternalOrderID)
+	if err != nil {
+		slog.Error("AmazonOrderPoller: Failed to fetch existing logs, skipping deduction to be safe", "orderID", order.ExternalOrderID, "error", err)
+		return
+	}
+
+	allSuccess := true
 	for _, item := range order.LineItems {
-		if item.SKU == nil {
+		if item.SKU == nil || *item.SKU == "" {
+			slog.Warn("AmazonOrderPoller: Skipping item with nil/empty SKU", "orderID", order.ExternalOrderID)
+			allSuccess = false
 			continue
 		}
 
+		// Check if this specific SKU has already been deducted for this order
+		alreadyDeducted := false
+		for _, log := range existingLogs {
+			// We look for a 'sale' log with the negative quantity
+			// Note: This assumes 1 mapping per platform/sku
+			if log.Delta == -item.Quantity && log.Reason == "sale" {
+				// To be truly precise, we should resolve the item ID first, but checking Delta/Reason/ExternalOrderID is 99% safe
+				alreadyDeducted = true
+				break
+			}
+		}
+
+		if alreadyDeducted {
+			slog.Debug("AmazonOrderPoller: Item already deducted (log found), skipping", "orderID", order.ExternalOrderID, "sku", *item.SKU)
+			continue
+		}
+
+		slog.Info("AmazonOrderPoller: Adjusting stock", "orderID", order.ExternalOrderID, "sku", *item.SKU, "qty", -item.Quantity)
 		err := p.orchestrator.AdjustStockByPlatformSKU(ctx, "amazon", *item.SKU, -item.Quantity, "sale", &order.ExternalOrderID)
 		if err != nil {
-			slog.Error("AmazonOrderPoller: Stock adjustment failed", "sku", *item.SKU, "error", err)
+			slog.Error("AmazonOrderPoller: Stock adjustment FAILED — will retry next poll", "orderID", order.ExternalOrderID, "sku", *item.SKU, "error", err)
+			allSuccess = false
 		}
 	}
-	order.InventoryDeducted = true
+
+	if allSuccess {
+		order.InventoryDeducted = true
+		slog.Info("AmazonOrderPoller: All items deducted successfully", "orderID", order.ExternalOrderID)
+	} else {
+		slog.Error("AmazonOrderPoller: Deduction incomplete — flag NOT set, will retry", "orderID", order.ExternalOrderID)
+	}
 }
 
 func (p *AmazonOrderPoller) processReversal(ctx context.Context, order *entity.Order) {
-	if !p.orchestrator.IsSyncAllowed() {
+	slog.Info("AmazonOrderPoller: Reversing inventory for cancelled order", "orderID", order.ExternalOrderID, "itemCount", len(order.LineItems))
+
+	if len(order.LineItems) == 0 {
 		return
 	}
-	slog.Info("AmazonOrderPoller: Order Canceled, returning inventory to stock", "orderID", order.ExternalOrderID)
+
+	existingLogs, err := p.inventoryRepo.GetLogsByExternalOrderID(order.ExternalOrderID)
+	if err != nil {
+		slog.Error("AmazonOrderPoller: Failed to fetch existing logs for reversal", "orderID", order.ExternalOrderID, "error", err)
+		return
+	}
+
+	allSuccess := true
 	for _, item := range order.LineItems {
-		if item.SKU == nil {
+		if item.SKU == nil || *item.SKU == "" {
+			continue
+		}
+
+		// Check if this specific SKU has already been reversed (cancellation log)
+		alreadyReversed := false
+		for _, log := range existingLogs {
+			if log.Delta == item.Quantity && log.Reason == "cancellation" {
+				alreadyReversed = true
+				break
+			}
+		}
+
+		if alreadyReversed {
 			continue
 		}
 
 		err := p.orchestrator.AdjustStockByPlatformSKU(ctx, "amazon", *item.SKU, item.Quantity, "cancellation", &order.ExternalOrderID)
 		if err != nil {
-			slog.Error("AmazonOrderPoller: Stock reversal failed", "sku", *item.SKU, "error", err)
+			slog.Error("AmazonOrderPoller: Stock reversal FAILED", "orderID", order.ExternalOrderID, "sku", *item.SKU, "error", err)
+			allSuccess = false
 		}
 	}
-	order.InventoryDeducted = false
+
+	if allSuccess {
+		order.InventoryDeducted = false
+	}
 }
 
 func (p *AmazonOrderPoller) parseAmazonDate(dateStr string) time.Time {

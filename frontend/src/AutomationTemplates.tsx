@@ -147,6 +147,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['APPROVED', 'PENDING', 'REJECTED']);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -372,6 +373,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
           </svg>
           <input 
             type="text"
+            ref={searchInputRef}
             placeholder="Search within filtered results..."
             aria-label="Search templates"
             value={searchTerm}
@@ -390,7 +392,10 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
           />
           {searchTerm && (
             <button
-              onClick={() => setSearchTerm('')}
+              onClick={() => {
+                setSearchTerm('');
+                searchInputRef.current?.focus();
+              }}
               aria-label="Clear search"
               title="Clear search"
               style={{

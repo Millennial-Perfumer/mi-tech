@@ -2,6 +2,7 @@
 export GOMODCACHE=$(shell pwd)/backend/.gocache/mod
 export GOCACHE=$(shell pwd)/backend/.gocache/build
 export GOFLAGS=-buildvcs=false
+export CGO_ENABLED=0
 
 # Install dependencies for both frontend and backend
 install: install-frontend install-frontend-mobile install-frontend-feedback install-backend

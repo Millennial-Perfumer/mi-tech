@@ -83,6 +83,22 @@ func (s *OrderService) GetOrderFlexible(id string) (entity.Order, error) {
 	return s.orderRepo.GetByFlexibleID(id)
 }
 
+// GetOrderResponseFlexible retrieves an order by either internal ID or external ID with line items, returning a DTO.
+func (s *OrderService) GetOrderResponseFlexible(id string) (dto.OrderResponse, error) {
+	e, err := s.orderRepo.GetByFlexibleID(id)
+	if err != nil {
+		return dto.OrderResponse{}, err
+	}
+
+	items, err := s.lineItemRepo.GetByOrderID(e.ID)
+	if err != nil {
+		return dto.OrderResponse{}, err
+	}
+	e.LineItems = items
+
+	return mapper.OrderEntityToResponse(e), nil
+}
+
 // GetOrderByExternalID retrieves an order by external (Shopify) ID.
 func (s *OrderService) GetOrderByExternalID(externalID string) (entity.Order, error) {
 	return s.orderRepo.GetByExternalID(externalID)
@@ -95,9 +111,20 @@ func (s *OrderService) GetLineItems(orderID int64) ([]entity.LineItem, error) {
 
 // UpdateOrderStatus updates the status field of an order and handles side effects like inventory reversal on cancellation.
 func (s *OrderService) UpdateOrderStatus(id int64, status string) (int64, error) {
+	return s.UpdateOrderStatusWithEntity(id, status, nil)
+}
+
+// UpdateOrderStatusWithEntity updates the status field, optionally using an already-fetched entity to avoid redundant DB lookups.
+func (s *OrderService) UpdateOrderStatusWithEntity(id int64, status string, orderPtr *entity.Order) (int64, error) {
 	// 1. If cancelling, handle inventory reversal
 	if status == "cancelled" {
-		order, err := s.orderRepo.GetByID(id)
+		var order entity.Order
+		var err error
+		if orderPtr != nil {
+			order = *orderPtr
+		} else {
+			order, err = s.orderRepo.GetByID(id)
+		}
 		if err == nil && order.InventoryDeducted {
 			// Trigger reversal for each item
 			items, err := s.lineItemRepo.GetByOrderID(order.ID)
@@ -142,6 +169,11 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
 	}
 	return nil
+}
+	
+// UpdateOrderPaymentStatus updates the financial status of an order using its internal ID.
+func (s *OrderService) UpdateOrderPaymentStatus(id int64, status string) error {
+	return s.orderRepo.UpdateFinancialStatus(id, status)
 }
 
 // UpdatePaymentStatus updates the financial status of an order.

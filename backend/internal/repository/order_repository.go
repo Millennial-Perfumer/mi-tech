@@ -200,6 +200,22 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 			Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
 			return nil, fmt.Errorf("failed to adjust stock for %s (delta %d): %w", sku, delta, err)
 		}
+
+		// Log the adjustment for audit trail
+		reason := "sale"
+		if delta < 0 {
+			reason = "adjustment"
+		}
+		if err := tx.Create(&entity.InventoryLog{
+			InventoryItemID: mapping.InventoryItemID,
+			Delta:           -delta,
+			Reason:          reason,
+			Platform:        order.SourceID,
+			ExternalOrderID: &order.ExternalOrderID,
+		}).Error; err != nil {
+			return nil, fmt.Errorf("failed to log inventory adjustment: %w", err)
+		}
+
 		affectedIDs = append(affectedIDs, mapping.InventoryItemID)
 	}
 
@@ -500,6 +516,18 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 					Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
 					return fmt.Errorf("failed to adjust stock for item %d: %w", itemID, err)
 				}
+
+				// Note: Batch upsert logs are aggregated by itemID for performance.
+				// For detailed order-level logs, use individual upserts.
+				if err := tx.Create(&entity.InventoryLog{
+					InventoryItemID: itemID,
+					Delta:           -delta,
+					Reason:          "batch_sync",
+					Platform:        uniqueSources[0], // Assuming batch is usually from one source
+				}).Error; err != nil {
+					return fmt.Errorf("failed to log batch inventory adjustment: %w", err)
+				}
+
 				affectedIDs = append(affectedIDs, itemID)
 			}
 		}
@@ -529,8 +557,17 @@ func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStat
 		}).Error
 }
 
+func (r *gormOrderRepository) UpdateFinancialStatus(id int64, status string) error {
+	return r.db.Model(&entity.Order{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"financial_status": status,
+			"updated_at":       time.Now(),
+		}).Error
+}
+
 func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64, error) {
-	status = strings.ToUpper(status)
+	status = strings.ToLower(status)
 	updates := map[string]interface{}{
 		"status":     status,
 		"updated_at": time.Now(),

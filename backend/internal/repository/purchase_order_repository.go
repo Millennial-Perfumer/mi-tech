@@ -19,8 +19,18 @@ func (r *pgPurchaseOrderRepository) List() ([]entity.PurchaseOrder, error) {
 	return pos, err
 }
 
+func (r *pgPurchaseOrderRepository) GetByID(id int) (*entity.PurchaseOrder, error) {
+	var po entity.PurchaseOrder
+	err := r.db.First(&po, id).Error
+	return &po, err
+}
+
 func (r *pgPurchaseOrderRepository) Create(po *entity.PurchaseOrder) error {
 	return r.db.Create(po).Error
+}
+
+func (r *pgPurchaseOrderRepository) Update(po *entity.PurchaseOrder) error {
+	return r.db.Save(po).Error
 }
 
 func (r *pgPurchaseOrderRepository) Delete(id int) error {

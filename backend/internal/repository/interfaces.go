@@ -39,6 +39,7 @@ type OrderRepository interface {
 	Upsert(order entity.Order) ([]int, error)
 	UpsertBatch(orders []entity.Order) ([]int, error)
 	UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error
+	UpdateFinancialStatus(id int64, status string) error
 	UpdateOrderStatus(id int64, status string) (int64, error)
 	CancelOrder(externalOrderID string, cancelledAt *string, reason string) error
 	UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error
@@ -79,7 +80,10 @@ type WebhookStatusRepository interface {
 
 // MetricsRepository defines data access for dashboard metric queries.
 type MetricsRepository interface {
-	GetDashboardMetrics(startDate, endDate string) (totalRevenue, cgst, sgst, igst float64, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders int, err error)
+	GetDashboardMetrics(startDate, endDate string, sourceIDs []string) (dto.DashboardMetrics, error)
+	GetTopProducts(startDate, endDate string, sourceIDs []string, limit int) ([]dto.TopProductRow, error)
+	GetRevenueTrend(startDate, endDate string, sourceIDs []string) ([]dto.RevenueTrendRow, error)
+	GetGeoDistribution(startDate, endDate string, sourceIDs []string, limit int) ([]dto.GeoDistributionRow, error)
 }
 
 // ReportRepository defines data access for GST report queries.
@@ -169,6 +173,7 @@ type PlannerRepository interface {
 }
 // InventoryRepository defines all data access for the inventory hub and SKU mappings.
 type InventoryRepository interface {
+	WithTx(tx *gorm.DB) InventoryRepository
 	// Items
 	ListItems(search string) ([]entity.InventoryItem, error)
 	GetItemByID(id int) (entity.InventoryItem, error)
@@ -185,6 +190,7 @@ type InventoryRepository interface {
 	// Logs
 	LogAdjustment(log *entity.InventoryLog) error
 	GetLogsByItemID(itemID int) ([]entity.InventoryLog, error)
+	GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error)
 
 	// Utilities
 	DeleteAll() error
@@ -194,6 +200,7 @@ type InventoryRepository interface {
 
 // OilInventoryRepository defines all data access for raw material oil stock.
 type OilInventoryRepository interface {
+	WithTx(tx *gorm.DB) OilInventoryRepository
 	List(search string) ([]entity.OilInventory, error)
 	GetByID(id int) (entity.OilInventory, error)
 	Create(item *entity.OilInventory) error
@@ -213,13 +220,18 @@ type SupplierRepository interface {
 // PurchaseOrderRepository defines all data access for raw material purchases.
 type PurchaseOrderRepository interface {
 	List() ([]entity.PurchaseOrder, error)
+	GetByID(id int) (*entity.PurchaseOrder, error)
 	Create(po *entity.PurchaseOrder) error
+	Update(po *entity.PurchaseOrder) error
 	Delete(id int) error
 }
 
 // ManufacturingRepository defines all data access for production logs.
 type ManufacturingRepository interface {
+	WithTx(tx *gorm.DB) ManufacturingRepository
 	List() ([]entity.ManufacturingRecord, error)
+	GetByID(id int) (*entity.ManufacturingRecord, error)
 	Create(record *entity.ManufacturingRecord) error
+	Update(record *entity.ManufacturingRecord) error
 	Delete(id int) error
 }

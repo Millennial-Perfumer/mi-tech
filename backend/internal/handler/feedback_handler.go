@@ -207,11 +207,17 @@ func (h *FeedbackHandler) ScanFeedbackCandidates(w http.ResponseWriter, r *http.
 			continue
 		}
 		
+		customerPhone := entity.DerefStr(order.CustomerPhone)
+		if customerPhone == "" {
+			log.Printf("DEBUG: Skipping order %d, customer_phone is empty", order.ID)
+			continue
+		}
+
 		results = append(results, dto.FeedbackScanResult{
 			ID:            order.ID,
 			OrderNumber:   order.OrderNumber,
 			CustomerName:  entity.DerefStr(order.CustomerName),
-			CustomerPhone: entity.DerefStr(order.CustomerPhone),
+			CustomerPhone: customerPhone,
 			DeliveredAt:   *order.DeliveredAt,
 			FeedbackURL:   h.mappingService.GenerateFeedbackURL(order),
 		})

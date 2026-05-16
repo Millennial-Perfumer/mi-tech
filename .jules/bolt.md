@@ -21,3 +21,7 @@
 ## 2026-04-30 - [Regex Pre-compilation and static sort allowlisting]
 **Learning:** Avoid repeatedly calling `regexp.MustCompile` or allocating the same map within high-frequency functions (like request handlers or search parsers). Hoisting these to package-level variables reduces CPU cycles and memory allocations per request.
 **Action:** Always check for repeated regex compilation or constant map allocations in hot paths and move them to package-level variables.
+
+## 2026-05-14 - [Consolidating Flexible ID Lookups]
+**Learning:** Flexible ID lookups (supporting both internal numeric and external string IDs) often lead to N+1 database roundtrips if handlers first resolve the ID and then call a separate service method to fetch the full object or DTO. Consolidating this into a single service-side "GetByFlexibleID" flow that returns the final DTO (including associations like line items) reduces per-request latency.
+**Action:** When an API supports both internal and external IDs, implement a single service method that performs resolution and fetching of all required data in one path. Re-use resolved entities for subsequent logic (like notifications or status updates) to avoid redundant DB hits.

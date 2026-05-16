@@ -122,6 +122,7 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
+	mux.HandleFunc("/api/orders/payment-status", protected(orderHandler.UpdatePaymentStatus))
 	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
 	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
 	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))
@@ -161,6 +162,9 @@ func RegisterRoutes(
 
 	// --- Dashboard Metrics ---
 	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))
+	mux.HandleFunc("/api/dashboard/top-products", protected(metricsHandler.GetTopProducts))
+	mux.HandleFunc("/api/dashboard/revenue-trend", protected(metricsHandler.GetRevenueTrend))
+	mux.HandleFunc("/api/dashboard/geo-distribution", protected(metricsHandler.GetGeoDistribution))
 
 	// --- Report Routes ---
 	mux.HandleFunc("/api/reports/summary", protected(reportHandler.GetGSTSummary))
@@ -351,18 +355,23 @@ func RegisterRoutes(
 		switch r.Method {
 		case http.MethodPost:
 			adminProtected(poHandler.Create)(w, r)
+		case http.MethodPut:
+			adminProtected(poHandler.Update)(w, r)
 		case http.MethodDelete:
 			adminProtected(poHandler.Delete)(w, r)
 		default:
 			poHandler.List(w, r)
 		}
 	}))
+	mux.HandleFunc("/api/inventory/po/bulk", adminProtected(poHandler.BulkCreate))
 
 	// --- Manufacturing Routes ---
 	mux.HandleFunc("/api/inventory/manufacturing", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
 			adminProtected(mfgHandler.Create)(w, r)
+		case http.MethodPut:
+			adminProtected(mfgHandler.Update)(w, r)
 		case http.MethodDelete:
 			adminProtected(mfgHandler.Delete)(w, r)
 		default:

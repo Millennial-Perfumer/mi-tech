@@ -1,5 +1,36 @@
 basePath: /api
 definitions:
+  internal_automation_whatsapp.AutomationMessage:
+    properties:
+      customer_name:
+        type: string
+      delivered_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: integer
+      message_id:
+        type: string
+      order_id:
+        type: integer
+      order_number:
+        type: string
+      phone_number:
+        type: string
+      read_at:
+        type: string
+      sent_at:
+        type: string
+      status:
+        type: string
+      store_id:
+        type: string
+      template_id:
+        type: integer
+      template_name:
+        type: string
+    type: object
   internal_automation_whatsapp.AutomationTemplate:
     properties:
       body:
@@ -52,12 +83,16 @@ definitions:
         type: string
       id:
         type: integer
+      is_issue:
+        type: boolean
       message_id:
         type: string
       metadata:
         items:
           type: integer
         type: array
+      priority:
+        type: string
       sender_role:
         type: string
       sent_at:
@@ -71,6 +106,8 @@ definitions:
     type: object
   internal_automation_whatsapp.Conversation:
     properties:
+      active_task_id:
+        type: integer
       contact_name:
         type: string
       created_at:
@@ -84,6 +121,8 @@ definitions:
       mode:
         type: string
       phone_number:
+        type: string
+      priority:
         type: string
       updated_at:
         type: string
@@ -275,6 +314,17 @@ definitions:
       zip_code:
         type: string
     type: object
+  mi-tech_internal_marketing.AssetHealth:
+    properties:
+      error:
+        type: string
+      instagram_authorized:
+        type: boolean
+      instagram_linked:
+        type: boolean
+      page_authorized:
+        type: boolean
+    type: object
   mi-tech_internal_service.Document:
     properties:
       slug:
@@ -422,6 +472,22 @@ paths:
       summary: Toggle chat mode
       tags:
       - automation
+  /automation/whatsapp/feedback:
+    get:
+      description: Retrieve a list of all customer ratings and messages
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List customer feedback
+      tags:
+      - feedback
   /automation/whatsapp/messages:
     get:
       description: Retrieve a paginated list of all sent and received WhatsApp messages.
@@ -461,6 +527,29 @@ paths:
       security:
       - Bearer: []
       summary: List message logs
+      tags:
+      - automation
+  /automation/whatsapp/messages/order:
+    get:
+      description: Retrieve all automation messages sent for a specific order.
+      parameters:
+      - description: Order ID
+        in: query
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_automation_whatsapp.AutomationMessage'
+            type: array
+      security:
+      - Bearer: []
+      summary: List messages for an order
       tags:
       - automation
   /automation/whatsapp/metrics:
@@ -1027,6 +1116,26 @@ paths:
       summary: Bulk delete customers
       tags:
       - customers
+  /customers/export-meta:
+    get:
+      description: Export a CSV compatible with Meta Custom Audiences.
+      parameters:
+      - description: 'Audience type: ''customer'' or ''engaged'''
+        in: query
+        name: type
+        type: string
+      produces:
+      - text/csv
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - Bearer: []
+      summary: Export Meta audience CSV
+      tags:
+      - customers
   /customers/import:
     post:
       consumes:
@@ -1164,6 +1273,102 @@ paths:
       summary: Meta Marketing Overview
       tags:
       - marketing
+  /marketing/smm/health:
+    get:
+      description: Audit the visibility and linkage of configured Meta Page and Instagram
+        IDs.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mi-tech_internal_marketing.AssetHealth'
+      security:
+      - Bearer: []
+      summary: SMM Health Check
+      tags:
+      - social
+  /marketing/smm/overview:
+    get:
+      description: Fetch historical engagement metrics and growth insights for FB,
+        IG, or Threads.
+      parameters:
+      - description: Platform (facebook, instagram, threads)
+        in: query
+        name: platform
+        required: true
+        type: string
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Social Media Overview
+      tags:
+      - social
+  /marketing/smm/post:
+    post:
+      consumes:
+      - application/json
+      description: Publish content to FB, IG, or Threads.
+      parameters:
+      - description: Post content
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Cross-platform Post
+      tags:
+      - social
+  /marketing/smm/sync:
+    post:
+      description: Manually trigger a deep sync of metrics and post history.
+      parameters:
+      - description: Platform (facebook, instagram, threads)
+        in: query
+        name: platform
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Sync Social Data
+      tags:
+      - social
   /metrics/dashboard:
     get:
       description: Retrieve real-time metrics including revenue, GST breakdown, and
@@ -1276,6 +1481,29 @@ paths:
       summary: Update order
       tags:
       - orders
+  /orders/delivered:
+    put:
+      description: Set delivery_status = 'delivered' and stamp delivered_at time.
+        Trigger immediate WhatsApp notification.
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Mark order as delivered
+      tags:
+      - orders
   /orders/detail:
     get:
       description: Retrieve full details for a specific order, including line items.
@@ -1315,6 +1543,34 @@ paths:
           schema:
             type: file
       summary: Generate invoice PDF
+      tags:
+      - orders
+  /orders/payment-status:
+    put:
+      consumes:
+      - application/json
+      description: Update the financial status of an order manually
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: New payment status
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update order payment status
       tags:
       - orders
   /orders/sources:

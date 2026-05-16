@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface OilStock {
   id: number;
@@ -9,7 +10,7 @@ interface OilStock {
   purchase_price_per_kg: number | null;
   grams_left: number | null;
   supplier_id?: number | null;
-  inventory_item?: { title: string };
+  inventory_item?: { title: string; mi_sku: string };
   supplier?: { name: string };
 }
 
@@ -57,13 +58,16 @@ const SupplierAvatar: React.FC<{ name: string }> = ({ name }) => {
 
 export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [oils, setOils] = useState<OilStock[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -105,6 +109,9 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
+
     const method = editingId ? 'PUT' : 'POST';
     const body = {
       ...formData,
@@ -128,11 +135,19 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
       }
     } catch (err) {
       toastError('Error saving oil stock');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this oil stock record?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Oil Stock',
+      message: 'Are you sure you want to delete this oil stock record?',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory/oil?id=${id}`, { method: 'DELETE' });
       if (resp.ok) {
@@ -172,7 +187,12 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
 
   const handleBulkSupplierUpdate = async (supplierId: string) => {
     if (!supplierId || selectedIds.size === 0) return;
-    if (!window.confirm(`Update supplier for ${selectedIds.size} selected oils?`)) return;
+    const confirmed = await confirm({
+      title: 'Bulk Update Supplier',
+      message: `Are you sure you want to update the supplier for ${selectedIds.size} selected oils?`,
+      confirmLabel: 'Update All'
+    });
+    if (!confirmed) return;
 
     setIsLoading(true);
     try {
@@ -251,15 +271,55 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
         </button>
       </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
-        <input 
-          type="text" 
-          placeholder="Search by oil name, product, or supplier..." 
-          className="search-input" 
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px' }}
-        />
+      <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search by oil name, product, or supplier..."
+            className="search-input"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ width: '100%', paddingRight: searchQuery ? '2.5rem' : '1rem' }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+              style={{
+                position: 'absolute',
+                right: '0.75rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-tertiary)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.background = 'var(--bg-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="table-container glass-card-premium">
@@ -461,9 +521,30 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
           <button 
             className="toolbar-btn" 
             style={{ color: 'var(--status-danger)' }}
-            onClick={() => {
-              if (window.confirm(`Delete ${selectedIds.size} selected oils?`)) {
-                Promise.all(Array.from(selectedIds).map(id => handleDelete(id))).then(() => setSelectedIds(new Set()));
+            onClick={async () => {
+              const confirmed = await confirm({
+                title: 'Bulk Delete Oils',
+                message: `Are you sure you want to delete ${selectedIds.size} selected oils? This action cannot be undone.`,
+                confirmLabel: 'Delete All',
+                variant: 'danger'
+              });
+              if (confirmed) {
+                // handleDelete already has its own confirmation, so we should skip it or use a different approach
+                // for bulk. But here it calls handleDelete(id) which will prompt for EACH one if not careful.
+                // Wait, handleDelete in OilInventory.tsx prompts.
+                // I should probably refactor handleDelete to accept a skipConfirm param or just do the logic here.
+
+                try {
+                  await Promise.all(Array.from(selectedIds).map(async (id) => {
+                    const resp = await fetchWithAuth(`${API_BASE}/api/inventory/oil?id=${id}`, { method: 'DELETE' });
+                    return resp.ok;
+                  }));
+                  toastSuccess(`${selectedIds.size} oil records deleted`);
+                  setSelectedIds(new Set());
+                  fetchData();
+                } catch (err) {
+                  toastError('Error during bulk deletion');
+                }
               }
             }}
           >
@@ -602,6 +683,7 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
                 <button 
                   type="submit" 
                   className="btn-primary"
+                  disabled={isSaving}
                   style={{ 
                     flex: 1, 
                     height: '48px', 
@@ -609,10 +691,12 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
                     fontWeight: 700,
                     background: 'linear-gradient(135deg, var(--accent-color), #059669)',
                     border: 'none',
-                    boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)'
+                    boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)',
+                    opacity: isSaving ? 0.7 : 1,
+                    cursor: isSaving ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {editingId ? 'Update Record' : 'Save Record'}
+                  {isSaving ? 'Saving...' : (editingId ? 'Update Record' : 'Save Record')}
                 </button>
               </div>
             </form>

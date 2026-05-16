@@ -70,6 +70,43 @@ interface DashboardMetrics {
   cancelled_orders: number;
   fulfilled_orders: number;
   unfulfilled_orders: number;
+  total_discount: number;
+  discount_percent: number;
+  channel_breakdown: ChannelMetrics[];
+  payment_breakdown: PaymentHealth;
+}
+
+interface ChannelMetrics {
+  source_id: string;
+  revenue: number;
+  orders: number;
+  aov: number;
+}
+
+interface PaymentHealth {
+  paid: number;
+  pending: number;
+  partial: number;
+  cancelled: number;
+}
+
+interface TopProduct {
+  sku: string;
+  title: string;
+  quantity: number;
+  revenue: number;
+}
+
+interface RevenueTrend {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+interface GeoDistribution {
+  state: string;
+  orders: number;
+  revenue: number;
 }
 
 const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
@@ -172,6 +209,10 @@ function App() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [revenueTrend, setRevenueTrend] = useState<RevenueTrend[]>([]);
+  const [geoDistribution, setGeoDistribution] = useState<GeoDistribution[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -194,6 +235,8 @@ function App() {
   const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [editingPaymentStatusId, setEditingPaymentStatusId] = useState<string | number | null>(null);
+  const [isUpdatingPaymentStatus, setIsUpdatingPaymentStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -314,6 +357,7 @@ function App() {
   useEffect(() => {
     const handleOutsideClick = () => {
       if (editingStatusId) setEditingStatusId(null);
+      if (editingPaymentStatusId) setEditingPaymentStatusId(null);
     };
     window.addEventListener('click', handleOutsideClick);
     return () => window.removeEventListener('click', handleOutsideClick);
@@ -350,6 +394,30 @@ function App() {
       toastError('Network error updating status');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handlePaymentStatusUpdate = async (orderId: string | number, newStatus: string) => {
+    setIsUpdatingPaymentStatus(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/payment-status?id=${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toastSuccess('Payment status updated');
+        fetchDashboardData();
+        setEditingPaymentStatusId(null);
+      } else {
+        toastError(data.message || 'Failed to update payment status');
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toastError('Network error updating payment status');
+    } finally {
+      setIsUpdatingPaymentStatus(false);
     }
   };
 
@@ -444,10 +512,29 @@ function App() {
 
       // 1. Fetch Metrics (Dashboard only)
       if (force || isOnDashboard) {
+        const channelQuery = selectedChannels.length > 0 ? `&source_ids=${selectedChannels.join(',')}` : '';
         fetchTasks.push(
-          fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}`)
+          fetchWithAuth(`${API_BASE}/api/dashboard/metrics?start_date=${startObj}&end_date=${endObj}${channelQuery}`)
             .then(res => res.json())
             .then(data => { if (data.success) setMetrics(data.metrics); })
+        );
+
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/dashboard/top-products?start_date=${startObj}&end_date=${endObj}${channelQuery}&limit=5`)
+            .then(res => res.json())
+            .then(data => { if (data.success) setTopProducts(data.products); })
+        );
+
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/dashboard/revenue-trend?start_date=${startObj}&end_date=${endObj}${channelQuery}`)
+            .then(res => res.json())
+            .then(data => { if (data.success) setRevenueTrend(data.trend); })
+        );
+
+        fetchTasks.push(
+          fetchWithAuth(`${API_BASE}/api/dashboard/geo-distribution?start_date=${startObj}&end_date=${endObj}${channelQuery}&limit=5`)
+            .then(res => res.json())
+            .then(data => { if (data.success) setGeoDistribution(data.distribution); })
         );
       }
 
@@ -497,7 +584,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder]);
+  }, [activeTab, startDate, endDate, page, debouncedSearch, sourceFilter, paymentFilter, fulfillmentFilter, sortBy, sortOrder, selectedChannels]);
 
   const handleDownloadInvoice = async (orderId: string | number, orderNumber: string) => {
     try {
@@ -958,10 +1045,53 @@ function App() {
               )}
             </div>
           </div>
-        )}
+        )}        {activeTab === 'dashboard' && metrics && (
+          <section className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Channel Filter Pills */}
+            <div className="channel-filter-bar" style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem', backgroundColor: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border-color)', width: 'fit-content' }}>
+              {[
+                { id: 'shopify', label: 'Shopify', color: '#96bf48' },
+                { id: 'amazon', label: 'Amazon', color: '#ff9900' },
+                { id: 'pos', label: 'POS', color: '#6366f1' }
+              ].map(ch => (
+                <button
+                  key={ch.id}
+                  onClick={() => {
+                    setSelectedChannels(prev => 
+                      prev.includes(ch.id) ? prev.filter(id => id !== ch.id) : [...prev, ch.id]
+                    );
+                  }}
+                  className={`channel-pill ${selectedChannels.includes(ch.id) ? 'active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: selectedChannels.includes(ch.id) ? 'var(--bg-card)' : 'transparent',
+                    color: selectedChannels.includes(ch.id) ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedChannels.includes(ch.id) ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: ch.color }} />
+                  {ch.label}
+                </button>
+              ))}
+              {selectedChannels.length > 0 && (
+                <button 
+                  onClick={() => setSelectedChannels([])}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', fontSize: '0.85rem', padding: '0 0.5rem', cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
 
-        {activeTab === 'dashboard' && metrics && (
-          <section className="page-enter">
             {/* Hero Row: Revenue + GST */}
             <div className="metrics-hero-grid">
               <div className="metric-card metric-card-hero">
@@ -1026,6 +1156,132 @@ function App() {
                 <div className="metric-label">Avg. Order Value</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
               </div>
+            </div>
+
+            {/* Advanced Analytics Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
+              
+              {/* Revenue Trend Sparkline */}
+              <div className="metric-card" style={{ gridColumn: 'span 2' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revenue Trend</h4>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>₹{revenueTrend.reduce((acc, curr) => acc + curr.revenue, 0).toLocaleString('en-IN')}</div>
+                </div>
+                <div style={{ height: '120px', width: '100%', position: 'relative' }}>
+                  {revenueTrend.length > 1 ? (
+                    <svg viewBox={`0 0 ${revenueTrend.length - 1} 100`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                      <defs>
+                        <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.2" />
+                          <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      {/* Area under line */}
+                      <path
+                        d={`M 0 100 L ${revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / Math.max(...revenueTrend.map(rt => rt.revenue)) * 80 + 10)}`).join(' L ')} L ${revenueTrend.length - 1} 100 Z`}
+                        fill="url(#trendGradient)"
+                      />
+                      {/* Trend line */}
+                      <path
+                        d={`M ${revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / Math.max(...revenueTrend.map(rt => rt.revenue)) * 80 + 10)}`).join(' L ')}`}
+                        fill="none"
+                        stroke="var(--accent-color)"
+                        strokeWidth="0.1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-tertiary)' }}>Insufficient data for trend</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Channel Breakdown */}
+              <div className="metric-card">
+                <h4 style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revenue by Channel</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {metrics.channel_breakdown?.map(ch => (
+                    <div key={ch.source_id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                        <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{ch.source_id}</span>
+                        <span>₹{ch.revenue.toLocaleString('en-IN')} ({Math.round((ch.revenue / metrics.total_revenue) * 100)}%)</span>
+                      </div>
+                      <div style={{ height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          height: '100%', 
+                          width: `${(ch.revenue / metrics.total_revenue) * 100}%`, 
+                          background: ch.source_id === 'shopify' ? '#96bf48' : ch.source_id === 'amazon' ? '#ff9900' : '#6366f1',
+                          borderRadius: '4px' 
+                        }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Products Leaderboard */}
+              <div className="metric-card">
+                <h4 style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Products</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {topProducts.map((p, i) => (
+                    <div key={p.sku} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem', borderRadius: '8px', background: 'var(--bg-input)' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--accent-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>{i + 1}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{p.sku}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{p.quantity} sold</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>₹{p.revenue.toLocaleString('en-IN')}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Geo Distribution Table */}
+              <div className="metric-card">
+                <h4 style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Regions</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {geoDistribution.map(geo => (
+                    <div key={geo.state} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{geo.state}</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{geo.orders} orders</span>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>₹{geo.revenue.toLocaleString('en-IN')}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment Health & Discounts */}
+              <div className="metric-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment & Discounts</h4>
+                  
+                  <div style={{ marginBottom: '2rem' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Collection Health</div>
+                    <div style={{ height: '24px', background: 'var(--bg-input)', borderRadius: '12px', overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${(metrics.payment_breakdown.paid / metrics.total_orders) * 100}%`, background: 'var(--status-active)' }} title="Paid" />
+                      <div style={{ width: `${(metrics.payment_breakdown.pending / metrics.total_orders) * 100}%`, background: '#f59e0b' }} title="Pending" />
+                      <div style={{ width: `${(metrics.payment_breakdown.partial / metrics.total_orders) * 100}%`, background: '#6366f1' }} title="Partial" />
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--status-active)' }} /> Paid {Math.round((metrics.payment_breakdown.paid / metrics.total_orders) * 100)}%</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} /> Pending {Math.round((metrics.payment_breakdown.pending / metrics.total_orders) * 100)}%</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discount Leakage</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444' }}>₹{metrics.total_discount.toLocaleString('en-IN')}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>{metrics.discount_percent.toFixed(1)}% of gross revenue</div>
+                </div>
+              </div>
+
             </div>
           </section>
         )}
@@ -1313,10 +1569,42 @@ function App() {
                       {visibleColumns.includes('time') && <td>{new Date(order.created_at).toLocaleTimeString()}</td>}
                       {visibleColumns.includes('amount') && <td>₹{order.total_price}</td>}
                       {visibleColumns.includes('financial_status') && (
-                        <td>
-                          <span className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : 'warning'}`}>
-                            <span className="dot"></span> {order.financial_status?.charAt(0).toUpperCase() + order.financial_status?.slice(1) || 'Unknown'}
+                        <td style={{ position: 'relative' }}>
+                          <span 
+                            className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : (order.financial_status === 'pending' ? 'warning' : 'yellow')}`}
+                            style={{ cursor: isUpdatingPaymentStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 }}
+                            onClick={(e) => {
+                              if (isUpdatingPaymentStatus) return;
+                              e.stopPropagation();
+                              setEditingPaymentStatusId(editingPaymentStatusId === order.id ? null : order.id);
+                            }}
+                          >
+                            <span className="dot"></span> {isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 'Updating...' : (order.financial_status?.toLowerCase().charAt(0).toUpperCase() + order.financial_status?.toLowerCase().slice(1) || 'Unknown')}
                           </span>
+
+                          {editingPaymentStatusId === order.id && (
+                            <div className="status-popover" onClick={e => e.stopPropagation()}>
+                              <div className="status-popover-header">Update Payment</div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handlePaymentStatusUpdate(order.id, 'paid')}
+                              >
+                                <span className="badge-pill badge-pill-success"><span className="dot"></span> Paid</span>
+                              </div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handlePaymentStatusUpdate(order.id, 'pending')}
+                              >
+                                <span className="badge-pill badge-pill-warning"><span className="dot"></span> Pending</span>
+                              </div>
+                              <div 
+                                className="status-option"
+                                onClick={() => handlePaymentStatusUpdate(order.id, 'partially_paid')}
+                              >
+                                <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Partial</span>
+                              </div>
+                            </div>
+                          )}
                         </td>
                       )}
                       {visibleColumns.includes('fulfillment_status') && (
@@ -1330,7 +1618,7 @@ function App() {
                               setEditingStatusId(editingStatusId === order.id ? null : order.id);
                             }}
                           >
-                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.charAt(0).toUpperCase() + order.fulfillment_status?.slice(1) || 'Unfulfilled'))}
+                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.toLowerCase().charAt(0).toUpperCase() + order.fulfillment_status?.toLowerCase().slice(1) || 'Unfulfilled'))}
                           </span>
 
                           {editingStatusId === order.id && (

@@ -88,7 +88,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	oilService := service.NewOilInventoryService(oilRepo)
 	supplierService := service.NewSupplierService(supplierRepo)
 	poService := service.NewPurchaseOrderService(poRepo, oilRepo)
-	mfgService := service.NewManufacturingService(mfgRepo, oilRepo, inventoryRepo)
+	mfgService := service.NewManufacturingService(db, mfgRepo, oilRepo, syncOrchestrator)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	notifService := whatsapp.NewNotificationService(settingsProvider)
 	agentService := whatsapp.NewAgentService(settingsProvider, plannerService, messagesRepo, whatsapp.NewMetaClient(settingsProvider), notifService)
