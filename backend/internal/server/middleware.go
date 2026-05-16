@@ -48,9 +48,15 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		if isAllowed {
 			if rawOrigin != "" {
-				// Use the actual origin for the allow header to support multiple origins with credentials
-				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				// Security: If allowed via wildcard, do NOT set Allow-Credentials: true
+				// and set Allow-Origin to '*' instead of reflecting the origin.
+				if allowedOriginsEnv == "*" {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				} else {
+					// Use the actual origin for the allow header to support multiple origins with credentials
+					w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				}
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
 				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours

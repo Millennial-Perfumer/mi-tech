@@ -84,3 +84,30 @@ func TestCORSMiddleware(t *testing.T) {
 		})
 	}
 }
+
+func TestCORSMiddlewareWildcard(t *testing.T) {
+	os.Setenv("ALLOWED_ORIGINS", "*")
+	defer os.Unsetenv("ALLOWED_ORIGINS")
+
+	handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/api/health", nil)
+	req.Header.Set("Origin", "http://evil.com")
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	// Currently, it reflects the origin and allows credentials - this is the vulnerability
+	originHeader := res.Header().Get("Access-Control-Allow-Origin")
+	credsHeader := res.Header().Get("Access-Control-Allow-Credentials")
+
+	// Verify it meets our NEW desired state (Security Enhancement)
+	if originHeader != "*" {
+		t.Errorf("Expected Origin header '*', got %q", originHeader)
+	}
+	if credsHeader != "" {
+		t.Errorf("Expected empty Access-Control-Allow-Credentials, got %q", credsHeader)
+	}
+}
