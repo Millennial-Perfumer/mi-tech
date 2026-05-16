@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface PurchaseOrder {
   id: number;
@@ -26,10 +27,12 @@ interface Supplier {
 
 export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
 
@@ -114,7 +117,13 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this record? This will revert oil stock.')) return;
+    const confirmed = await confirm({
+      title: 'Delete Purchase Order',
+      message: 'Are you sure you want to delete this record? This will revert the oil stock levels.',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory/po?id=${id}`, { method: 'DELETE' });
       if (resp.ok) {
@@ -128,7 +137,8 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.items.length === 0) return;
+    if (formData.items.length === 0 || isSaving) return;
+    setIsSaving(true);
 
     try {
       if (editingRecordId) {
@@ -180,6 +190,8 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
       fetchData();
     } catch (err) {
       toastError('Error saving purchase order');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -341,9 +353,9 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
                   </p>
                 </div>
                 <div className="modal-actions" style={{ marginTop: 0, gap: '1.25rem' }}>
-                  <button type="button" className="btn-secondary" onClick={handleCloseModal} style={{ width: '130px', height: '54px', borderRadius: '16px', fontWeight: 700, fontSize: '1rem' }}>Cancel</button>
-                  <button type="submit" className="btn-primary" style={{ width: '220px', height: '54px', borderRadius: '16px', background: 'linear-gradient(135deg, #10b981, #059669)', fontWeight: 800, fontSize: '1rem', boxShadow: '0 10px 25px rgba(16, 185, 129, 0.25)', border: 'none', color: 'white', letterSpacing: '0.02em', cursor: 'pointer' }}>
-                    {editingRecordId ? 'Update Record' : 'Record Purchase'}
+                  <button type="button" className="btn-secondary" onClick={handleCloseModal} disabled={isSaving} style={{ width: '130px', height: '54px', borderRadius: '16px', fontWeight: 700, fontSize: '1rem' }}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={isSaving} style={{ width: '220px', height: '54px', borderRadius: '16px', background: 'linear-gradient(135deg, #10b981, #059669)', fontWeight: 800, fontSize: '1rem', boxShadow: '0 10px 25px rgba(16, 185, 129, 0.25)', border: 'none', color: 'white', letterSpacing: '0.02em', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}>
+                    {isSaving ? 'Recording...' : (editingRecordId ? 'Update Record' : 'Record Purchase')}
                   </button>
                 </div>
               </div>
