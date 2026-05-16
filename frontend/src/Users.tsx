@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 
@@ -17,6 +17,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
     const { success, error } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
     
@@ -92,6 +93,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
                         <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         <input 
                             type="text" 
+                            ref={searchInputRef}
                             placeholder="Search users..." 
                             aria-label="Search users"
                             value={searchTerm}
@@ -109,7 +111,10 @@ export function Users({ fetchWithAuth }: UsersProps) {
                         />
                         {searchTerm && (
                             <button
-                                onClick={() => setSearchTerm('')}
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    searchInputRef.current?.focus();
+                                }}
                                 aria-label="Clear search"
                                 title="Clear search"
                                 style={{
