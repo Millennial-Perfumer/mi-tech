@@ -714,3 +714,64 @@
 .col-fixed-whatsapp, .col-fixed-invoice, .col-fixed-feedback {
   white-space: nowrap;
 }
+
+/* --- Enhanced Dashboard Styles --- */
+.channel-pill {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.channel-pill:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.channel-pill.active {
+  border-color: var(--accent-color);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
+  transform: translateY(-1px);
+}
+
+.metric-card h4 {
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+@keyframes sparklineDraw {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+
+.metric-card svg path {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: sparklineDraw 2s ease-out forwards;
+}
+
+.metric-card:hover {
+  border-color: var(--accent-color);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Fix for analytics grid responsiveness */
+@media (max-width: 1200px) {
+  .metric-card[style*="grid-column: span 2"] {
+    grid-column: span 1 !important;
+  }
+}
+
+.page-enter {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

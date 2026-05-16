@@ -16,23 +16,21 @@ func NewMetricsService(metricsRepo repository.MetricsRepository) *MetricsService
 }
 
 // GetDashboardMetrics calculates and returns all dashboard metrics including GST splits.
-func (s *MetricsService) GetDashboardMetrics(startDate, endDate string) (dto.DashboardMetrics, error) {
-	totalRevenue, cgst, sgst, igst, totalOrders, cancelledOrders, fulfilledOrders, unfulfilledOrders, err :=
-		s.metricsRepo.GetDashboardMetrics(startDate, endDate)
-	if err != nil {
-		return dto.DashboardMetrics{}, err
-	}
+func (s *MetricsService) GetDashboardMetrics(startDate, endDate string, sourceIDs []string) (dto.DashboardMetrics, error) {
+	return s.metricsRepo.GetDashboardMetrics(startDate, endDate, sourceIDs)
+}
 
-	return dto.DashboardMetrics{
-		TotalRevenue:      totalRevenue,
-		TotalInvoices:     totalOrders,
-		TotalGSTCollected: cgst + sgst + igst,
-		CGSTCollected:     cgst,
-		SGSTCollected:     sgst,
-		IGSTCollected:     igst,
-		TotalOrders:       totalOrders,
-		CancelledOrders:   cancelledOrders,
-		FulfilledOrders:   fulfilledOrders,
-		UnfulfilledOrders: unfulfilledOrders,
-	}, nil
+// GetTopProducts returns the top selling products.
+func (s *MetricsService) GetTopProducts(startDate, endDate string, sourceIDs []string, limit int) ([]dto.TopProductRow, error) {
+	return s.metricsRepo.GetTopProducts(startDate, endDate, sourceIDs, limit)
+}
+
+// GetRevenueTrend returns the revenue trend over time.
+func (s *MetricsService) GetRevenueTrend(startDate, endDate string, sourceIDs []string) ([]dto.RevenueTrendRow, error) {
+	return s.metricsRepo.GetRevenueTrend(startDate, endDate, sourceIDs)
+}
+
+// GetGeoDistribution returns the geographic distribution of orders.
+func (s *MetricsService) GetGeoDistribution(startDate, endDate string, sourceIDs []string, limit int) ([]dto.GeoDistributionRow, error) {
+	return s.metricsRepo.GetGeoDistribution(startDate, endDate, sourceIDs, limit)
 }

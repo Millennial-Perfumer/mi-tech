@@ -162,6 +162,9 @@ func RegisterRoutes(
 
 	// --- Dashboard Metrics ---
 	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))
+	mux.HandleFunc("/api/dashboard/top-products", protected(metricsHandler.GetTopProducts))
+	mux.HandleFunc("/api/dashboard/revenue-trend", protected(metricsHandler.GetRevenueTrend))
+	mux.HandleFunc("/api/dashboard/geo-distribution", protected(metricsHandler.GetGeoDistribution))
 
 	// --- Report Routes ---
 	mux.HandleFunc("/api/reports/summary", protected(reportHandler.GetGSTSummary))
