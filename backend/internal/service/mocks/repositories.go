@@ -225,12 +225,50 @@ func (m *MockInventoryRepository) GetItemByPlatformSKU(platform, externalSKU str
 	return args.Get(0).(entity.InventoryItem), args.Error(1)
 }
 
-func (m *MockInventoryRepository) WithTx(tx *gorm.DB) repository.InventoryRepository {
-	args := m.Called(tx)
-	return args.Get(0).(repository.InventoryRepository)
+type MockMetricsRepository struct {
+	mock.Mock
 }
 
-func (m *MockInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
-	args := m.Called(externalOrderID)
-	return args.Get(0).([]entity.InventoryLog), args.Error(1)
+func (m *MockMetricsRepository) GetDashboardMetrics(startDate, endDate string, sourceIDs []string) (dto.DashboardMetrics, error) {
+	args := m.Called(startDate, endDate, sourceIDs)
+	return args.Get(0).(dto.DashboardMetrics), args.Error(1)
+}
+
+func (m *MockMetricsRepository) GetTopProducts(startDate, endDate string, sourceIDs []string, limit int) ([]dto.TopProductRow, error) {
+	args := m.Called(startDate, endDate, sourceIDs, limit)
+	return args.Get(0).([]dto.TopProductRow), args.Error(1)
+}
+
+func (m *MockMetricsRepository) GetRevenueTrend(startDate, endDate string, sourceIDs []string) ([]dto.RevenueTrendRow, error) {
+	args := m.Called(startDate, endDate, sourceIDs)
+	return args.Get(0).([]dto.RevenueTrendRow), args.Error(1)
+}
+
+func (m *MockMetricsRepository) GetGeoDistribution(startDate, endDate string, sourceIDs []string, limit int) ([]dto.GeoDistributionRow, error) {
+	args := m.Called(startDate, endDate, sourceIDs, limit)
+	return args.Get(0).([]dto.GeoDistributionRow), args.Error(1)
+}
+
+type MockReportRepository struct {
+	mock.Mock
+}
+
+func (m *MockReportRepository) GetGSTSummary(startDate, endDate string) (repository.GSTSummaryResult, error) {
+	args := m.Called(startDate, endDate)
+	return args.Get(0).(repository.GSTSummaryResult), args.Error(1)
+}
+
+func (m *MockReportRepository) GetStateSummary(startDate, endDate string) ([]repository.StateSummaryResult, error) {
+	args := m.Called(startDate, endDate)
+	return args.Get(0).([]repository.StateSummaryResult), args.Error(1)
+}
+
+func (m *MockReportRepository) GetHSNSummary(startDate, endDate string) ([]repository.HSNSummaryResult, error) {
+	args := m.Called(startDate, endDate)
+	return args.Get(0).([]repository.HSNSummaryResult), args.Error(1)
+}
+
+func (m *MockReportRepository) GetDocumentsIssued(startDate, endDate string) (*int64, *int64, int, int, error) {
+	args := m.Called(startDate, endDate)
+	return args.Get(0).(*int64), args.Get(1).(*int64), args.Int(2), args.Int(3), args.Error(4)
 }

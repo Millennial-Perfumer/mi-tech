@@ -62,6 +62,9 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	supplierRepo := repository.NewSupplierRepository(db)
 	poRepo := repository.NewPurchaseOrderRepository(db)
 	mfgRepo := repository.NewManufacturingRepository(db)
+	aiReadRepo := repository.NewAIReadRepository(db)
+	aiConvRepo := repository.NewAIConversationRepository(db)
+	aiMemRepo := repository.NewAIMemoryRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -97,6 +100,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
 	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := service.NewSystemService("../docs")
+	aiService := service.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
 	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := handler.NewSystemHandler(systemService)
@@ -124,6 +128,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	supplierHandler := handler.NewSupplierHandler(supplierService)
 	poHandler := handler.NewPurchaseOrderHandler(poService)
 	mfgHandler := handler.NewManufacturingHandler(mfgService)
+	aiHandler := handler.NewAIHandler(aiService)
 
 	RegisterRoutes(
 		mux,
@@ -150,6 +155,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		supplierHandler,
 		poHandler,
 		mfgHandler,
+		aiHandler,
 		authService,
 	)
 
