@@ -28,6 +28,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isStreamingRef = useRef(false);
 
   useEffect(() => {
     loadConversations();
@@ -35,7 +36,9 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
 
   useEffect(() => {
     if (activeConversationId) {
-      loadMessages(activeConversationId);
+      if (!isStreamingRef.current) {
+        loadMessages(activeConversationId);
+      }
     } else {
       setMessages([]);
     }
@@ -83,6 +86,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
     // Reset textarea height
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsLoading(true);
+    isStreamingRef.current = true;
 
     // Add user message optimistically
     const newMessages: Message[] = [...messages, { role: 'user', content: userMessage }];
@@ -154,6 +158,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
       setMessages(prev => [...prev, { role: 'system', content: `Failed to connect to AI: ${err.message}` }]);
     } finally {
       setIsLoading(false);
+      isStreamingRef.current = false;
     }
   };
 

@@ -145,6 +145,8 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, messages []ChatMessage,
 
 		// Proper SSE decoder loop
 		scanner := bufio.NewScanner(resp.Body)
+		buf := make([]byte, 10*1024*1024)
+		scanner.Buffer(buf, 10*1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" || !strings.HasPrefix(line, "data: ") {
@@ -199,6 +201,9 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, messages []ChatMessage,
 					return
 				}
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			ch <- StreamChunk{Error: fmt.Errorf("ollama sse scanner error: %w", err)}
 		}
 	}()
 
