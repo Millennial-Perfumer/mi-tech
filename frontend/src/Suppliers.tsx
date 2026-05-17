@@ -14,6 +14,7 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
   const { confirm } = useConfirm();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', contact_info: '' });
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -46,6 +47,8 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     const method = editingId ? 'PUT' : 'POST';
     const body = editingId ? { ...formData, id: editingId } : formData;
 
@@ -64,6 +67,8 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
       }
     } catch (err) {
       toastError('Error saving supplier');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -276,6 +281,7 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
                   <div style={{ position: 'relative' }}>
                     <input 
                       required 
+                      autoFocus
                       type="text" 
                       placeholder="e.g. ScentCo Global"
                       value={formData.name} 
@@ -317,6 +323,7 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
                 <button 
                   type="submit" 
                   className="btn-primary"
+                  disabled={isSaving}
                   style={{ 
                     flex: 1, 
                     height: '48px', 
@@ -324,10 +331,12 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
                     fontWeight: 700,
                     background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
                     border: 'none',
-                    boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3)'
+                    boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.3)',
+                    opacity: isSaving ? 0.7 : 1,
+                    cursor: isSaving ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {editingId ? 'Update Supplier' : 'Save Supplier'}
+                  {isSaving ? 'Saving...' : (editingId ? 'Update Supplier' : 'Save Supplier')}
                 </button>
               </div>
             </form>
