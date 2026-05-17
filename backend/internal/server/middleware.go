@@ -117,11 +117,14 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 			}
 
 			username, _ := claims["username"].(string)
+			userIDFloat, _ := claims["user_id"].(float64) // JWT numbers are often decoded as float64
+			userID := int64(userIDFloat)
 
-			// Add role and username to context
-			log.Printf("AuthMiddleware: user=%s role=%s", username, role)
+			// Add role, username, and userID to context
+			log.Printf("AuthMiddleware: user=%s (id=%d) role=%s", username, userID, role)
 			ctx := context.WithValue(r.Context(), "userRole", role)
 			ctx = context.WithValue(ctx, "username", username)
+			ctx = context.WithValue(ctx, "userID", userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

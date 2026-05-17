@@ -55,21 +55,21 @@ func (s *MetricsReportRepositoryTestSuite) TestGetDashboardMetrics() {
 		ExternalOrderID: "m3", TotalPrice: 100.0, Status: entity.StrPtr("CANCELLED"), CreatedAt: time.Now(),
 	})
 
-	rev, cgst, sgst, igst, total, cancelled, fulfilled, unfulfilled, err := s.metricsRepo.GetDashboardMetrics("", now)
+	metrics, err := s.metricsRepo.GetDashboardMetrics("", now, []string{})
 	assert.NoError(s.T(), err)
 
 	// Total revenue should exclude cancelled: 118 + 118 = 236
-	assert.Equal(s.T(), 236.0, rev)
-	assert.Equal(s.T(), 3, total)
-	assert.Equal(s.T(), 1, cancelled)
-	assert.Equal(s.T(), 0, fulfilled)
-	assert.Equal(s.T(), 2, unfulfilled)
+	assert.Equal(s.T(), 236.0, metrics.TotalRevenue)
+	assert.Equal(s.T(), 3, metrics.TotalInvoices)
+	assert.Equal(s.T(), 1, metrics.CancelledOrders)
+	assert.Equal(s.T(), 0, metrics.FulfilledOrders)
+	assert.Equal(s.T(), 2, metrics.UnfulfilledOrders)
 
 	// TN order (118): Tax is 18. CGST = 9, SGST = 9
 	// KA order (118): Tax is 18. IGST = 18
-	assert.Equal(s.T(), 9.0, cgst)
-	assert.Equal(s.T(), 9.0, sgst)
-	assert.Equal(s.T(), 18.0, igst)
+	assert.Equal(s.T(), 9.0, metrics.CGSTCollected)
+	assert.Equal(s.T(), 9.0, metrics.SGSTCollected)
+	assert.Equal(s.T(), 18.0, metrics.IGSTCollected)
 }
 
 func (s *MetricsReportRepositoryTestSuite) TestGetGSTSummary() {

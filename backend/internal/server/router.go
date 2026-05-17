@@ -41,6 +41,7 @@ func RegisterRoutes(
 	supplierHandler *handler.SupplierHandler,
 	poHandler *handler.PurchaseOrderHandler,
 	mfgHandler *handler.ManufacturingHandler,
+	aiHandler *handler.AIHandler,
 	authService *service.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -376,6 +377,23 @@ func RegisterRoutes(
 			adminProtected(mfgHandler.Delete)(w, r)
 		default:
 			mfgHandler.List(w, r)
+		}
+	}))
+
+	// --- AI Analysis Routes ---
+	mux.HandleFunc("/api/ai/chat", protected(aiHandler.Chat))
+	mux.HandleFunc("/api/ai/conversations", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			if r.URL.Query().Get("id") != "" {
+				aiHandler.GetConversation(w, r)
+			} else {
+				aiHandler.ListConversations(w, r)
+			}
+		case http.MethodDelete:
+			aiHandler.DeleteConversation(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
 }

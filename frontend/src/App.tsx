@@ -21,6 +21,7 @@ import { WhatsAppChat } from './WhatsAppChat';
 import Feedback from './Feedback';
 import OrderDetailsModal from './OrderDetailsModal';
 import { InventoryHub } from './InventoryHub';
+import { AIAnalysis } from './AIAnalysis';
 
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -522,19 +523,19 @@ function App() {
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/top-products?start_date=${startObj}&end_date=${endObj}${channelQuery}&limit=5`)
             .then(res => res.json())
-            .then(data => { if (data.success) setTopProducts(data.products); })
+            .then(data => { if (data.success) setTopProducts(data.products || []); })
         );
 
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/revenue-trend?start_date=${startObj}&end_date=${endObj}${channelQuery}`)
             .then(res => res.json())
-            .then(data => { if (data.success) setRevenueTrend(data.trend); })
+            .then(data => { if (data.success) setRevenueTrend(data.trend || []); })
         );
 
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/geo-distribution?start_date=${startObj}&end_date=${endObj}${channelQuery}&limit=5`)
             .then(res => res.json())
-            .then(data => { if (data.success) setGeoDistribution(data.distribution); })
+            .then(data => { if (data.success) setGeoDistribution(data.distribution || []); })
         );
       }
 
@@ -853,6 +854,15 @@ function App() {
               <span>Planner</span>
             </a>
           )}
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'ai-analysis' ? 'active' : ''}`} onClick={() => setActiveTab('ai-analysis')} title={isSidebarCollapsed ? "AI Analysis" : ""} style={{ animationDelay: '510ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+              <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5 5 3Z"></path>
+              <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5Z"></path>
+            </svg>
+            {!isSidebarCollapsed && <span className="nav-label">AI Analysis</span>}
+          </a>
+
           {userRole === 'admin' && (
             <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')} title={isSidebarCollapsed ? "RBAC" : ""} style={{ animationDelay: '525ms' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -989,14 +999,14 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1955,6 +1965,10 @@ function App() {
 
           {activeTab === 'inventory' && (
             <InventoryHub token={token} userRole={userRole} appConfigs={appConfigs} />
+          )}
+
+          {activeTab === 'ai-analysis' && (
+            <AIAnalysis fetchWithAuth={fetchWithAuth} API_BASE={API_BASE} />
           )}
         </div>
       </main>
