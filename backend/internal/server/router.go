@@ -316,7 +316,16 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/inventory/next-sku", protected(inventoryHandler.GetNextSKU))
 	mux.HandleFunc("/api/inventory/sync-shopify", adminProtected(inventoryHandler.SyncShopify))
 	mux.HandleFunc("/api/inventory/bulk", adminProtected(inventoryHandler.BulkCreate))
-	mux.HandleFunc("/api/inventory/map", adminProtected(inventoryHandler.CreateMapping))
+	mux.HandleFunc("/api/inventory/map", adminProtected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			inventoryHandler.CreateMapping(w, r)
+		case http.MethodDelete:
+			inventoryHandler.DeleteMapping(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 	mux.HandleFunc("/api/inventory/stock", adminProtected(inventoryHandler.UpdateStock))
 	mux.HandleFunc("/api/inventory/adjust", adminProtected(inventoryHandler.AdjustStock))
 	mux.HandleFunc("/api/inventory/logs", adminProtected(inventoryHandler.GetLogs))

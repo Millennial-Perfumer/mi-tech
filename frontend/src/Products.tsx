@@ -289,6 +289,12 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory`);
       const data = await resp.json();
       setItems(data);
+      if (selectedProduct) {
+        const updated = data.find((item: InventoryItem) => item.id === selectedProduct.id);
+        if (updated) {
+          setSelectedProduct(updated);
+        }
+      }
     } catch (err) {
       toastError('Failed to fetch inventory');
     } finally {
@@ -359,21 +365,30 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
         toastSuccess('Amazon SKU mapped successfully');
         setAmazonSKUInput('');
         fetchInventory();
-        // Update selected product locally
-        if (selectedProduct) {
-          const updatedMappings = [...(selectedProduct.mappings || []), { 
-            id: 0, 
-            platform: 'amazon', 
-            external_sku: amazonSKUInput, 
-            external_variant_id: 'default' 
-          }];
-          setSelectedProduct({...selectedProduct, mappings: updatedMappings});
-        }
+      } else {
+        toastError('Failed to map Amazon SKU');
       }
     } catch (err) {
       toastError('Failed to map Amazon SKU');
     }
   };
+
+  const handleDeleteMapping = async (mappingID: number) => {
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/inventory/map?id=${mappingID}`, {
+        method: 'DELETE'
+      });
+      if (resp.ok) {
+        toastSuccess('SKU mapping removed successfully');
+        fetchInventory();
+      } else {
+        toastError('Failed to delete mapping');
+      }
+    } catch (err) {
+      toastError('Failed to delete mapping');
+    }
+  };
+
 
   const handleSyncShopify = async () => {
     setSyncMode('shopify');
@@ -875,17 +890,84 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
 
               {/* Amazon Mapping Section */}
               <div style={{ 
-                padding: '1rem', 
+                padding: '1.25rem', 
                 background: 'var(--surface-color-secondary)', 
-                borderRadius: '12px',
-                border: '1px solid var(--border-color)'
+                borderRadius: '16px',
+                border: '1px solid var(--border-color)',
+                display: 'grid',
+                gap: '1rem'
               }}>
-                <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amazon India Integration</label>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                    Amazon India Mappings
+                  </label>
+                  <span className="badge-pill badge-pill-gray" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
+                    {(selectedProduct.mappings?.filter(m => m.platform === 'amazon') || []).length} Active
+                  </span>
+                </div>
+
+                {(selectedProduct.mappings?.filter(m => m.platform === 'amazon') || []).length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {(selectedProduct.mappings?.filter(m => m.platform === 'amazon') || []).map(mapping => (
+                      <div 
+                        key={mapping.id}
+                        className="glass-card-premium"
+                        style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          padding: '0.6rem 0.8rem', 
+                          borderRadius: '10px',
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-input)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.9rem', color: 'var(--accent-color)' }}>📦</span>
+                          <code style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {mapping.external_sku}
+                          </code>
+                        </div>
+                        <button 
+                          className="toolbar-btn" 
+                          onClick={() => handleDeleteMapping(mapping.id)}
+                          style={{ 
+                            padding: '4px 8px', 
+                            fontSize: '0.75rem', 
+                            color: 'var(--status-danger)',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--status-danger)';
+                            e.currentTarget.style.color = '#fff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                            e.currentTarget.style.color = 'var(--status-danger)';
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
                   <div style={{ position: 'relative', flex: 1 }}>
                     <input 
                       type="text" 
-                      placeholder={getSKUForPlatform(selectedProduct.mappings, 'amazon') === '—' ? "Enter Amazon SKU..." : getSKUForPlatform(selectedProduct.mappings, 'amazon')}
+                      placeholder="Add new Amazon SKU..."
                       value={amazonSKUInput}
                       onChange={(e) => setAmazonSKUInput(e.target.value)}
                       style={{ 
@@ -893,20 +975,22 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                         fontSize: '0.85rem',
                         border: '1px solid var(--border-color)',
                         background: 'var(--bg-input)',
-                        paddingLeft: '1rem'
+                        paddingLeft: '1rem',
+                        borderRadius: '8px'
                       }}
                     />
                   </div>
                   <button 
                     className="btn-primary" 
-                    style={{ height: '38px', padding: '0 1rem', fontSize: '0.8rem' }}
+                    style={{ height: '38px', padding: '0 1rem', fontSize: '0.8rem', borderRadius: '8px' }}
                     onClick={() => handleAddAmazonMapping(selectedProduct.id)}
                   >
-                    {getSKUForPlatform(selectedProduct.mappings, 'amazon') === '—' ? 'Map SKU' : 'Update'}
+                    Add Mapping
                   </button>
                 </div>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.5rem' }}>
-                  Linking an Amazon SKU enables real-time stock sync for this product.
+                
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', margin: 0 }}>
+                  Linking Amazon SKUs enables real-time stock sync for this product. You can map multiple SKUs if the same product is sold under different listings.
                 </p>
               </div>
             </div>

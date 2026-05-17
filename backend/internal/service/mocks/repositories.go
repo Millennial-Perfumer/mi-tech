@@ -195,6 +195,11 @@ func (m *MockInventoryRepository) CreateMapping(mapping *entity.InventoryMapping
 	return args.Error(0)
 }
 
+func (m *MockInventoryRepository) DeleteMapping(id int) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
 func (m *MockInventoryRepository) DeleteAll() error {
 	args := m.Called()
 	return args.Error(0)

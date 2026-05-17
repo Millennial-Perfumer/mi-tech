@@ -4,7 +4,6 @@ import (
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type gormInventoryRepository struct {
@@ -84,12 +83,27 @@ func (r *gormInventoryRepository) ListMappings() ([]entity.InventoryMapping, err
 
 
 func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
-	// Use OnConflict to handle case where SKU might already be mapped
-	return r.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "platform"}, {Name: "external_sku"}},
-		DoUpdates: clause.AssignmentColumns([]string{"inventory_item_id", "external_variant_id"}),
-	}).Create(mapping).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Delete any existing mappings for this product and platform to maintain the one-SKU-per-platform rule
+		if err := tx.Where("inventory_item_id = ? AND platform = ?", mapping.InventoryItemID, mapping.Platform).Delete(&entity.InventoryMapping{}).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete any existing mappings for this platform and SKU to prevent unique index collisions on re-assignments
+		if err := tx.Where("platform = ? AND external_sku = ?", mapping.Platform, mapping.ExternalSKU).Delete(&entity.InventoryMapping{}).Error; err != nil {
+			return err
+		}
+
+		// 3. Create the new mapping
+		return tx.Create(mapping).Error
+	})
 }
+
+func (r *gormInventoryRepository) DeleteMapping(id int) error {
+	return r.db.Delete(&entity.InventoryMapping{}, id).Error
+}
+
+
 
 
 func (r *gormInventoryRepository) DeleteAll() error {

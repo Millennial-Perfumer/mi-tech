@@ -186,6 +186,7 @@ type InventoryRepository interface {
 	// Mappings
 	ListMappings() ([]entity.InventoryMapping, error)
 	CreateMapping(mapping *entity.InventoryMapping) error
+	DeleteMapping(id int) error
 
 	// Logs
 	LogAdjustment(log *entity.InventoryLog) error
