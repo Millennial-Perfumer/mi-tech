@@ -523,19 +523,19 @@ function App() {
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/top-products?start_date=${startObj}&end_date=${endObj}${channelQuery}&limit=5`)
             .then(res => res.json())
-            .then(data => { if (data.success) setTopProducts(data.products); })
+            .then(data => { if (data.success) setTopProducts(data.products || []); })
         );
 
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/revenue-trend?start_date=${startObj}&end_date=${endObj}${channelQuery}`)
             .then(res => res.json())
-            .then(data => { if (data.success) setRevenueTrend(data.trend); })
+            .then(data => { if (data.success) setRevenueTrend(data.trend || []); })
         );
 
         fetchTasks.push(
           fetchWithAuth(`${API_BASE}/api/dashboard/geo-distribution?start_date=${startObj}&end_date=${endObj}${channelQuery}&limit=5`)
             .then(res => res.json())
-            .then(data => { if (data.success) setGeoDistribution(data.distribution); })
+            .then(data => { if (data.success) setGeoDistribution(data.distribution || []); })
         );
       }
 
@@ -855,7 +855,11 @@ function App() {
             </a>
           )}
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'ai-analysis' ? 'active' : ''}`} onClick={() => setActiveTab('ai-analysis')} title={isSidebarCollapsed ? "AI Analysis" : ""} style={{ animationDelay: '510ms' }}>
-            <span className="nav-icon">✨</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+              <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5 5 3Z"></path>
+              <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5Z"></path>
+            </svg>
             {!isSidebarCollapsed && <span className="nav-label">AI Analysis</span>}
           </a>
 
