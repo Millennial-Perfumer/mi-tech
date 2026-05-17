@@ -4,6 +4,7 @@ import (
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type gormInventoryRepository struct {
@@ -84,7 +85,10 @@ func (r *gormInventoryRepository) ListMappings() ([]entity.InventoryMapping, err
 
 func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
 	// Use OnConflict to handle case where SKU might already be mapped
-	return r.db.Save(mapping).Error
+	return r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "platform"}, {Name: "external_sku"}},
+		DoUpdates: clause.AssignmentColumns([]string{"inventory_item_id", "external_variant_id"}),
+	}).Create(mapping).Error
 }
 
 
