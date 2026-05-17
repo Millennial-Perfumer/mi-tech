@@ -324,6 +324,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/inventory/item", adminProtected(inventoryHandler.UpdateItem))
 	
 	// --- Oil Inventory Routes ---
+	mux.HandleFunc("/api/inventory/oil/bulk-delete", adminProtected(oilHandler.BulkDeleteOils))
 	mux.HandleFunc("/api/inventory/oil", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:

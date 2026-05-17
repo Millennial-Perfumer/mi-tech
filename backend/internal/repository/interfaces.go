@@ -206,6 +206,7 @@ type OilInventoryRepository interface {
 	Create(item *entity.OilInventory) error
 	Update(item *entity.OilInventory) error
 	Delete(id int) error
+	BulkDelete(ids []int) error
 }
 
 // SupplierRepository defines all data access for vendors.

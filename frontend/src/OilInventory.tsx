@@ -521,29 +521,34 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
           <button 
             className="toolbar-btn" 
             style={{ color: 'var(--status-danger)' }}
+            disabled={isLoading}
             onClick={async () => {
+              const count = selectedIds.size;
               const confirmed = await confirm({
                 title: 'Bulk Delete Oils',
-                message: `Are you sure you want to delete ${selectedIds.size} selected oils? This action cannot be undone.`,
+                message: `Are you sure you want to delete ${count} selected oils? This action cannot be undone.`,
                 confirmLabel: 'Delete All',
                 variant: 'danger'
               });
               if (confirmed) {
-                // handleDelete already has its own confirmation, so we should skip it or use a different approach
-                // for bulk. But here it calls handleDelete(id) which will prompt for EACH one if not careful.
-                // Wait, handleDelete in OilInventory.tsx prompts.
-                // I should probably refactor handleDelete to accept a skipConfirm param or just do the logic here.
-
+                setIsLoading(true);
                 try {
-                  await Promise.all(Array.from(selectedIds).map(async (id) => {
-                    const resp = await fetchWithAuth(`${API_BASE}/api/inventory/oil?id=${id}`, { method: 'DELETE' });
-                    return resp.ok;
-                  }));
-                  toastSuccess(`${selectedIds.size} oil records deleted`);
-                  setSelectedIds(new Set());
-                  fetchData();
+                  const resp = await fetchWithAuth(`${API_BASE}/api/inventory/oil/bulk-delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(selectedIds) })
+                  });
+                  if (resp.ok) {
+                    toastSuccess(`${count} oil records deleted`);
+                    setSelectedIds(new Set());
+                    fetchData();
+                  } else {
+                    toastError('Failed to delete oils in bulk');
+                  }
                 } catch (err) {
                   toastError('Error during bulk deletion');
+                } finally {
+                  setIsLoading(false);
                 }
               }
             }}
