@@ -17,6 +17,8 @@ func TestCORSMiddleware(t *testing.T) {
 		origin         string
 		expectedOrigin string
 		expectedAllow  bool
+		setup          func()
+		cleanup        func()
 	}{
 		{
 			name:           "Production Domain - Admin UI",
@@ -54,10 +56,25 @@ func TestCORSMiddleware(t *testing.T) {
 			expectedOrigin: "",
 			expectedAllow:  false,
 		},
+		{
+			name:           "Wildcard Origin - No Credentials",
+			origin:         "http://anything.com",
+			expectedOrigin: "*",
+			expectedAllow:  false,
+			setup: func() { os.Setenv("ALLOWED_ORIGINS", "*") },
+			cleanup: func() { os.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://mi-tech.millennialperfumer.in,https://feedback-form.millennialperfumer.in") },
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.setup != nil {
+				tt.setup()
+			}
+			if tt.cleanup != nil {
+				defer tt.cleanup()
+			}
+
 			handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})

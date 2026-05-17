@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -270,11 +271,10 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
-	isMatch := hmacHeader == expectedHmac
+	isMatch := subtle.ConstantTimeCompare([]byte(hmacHeader), []byte(expectedHmac)) == 1
 	if !isMatch {
 		log.Printf("Webhook HMAC Mismatch!")
-		log.Printf("  Received: %s", hmacHeader)
-		log.Printf("  Expected: %s", expectedHmac)
+		// Do not log expectedHmac to avoid leaking valid signatures in logs
 		log.Printf("  Body Length: %d", len(body))
 		log.Printf("  Secret Length: %d", len(secret))
 	}

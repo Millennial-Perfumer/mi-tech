@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -178,11 +179,17 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 	// 1. Hub Challenge for verification
 	if r.Method == http.MethodGet {
 		challenge := r.URL.Query().Get("hub.challenge")
-		if challenge != "" {
+		mode := r.URL.Query().Get("hub.mode")
+		token := r.URL.Query().Get("hub.verify_token")
+
+		expectedToken := h.settings.GetWhatsAppWebhookVerifyToken()
+		if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(expectedToken)) == 1 {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(challenge))
 			return
 		}
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
 	}
 
 	// 2. Handle status updates
@@ -417,7 +424,7 @@ func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature str
 	mac.Write(body)
 	expectedHash := hex.EncodeToString(mac.Sum(nil))
 
-	return hmac.Equal([]byte(actualHash), []byte(expectedHash))
+	return subtle.ConstantTimeCompare([]byte(actualHash), []byte(expectedHash)) == 1
 }
 
 // GetTriggers handles GET /api/automation/whatsapp/triggers.
