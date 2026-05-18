@@ -1,5 +1,5 @@
 import { API_BASE } from './api';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
@@ -239,6 +239,7 @@ function App() {
   const [editingPaymentStatusId, setEditingPaymentStatusId] = useState<string | number | null>(null);
   const [isUpdatingPaymentStatus, setIsUpdatingPaymentStatus] = useState(false);
   const [whatsappOrder, setWhatsappOrder] = useState<Order | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // Sync Modal State
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncMode, setSyncMode] = useState<'shopify' | 'amazon'>('shopify');
@@ -778,6 +779,7 @@ function App() {
           />
           <button 
             onClick={toggleSidebar}
+            aria-label="Toggle sidebar"
             style={{ 
               color: 'var(--text-secondary)', 
               padding: '4px',
@@ -891,6 +893,7 @@ function App() {
               <button
                 className={`settings-footer-btn ${activeTab === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveTab('settings')}
+                aria-label="Settings"
                 title="Settings"
                 style={{ width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', transition: 'all 0.2s ease' }}
               >
@@ -900,6 +903,7 @@ function App() {
               <button
                 className="theme-toggle"
                 onClick={toggleTheme}
+                aria-label="Toggle theme"
                 title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 style={{ width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', transition: 'all 0.2s ease' }}
               >
@@ -914,6 +918,7 @@ function App() {
             <button
               className="footer-logout-btn"
               onClick={handleLogout}
+              aria-label="Logout"
               title={isSidebarCollapsed ? "Sign Out" : ""}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -977,6 +982,7 @@ function App() {
               <button
                 className="theme-toggle"
                 onClick={toggleTheme}
+                aria-label="Toggle theme"
                 title="Toggle theme"
                 style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}
               >
@@ -988,6 +994,7 @@ function App() {
               </button>
               <button
                 onClick={handleLogout}
+                aria-label="Logout"
                 title="Sign Out"
                 style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', color: '#ef4444' }}
               >
@@ -1394,6 +1401,7 @@ function App() {
                 <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
                   <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                   <input 
+                    ref={searchInputRef}
                     type="text" 
                     placeholder="Search orders or customers..." 
                     aria-label="Search orders or customers"
@@ -1411,7 +1419,7 @@ function App() {
                   />
                   {search && (
                     <button
-                      onClick={() => { setSearch(''); setPage(1); }}
+                      onClick={() => { setSearch(''); setPage(1); searchInputRef.current?.focus(); }}
                       aria-label="Clear search"
                       title="Clear search"
                       style={{
