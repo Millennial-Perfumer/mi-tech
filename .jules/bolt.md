@@ -25,3 +25,7 @@
 ## 2026-05-14 - [Consolidating Flexible ID Lookups]
 **Learning:** Flexible ID lookups (supporting both internal numeric and external string IDs) often lead to N+1 database roundtrips if handlers first resolve the ID and then call a separate service method to fetch the full object or DTO. Consolidating this into a single service-side "GetByFlexibleID" flow that returns the final DTO (including associations like line items) reduces per-request latency.
 **Action:** When an API supports both internal and external IDs, implement a single service method that performs resolution and fetching of all required data in one path. Re-use resolved entities for subsequent logic (like notifications or status updates) to avoid redundant DB hits.
+
+## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
+**Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
+**Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
