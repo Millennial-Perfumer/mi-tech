@@ -27,41 +27,49 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
 		rawOrigin := r.Header.Get("Origin")
 		origin := normalizeOrigin(rawOrigin)
-		isAllowed := false
+		isExactMatch := false
+		isWildcardMatch := false
 
 		// Always set Vary: Origin to handle caching behind proxies/CDNs
 		w.Header().Add("Vary", "Origin")
 
 		if rawOrigin == "" {
 			// If no origin, we can consider it a direct request or same-origin
-			isAllowed = true
+			isExactMatch = true
 		} else if allowedOriginsEnv != "" {
 			allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 			for _, allowed := range allowedOrigins {
 				trimmed := normalizeOrigin(allowed)
-				if trimmed == "*" || origin == trimmed {
-					isAllowed = true
+				if trimmed == "*" {
+					isWildcardMatch = true
+				} else if origin == trimmed {
+					isExactMatch = true
 					break
 				}
 			}
 		}
 
-		if isAllowed {
+		if isExactMatch || isWildcardMatch {
 			if rawOrigin != "" {
-				// Use the actual origin for the allow header to support multiple origins with credentials
-				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				if isExactMatch {
+					// Use the actual origin for the allow header to support multiple origins with credentials
+					w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				} else {
+					// Wildcard origin: MUST NOT allow credentials and should use literal '*'
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				}
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
 				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 			}
 		} else {
-			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) Method=[%s] Path=[%s] not in ALLOWED_ORIGINS=[%s]", 
+			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) Method=[%s] Path=[%s] not in ALLOWED_ORIGINS=[%s]",
 				rawOrigin, origin, r.Method, r.URL.Path, allowedOriginsEnv)
 		}
 
 		if r.Method == http.MethodOptions {
-			if isAllowed {
+			if isExactMatch || isWildcardMatch {
 				w.WriteHeader(http.StatusOK)
 			} else {
 				w.WriteHeader(http.StatusForbidden)

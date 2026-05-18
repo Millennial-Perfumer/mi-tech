@@ -17,6 +17,7 @@ func TestCORSMiddleware(t *testing.T) {
 		origin         string
 		expectedOrigin string
 		expectedAllow  bool
+		wildcard       bool
 	}{
 		{
 			name:           "Production Domain - Admin UI",
@@ -54,10 +55,23 @@ func TestCORSMiddleware(t *testing.T) {
 			expectedOrigin: "",
 			expectedAllow:  false,
 		},
+		{
+			name:           "Wildcard Origin (via ALLOWED_ORIGINS=*)",
+			origin:         "http://any-random-domain.com",
+			expectedOrigin: "*",
+			expectedAllow:  false,
+			wildcard:       true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.wildcard {
+				original := os.Getenv("ALLOWED_ORIGINS")
+				os.Setenv("ALLOWED_ORIGINS", "*")
+				defer os.Setenv("ALLOWED_ORIGINS", original)
+			}
+
 			handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
