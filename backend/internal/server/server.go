@@ -90,7 +90,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	inventoryService := service.NewInventoryService(inventoryRepo, shopifyClient, syncOrchestrator, settingsProvider, amazonOrderPoller)
 	oilService := service.NewOilInventoryService(oilRepo)
 	supplierService := service.NewSupplierService(supplierRepo)
-	poService := service.NewPurchaseOrderService(poRepo, oilRepo)
+	poService := service.NewPurchaseOrderService(db, poRepo, oilRepo)
 	mfgService := service.NewManufacturingService(db, mfgRepo, oilRepo, syncOrchestrator)
 	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
 	notifService := whatsapp.NewNotificationService(settingsProvider)

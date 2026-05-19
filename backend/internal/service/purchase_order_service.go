@@ -5,15 +5,18 @@ import (
 	"time"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
+	"gorm.io/gorm"
 )
 
 type PurchaseOrderService struct {
+	db      *gorm.DB
 	poRepo  repository.PurchaseOrderRepository
 	oilRepo repository.OilInventoryRepository
 }
 
-func NewPurchaseOrderService(poRepo repository.PurchaseOrderRepository, oilRepo repository.OilInventoryRepository) *PurchaseOrderService {
+func NewPurchaseOrderService(db *gorm.DB, poRepo repository.PurchaseOrderRepository, oilRepo repository.OilInventoryRepository) *PurchaseOrderService {
 	return &PurchaseOrderService{
+		db:      db,
 		poRepo:  poRepo,
 		oilRepo: oilRepo,
 	}
@@ -57,13 +60,70 @@ func (s *PurchaseOrderService) Create(po *entity.PurchaseOrder) error {
 	return s.oilRepo.Update(&oil)
 }
 
+// BulkCreate handles multiple purchase orders in a single optimized transaction.
+// Optimization: Batch inserts POs and aggregates oil stock updates to eliminate N+1 queries.
+// Expected Impact: Reduces database roundtrips from O(3N) to O(M+1) (where M is unique oils).
 func (s *PurchaseOrderService) BulkCreate(pos []entity.PurchaseOrder) error {
-	for i := range pos {
-		if err := s.Create(&pos[i]); err != nil {
+	if len(pos) == 0 {
+		return nil
+	}
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		for i := range pos {
+			if pos[i].PurchaseDate.IsZero() {
+				pos[i].PurchaseDate = now
+			}
+		}
+
+		// 1. Batch Create POs in a single roundtrip
+		if err := s.poRepo.WithTx(tx).BulkCreate(pos); err != nil {
 			return err
 		}
-	}
-	return nil
+
+		// 2. Aggregate Stock Adjustments and Metadata per Oil
+		type oilUpdate struct {
+			Delta          float64
+			LatestPrice    float64
+			LatestSupplier int
+			LatestDate     time.Time
+		}
+		oilUpdates := make(map[int]*oilUpdate)
+
+		for i := range pos {
+			po := &pos[i]
+			update, exists := oilUpdates[po.OilInventoryID]
+			if !exists {
+				update = &oilUpdate{}
+				oilUpdates[po.OilInventoryID] = update
+			}
+
+			update.Delta += po.QuantityGrams
+			// Track latest metadata to update the oil record
+			if po.PurchaseDate.After(update.LatestDate) || update.LatestDate.IsZero() {
+				update.LatestDate = po.PurchaseDate
+				update.LatestPrice = po.UnitPricePerKg
+				update.LatestSupplier = po.SupplierID
+			}
+		}
+
+		// 3. Apply aggregated updates to Oil Inventory
+		for oilID, upd := range oilUpdates {
+			// Atomic stock update + metadata update in one query per oil
+			if err := tx.Model(&entity.OilInventory{}).
+				Where("id = ?", oilID).
+				Updates(map[string]interface{}{
+					"grams_left":            gorm.Expr("COALESCE(grams_left, 0) + ?", upd.Delta),
+					"purchase_price_per_kg": upd.LatestPrice,
+					"supplier_id":           upd.LatestSupplier,
+					"updated_at":            now,
+				}).Error; err != nil {
+				return fmt.Errorf("failed to update oil stock and metadata for ID %d: %w", oilID, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 func (s *PurchaseOrderService) Update(po *entity.PurchaseOrder) error {

@@ -221,9 +221,11 @@ type SupplierRepository interface {
 
 // PurchaseOrderRepository defines all data access for raw material purchases.
 type PurchaseOrderRepository interface {
+	WithTx(tx *gorm.DB) PurchaseOrderRepository
 	List() ([]entity.PurchaseOrder, error)
 	GetByID(id int) (*entity.PurchaseOrder, error)
 	Create(po *entity.PurchaseOrder) error
+	BulkCreate(pos []entity.PurchaseOrder) error
 	Update(po *entity.PurchaseOrder) error
 	Delete(id int) error
 }
