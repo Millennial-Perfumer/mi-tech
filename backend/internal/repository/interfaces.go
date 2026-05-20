@@ -56,6 +56,7 @@ type OrderRepository interface {
 	UpdateFeedbackStatus(id int64, statusID int) error
 	SaveCustomerFeedback(feedback entity.CustomerFeedback) error
 	GetCustomerFeedback() ([]dto.FeedbackResponse, error)
+	UpdateFeedbackAdminComment(id int, comment string) error
 }
 
 // LineItemRepository defines all data access operations for the order_line_items table.

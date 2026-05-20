@@ -455,3 +455,53 @@ func (h *OrderHandler) GetFeedback(w http.ResponseWriter, r *http.Request) {
 		"feedback": feedback,
 	})
 }
+
+// UpdateFeedbackAdminComment handles PUT /api/orders/feedback/comment.
+// @Summary Update feedback admin comment
+// @Description Add or update an internal admin comment on a customer feedback
+// @Tags feedback
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param id query int true "Feedback ID"
+// @Param body body map[string]string true "Admin comment"
+// @Success 200 {object} map[string]interface{}
+// @Router /orders/feedback/comment [put]
+func (h *OrderHandler) UpdateFeedbackAdminComment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodOptions {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "Missing feedback id", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid feedback id", http.StatusBadRequest)
+		return
+	}
+
+	var reqBody struct {
+		AdminComment string `json:"admin_comment"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.orderService.UpdateFeedbackAdminComment(id, reqBody.AdminComment); err != nil {
+		log.Printf("Error updating admin comment for feedback %d: %v", id, err)
+		http.Error(w, "Failed to update admin comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Admin comment updated successfully",
+	})
+}

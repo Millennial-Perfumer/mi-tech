@@ -10,5 +10,6 @@ type FeedbackResponse struct {
 	CustomerName string    `gorm:"column:customer_name" json:"customer_name"`
 	Rating       int       `gorm:"column:rating" json:"rating"`
 	Comment      string    `gorm:"column:comment" json:"message"`
+	AdminComment *string   `gorm:"column:admin_comment" json:"admin_comment"`
 	CreatedAt    time.Time `gorm:"column:created_at" json:"created_at"`
 }
