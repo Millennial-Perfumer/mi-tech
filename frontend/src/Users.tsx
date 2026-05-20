@@ -255,6 +255,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
                                         value={username}
                                         onChange={e => setUsername(e.target.value)}
                                         required
+                                        autoFocus
                                         placeholder="agent@example.com"
                                         style={{ marginTop: '0.25rem' }}
                                     />
