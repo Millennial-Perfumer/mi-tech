@@ -314,7 +314,13 @@ func (r *gormAIReadRepository) ExecuteRawQuery(sql string) ([]map[string]interfa
 
 func (r *gormAIReadRepository) ListTables() ([]string, error) {
 	var tables []string
-	query := "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+	// Security: Filter out sensitive system and authentication tables from schema discovery.
+	query := `
+		SELECT table_name
+		FROM information_schema.tables
+		WHERE table_schema='public'
+		AND table_name NOT IN ('users', 'app_configs', 'app_settings', 'webhook_status')
+	`
 	err := r.db.Raw(query).Scan(&tables).Error
 	return tables, err
 }

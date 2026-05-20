@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-03-31 - [AI SQL Injection & Information Disclosure via Sensitive Tables]
+**Vulnerability:** AI-triggered raw SQL queries could access sensitive system tables like `users` (containing password hashes) and `app_configs` (containing API keys/secrets) via prompt injection.
+**Learning:** While mutation keywords were blocked, `SELECT` access to the entire public schema was permitted. Relying solely on keyword blocking is insufficient when the database contains sensitive metadata or authentication secrets that can be exfiltrated via simple reads.
+**Prevention:** Implement a strict, "deny-by-default" allowlist of authorized business tables for any AI-triggered or dynamic query engine. Supplement this by filtering sensitive tables out of schema discovery (e.g., `information_schema.tables`) to prevent discovery of their existence.
