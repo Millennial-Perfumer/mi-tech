@@ -258,18 +258,28 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 		var existing entity.Order
 		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
 			Select("id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip",
+				"delivery_status", "delivered_at", "inventory_deducted", "feedback_status_id").
 			First(&existing).Error
 
 		if err == nil {
 			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
 			r.mergePII(&existing, &order)
-			
-			// Preserve delivered_at if already set
-			if existing.DeliveredAt != nil {
-				order.DeliveredAt = existing.DeliveredAt
+
+			// Preserve manually set or previously discovered delivery data if it's already "delivered"
+			if existing.DeliveryStatus != nil && *existing.DeliveryStatus == "delivered" {
+				order.DeliveryStatus = existing.DeliveryStatus
+				if existing.DeliveredAt != nil {
+					order.DeliveredAt = existing.DeliveredAt
+				}
+				if existing.FeedbackStatusID != nil {
+					order.FeedbackStatusID = existing.FeedbackStatusID
+				}
 			}
-			order.InventoryDeducted = existing.InventoryDeducted
+			// Only preserve from DB if incoming value is false (not yet Deducted)
+			if !order.InventoryDeducted {
+				order.InventoryDeducted = existing.InventoryDeducted
+			}
 		}
 
 		// Stamp delivered_at if status transition detected
@@ -382,7 +392,8 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		var existingOrders []entity.Order
 		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
 			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
+				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip",
+				"delivery_status", "delivered_at", "inventory_deducted", "feedback_status_id").
 			Find(&existingOrders).Error
 
 		if err != nil {
@@ -403,12 +414,21 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			if existing, found := existingMap[key]; found {
 				orders[i].ID = existing.ID // Crucial to link line items correctly
 				r.mergePII(&existing, &orders[i])
-				
-				// Preserve delivered_at if already set
-				if existing.DeliveredAt != nil {
-					orders[i].DeliveredAt = existing.DeliveredAt
+
+				// Preserve manually set or previously discovered delivery data if it's already "delivered"
+				if existing.DeliveryStatus != nil && *existing.DeliveryStatus == "delivered" {
+					orders[i].DeliveryStatus = existing.DeliveryStatus
+					if existing.DeliveredAt != nil {
+						orders[i].DeliveredAt = existing.DeliveredAt
+					}
+					if existing.FeedbackStatusID != nil {
+						orders[i].FeedbackStatusID = existing.FeedbackStatusID
+					}
 				}
-				orders[i].InventoryDeducted = existing.InventoryDeducted
+				// Only preserve from DB if incoming value is false (not yet Deducted)
+				if !orders[i].InventoryDeducted {
+					orders[i].InventoryDeducted = existing.InventoryDeducted
+				}
 			}
 
 			// Stamp delivered_at if status transition detected

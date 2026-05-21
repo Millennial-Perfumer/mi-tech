@@ -123,6 +123,11 @@ func (m *MockOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, err
 	return args.Get(0).([]dto.FeedbackResponse), args.Error(1)
 }
 
+func (m *MockOrderRepository) UpdateFeedbackAdminComment(id int, comment string) error {
+	args := m.Called(id, comment)
+	return args.Error(0)
+}
+
 type MockLineItemRepository struct {
 	mock.Mock
 }
