@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"fmt"
+	"strings"
+
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -49,7 +52,7 @@ func (r *gormAIReadRepository) GetRevenueSummary(startDate, endDate string) (ent
 	if err := r.guard.IsSafe(query); err != nil {
 		return result, err
 	}
-	
+
 	err := r.db.Raw(query, startDate, endDate).Scan(&result).Error
 	result.StartDate = startDate
 	result.EndDate = endDate
@@ -73,7 +76,7 @@ func (r *gormAIReadRepository) GetRevenueByChannel(startDate, endDate string) ([
 	if err := r.guard.IsSafe(query); err != nil {
 		return nil, err
 	}
-	
+
 	err := r.db.Raw(query, startDate, endDate).Scan(&results).Error
 	return results, err
 }
@@ -95,7 +98,7 @@ func (r *gormAIReadRepository) GetRevenueByState(startDate, endDate string) ([]e
 	if err := r.guard.IsSafe(query); err != nil {
 		return nil, err
 	}
-	
+
 	err := r.db.Raw(query, startDate, endDate).Scan(&results).Error
 	return results, err
 }
@@ -116,7 +119,7 @@ func (r *gormAIReadRepository) GetDailyRevenueTrend(startDate, endDate string) (
 	if err := r.guard.IsSafe(query); err != nil {
 		return nil, err
 	}
-	
+
 	err := r.db.Raw(query, startDate, endDate).Scan(&results).Error
 	return results, err
 }
@@ -141,7 +144,7 @@ func (r *gormAIReadRepository) GetTopProducts(startDate, endDate string, limit i
 	if err := r.guard.IsSafe(query); err != nil {
 		return nil, err
 	}
-	
+
 	err := r.db.Raw(query, startDate, endDate, limit).Scan(&results).Error
 	return results, err
 }
@@ -199,19 +202,19 @@ func (r *gormAIReadRepository) GetProductPerformance(sku string) (entity.AIProdu
 
 func (r *gormAIReadRepository) GetCustomerSegmentation() (entity.AICustomerSegments, error) {
 	var result entity.AICustomerSegments
-	
+
 	var total int64
 	r.db.Model(&entity.Customer{}).Count(&total)
 	result.TotalCustomers = int(total)
-	
+
 	r.db.Raw("SELECT COUNT(*) FROM customers WHERE created_at >= NOW() - INTERVAL '30 days'").Scan(&result.NewCustomers)
-	
+
 	// Repeat Rate
 	var totalCustomersWithOrders int64
 	r.db.Raw("SELECT COUNT(DISTINCT customer_phone) FROM orders").Scan(&totalCustomersWithOrders)
 	var repeatCustomers int64
 	r.db.Raw("SELECT COUNT(*) FROM (SELECT customer_phone FROM orders GROUP BY customer_phone HAVING COUNT(*) > 1) as t").Scan(&repeatCustomers)
-	
+
 	if totalCustomersWithOrders > 0 {
 		result.RepeatRate = float64(repeatCustomers) / float64(totalCustomersWithOrders)
 	}
@@ -276,7 +279,7 @@ func (r *gormAIReadRepository) GetInventorySnapshot() ([]entity.AIInventoryStatu
 
 func (r *gormAIReadRepository) GetBusinessSnapshot() (entity.AIBusinessSnapshot, error) {
 	var snap entity.AIBusinessSnapshot
-	
+
 	// MTD
 	r.db.Raw(`
 		SELECT COALESCE(SUM(total_price), 0), COUNT(*) 
@@ -313,13 +316,31 @@ func (r *gormAIReadRepository) ExecuteRawQuery(sql string) ([]map[string]interfa
 }
 
 func (r *gormAIReadRepository) ListTables() ([]string, error) {
-	var tables []string
+	var allTables []string
 	query := "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-	err := r.db.Raw(query).Scan(&tables).Error
-	return tables, err
+	err := r.db.Raw(query).Scan(&allTables).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Security: Filter out tables that are not in the QueryGuard allowlist.
+	// This prevents the AI from even discovering sensitive tables like 'users' or 'app_configs'.
+	var allowedTables []string
+	for _, t := range allTables {
+		if r.guard.allowedTables[strings.ToLower(t)] {
+			allowedTables = append(allowedTables, t)
+		}
+	}
+
+	return allowedTables, nil
 }
 
 func (r *gormAIReadRepository) DescribeTable(tableName string) ([]map[string]interface{}, error) {
+	// Security: Validate table name against the allowlist before describing it.
+	if !r.guard.allowedTables[strings.ToLower(tableName)] {
+		return nil, fmt.Errorf("SECURITY ALERT: describing table '%s' is not allowed", tableName)
+	}
+
 	var columns []map[string]interface{}
 	query := "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ?"
 	err := r.db.Raw(query, tableName).Scan(&columns).Error
