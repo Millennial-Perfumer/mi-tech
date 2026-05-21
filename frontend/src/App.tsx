@@ -143,6 +143,7 @@ function App() {
   });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+  const [initialSelectedFeedbackOrderId, setInitialSelectedFeedbackOrderId] = useState<number | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -1786,7 +1787,15 @@ function App() {
                               
                               if (statusId === 3) {
                                 return (
-                                  <span className="badge-pill badge-pill-success">
+                                  <span 
+                                    className="badge-pill badge-pill-success"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInitialSelectedFeedbackOrderId(Number(order.id));
+                                      setActiveTab('feedback');
+                                    }}
+                                  >
                                     <span className="dot"></span> Received
                                   </span>
                                 );
@@ -1947,6 +1956,8 @@ function App() {
               token={token} 
               fetchWithAuth={fetchWithAuth} 
               onNavigate={(tab) => setActiveTab(tab)}
+              initialSelectedOrderId={initialSelectedFeedbackOrderId}
+              clearInitialSelectedOrderId={() => setInitialSelectedFeedbackOrderId(null)}
             />
           )}
 

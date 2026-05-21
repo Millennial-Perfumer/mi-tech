@@ -10,6 +10,7 @@ interface CustomerFeedback {
   comment: string;
   message?: string;
   customer_phone?: string;
+  admin_comment?: string;
   created_at: string;
 }
 
@@ -18,9 +19,18 @@ interface FeedbackProps {
   token: string | null;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   onNavigate?: (tab: string) => void;
+  initialSelectedOrderId?: number | null;
+  clearInitialSelectedOrderId?: () => void;
 }
 
-const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onNavigate }) => {
+const Feedback: React.FC<FeedbackProps> = ({ 
+  API_BASE, 
+  token, 
+  fetchWithAuth, 
+  onNavigate,
+  initialSelectedOrderId,
+  clearInitialSelectedOrderId
+}) => {
   const [feedbacks, setFeedbacks] = useState<CustomerFeedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -32,6 +42,44 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onN
   const [isCheckingConfig, setIsCheckingConfig] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'delivered_at', direction: 'desc' });
   const { error, success } = useToast();
+
+  // Admin comment dialog states
+  const [selectedFeedback, setSelectedFeedback] = useState<CustomerFeedback | null>(null);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminCommentText, setAdminCommentText] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
+
+  const handleOpenCommentModal = (feedback: CustomerFeedback) => {
+    setSelectedFeedback(feedback);
+    setAdminCommentText(feedback.admin_comment || '');
+    setIsAdminModalOpen(true);
+  };
+
+  const handleSaveComment = async () => {
+    if (!selectedFeedback) return;
+    setIsSavingComment(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/feedback/comment?id=${selectedFeedback.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_comment: adminCommentText })
+      });
+      const data = await response.json();
+      if (data.success) {
+        success(data.message || 'Comment updated successfully');
+        setIsAdminModalOpen(false);
+        setSelectedFeedback(null);
+        fetchFeedbacks();
+      } else {
+        error(data.message || 'Failed to update comment');
+      }
+    } catch (err) {
+      console.error('Failed to update comment:', err);
+      error('Network error updating comment');
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
 
   const fetchFeedbacks = async () => {
     if (!token) return;
@@ -154,6 +202,19 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onN
     fetchFeedbacks();
     fetchConfigStatus();
   }, [token]);
+
+  // Auto-open modal if initialSelectedOrderId is passed
+  useEffect(() => {
+    if (initialSelectedOrderId && feedbacks.length > 0) {
+      const match = feedbacks.find(f => f.order_id === initialSelectedOrderId);
+      if (match) {
+        handleOpenCommentModal(match);
+      }
+      if (clearInitialSelectedOrderId) {
+        clearInitialSelectedOrderId();
+      }
+    }
+  }, [initialSelectedOrderId, feedbacks, clearInitialSelectedOrderId]);
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -337,6 +398,105 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onN
         </div>
       )}
 
+      {/* --- ADMIN COMMENT MODAL --- */}
+      {isAdminModalOpen && selectedFeedback && (
+        <div className="modal-overlay" onClick={() => setIsAdminModalOpen(false)}>
+          <div className="premium-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Feedback Admin Note</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px', marginBottom: 0 }}>
+                  Add an internal note or action taken for this customer review
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsAdminModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Customer:</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedFeedback.customer_name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order:</span>
+                <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{selectedFeedback.order_number}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Rating:</span>
+                <span style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                  {renderStars(selectedFeedback.rating)}
+                </span>
+              </div>
+              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Customer Comment:</span>
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.9rem', fontStyle: selectedFeedback.message ? 'normal' : 'italic', margin: 0, lineHeight: '1.5' }}>
+                  {selectedFeedback.message || "No comment left."}
+                </p>
+              </div>
+            </div>
+
+            <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.6rem' }}>Admin Comment / Note</label>
+              <textarea
+                value={adminCommentText}
+                onChange={e => setAdminCommentText(e.target.value)}
+                placeholder="Add an internal follow-up comment, resolution notes, or private remarks..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg-input)',
+                  border: '2px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '0.75rem 1rem',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'inherit',
+                  fontSize: '0.95rem',
+                  lineHeight: '1.5',
+                  resize: 'vertical',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div className="modal-actions" style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                onClick={() => setIsAdminModalOpen(false)} 
+                className="btn-secondary"
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveComment} 
+                disabled={isSavingComment}
+                className="btn-primary"
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  fontWeight: 600,
+                  cursor: isSavingComment ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isSavingComment ? 'Saving...' : 'Save Comment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ background: 'var(--surface-color)', borderRadius: '20px', border: '1px solid var(--border-color)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -345,17 +505,18 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onN
               <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Order</th>
               <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Rating</th>
               <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Message</th>
+              <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Admin Comment</th>
               <th style={{ padding: '1.25rem 1.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Date</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-tertiary)' }}>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '5rem', color: 'var(--text-tertiary)' }}>
                 <div className="dot-flashing" style={{ margin: '0 auto 1.5rem' }}></div>
                 Analyzing customer sentiment...
               </td></tr>
             ) : feedbacks.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '6rem 2rem', color: 'var(--text-secondary)' }}>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '6rem 2rem', color: 'var(--text-secondary)' }}>
                 <div style={{ opacity: 0.3, marginBottom: '1.5rem' }}>
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 </div>
@@ -364,7 +525,12 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onN
               </td></tr>
             ) : (
               feedbacks.map((item, idx) => (
-                <tr key={item.id} style={{ borderBottom: idx === feedbacks.length - 1 ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s' }} className="hover-row">
+                <tr 
+                  key={item.id} 
+                  style={{ borderBottom: idx === feedbacks.length - 1 ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s', cursor: 'pointer' }} 
+                  className="hover-row"
+                  onClick={() => handleOpenCommentModal(item)}
+                >
                   <td style={{ padding: '1.5rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{item.customer_name}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>{item.customer_phone}</div>
@@ -383,14 +549,34 @@ const Feedback: React.FC<FeedbackProps> = ({ API_BASE, token, fetchWithAuth, onN
                   <td style={{ padding: '1.5rem' }}>
                     <div style={{ 
                       fontSize: '0.9rem', 
-                      maxWidth: '400px', 
+                      maxWidth: '300px', 
                       lineHeight: '1.6', 
                       color: item.message ? 'var(--text-primary)' : 'var(--text-tertiary)',
                       fontStyle: item.message ? 'normal' : 'italic',
-                      fontWeight: 500
+                      fontWeight: 500,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
                     }}>
                       {item.message || "Customer didn't leave a secondary comment."}
                     </div>
+                  </td>
+                  <td style={{ padding: '1.5rem' }}>
+                    {item.admin_comment ? (
+                      <div style={{ 
+                        fontSize: '0.9rem', 
+                        maxWidth: '250px', 
+                        color: 'var(--text-primary)',
+                        fontWeight: 600,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }} title={item.admin_comment}>
+                        {item.admin_comment}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>
+                    )}
                   </td>
                   <td style={{ padding: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                     {new Date(item.created_at).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
