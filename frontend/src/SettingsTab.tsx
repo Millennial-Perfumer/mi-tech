@@ -1,5 +1,6 @@
 import { API_BASE } from './api';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
 
@@ -78,6 +79,277 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
   }
 };
 
+const formatTime12h = (timeStr: string) => {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  const hrs = parseInt(parts[0], 10);
+  const mins = parseInt(parts[1], 10);
+  if (isNaN(hrs) || isNaN(mins)) return timeStr;
+  const ampm = hrs >= 12 ? 'PM' : 'AM';
+  const displayHrs = hrs % 12 === 0 ? 12 : hrs % 12;
+  const displayMins = mins < 10 ? `0${mins}` : mins;
+  return `${displayHrs}:${displayMins} ${ampm}`;
+};
+
+const formatDateNice = (dateStr: string) => {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+interface CustomTimePickerProps {
+  value: string;
+  onChange: (newValue: string) => void;
+  triggerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps) {
+  const [hours24, minutesStr] = (value || "10:00").split(':');
+  let initialHour = parseInt(hours24 || "10", 10);
+  const initialMinute = parseInt(minutesStr || "00", 10);
+  
+  const initialPeriod = initialHour >= 12 ? 'PM' : 'AM';
+  let initialHour12 = initialHour % 12;
+  if (initialHour12 === 0) initialHour12 = 12;
+
+  const [selectedHour, setSelectedHour] = useState(initialHour12);
+  const [selectedMinute, setSelectedMinute] = useState(initialMinute);
+  const [selectedPeriod, setSelectedPeriod] = useState(initialPeriod);
+
+  const hourRef = useRef<HTMLDivElement>(null);
+  const minuteRef = useRef<HTMLDivElement>(null);
+
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  // Sync state changes to HH:MM format
+  useEffect(() => {
+    let hour24 = selectedHour;
+    if (selectedPeriod === 'PM') {
+      if (hour24 !== 12) hour24 += 12;
+    } else {
+      if (hour24 === 12) hour24 = 0;
+    }
+    const hh = String(hour24).padStart(2, '0');
+    const mm = String(selectedMinute).padStart(2, '0');
+    onChange(`${hh}:${mm}`);
+  }, [selectedHour, selectedMinute, selectedPeriod]);
+
+  // Center the selected elements on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (hourRef.current) {
+        const activeEl = hourRef.current.querySelector('[data-selected="true"]');
+        if (activeEl) {
+          hourRef.current.scrollTop = (activeEl as HTMLElement).offsetTop - 55;
+        }
+      }
+      if (minuteRef.current) {
+        const activeEl = minuteRef.current.querySelector('[data-selected="true"]');
+        if (activeEl) {
+          minuteRef.current.scrollTop = (activeEl as HTMLElement).offsetTop - 55;
+        }
+      }
+    }, 80);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Update popup position dynamically to overlay correctly on the body
+  useEffect(() => {
+    const updatePosition = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setCoords({
+          top: rect.bottom + window.scrollY,
+          left: rect.left + window.scrollX
+        });
+      }
+    };
+
+    updatePosition();
+
+    // Listen on capture scroll to catch scrolling inside any parent element
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [triggerRef]);
+
+  const hoursList = Array.from({ length: 12 }, (_, i) => i + 1);
+  const minutesList = Array.from({ length: 60 }, (_, i) => i);
+
+  return createPortal(
+    <div className="custom-time-picker-dropdown" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--surface-color)',
+      border: '1px solid var(--border-color)',
+      borderRadius: '14px',
+      boxShadow: 'var(--shadow-lg)',
+      padding: '0.875rem',
+      width: '260px',
+      userSelect: 'none',
+      zIndex: 9999,
+      position: 'absolute',
+      top: `${coords.top + 4}px`,
+      left: `${coords.left}px`,
+      animation: 'slideIn 0.2s ease-out'
+    }}>
+      <style>{`
+        .time-picker-column::-webkit-scrollbar {
+          width: 0px;
+          background: transparent;
+        }
+        .time-picker-column {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+      `}</style>
+      
+      {/* Header display */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.35rem',
+        fontSize: '1.35rem',
+        fontWeight: 700,
+        color: 'var(--text-primary)',
+        paddingBottom: '0.5rem',
+        borderBottom: '1px solid var(--border-color)',
+        marginBottom: '0.5rem'
+      }}>
+        <span>{String(selectedHour).padStart(2, '0')}</span>
+        <span style={{ color: 'var(--text-tertiary)' }}>:</span>
+        <span>{String(selectedMinute).padStart(2, '0')}</span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--accent-color)', marginLeft: '0.25rem', fontWeight: 800 }}>
+          {selectedPeriod}
+        </span>
+      </div>
+
+      {/* Selectors */}
+      <div style={{ display: 'flex', gap: '0.5rem', height: '140px' }}>
+        {/* Hours */}
+        <div ref={hourRef} className="time-picker-column" style={{
+          flex: 1,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '2px',
+          paddingBottom: '60px'
+        }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px', position: 'sticky', top: 0, background: 'var(--surface-color)', width: '100%', textAlign: 'center', padding: '2px 0' }}>HR</div>
+          {hoursList.map(h => {
+            const isSelected = selectedHour === h;
+            return (
+              <button
+                key={h}
+                data-selected={isSelected}
+                onClick={() => setSelectedHour(h)}
+                style={{
+                  width: '100%',
+                  padding: '4px 0',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 700 : 500,
+                  color: isSelected ? 'white' : 'var(--text-secondary)',
+                  background: isSelected ? 'var(--accent-color)' : 'transparent',
+                  transition: 'all 0.15s ease',
+                  textAlign: 'center',
+                  minHeight: '28px'
+                }}
+              >
+                {String(h).padStart(2, '0')}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Minutes */}
+        <div ref={minuteRef} className="time-picker-column" style={{
+          flex: 1,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '2px',
+          paddingBottom: '60px'
+        }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px', position: 'sticky', top: 0, background: 'var(--surface-color)', width: '100%', textAlign: 'center', padding: '2px 0' }}>MIN</div>
+          {minutesList.map(m => {
+            const isSelected = selectedMinute === m;
+            return (
+              <button
+                key={m}
+                data-selected={isSelected}
+                onClick={() => setSelectedMinute(m)}
+                style={{
+                  width: '100%',
+                  padding: '4px 0',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 700 : 500,
+                  color: isSelected ? 'white' : 'var(--text-secondary)',
+                  background: isSelected ? 'var(--accent-color)' : 'transparent',
+                  transition: 'all 0.15s ease',
+                  textAlign: 'center',
+                  minHeight: '28px'
+                }}
+              >
+                {String(m).padStart(2, '0')}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Period */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '4px'
+        }}>
+          <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px', width: '100%', textAlign: 'center', padding: '2px 0' }}>AM/PM</div>
+          {['AM', 'PM'].map(p => {
+            const isSelected = selectedPeriod === p;
+            return (
+              <button
+                key={p}
+                onClick={() => setSelectedPeriod(p)}
+                style={{
+                  width: '100%',
+                  padding: '6px 0',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 700 : 500,
+                  color: isSelected ? 'white' : 'var(--text-secondary)',
+                  background: isSelected ? 'var(--accent-color)' : 'transparent',
+                  transition: 'all 0.15s ease',
+                  textAlign: 'center',
+                  minHeight: '30px'
+                }}
+              >
+                {p}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   const { success: toastSuccess, error: toastError } = useToast();
   const { confirm } = useConfirm();
@@ -92,6 +364,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
   const [editValue, setEditValue] = useState('');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const timeTriggerRef = useRef<HTMLDivElement>(null);
 
   // Fetch configs on mount
   useEffect(() => {
@@ -409,26 +682,78 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                               }} />
                             </button>
                           ) : editingKey === cfg.key ? (
-                            <input
-                              type="text"
-                              value={editValue}
-                              onChange={e => setEditValue(e.target.value)}
-                              autoFocus
-                              style={{
-                                width: '100%',
-                                padding: '0.5rem 0.75rem',
-                                borderRadius: '6px',
-                                border: '1px solid var(--accent-color)',
-                                fontSize: '0.85rem',
-                                fontFamily: 'monospace',
-                                outline: 'none',
-                                boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)'
-                              }}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
-                                if (e.key === 'Escape') handleCancelEdit();
-                              }}
-                            />
+                            cfg.key.endsWith('_time') ? (
+                              <div style={{ position: 'relative' }}>
+                                <div
+                                  ref={timeTriggerRef}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--accent-color)',
+                                    fontSize: '0.85rem',
+                                    fontFamily: 'monospace',
+                                    background: 'var(--bg-input)',
+                                    color: 'var(--text-primary)',
+                                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.15)',
+                                    width: 'fit-content'
+                                  }}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                  <span style={{ fontWeight: 600 }}>{formatTime12h(editValue) || "Select Time"}</span>
+                                </div>
+                                <CustomTimePicker
+                                  value={editValue}
+                                  onChange={setEditValue}
+                                  triggerRef={timeTriggerRef}
+                                />
+                              </div>
+                            ) : cfg.key.endsWith('_date') ? (
+                              <input
+                                type="date"
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                autoFocus
+                                style={{
+                                  padding: '0.5rem 0.75rem',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--accent-color)',
+                                  fontSize: '0.85rem',
+                                  fontFamily: 'monospace',
+                                  outline: 'none',
+                                  boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                                  color: 'var(--text-primary)',
+                                  backgroundColor: 'var(--bg-input)'
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
+                                  if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                autoFocus
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--accent-color)',
+                                  fontSize: '0.85rem',
+                                  fontFamily: 'monospace',
+                                  outline: 'none',
+                                  boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)'
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
+                                  if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                              />
+                            )
                           ) : (
                             <div style={{
                               fontSize: '0.85rem',
@@ -439,7 +764,19 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                               whiteSpace: 'nowrap',
                               letterSpacing: cfg.is_secret && !isRevealed ? '0.1em' : 'normal'
                             }}>
-                                {cfg.value || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}
+                              {cfg.key.endsWith('_time') && !cfg.is_secret ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                  <span>{formatTime12h(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
+                                </div>
+                              ) : cfg.key.endsWith('_date') && !cfg.is_secret ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                  <span>{formatDateNice(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
+                                </div>
+                              ) : (
+                                cfg.value || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>
+                              )}
                             </div>
                           )}
                         </div>
