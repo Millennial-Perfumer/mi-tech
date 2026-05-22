@@ -82,39 +82,39 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   useEffect(() => {
     if (isOpen && orderId) {
-      fetchOrderDetails();
+      fetchOrderData();
     }
   }, [isOpen, orderId]);
 
-  const fetchOrderDetails = async () => {
+  const fetchOrderData = async () => {
     setIsLoading(true);
+    setIsLoadingMessages(true);
     try {
-      const response = await fetchWithAuth(`${API_BASE}/api/orders?id=${orderId}`);
-      const data = await response.json();
-      if (data.success) {
-        setOrder(data.order);
-        setFormData(data.order);
-        // Also fetch messages
-        fetchMessages();
+      // Parallelize order details and message history fetching to eliminate network waterfall
+      // This saves approximately one full network round-trip on modal load.
+      const [orderResponse, messagesResponse] = await Promise.all([
+        fetchWithAuth(`${API_BASE}/api/orders?id=${orderId}`),
+        fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages/order?order_id=${orderId}`)
+      ]);
+
+      const [orderData, messagesData] = await Promise.all([
+        orderResponse.json(),
+        messagesResponse.json()
+      ]);
+
+      if (orderData.success) {
+        setOrder(orderData.order);
+        setFormData(orderData.order);
       } else {
         error('Failed to fetch order details');
       }
+
+      setMessages(messagesData || []);
     } catch (err) {
       error('An error occurred while fetching order details');
+      console.error('Error fetching order data:', err);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchMessages = async () => {
-    setIsLoadingMessages(true);
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages/order?order_id=${orderId}`);
-      const data = await response.json();
-      setMessages(data || []);
-    } catch (err) {
-      console.error('Failed to fetch messages:', err);
-    } finally {
       setIsLoadingMessages(false);
     }
   };
@@ -151,7 +151,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       if (result.success) {
         success('Order updated and synced with Shopify');
         setIsEditing(false);
-        fetchOrderDetails();
+        fetchOrderData();
         if (onOrderUpdated) onOrderUpdated();
       } else {
         error(result.message || 'Failed to update order');
