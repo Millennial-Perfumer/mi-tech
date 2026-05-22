@@ -136,6 +136,53 @@ func (s *InventoryRepositoryTestSuite) TestReassignmentOfSKUToAnotherItem() {
 	assert.Equal(s.T(), "SKU-1", fetched.ExternalSKU)
 }
 
+func (s *InventoryRepositoryTestSuite) TestBulkCreateItem() {
+	var1 := "gid://shopify/InventoryItem/12345"
+	items := []entity.InventoryItem{
+		{
+			MISKU:        "mi-999",
+			Title:        "Test Product 1",
+			CurrentStock: 5,
+			Mappings: []entity.InventoryMapping{
+				{
+					Platform:          "shopify",
+					ExternalSKU:       "TEST-SKU-1",
+					ExternalVariantID: &var1,
+				},
+			},
+		},
+		{
+			MISKU:        "mi-998",
+			Title:        "Test Product 2",
+			CurrentStock: 10,
+			Mappings: []entity.InventoryMapping{
+				{
+					Platform:          "shopify",
+					ExternalSKU:       "TEST-SKU-2",
+					ExternalVariantID: &var1,
+				},
+			},
+		},
+	}
+
+	err := s.repo.BulkCreateItem(items)
+	assert.NoError(s.T(), err)
+
+	// Verify items are created
+	var count int64
+	s.db.Model(&entity.InventoryItem{}).Count(&count)
+	assert.Equal(s.T(), int64(2), count)
+
+	// Verify mappings are created and linked correctly
+	var mappings []entity.InventoryMapping
+	err = s.db.Find(&mappings).Error
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), mappings, 2)
+	assert.NotZero(s.T(), mappings[0].InventoryItemID)
+	assert.NotZero(s.T(), mappings[1].InventoryItemID)
+}
+
 func TestInventoryRepositorySuite(t *testing.T) {
 	suite.Run(t, new(InventoryRepositoryTestSuite))
 }
+
