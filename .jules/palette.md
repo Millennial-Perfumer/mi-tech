@@ -1,7 +1,7 @@
-## 2025-05-15 - Consistent Search 'Clear' Pattern
-**Learning:** This app's design system favors using absolute-positioned 'Clear' buttons inside search inputs with manual hover state management via `onMouseEnter`/`onMouseLeave` inline styles. This ensures micro-UX consistency across different modules like Customers and Automation.
-**Action:** Always include a 'Clear' button for search inputs that resets both the query and pagination, using the established inline styling pattern for consistency.
+## 2026-05-22 - [Secure Authenticated Downloads]
+**Learning:** Using `window.open` for authenticated file downloads (like invoices) bypasses the application's auth header logic unless tokens are passed in the URL (insecure). Fetching as a Blob via `fetchWithAuth` ensures security and allows for UI loading feedback.
+**Action:** Always prefer `fetchWithAuth` + `URL.createObjectURL` for secure, async-feedback file downloads.
 
-## 2026-05-13 - Themed Confirmation and Submission States
-**Learning:** For destructive actions and asynchronous form submissions, using the global `ConfirmProvider` and implementing an `isSaving` state provides a more cohesive and professional feel than native browser dialogs and non-reactive buttons.
-**Action:** Replace `window.confirm` with the `useConfirm` hook and always implement disabled/loading states for form submit buttons to prevent double-submissions.
+## 2026-05-22 - [Icon-only Button Accessibility]
+**Learning:** Many icon-only buttons in the existing codebase missed `type="button"`, causing accidental form submissions, and lacked `aria-label` for screen readers.
+**Action:** Ensure all icon-only buttons have explicit `type="button"` and descriptive `aria-label`.

@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 	"time"
+	_ "time/tzdata"
 
 	"mi-tech/internal/config"
 	"mi-tech/internal/entity"
@@ -19,6 +20,7 @@ type FeedbackScheduler struct {
 	mappingService    *WebhookMappingService
 	templatesRepo     *TemplatesRepository
 	lastTriggeredDate string
+	lastLoggedDate    string
 	mu                sync.Mutex
 }
 
@@ -72,25 +74,38 @@ func (s *FeedbackScheduler) checkAndTrigger(ctx context.Context) {
 		min = 0
 	}
 
-	now := time.Now()
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		log.Printf("FeedbackScheduler: Error loading location Asia/Kolkata: %v, falling back to Local", err)
+		loc = time.Local
+	}
+
+	now := time.Now().In(loc)
 	currentDate := now.Format("2006-01-02")
 
 	s.mu.Lock()
 	alreadyTriggered := s.lastTriggeredDate == currentDate
+	shouldLogWaiting := s.lastLoggedDate != currentDate
+	if shouldLogWaiting && !alreadyTriggered {
+		s.lastLoggedDate = currentDate
+	}
 	s.mu.Unlock()
 
 	if alreadyTriggered {
 		return
 	}
 
-	if now.Hour() == hour && now.Minute() == min {
-		log.Printf("FeedbackScheduler: Time matched (%02d:%02d), executing daily auto feedback trigger", hour, min)
+	triggered, nextTriggeredDate := shouldTrigger(now, s.lastTriggeredDate, hour, min, loc)
+	if triggered {
+		log.Printf("FeedbackScheduler: Time matched or passed (current local time %s >= scheduled %02d:%02d %s), executing daily auto feedback trigger", now.Format("15:04:05"), hour, min, loc.String())
 
 		s.mu.Lock()
-		s.lastTriggeredDate = currentDate
+		s.lastTriggeredDate = nextTriggeredDate
 		s.mu.Unlock()
 
 		go s.executeFeedbackScanAndSend(ctx)
+	} else if shouldLogWaiting {
+		log.Printf("FeedbackScheduler: Waiting for scheduled time %02d:%02d %s (current local time: %s)", hour, min, loc.String(), now.Format("15:04:05"))
 	}
 }
 
@@ -184,4 +199,18 @@ func (s *FeedbackScheduler) executeFeedbackScanAndSend(ctx context.Context) {
 
 	wg.Wait()
 	log.Println("FeedbackScheduler: Finished daily auto feedback sending")
+}
+
+// shouldTrigger evaluates if the configured time has arrived/passed and if the task hasn't run yet today.
+func shouldTrigger(now time.Time, lastTriggeredDate string, hour, min int, loc *time.Location) (bool, string) {
+	currentDate := now.Format("2006-01-02")
+	if lastTriggeredDate == currentDate {
+		return false, currentDate
+	}
+
+	scheduledTimeToday := time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, loc)
+	if now.After(scheduledTimeToday) || now.Equal(scheduledTimeToday) {
+		return true, currentDate
+	}
+	return false, lastTriggeredDate
 }

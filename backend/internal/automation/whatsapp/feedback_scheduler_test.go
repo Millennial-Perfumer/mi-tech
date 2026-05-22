@@ -67,3 +67,33 @@ func TestFeedbackScheduler_ContextCancellation(t *testing.T) {
 		t.Fatal("Start did not exit on cancelled context")
 	}
 }
+
+func TestFeedbackScheduler_ShouldTrigger(t *testing.T) {
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	assert.NoError(t, err)
+
+	// Case 1: Already triggered today -> should NOT trigger
+	now := time.Date(2026, 5, 22, 11, 0, 0, 0, loc)
+	triggered, nextDate := shouldTrigger(now, "2026-05-22", 10, 0, loc)
+	assert.False(t, triggered)
+	assert.Equal(t, "2026-05-22", nextDate)
+
+	// Case 2: Not triggered today, current time is before scheduled time -> should NOT trigger
+	now = time.Date(2026, 5, 22, 9, 59, 59, 0, loc)
+	triggered, nextDate = shouldTrigger(now, "2026-05-21", 10, 0, loc)
+	assert.False(t, triggered)
+	assert.Equal(t, "2026-05-21", nextDate)
+
+	// Case 3: Not triggered today, current time is exactly scheduled time -> should trigger
+	now = time.Date(2026, 5, 22, 10, 0, 0, 0, loc)
+	triggered, nextDate = shouldTrigger(now, "2026-05-21", 10, 0, loc)
+	assert.True(t, triggered)
+	assert.Equal(t, "2026-05-22", nextDate)
+
+	// Case 4: Not triggered today, current time is after scheduled time -> should trigger (resiliency for missed window)
+	now = time.Date(2026, 5, 22, 10, 5, 0, 0, loc)
+	triggered, nextDate = shouldTrigger(now, "2026-05-21", 10, 0, loc)
+	assert.True(t, triggered)
+	assert.Equal(t, "2026-05-22", nextDate)
+}
+
