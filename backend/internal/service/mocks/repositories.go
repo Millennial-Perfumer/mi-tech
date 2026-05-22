@@ -118,6 +118,11 @@ func (m *MockOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedb
 	return args.Error(0)
 }
 
+func (m *MockOrderRepository) UpdateFeedbackAdminComment(id int, comment string) error {
+	args := m.Called(id, comment)
+	return args.Error(0)
+}
+
 func (m *MockOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
 	args := m.Called()
 	return args.Get(0).([]dto.FeedbackResponse), args.Error(1)
@@ -192,6 +197,11 @@ func (m *MockInventoryRepository) ListMappings() ([]entity.InventoryMapping, err
 
 func (m *MockInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
 	args := m.Called(mapping)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) DeleteMapping(id int) error {
+	args := m.Called(id)
 	return args.Error(0)
 }
 

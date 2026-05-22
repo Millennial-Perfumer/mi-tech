@@ -126,6 +126,25 @@ func (h *InventoryHandler) CreateMapping(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusCreated)
 }
 
+// DeleteMapping removes a link between an external and internal SKU by ID.
+func (h *InventoryHandler) DeleteMapping(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid mapping ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeleteMapping(r.Context(), id); err != nil {
+		log.Printf("InventoryHandler.DeleteMapping error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+
 // AdjustStock handles manual stock updates.
 func (h *InventoryHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")

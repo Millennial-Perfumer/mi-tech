@@ -48,3 +48,10 @@ func (r *pgOilInventoryRepository) Update(item *entity.OilInventory) error {
 func (r *pgOilInventoryRepository) Delete(id int) error {
 	return r.db.Delete(&entity.OilInventory{}, id).Error
 }
+
+func (r *pgOilInventoryRepository) BulkDelete(ids []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.Delete(&entity.OilInventory{}, ids).Error
+}

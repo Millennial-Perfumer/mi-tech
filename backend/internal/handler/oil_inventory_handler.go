@@ -68,3 +68,20 @@ func (h *OilInventoryHandler) DeleteOil(w http.ResponseWriter, r *http.Request) 
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *OilInventoryHandler) BulkDeleteOils(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.BulkDeleteOils(req.IDs); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

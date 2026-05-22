@@ -36,16 +36,15 @@ func (s *ManufacturingService) Create(ctx context.Context, record *entity.Manufa
 	if record.ManufacturingDate.IsZero() {
 		record.ManufacturingDate = time.Now()
 	}
+	var productsToSync []int
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		// 1. Create the manufacturing record
 		if err := s.mfgRepo.WithTx(tx).Create(record); err != nil {
 			return err
 		}
 
 		// 2. Apply stock changes (internal only)
-		// Collect products that need syncing
-		var productsToSync []int
 		for _, mo := range record.Oils {
 			if !mo.DeductInventory {
 				continue
@@ -67,15 +66,17 @@ func (s *ManufacturingService) Create(ctx context.Context, record *entity.Manufa
 			productsToSync = append(productsToSync, mp.InventoryItemID)
 		}
 
-		// After transaction commit, we trigger external sync
-		defer func() {
-			for _, itemID := range productsToSync {
-				s.orchestrator.GlobalSync(ctx, itemID, "internal")
-			}
-		}()
-
 		return nil
 	})
+
+	if err == nil {
+		// External Sync after commit
+		for _, itemID := range productsToSync {
+			s.orchestrator.GlobalSync(ctx, itemID, "internal")
+		}
+	}
+
+	return err
 }
 
 func (s *ManufacturingService) Update(ctx context.Context, record *entity.ManufacturingRecord) error {

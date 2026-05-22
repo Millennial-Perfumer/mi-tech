@@ -36,6 +36,7 @@ func NewAIReadRepository(db *gorm.DB) AIReadRepository {
 }
 
 func (r *gormAIReadRepository) GetRevenueSummary(startDate, endDate string) (entity.AIRevenueSummary, error) {
+	startDate, endDate = normalizeDates(startDate, endDate)
 	var result entity.AIRevenueSummary
 	query := `
 		SELECT 
@@ -43,7 +44,7 @@ func (r *gormAIReadRepository) GetRevenueSummary(startDate, endDate string) (ent
 			COUNT(*) as total_orders
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ? 
-		AND status != 'cancelled'
+		AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
 	`
 	if err := r.guard.IsSafe(query); err != nil {
 		return result, err
@@ -56,6 +57,7 @@ func (r *gormAIReadRepository) GetRevenueSummary(startDate, endDate string) (ent
 }
 
 func (r *gormAIReadRepository) GetRevenueByChannel(startDate, endDate string) ([]entity.AIChannelRevenue, error) {
+	startDate, endDate = normalizeDates(startDate, endDate)
 	var results []entity.AIChannelRevenue
 	query := `
 		SELECT 
@@ -64,7 +66,7 @@ func (r *gormAIReadRepository) GetRevenueByChannel(startDate, endDate string) ([
 			COUNT(*) as orders
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ? 
-		AND status != 'cancelled'
+		AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		GROUP BY source_id
 		ORDER BY revenue DESC
 	`
@@ -77,6 +79,7 @@ func (r *gormAIReadRepository) GetRevenueByChannel(startDate, endDate string) ([
 }
 
 func (r *gormAIReadRepository) GetRevenueByState(startDate, endDate string) ([]entity.AIStateRevenue, error) {
+	startDate, endDate = normalizeDates(startDate, endDate)
 	var results []entity.AIStateRevenue
 	query := `
 		SELECT 
@@ -85,7 +88,7 @@ func (r *gormAIReadRepository) GetRevenueByState(startDate, endDate string) ([]e
 			COUNT(*) as orders
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ? 
-		AND status != 'cancelled'
+		AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		GROUP BY customer_state
 		ORDER BY revenue DESC
 	`
@@ -98,6 +101,7 @@ func (r *gormAIReadRepository) GetRevenueByState(startDate, endDate string) ([]e
 }
 
 func (r *gormAIReadRepository) GetDailyRevenueTrend(startDate, endDate string) ([]entity.AIDailyRevenue, error) {
+	startDate, endDate = normalizeDates(startDate, endDate)
 	var results []entity.AIDailyRevenue
 	query := `
 		SELECT 
@@ -105,7 +109,7 @@ func (r *gormAIReadRepository) GetDailyRevenueTrend(startDate, endDate string) (
 			COALESCE(SUM(total_price), 0) as revenue
 		FROM orders 
 		WHERE created_at >= ? AND created_at <= ? 
-		AND status != 'cancelled'
+		AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		GROUP BY DATE(created_at)
 		ORDER BY date ASC
 	`
@@ -118,6 +122,7 @@ func (r *gormAIReadRepository) GetDailyRevenueTrend(startDate, endDate string) (
 }
 
 func (r *gormAIReadRepository) GetTopProducts(startDate, endDate string, limit int) ([]entity.AIProductRank, error) {
+	startDate, endDate = normalizeDates(startDate, endDate)
 	var results []entity.AIProductRank
 	query := `
 		SELECT 
@@ -128,7 +133,7 @@ func (r *gormAIReadRepository) GetTopProducts(startDate, endDate string, limit i
 		FROM order_line_items li
 		JOIN orders ON li.order_id = orders.id
 		WHERE orders.created_at >= ? AND orders.created_at <= ?
-		AND orders.status != 'cancelled'
+		AND NOT (LOWER(COALESCE(orders.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(orders.fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		GROUP BY li.title, li.sku
 		ORDER BY qty_sold DESC
 		LIMIT ?
@@ -163,7 +168,7 @@ func (r *gormAIReadRepository) GetProductPerformance(sku string) (entity.AIProdu
 			COALESCE(SUM(li.price * li.quantity), 0) as inventory_value
 		FROM order_line_items li
 		JOIN orders ON li.order_id = orders.id
-		WHERE li.sku = ? AND orders.status != 'cancelled'
+		WHERE li.sku = ? AND NOT (LOWER(COALESCE(orders.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(orders.fulfillment_status, '')) IN ('cancelled', 'canceled'))
 	`
 	if err := r.guard.IsSafe(querySales); err != nil {
 		return stats, err
@@ -181,7 +186,7 @@ func (r *gormAIReadRepository) GetProductPerformance(sku string) (entity.AIProdu
 		SELECT COALESCE(SUM(li.quantity), 0) / 90.0 as avg_sales
 		FROM order_line_items li
 		JOIN orders ON li.order_id = orders.id
-		WHERE li.sku = ? AND orders.status != 'cancelled'
+		WHERE li.sku = ? AND NOT (LOWER(COALESCE(orders.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(orders.fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		AND orders.created_at >= NOW() - INTERVAL '90 days'
 	`
 	if err := r.guard.IsSafe(queryAvg); err != nil {
@@ -234,7 +239,7 @@ func (r *gormAIReadRepository) GetTopCustomers(limit int) ([]entity.AITopCustome
 			COALESCE(SUM(total_price), 0) as total_spend,
 			COUNT(*) as order_count
 		FROM orders
-		WHERE LOWER(status) NOT IN ('cancelled', 'canceled')
+		WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		GROUP BY customer_name, customer_phone
 		ORDER BY total_spend DESC
 		LIMIT ?
@@ -276,7 +281,7 @@ func (r *gormAIReadRepository) GetBusinessSnapshot() (entity.AIBusinessSnapshot,
 	r.db.Raw(`
 		SELECT COALESCE(SUM(total_price), 0), COUNT(*) 
 		FROM orders 
-		WHERE status != 'cancelled' 
+		WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled')) 
 		AND created_at >= date_trunc('month', current_date)
 	`).Row().Scan(&snap.MTDRevenue, &snap.MTDOrders)
 
@@ -284,7 +289,7 @@ func (r *gormAIReadRepository) GetBusinessSnapshot() (entity.AIBusinessSnapshot,
 	r.db.Raw(`
 		SELECT COALESCE(SUM(total_price), 0), COUNT(*) 
 		FROM orders 
-		WHERE status != 'cancelled' 
+		WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled')) 
 		AND created_at >= current_date
 	`).Row().Scan(&snap.TodayRevenue, &snap.TodayOrders)
 
@@ -292,7 +297,7 @@ func (r *gormAIReadRepository) GetBusinessSnapshot() (entity.AIBusinessSnapshot,
 	r.db.Raw(`SELECT COUNT(*) FROM inventory_items WHERE current_stock <= 10`).Scan(&snap.LowStockCount)
 
 	// Pending (Unfulfilled)
-	r.db.Raw(`SELECT COUNT(*) FROM orders WHERE status != 'cancelled' AND fulfillment_status != 'fulfilled'`).Scan(&snap.PendingOrders)
+	r.db.Raw(`SELECT COUNT(*) FROM orders WHERE NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled')) AND fulfillment_status != 'fulfilled'`).Scan(&snap.PendingOrders)
 
 	return snap, nil
 }
@@ -319,4 +324,14 @@ func (r *gormAIReadRepository) DescribeTable(tableName string) ([]map[string]int
 	query := "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ?"
 	err := r.db.Raw(query, tableName).Scan(&columns).Error
 	return columns, err
+}
+
+func normalizeDates(start, end string) (string, string) {
+	if len(start) == 10 {
+		start = start + " 00:00:00"
+	}
+	if len(end) == 10 {
+		end = end + " 23:59:59"
+	}
+	return start, end
 }

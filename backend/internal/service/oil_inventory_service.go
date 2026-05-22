@@ -32,3 +32,7 @@ func (s *OilInventoryService) UpdateOil(item *entity.OilInventory) error {
 func (s *OilInventoryService) DeleteOil(id int) error {
 	return s.repo.Delete(id)
 }
+
+func (s *OilInventoryService) BulkDeleteOils(ids []int) error {
+	return s.repo.BulkDelete(ids)
+}

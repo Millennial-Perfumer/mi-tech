@@ -20,10 +20,11 @@ import (
 )
 
 type Server struct {
-	port      string
-	mux       *http.ServeMux
-	db        *gorm.DB
-	amzPoller *service.AmazonOrderPoller
+	port              string
+	mux               *http.ServeMux
+	db                *gorm.DB
+	amzPoller         *service.AmazonOrderPoller
+	feedbackScheduler *whatsapp.FeedbackScheduler
 }
 
 func New() (*Server, error) {
@@ -159,11 +160,14 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		authService,
 	)
 
+	feedbackScheduler := whatsapp.NewFeedbackScheduler(settingsProvider, orderService, mappingService, whatsappRepo)
+
 	return &Server{
-		port:      cfg.Port,
-		mux:       mux,
-		db:        db,
-		amzPoller: amazonOrderPoller,
+		port:              cfg.Port,
+		mux:               mux,
+		db:                db,
+		amzPoller:         amazonOrderPoller,
+		feedbackScheduler: feedbackScheduler,
 	}
 }
 
@@ -182,6 +186,9 @@ func (s *Server) Run() error {
 	// Start background workers
 	if s.amzPoller != nil {
 		go s.amzPoller.Start(context.Background())
+	}
+	if s.feedbackScheduler != nil {
+		go s.feedbackScheduler.Start(context.Background())
 	}
 
 	return server.ListenAndServe()

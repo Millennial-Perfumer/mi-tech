@@ -67,6 +67,7 @@ type CustomerFeedback struct {
 	CustomerPhone string     `gorm:"column:customer_phone"`
 	Rating        int        `gorm:"column:rating"`
 	Message       string     `gorm:"column:message"`
+	AdminComment  *string    `gorm:"column:admin_comment"`
 	CreatedAt     time.Time  `gorm:"column:created_at"`
 	UpdatedAt     time.Time  `gorm:"column:updated_at"`
 }

@@ -313,3 +313,15 @@ func (p *SettingsProvider) GetAILocalModel() string {
 	}
 	return val
 }
+
+func (p *SettingsProvider) IsFeedbackAutoTriggerEnabled() bool {
+	return p.Get("feedback_auto_trigger_enabled") == "true"
+}
+
+func (p *SettingsProvider) GetFeedbackAutoTriggerTime() string {
+	val := p.Get("feedback_auto_trigger_time")
+	if val == "" {
+		return "10:00"
+	}
+	return val
+}

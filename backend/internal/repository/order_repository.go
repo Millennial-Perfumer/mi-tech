@@ -165,10 +165,14 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 	
 	// Index by SKU: delta = New - Old
 	skuDeltas := make(map[string]int)
+	var skus []string
 
 	// New items (to be deducted)
 	for _, li := range order.LineItems {
 		if li.SKU != nil && *li.SKU != "" {
+			if _, exists := skuDeltas[*li.SKU]; !exists {
+				skus = append(skus, *li.SKU)
+			}
 			skuDeltas[*li.SKU] += li.Quantity
 		}
 	}
@@ -176,47 +180,67 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 	// Old items (to be restocked)
 	for _, li := range oldItems {
 		if li.SKU != nil && *li.SKU != "" {
+			if _, exists := skuDeltas[*li.SKU]; !exists {
+				skus = append(skus, *li.SKU)
+			}
 			skuDeltas[*li.SKU] -= li.Quantity
 		}
 	}
 
-	for sku, delta := range skuDeltas {
+	if len(skus) == 0 {
+		order.InventoryDeducted = true
+		return affectedIDs, nil
+	}
+
+	// 1. Batch fetch mappings for all SKUs in this order
+	// Optimization: Reduces DB roundtrips from O(N) to O(1).
+	var mappings []entity.InventoryMapping
+	if err := tx.Where("platform = ? AND external_sku IN ?", order.SourceID, skus).Find(&mappings).Error; err != nil {
+		return nil, fmt.Errorf("failed to batch fetch inventory mappings: %w", err)
+	}
+
+	// 2. Aggregate deltas by InventoryItemID (in case multiple SKUs map to the same item)
+	itemDeltas := make(map[int]int)
+	for _, m := range mappings {
+		if delta, exists := skuDeltas[m.ExternalSKU]; exists && delta != 0 {
+			itemDeltas[m.InventoryItemID] += delta
+		}
+	}
+
+	var logs []entity.InventoryLog
+	for itemID, delta := range itemDeltas {
 		if delta == 0 {
 			continue
 		}
 
-		var mapping entity.InventoryMapping
-		err := tx.Where("platform = ? AND external_sku = ?", order.SourceID, sku).First(&mapping).Error
-		if err != nil {
-			// No mapping for this SKU, skip
-			continue
-		}
-
-		// Adjust stock: subtract the delta
-		// If delta is positive (more sold), stock decreases.
-		// If delta is negative (restocked), stock increases.
+		// 3. Adjust stock: subtract the delta
+		// Optimization: Minimize update queries by grouping adjustments per item.
 		if err := tx.Model(&entity.InventoryItem{}).
-			Where("id = ?", mapping.InventoryItemID).
+			Where("id = ?", itemID).
 			Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
-			return nil, fmt.Errorf("failed to adjust stock for %s (delta %d): %w", sku, delta, err)
+			return nil, fmt.Errorf("failed to adjust stock for item %d (delta %d): %w", itemID, delta, err)
 		}
 
-		// Log the adjustment for audit trail
+		// 4. Prepare logs for batch insert
 		reason := "sale"
 		if delta < 0 {
 			reason = "adjustment"
 		}
-		if err := tx.Create(&entity.InventoryLog{
-			InventoryItemID: mapping.InventoryItemID,
+		logs = append(logs, entity.InventoryLog{
+			InventoryItemID: itemID,
 			Delta:           -delta,
 			Reason:          reason,
 			Platform:        order.SourceID,
 			ExternalOrderID: &order.ExternalOrderID,
-		}).Error; err != nil {
-			return nil, fmt.Errorf("failed to log inventory adjustment: %w", err)
-		}
+		})
+		affectedIDs = append(affectedIDs, itemID)
+	}
 
-		affectedIDs = append(affectedIDs, mapping.InventoryItemID)
+	// 5. Batch insert logs in a single O(1) roundtrip
+	if len(logs) > 0 {
+		if err := tx.Create(&logs).Error; err != nil {
+			return nil, fmt.Errorf("failed to batch log inventory adjustments: %w", err)
+		}
 	}
 
 	order.InventoryDeducted = true
@@ -506,6 +530,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				itemDeltas[m.InventoryItemID] += totalSKUDeltas[key]
 			}
 
+			var logs []entity.InventoryLog
 			for itemID, delta := range itemDeltas {
 				if delta == 0 {
 					continue
@@ -518,17 +543,21 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				}
 
 				// Note: Batch upsert logs are aggregated by itemID for performance.
-				// For detailed order-level logs, use individual upserts.
-				if err := tx.Create(&entity.InventoryLog{
+				// Optimization: Batch insert logs after the loop to reduce DB roundtrips.
+				logs = append(logs, entity.InventoryLog{
 					InventoryItemID: itemID,
 					Delta:           -delta,
 					Reason:          "batch_sync",
 					Platform:        uniqueSources[0], // Assuming batch is usually from one source
-				}).Error; err != nil {
-					return fmt.Errorf("failed to log batch inventory adjustment: %w", err)
-				}
+				})
 
 				affectedIDs = append(affectedIDs, itemID)
+			}
+
+			if len(logs) > 0 {
+				if err := tx.Create(&logs).Error; err != nil {
+					return fmt.Errorf("failed to batch log inventory adjustments: %w", err)
+				}
 			}
 		}
 
@@ -772,9 +801,13 @@ func (r *gormOrderRepository) SaveCustomerFeedback(feedback entity.CustomerFeedb
 func (r *gormOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
 	var results []dto.FeedbackResponse
 	err := r.db.Table("customer_feedback").
-		Select("customer_feedback.id, customer_feedback.order_id, orders.order_number, orders.customer_name, customer_feedback.rating, customer_feedback.message as comment, customer_feedback.created_at").
+		Select("customer_feedback.id, customer_feedback.order_id, orders.order_number, orders.customer_name, customer_feedback.rating, customer_feedback.message as comment, customer_feedback.admin_comment, customer_feedback.created_at").
 		Joins("JOIN orders ON orders.id = customer_feedback.order_id").
 		Order("customer_feedback.created_at DESC").
 		Scan(&results).Error
 	return results, err
+}
+
+func (r *gormOrderRepository) UpdateFeedbackAdminComment(id int, comment string) error {
+	return r.db.Model(&entity.CustomerFeedback{}).Where("id = ?", id).Update("admin_comment", comment).Error
 }

@@ -28,6 +28,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isStreamingRef = useRef(false);
 
   useEffect(() => {
     loadConversations();
@@ -35,7 +36,9 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
 
   useEffect(() => {
     if (activeConversationId) {
-      loadMessages(activeConversationId);
+      if (!isStreamingRef.current) {
+        loadMessages(activeConversationId);
+      }
     } else {
       setMessages([]);
     }
@@ -83,6 +86,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
     // Reset textarea height
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsLoading(true);
+    isStreamingRef.current = true;
 
     // Add user message optimistically
     const newMessages: Message[] = [...messages, { role: 'user', content: userMessage }];
@@ -154,6 +158,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
       setMessages(prev => [...prev, { role: 'system', content: `Failed to connect to AI: ${err.message}` }]);
     } finally {
       setIsLoading(false);
+      isStreamingRef.current = false;
     }
   };
 
@@ -230,8 +235,19 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
       if (isTable && currentBlock.length >= 3) {
         // Render Table
         const tableLines = currentBlock.filter(l => l.includes('|'));
-        const headers = tableLines[0].split('|').filter(c => c.trim()).map(c => c.trim());
-        const rows = tableLines.slice(2).filter(row => row.includes('|')).map(row => row.split('|').filter(c => c.trim()).map(c => c.trim()));
+        const headers = tableLines[0]
+          .replace(/\\\|/g, '__ESCAPED_PIPE__')
+          .split('|')
+          .filter(c => c.trim())
+          .map(c => c.replace(/__ESCAPED_PIPE__/g, '|').trim());
+        const rows = tableLines.slice(2)
+          .filter(row => row.includes('|'))
+          .map(row => 
+            row.replace(/\\\|/g, '__ESCAPED_PIPE__')
+               .split('|')
+               .filter(c => c.trim())
+               .map(c => c.replace(/__ESCAPED_PIPE__/g, '|').trim())
+          );
         
         segments.push(
           <div className="table-container" key={`table-${index}`}>
@@ -278,16 +294,48 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
 
     lines.forEach((line, i) => {
       const trimmed = line.trim();
-      if (!trimmed) {
+
+      const flushList = () => {
         if (currentList.length) {
           elements.push(listType === 'ul' ? <ul key={`list-${i}`}>{currentList}</ul> : <ol key={`list-${i}`}>{currentList}</ol>);
           currentList = [];
           listType = null;
         }
+      };
+
+      if (!trimmed) {
+        flushList();
         elements.push(<br key={`br-${i}`} />);
         return;
       }
 
+      // Horizontal Rules
+      if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+        flushList();
+        elements.push(<hr key={`hr-${i}`} />);
+        return;
+      }
+
+      // Blockquotes
+      const blockquoteMatch = trimmed.match(/^>\s+(.*)/);
+      if (blockquoteMatch) {
+        flushList();
+        elements.push(<blockquote key={`bq-${i}`}>{formatMarkdown(blockquoteMatch[1])}</blockquote>);
+        return;
+      }
+
+      // Headings (H1 to H6)
+      const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)/);
+      if (headingMatch) {
+        flushList();
+        const level = headingMatch[1].length;
+        const headingText = headingMatch[2];
+        const Tag = `h${level}` as any;
+        elements.push(<Tag key={`h-${i}`}>{formatMarkdown(headingText)}</Tag>);
+        return;
+      }
+
+      // Lists & Text
       const bulletMatch = trimmed.match(/^[\*\-•]\s+(.*)/);
       const numberMatch = trimmed.match(/^\d+\.\s+(.*)/);
 
@@ -306,11 +354,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
         listType = 'ol';
         currentList.push(<li key={`li-${i}`}>{formatMarkdown(numberMatch[1])}</li>);
       } else {
-        if (currentList.length) {
-          elements.push(listType === 'ul' ? <ul key={`list-${i}`}>{currentList}</ul> : <ol key={`list-${i}`}>{currentList}</ol>);
-          currentList = [];
-          listType = null;
-        }
+        flushList();
         elements.push(<p key={`p-${i}`}>{formatMarkdown(trimmed)}</p>);
       }
     });

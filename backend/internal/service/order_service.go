@@ -280,6 +280,10 @@ func (s *OrderService) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
 	return s.orderRepo.GetCustomerFeedback()
 }
 
+func (s *OrderService) UpdateFeedbackAdminComment(id int, comment string) error {
+	return s.orderRepo.UpdateFeedbackAdminComment(id, comment)
+}
+
 func (s *OrderService) SaveCustomerFeedback(feedback entity.CustomerFeedback) error {
 	return s.orderRepo.SaveCustomerFeedback(feedback)
 }

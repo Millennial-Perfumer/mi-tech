@@ -77,7 +77,7 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 			COUNT(id) as orders,
 			COALESCE(AVG(total_price), 0) as aov
 		FROM orders
-		WHERE created_at >= ? AND created_at <= ?` + sourceFilter + `
+		WHERE created_at >= ? AND created_at <= ? AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
 		GROUP BY source_id
 		ORDER BY revenue DESC`
 
