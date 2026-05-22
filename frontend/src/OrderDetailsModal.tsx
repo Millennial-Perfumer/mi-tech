@@ -57,7 +57,7 @@ interface OrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: string | number;
-  fetchWithAuth: (url: string, options?: RequestInit) => Promise<any>;
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   userRole?: string;
   onOrderUpdated?: () => void;
 }
@@ -75,18 +75,26 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [formData, setFormData] = useState<Partial<Order>>({});
   const [activeTab, setActiveTab] = useState<'details' | 'messages'>('details');
   const [messages, setMessages] = useState<AutomationMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && orderId) {
-      fetchOrderDetails();
+  const fetchMessages = React.useCallback(async () => {
+    setIsLoadingMessages(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages/order?order_id=${orderId}`);
+      const data = await response.json();
+      setMessages(data || []);
+    } catch (err) {
+      console.error('Failed to fetch messages:', err);
+    } finally {
+      setIsLoadingMessages(false);
     }
-  }, [isOpen, orderId]);
+  }, [fetchWithAuth, orderId]);
 
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetchWithAuth(`${API_BASE}/api/orders?id=${orderId}`);
@@ -99,25 +107,18 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       } else {
         error('Failed to fetch order details');
       }
-    } catch (err) {
+    } catch {
       error('An error occurred while fetching order details');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchWithAuth, orderId, fetchMessages, error]);
 
-  const fetchMessages = async () => {
-    setIsLoadingMessages(true);
-    try {
-      const response = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/messages/order?order_id=${orderId}`);
-      const data = await response.json();
-      setMessages(data || []);
-    } catch (err) {
-      console.error('Failed to fetch messages:', err);
-    } finally {
-      setIsLoadingMessages(false);
+  useEffect(() => {
+    if (isOpen && orderId) {
+      fetchOrderDetails();
     }
-  };
+  }, [isOpen, orderId, fetchOrderDetails]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -156,10 +157,37 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
       } else {
         error(result.message || 'Failed to update order');
       }
-    } catch (err) {
+    } catch {
       error('An error occurred while saving changes');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+    setIsDownloading(true);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/invoice?id=${orderId}`);
+      if (!response.ok) {
+        throw new Error('Failed to download invoice');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${order.order_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      success('Invoice downloaded successfully');
+    } catch (err) {
+      console.error('Error downloading invoice:', err);
+      error('Failed to download invoice. Please try again.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -167,8 +195,18 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="premium-modal order-details-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '740px', width: '95%', padding: '1.25rem 1.5rem' }}>
+      <div className="premium-modal order-details-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '740px', width: '95%', padding: '1.25rem 1.5rem', position: 'relative' }}>
 
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ position: 'absolute', top: '1rem', right: '1rem', color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="hover-bg"
+          aria-label="Close modal"
+          title="Close modal"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
 
         <div className="modal-header-icon" style={{ 
           background: 'linear-gradient(135deg, var(--accent-color), var(--status-active))',
@@ -181,7 +219,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </svg>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', paddingRight: '2.5rem' }}>
           <div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>Order Details</h2>
 
@@ -242,6 +280,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
                     {userRole === 'admin' && (
                       <button 
+                        type="button"
                         className="btn-icon-minimal" 
                         onClick={() => setIsEditing(!isEditing)}
                         aria-label={isEditing ? "Cancel Edit" : "Edit Customer Details"}
@@ -504,9 +543,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         <div className="modal-actions" style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
 
 
-          <button className="btn-secondary" onClick={onClose} disabled={isSaving}>Close</button>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={isSaving || isDownloading}>Close</button>
           {isEditing && (
             <button 
+              type="button"
               className="btn-primary" 
               onClick={handleSave} 
               disabled={isSaving}
@@ -515,21 +555,25 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               {isSaving ? (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <div className="loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }}></div>
-                  Saving to Shopify...
+                  Saving...
                 </span>
               ) : 'Save Changes'}
             </button>
           )}
           {!isEditing && !isLoading && (
              <button 
+               type="button"
                className="btn-primary" 
-               onClick={() => {
-                 // Trigger invoice download
-                 const downloadUrl = `/api/orders/invoice?id=${orderId}`;
-                 window.open(downloadUrl, '_blank');
-               }}
+               onClick={handleDownloadInvoice}
+               disabled={isDownloading}
+               style={{ minWidth: '180px' }}
              >
-                Download GST Invoice
+                {isDownloading ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                    <div className="loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', marginBottom: 0 }}></div>
+                    Downloading...
+                  </span>
+                ) : 'Download GST Invoice'}
              </button>
           )}
         </div>
