@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"fmt"
 	"mi-tech/internal/entity"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -315,11 +317,27 @@ func (r *gormAIReadRepository) ExecuteRawQuery(sql string) ([]map[string]interfa
 func (r *gormAIReadRepository) ListTables() ([]string, error) {
 	var tables []string
 	query := "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-	err := r.db.Raw(query).Scan(&tables).Error
-	return tables, err
+	if err := r.db.Raw(query).Scan(&tables).Error; err != nil {
+		return nil, err
+	}
+
+	// Security: Filter out sensitive tables from AI discovery
+	var filtered []string
+	for _, t := range tables {
+		if r.guard.allowedTables[strings.ToLower(t)] {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered, nil
 }
 
 func (r *gormAIReadRepository) DescribeTable(tableName string) ([]map[string]interface{}, error) {
+	// Security: Validate tableName against allowlist before querying schema
+	normalized := r.guard.NormalizeTableName(tableName)
+	if !r.guard.allowedTables[normalized] {
+		return nil, fmt.Errorf("SECURITY ALERT: schema discovery for table '%s' is not allowed", tableName)
+	}
+
 	var columns []map[string]interface{}
 	query := "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ?"
 	err := r.db.Raw(query, tableName).Scan(&columns).Error
