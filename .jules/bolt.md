@@ -29,3 +29,7 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+
+## 2026-05-19 - [Parallelizing Pollers and Sync Orchestrations]
+**Learning:** Sequential polling of external APIs and subsequent sequential database updates create a significant performance bottleneck (N+1 for both network and DB). Parallelizing these operations with concurrency-limiting semaphores (buffered channels) and batching DB writes into a single transaction (`UpsertBatch`) drastically reduces latency. Atomic SQL updates (e.g., `gorm.Expr`) ensure thread safety during concurrent inventory adjustments.
+**Action:** Always parallelize I/O bound loops (API fetches, cross-platform syncs) with appropriate concurrency limits and prefer batch repository methods for persistence.
