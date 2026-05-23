@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-05-23 - [Insecure AI Query Discovery and Non-Constant-Time OTP Verification]
+**Vulnerability:** `AIReadRepository` allowed AI to discover and potentially query sensitive system tables like `users` and `app_configs` via schema discovery endpoints. Additionally, `AuthService` used standard string comparison for OTP verification, susceptible to timing attacks.
+**Learning:** Security layers for AI must include strict allowlists for data access, not just mutation blocking. Discovery endpoints (`ListTables`, `DescribeTable`) are often overlooked as leaks for system metadata. OTP verification must always use constant-time comparison to prevent side-channel leakage of the secret.
+**Prevention:** Implement a central table allowlist in `QueryGuard` and enforce it across all AI-facing repositories and schema discovery endpoints. Use `subtle.ConstantTimeCompare` for all sensitive secret comparisons.
