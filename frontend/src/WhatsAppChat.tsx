@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 import './WhatsAppChat.css';
 
 interface Conversation {
@@ -100,6 +101,7 @@ function WhatsAppMediaItem({ filename, fetchWithAuth, onImageLoad, type }: {
 }
 
 export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
+  const { error } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -245,7 +247,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
     // Strict 16MB limit as requested by user
     const MAX_SIZE = 16 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum allowed is 16MB.`);
+      error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum allowed is 16MB.`);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -289,7 +291,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
       }
     } catch (err) {
       console.error('Media upload error:', err);
-      alert('Failed to send media file');
+      error('Failed to send media file');
     } finally {
       setIsUploadingMedia(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
