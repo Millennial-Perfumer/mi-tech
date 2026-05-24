@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2025-05-22 - [AI Query Isolation via Table Allowlist]
+**Vulnerability:** `QueryGuard` relied solely on mutation keyword blocking, allowing AI-generated queries to access sensitive tables like `users`, `app_configs`, and `webhook_events`.
+**Learning:** Relying on negative security models (blocking keywords) for dynamic query generation is insufficient. AI can still perform unauthorized data discovery on internal system tables if a positive security model (allowlist) is not enforced.
+**Prevention:** Implement a strict table allowlist in the query validation layer and use a robust word-tokenization approach to extract and verify all table references in `FROM` and `JOIN` clauses.

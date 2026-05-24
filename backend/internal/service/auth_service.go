@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"crypto/subtle"
 	"mi-tech/internal/config"
 	"mi-tech/internal/entity"
 	"time"
@@ -126,7 +127,7 @@ func (s *AuthService) VerifyOTP(username, otp string) (string, error) {
 		return "", errors.New("verification code expired or not found")
 	}
 
-	if user.OTPCode != otp {
+	if subtle.ConstantTimeCompare([]byte(user.OTPCode), []byte(otp)) != 1 {
 		return "", errors.New("invalid verification code")
 	}
 
