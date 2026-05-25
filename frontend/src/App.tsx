@@ -779,6 +779,7 @@ function App() {
             }} 
           />
           <button 
+            type="button"
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
             style={{ 
@@ -892,6 +893,7 @@ function App() {
           <div className="sidebar-footer-bottom">
             <div className="sidebar-footer-icons">
               <button
+                type="button"
                 className={`settings-footer-btn ${activeTab === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveTab('settings')}
                 aria-label="Settings"
@@ -902,6 +904,7 @@ function App() {
               </button>
 
               <button
+                type="button"
                 className="theme-toggle"
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
@@ -917,6 +920,7 @@ function App() {
             </div>
 
             <button
+              type="button"
               className="footer-logout-btn"
               onClick={handleLogout}
               aria-label="Logout"
@@ -1420,6 +1424,7 @@ function App() {
                   />
                   {search && (
                     <button
+                      type="button"
                       onClick={() => { setSearch(''); setPage(1); searchInputRef.current?.focus(); }}
                       aria-label="Clear search"
                       title="Clear search"

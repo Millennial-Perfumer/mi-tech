@@ -72,12 +72,14 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
             <p>{modalState.options?.message}</p>
             <div className="modal-actions">
               <button 
+                type="button"
                 className="btn-secondary" 
                 onClick={() => handleClose(false)}
               >
                 {modalState.options?.cancelLabel || 'Cancel'}
               </button>
               <button 
+                type="button"
                 className={modalState.options?.variant === 'danger' ? 'btn-danger' : 'btn-primary'}
                 onClick={() => handleClose(true)}
                 autoFocus

@@ -280,6 +280,23 @@ textarea:focus-visible {
   border-color: var(--border-strong);
 }
 
+.btn-danger {
+  background-color: var(--status-danger);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-danger:hover {
+  background-color: #dc2626; /* Darker red */
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
 /* Base Layout Classes */
 .app-container {
   display: flex;

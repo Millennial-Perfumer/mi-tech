@@ -1279,6 +1279,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                                 onChange={e => setCustomerForm({...customerForm, first_name: e.target.value})}
                                                 placeholder="John"
                                                 required
+                                                autoFocus
                                             />
                                         </div>
                                         <div>
