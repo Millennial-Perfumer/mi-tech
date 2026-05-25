@@ -214,6 +214,27 @@ function App() {
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [revenueTrend, setRevenueTrend] = useState<RevenueTrend[]>([]);
+
+  // Performance Optimization: Memoize revenue trend metrics and SVG paths
+  // Prevents O(N²) complexity in the render loop (N points * N max lookups)
+  const trendMetrics = useMemo(() => {
+    if (revenueTrend.length === 0) return { total: 0, max: 1, path: '', areaPath: '' };
+
+    const total = revenueTrend.reduce((acc, curr) => acc + curr.revenue, 0);
+    const max = Math.max(...revenueTrend.map(rt => rt.revenue), 1); // Safeguard against div-by-zero
+
+    // Generate SVG path points: x = index, y = 100 - (normalized_revenue * 80 + 10)
+    const points = revenueTrend.map((t, i) => {
+      const y = 100 - ((t.revenue / max) * 80 + 10);
+      return `${i} ${y}`;
+    });
+
+    const path = `M ${points.join(' L ')}`;
+    const areaPath = `M 0 100 L ${points.join(' L ')} L ${revenueTrend.length - 1} 100 Z`;
+
+    return { total, max, path, areaPath };
+  }, [revenueTrend]);
+
   const [geoDistribution, setGeoDistribution] = useState<GeoDistribution[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1183,7 +1204,7 @@ function App() {
               <div className="metric-card" style={{ gridColumn: 'span 2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                   <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Revenue Trend</h4>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>₹{revenueTrend.reduce((acc, curr) => acc + curr.revenue, 0).toLocaleString('en-IN')}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>₹{trendMetrics.total.toLocaleString('en-IN')}</div>
                 </div>
                 <div style={{ height: '120px', width: '100%', position: 'relative' }}>
                   {revenueTrend.length > 1 ? (
@@ -1196,12 +1217,12 @@ function App() {
                       </defs>
                       {/* Area under line */}
                       <path
-                        d={`M 0 100 L ${revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / Math.max(...revenueTrend.map(rt => rt.revenue)) * 80 + 10)}`).join(' L ')} L ${revenueTrend.length - 1} 100 Z`}
+                        d={trendMetrics.areaPath}
                         fill="url(#trendGradient)"
                       />
                       {/* Trend line */}
                       <path
-                        d={`M ${revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / Math.max(...revenueTrend.map(rt => rt.revenue)) * 80 + 10)}`).join(' L ')}`}
+                        d={trendMetrics.path}
                         fill="none"
                         stroke="var(--accent-color)"
                         strokeWidth="0.1"

@@ -257,7 +257,9 @@ export const Planner: React.FC<PlannerProps> = ({ fetchWithAuth }) => {
       const res = await fetchWithAuth(`${API_BASE}/api/planner/sprints`);
       const data = await res.json();
       if (data.success) setSprints(data.sprints);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to fetch sprints:', err);
+    }
   };
 
   const fetchAnalytics = async () => {

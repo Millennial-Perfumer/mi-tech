@@ -336,7 +336,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
       }
 
       // Lists & Text
-      const bulletMatch = trimmed.match(/^[\*\-•]\s+(.*)/);
+      const bulletMatch = trimmed.match(/^[*\-•]\s+(.*)/);
       const numberMatch = trimmed.match(/^\d+\.\s+(.*)/);
 
       if (bulletMatch) {
