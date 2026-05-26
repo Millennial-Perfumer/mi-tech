@@ -29,3 +29,6 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+## 2026-05-26 - [Optimizing Amazon Order Sync with Parallelism and Batching]
+**Learning:** Sequential processing in background workers (like Amazon order polling) often hides multiple N+1 patterns: sequential API calls for child items, sequential DB writes, and sequential downstream synchronization. Using goroutines with semaphores and repository-level batching (UpsertBatch) can provide an order-of-magnitude performance boost. Deduplicating affected item IDs before triggering downstream syncs further eliminates redundant work.
+**Action:** Always identify child-entity loops within background sync services. Parallelize network-bound calls (with rate-limit aware semaphores) and use batch persistence methods.
