@@ -5,3 +5,7 @@
 ## 2026-05-22 - [Icon-only Button Accessibility]
 **Learning:** Many icon-only buttons in the existing codebase missed `type="button"`, causing accidental form submissions, and lacked `aria-label` for screen readers.
 **Action:** Ensure all icon-only buttons have explicit `type="button"` and descriptive `aria-label`.
+
+## 2026-05-26 - [Standardized Non-blocking Notifications]
+**Learning:** Replacing native browser `alert()` calls with a themed toast system (via `useToast`) provides a more professional, integrated, and non-blocking user experience. Native alerts interrupt the user flow and cannot be styled to match the app's design system.
+**Action:** Use `toastSuccess`, `toastError`, etc., from the `useToast` hook for all user notifications and feedback.

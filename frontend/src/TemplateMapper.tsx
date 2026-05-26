@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { API_BASE } from './api';
+import { useToast } from './ToastContext';
 import type { Template } from './AutomationTemplates';
 
 interface TemplateMapperProps {
@@ -32,6 +33,7 @@ const availableVariables = [
 ];
 
 export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapperProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
   const [mappings, setMappings] = useState<Record<string, string>>(template.variable_mappings || {});
   const [isSaving, setIsSaving] = useState(false);
   
@@ -81,15 +83,15 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
       });
 
       if (resp.ok) {
-        alert('Variable mappings saved successfully!');
+        toastSuccess('Variable mappings saved successfully!');
         onBack();
       } else {
         const err = await resp.text();
-        alert(`Failed to save mappings: ${err}`);
+        toastError(`Failed to save mappings: ${err}`);
       }
     } catch (err) {
       console.error(err);
-      alert('Network error while saving mappings.');
+      toastError('Network error while saving mappings.');
     } finally {
       setIsSaving(false);
     }
