@@ -155,3 +155,31 @@ func TestCustomerService_UpdateFromOrder_RecalculatesStats(t *testing.T) {
 	assert.Equal(t, 2, fetched.TotalOrders)
 	assert.Equal(t, 350.0, fetched.TotalSpent)
 }
+
+func TestCustomerService_BulkDeleteCustomers(t *testing.T) {
+	db, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Skip("DB not available")
+	}
+	defer testutil.CleanupTestDB(db)
+
+	repo := repository.NewCustomerRepository(db)
+	service := NewCustomerService(repo, nil, nil)
+	ctx := context.Background()
+
+	// 1. Create customers
+	c1 := &entity.Customer{PhoneNumber: "+911111111111", FirstName: entity.StrPtr("One")}
+	c2 := &entity.Customer{PhoneNumber: "+912222222222", FirstName: entity.StrPtr("Two")}
+	_ = repo.UpsertByPhone(ctx, c1)
+	_ = repo.UpsertByPhone(ctx, c2)
+
+	// 2. Bulk delete
+	err = service.BulkDeleteCustomers(ctx, []int64{c1.ID, c2.ID})
+	assert.NoError(t, err)
+
+	// 3. Verify they are gone
+	fetched1, _ := repo.GetByID(ctx, c1.ID)
+	assert.Nil(t, fetched1)
+	fetched2, _ := repo.GetByID(ctx, c2.ID)
+	assert.Nil(t, fetched2)
+}

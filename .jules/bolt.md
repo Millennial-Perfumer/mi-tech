@@ -29,3 +29,7 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+
+## 2026-05-27 - [Impact of Type Refactoring on Cross-Module Handlers]
+**Learning:** Refactoring core service/repository method signatures (e.g., changing ID slices from `[]uint` to `[]int64` for consistency or performance) can break high-level handlers in unrelated modules (like automation or webhooks) that define their own request DTOs.
+**Action:** When changing a widely used repository or service signature, perform a global grep for that method name across the entire `backend/internal` directory to identify and update all call sites and local DTO definitions.
