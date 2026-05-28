@@ -252,6 +252,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
                                     <label style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>Username / Email</label>
                                     <input 
                                         type="email" 
+                                        autoFocus
                                         value={username}
                                         onChange={e => setUsername(e.target.value)}
                                         required

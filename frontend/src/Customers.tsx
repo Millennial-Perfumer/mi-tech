@@ -1274,6 +1274,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>First Name</label>
                                             <input
                                                 type="text"
+                                                autoFocus
                                                 className="form-input"
                                                 value={customerForm.first_name || ''}
                                                 onChange={e => setCustomerForm({...customerForm, first_name: e.target.value})}

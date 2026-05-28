@@ -83,6 +83,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
   const [syncEndDate, setSyncEndDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
   const [stagedProducts, setStagedProducts] = useState<InventoryItem[]>([]);
   const [selectedStagedIds, setSelectedStagedIds] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
 
   // New Product Form
   const [formData, setFormData] = useState({
@@ -318,6 +319,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
 
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory`, {
         method: 'POST',
@@ -333,6 +336,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       }
     } catch (err) {
       toastError('Error creating product');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -754,6 +759,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                   <input 
                     type="text" 
                     required
+                    autoFocus
                     value={formData.title} 
                     onChange={e => setFormData({...formData, title: e.target.value})}
                   />
@@ -777,8 +783,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                 </div>
               </div>
               <div className="modal-actions" style={{ marginTop: '2rem' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Product</button>
+                <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)} disabled={isSaving}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={isSaving}>
+                  {isSaving ? 'Creating...' : 'Create Product'}
+                </button>
               </div>
             </form>
           </div>
