@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -719,13 +720,55 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 }
 
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
-	return nil
+
+	// 1. Fetch all customers in one batch to identify those linked to Shopify
+	// Optimization: Reduces DB roundtrips from O(N) to O(1).
+	// Type conversion to maintain compatibility with existing repository signature.
+	uintIDs := make([]uint, len(ids))
+	for i, id := range ids {
+		uintIDs[i] = uint(id)
+	}
+	customers, err := s.repo.GetByIDs(ctx, uintIDs)
+	if err != nil {
+		return fmt.Errorf("BulkDelete: failed to fetch customers: %w", err)
+	}
+
+	// 2. Parallelize Shopify API deletions
+	// Optimization: Concurrent network calls reduce total latency from O(N) to O(N/5).
+	if s.shopifyClient != nil {
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, 5) // Concurrency limit to respect rate limits
+
+		for _, cust := range customers {
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, err := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if err != nil {
+					log.Printf("BulkDelete: Invalid Shopify ExternalID for customer %d: %v", cust.ID, err)
+					continue
+				}
+
+				if extID > 0 {
+					wg.Add(1)
+					sem <- struct{}{}
+					go func(cid int64) {
+						defer wg.Done()
+						defer func() { <-sem }()
+						if err := s.shopifyClient.DeleteCustomer(cid); err != nil {
+							log.Printf("BulkDelete: Shopify deletion failed for %d: %v", cid, err)
+						}
+					}(extID)
+				}
+			}
+		}
+		wg.Wait()
+	}
+
+	// 3. Batch delete locally (Soft delete)
+	// Optimization: Single O(1) database operation.
+	return s.repo.BulkDelete(ctx, ids)
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {

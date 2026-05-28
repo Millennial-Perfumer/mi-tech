@@ -29,3 +29,7 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+
+## 2026-05-28 - [Throttled Parallelization for External API Sync]
+**Learning:** When refactoring sequential external API calls (e.g., Shopify deletions) into parallel operations, it is critical to implement a concurrency limit (e.g., using a buffered channel semaphore). This prevents hitting rate limits and overloading the external service while still achieving significant latency reduction (O(N) to O(N/concurrency)).
+**Action:** Always use a buffered channel semaphore and sync.WaitGroup when parallelizing external network calls in batch operations.
