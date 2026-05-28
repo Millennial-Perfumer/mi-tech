@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"crypto/rand"
+	"crypto/subtle"
 	"io"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -126,7 +127,8 @@ func (s *AuthService) VerifyOTP(username, otp string) (string, error) {
 		return "", errors.New("verification code expired or not found")
 	}
 
-	if user.OTPCode != otp {
+	// Use constant time comparison to prevent timing side-channel attacks
+	if subtle.ConstantTimeCompare([]byte(user.OTPCode), []byte(otp)) != 1 {
 		return "", errors.New("invalid verification code")
 	}
 
