@@ -68,6 +68,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
   const [productLogs, setProductLogs] = useState<InventoryLog[]>([]);
@@ -318,6 +319,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
 
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory`, {
         method: 'POST',
@@ -333,6 +336,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       }
     } catch (err) {
       toastError('Error creating product');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -738,22 +743,28 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       {showAddModal && (
         <div className="modal-overlay">
           <div className="premium-modal">
-            <h2>Add Internal Product</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0 }}>Add Internal Product</h2>
+              <button type="button" className="toolbar-btn" onClick={() => setShowAddModal(false)} aria-label="Close modal">✕</button>
+            </div>
             <form onSubmit={handleCreateItem}>
               <div style={{ display: 'grid', gap: '1rem', marginTop: '1.5rem' }}>
                 <div className="input-group">
-                  <label>Internal SKU (Auto-generated)</label>
+                  <label htmlFor="mi-sku">Internal SKU (Auto-generated)</label>
                   <input 
+                    id="mi-sku"
                     type="text" 
                     value={formData.mi_sku} 
                     onChange={e => setFormData({...formData, mi_sku: e.target.value})}
                   />
                 </div>
                 <div className="input-group">
-                  <label>Product Title</label>
+                  <label htmlFor="product-title">Product Title</label>
                   <input 
+                    id="product-title"
                     type="text" 
                     required
+                    autoFocus
                     value={formData.title} 
                     onChange={e => setFormData({...formData, title: e.target.value})}
                   />
@@ -778,7 +789,9 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
               </div>
               <div className="modal-actions" style={{ marginTop: '2rem' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Product</button>
+                <button type="submit" className="btn-primary" disabled={isSaving}>
+                  {isSaving ? 'Creating...' : 'Create Product'}
+                </button>
               </div>
             </form>
           </div>

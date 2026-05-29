@@ -5,3 +5,7 @@
 ## 2026-05-22 - [Icon-only Button Accessibility]
 **Learning:** Many icon-only buttons in the existing codebase missed `type="button"`, causing accidental form submissions, and lacked `aria-label` for screen readers.
 **Action:** Ensure all icon-only buttons have explicit `type="button"` and descriptive `aria-label`.
+
+## 2026-05-23 - [Asynchronous Feedback for Form Submission]
+**Learning:** For asynchronous operations like product creation, missing loading feedback leads to user uncertainty and potential duplicate submissions. Implementing an `isSaving` state with button label changes (e.g., "Creating...") and `disabled` attributes improves both UX and data integrity.
+**Action:** Implement `isSaving` logic and visual feedback for all async create/update/delete operations.
