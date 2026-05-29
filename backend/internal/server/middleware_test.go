@@ -84,3 +84,39 @@ func TestCORSMiddleware(t *testing.T) {
 		})
 	}
 }
+
+func TestCORSMiddleware_Wildcard(t *testing.T) {
+	// Setup allowed origins with a wildcard
+	os.Setenv("ALLOWED_ORIGINS", "*")
+	defer os.Unsetenv("ALLOWED_ORIGINS")
+
+	handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/api/health", nil)
+	req.Header.Set("Origin", "http://evil.com")
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	originHeader := res.Header().Get("Access-Control-Allow-Origin")
+	credsHeader := res.Header().Get("Access-Control-Allow-Credentials")
+
+	// Current VULNERABLE behavior:
+	// If it returns "http://evil.com" AND "true", it's vulnerable.
+	// SECURE behavior:
+	// Should return "*" AND "" (no credentials).
+
+	if originHeader == "http://evil.com" && credsHeader == "true" {
+		t.Errorf("VULNERABILITY DETECTED: Wildcard ALLOWED_ORIGINS reflected evil origin with credentials")
+	}
+
+	// For the reproduction test to "fail" (as per plan), I should check for the secure behavior and fail if it's not met.
+	if originHeader != "*" {
+		t.Errorf("Expected Origin header '*', got %q", originHeader)
+	}
+	if credsHeader != "" {
+		t.Errorf("Expected empty Access-Control-Allow-Credentials for wildcard, got %q", credsHeader)
+	}
+}
