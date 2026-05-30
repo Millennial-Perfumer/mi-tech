@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -508,7 +509,7 @@ func (s *CustomerService) toTitleCase(str string) string {
 	return strings.Join(words, " ")
 }
 
-func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []int64) ([]entity.Customer, error) {
 	return s.repo.GetByIDs(ctx, ids)
 }
 func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
@@ -719,12 +720,51 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 }
 
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
+
+	// 1. Fetch all customers in one batch to find which ones need Shopify deletion.
+	// Optimization: Resolves N+1 query bottleneck by fetching all data upfront.
+	customers, err := s.repo.GetByIDs(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("BulkDelete: failed to fetch customers: %w", err)
+	}
+
+	// 2. Parallelize Shopify deletions to avoid serial API latency.
+	// We use a concurrency limit of 5 to avoid Shopify rate limits or resource exhaustion.
+	if s.shopifyClient != nil {
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, 5)
+
+		for i := range customers {
+			cust := &customers[i]
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if extID > 0 {
+					wg.Add(1)
+					go func(id int64) {
+						defer wg.Done()
+						sem <- struct{}{}
+						defer func() { <-sem }()
+
+						if err := s.shopifyClient.DeleteCustomer(id); err != nil {
+							log.Printf("BulkDelete: Failed to sync customer %d deletion to Shopify: %v", id, err)
+						}
+					}(extID)
+				}
+			}
+		}
+		wg.Wait()
+	}
+
+	// 3. Perform a single batch database delete.
+	// Optimization: Replaces O(N) iterative deletes with a single O(1) batch operation.
+	if err := s.repo.BulkDelete(ctx, ids); err != nil {
+		return fmt.Errorf("BulkDelete: failed to perform batch local delete: %w", err)
+	}
+
+	log.Printf("BulkDelete: Successfully processed batch of %d customers", len(ids))
 	return nil
 }
 
