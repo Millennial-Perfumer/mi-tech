@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-05-20 - [OTP Timing Attack Regression]
+**Vulnerability:** 2FA OTP verification used standard string comparison (`!=`), susceptible to timing side-channel attacks.
+**Learning:** Re-implementation of authentication logic can lead to security regressions if standard language equality operators are used instead of constant-time comparison functions for secrets.
+**Prevention:** Use `crypto/subtle.ConstantTimeCompare` for all sensitive secret comparisons, especially in authentication and OTP verification paths, to ensure response time does not leak information about the secret's content.
