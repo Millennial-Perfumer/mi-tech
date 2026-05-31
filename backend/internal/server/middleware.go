@@ -27,30 +27,39 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		allowedOriginsEnv := os.Getenv("ALLOWED_ORIGINS")
 		rawOrigin := r.Header.Get("Origin")
 		origin := normalizeOrigin(rawOrigin)
-		isAllowed := false
+		isExplicitlyAllowed := false
+		isWildcardAllowed := false
 
 		// Always set Vary: Origin to handle caching behind proxies/CDNs
 		w.Header().Add("Vary", "Origin")
 
 		if rawOrigin == "" {
 			// If no origin, we can consider it a direct request or same-origin
-			isAllowed = true
+			isExplicitlyAllowed = true
 		} else if allowedOriginsEnv != "" {
 			allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 			for _, allowed := range allowedOrigins {
 				trimmed := normalizeOrigin(allowed)
-				if trimmed == "*" || origin == trimmed {
-					isAllowed = true
+				if origin == trimmed {
+					isExplicitlyAllowed = true
 					break
+				}
+				if trimmed == "*" {
+					isWildcardAllowed = true
 				}
 			}
 		}
 
-		if isAllowed {
+		if isExplicitlyAllowed || isWildcardAllowed {
 			if rawOrigin != "" {
-				// Use the actual origin for the allow header to support multiple origins with credentials
-				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				if isExplicitlyAllowed {
+					// Use the actual origin for the allow header to support multiple origins with credentials
+					w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				} else {
+					// Wildcard allowed - must NOT use credentials if origin is "*"
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				}
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
 				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
@@ -61,7 +70,7 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodOptions {
-			if isAllowed {
+			if isExplicitlyAllowed || isWildcardAllowed {
 				w.WriteHeader(http.StatusOK)
 			} else {
 				w.WriteHeader(http.StatusForbidden)
