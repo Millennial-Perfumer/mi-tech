@@ -156,6 +156,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={() => {
                 setSearchQuery('');
                 searchInputRef.current?.focus();

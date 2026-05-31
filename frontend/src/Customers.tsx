@@ -635,6 +635,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                         />
                         {search && (
                             <button
+                                type="button"
                                 onClick={() => {
                                     setSearch('');
                                     setPage(1);

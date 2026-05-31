@@ -392,6 +392,7 @@ export function AutomationTemplates({ fetchWithAuth, userRole = 'read' }: Automa
           />
           {searchTerm && (
             <button
+              type="button"
               onClick={() => {
                 setSearchTerm('');
                 searchInputRef.current?.focus();

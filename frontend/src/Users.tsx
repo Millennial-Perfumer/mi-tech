@@ -111,6 +111,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
                         />
                         {searchTerm && (
                             <button
+                                type="button"
                                 onClick={() => {
                                     setSearchTerm('');
                                     searchInputRef.current?.focus();

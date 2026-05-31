@@ -779,6 +779,7 @@ function App() {
             }} 
           />
           <button 
+            type="button"
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
             style={{ 
@@ -892,6 +893,7 @@ function App() {
           <div className="sidebar-footer-bottom">
             <div className="sidebar-footer-icons">
               <button
+                type="button"
                 className={`settings-footer-btn ${activeTab === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveTab('settings')}
                 aria-label="Settings"
@@ -902,6 +904,7 @@ function App() {
               </button>
 
               <button
+                type="button"
                 className="theme-toggle"
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
@@ -917,6 +920,7 @@ function App() {
             </div>
 
             <button
+              type="button"
               className="footer-logout-btn"
               onClick={handleLogout}
               aria-label="Logout"
@@ -981,6 +985,7 @@ function App() {
             />
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
+                type="button"
                 className="theme-toggle"
                 onClick={toggleTheme}
                 aria-label="Toggle theme"
@@ -994,6 +999,7 @@ function App() {
                 )}
               </button>
               <button
+                type="button"
                 onClick={handleLogout}
                 aria-label="Logout"
                 title="Sign Out"
@@ -1420,6 +1426,7 @@ function App() {
                   />
                   {search && (
                     <button
+                      type="button"
                       onClick={() => { setSearch(''); setPage(1); searchInputRef.current?.focus(); }}
                       aria-label="Clear search"
                       title="Clear search"
@@ -1499,7 +1506,7 @@ function App() {
               </div>
             </div>
             <div style={{overflowX: 'auto'}}>
-            <table>
+            <table aria-busy={isLoading}>
               <thead>
                 <tr>
 
@@ -1555,7 +1562,29 @@ function App() {
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No orders found. Click Sync Shopify to fetch.</td>
+                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: 'var(--text-tertiary)' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        {search || sourceFilter || paymentFilter || fulfillmentFilter ? (
+                          <>
+                            <p style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>No orders match your filters.</p>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => { setSearch(''); setSourceFilter(''); setPaymentFilter(''); setFulfillmentFilter(''); setPage(1); }}
+                              style={{ fontSize: '0.85rem' }}
+                            >
+                              Clear all filters
+                            </button>
+                          </>
+                        ) : (
+                          <p>No orders found. Click Sync Shopify to fetch.</p>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   orders.map((order, idx) => (
@@ -1687,6 +1716,7 @@ function App() {
                             </div>
                           ) : (
                             <button 
+                              type="button"
                               className="btn-secondary" 
                               onClick={(e) => { e.stopPropagation(); handleMarkAsDelivered(order.id); }}
                               disabled={isMarkingAsDelivered === order.id}
@@ -2039,6 +2069,7 @@ function App() {
                     {trackingOrder.tracking_number}
                   </a>
                   <button 
+                    type="button"
                     className="copy-btn-minimal"
                     title="Copy tracking number"
                     aria-label="Copy tracking number"
