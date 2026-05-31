@@ -214,6 +214,16 @@ function App() {
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [revenueTrend, setRevenueTrend] = useState<RevenueTrend[]>([]);
+  // Optimization: Memoize trend path to avoid O(N²) calculations in render loop
+  const trendPath = useMemo(() => {
+    if (revenueTrend.length < 2) return { area: '', line: '' };
+    const maxRev = Math.max(...revenueTrend.map(rt => rt.revenue), 1);
+    const points = revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / maxRev * 80 + 10)}`);
+    return {
+      area: `M 0 100 L ${points.join(' L ')} L ${revenueTrend.length - 1} 100 Z`,
+      line: `M ${points.join(' L ')}`
+    };
+  }, [revenueTrend]);
   const [geoDistribution, setGeoDistribution] = useState<GeoDistribution[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1196,12 +1206,12 @@ function App() {
                       </defs>
                       {/* Area under line */}
                       <path
-                        d={`M 0 100 L ${revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / Math.max(...revenueTrend.map(rt => rt.revenue)) * 80 + 10)}`).join(' L ')} L ${revenueTrend.length - 1} 100 Z`}
+                        d={trendPath.area}
                         fill="url(#trendGradient)"
                       />
                       {/* Trend line */}
                       <path
-                        d={`M ${revenueTrend.map((t, i) => `${i} ${100 - (t.revenue / Math.max(...revenueTrend.map(rt => rt.revenue)) * 80 + 10)}`).join(' L ')}`}
+                        d={trendPath.line}
                         fill="none"
                         stroke="var(--accent-color)"
                         strokeWidth="0.1"
