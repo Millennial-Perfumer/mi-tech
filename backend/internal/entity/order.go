@@ -48,6 +48,7 @@ type Order struct {
 	FeedbackStatusID   *int             `gorm:"column:feedback_status_id"`
 	FeedbackSentAt     *time.Time       `gorm:"column:feedback_sent_at"`
 	InventoryDeducted  bool             `gorm:"column:inventory_deducted;default:false"`
+	SkipInventory      bool             `gorm:"-"` // Virtual field for batch processing control
 }
 
 func (Order) TableName() string { return "orders" }
@@ -127,6 +128,10 @@ func StrPtr(s string) *string {
 
 func Float64Ptr(f float64) *float64 {
 	return &f
+}
+
+func IntPtr(i int) *int {
+	return &i
 }
 
 func DerefStr(s *string) string {

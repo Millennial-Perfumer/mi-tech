@@ -71,6 +71,7 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 	for _, so := range shopifyOrders {
 		order := mapper.GraphQLOrderToEntity(so)
 		order.LineItems = mapper.GraphQLLineItemsToEntities(order.ID, so.LineItems)
+		order.SkipInventory = true // Shopify inventory is usually handled via webhooks/direct sync
 		orderEntities = append(orderEntities, order)
 	}
 

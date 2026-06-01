@@ -403,11 +403,14 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			if existing, found := existingMap[key]; found {
 				orders[i].ID = existing.ID // Crucial to link line items correctly
 				r.mergePII(&existing, &orders[i])
-				
+
 				// Preserve delivered_at if already set
 				if existing.DeliveredAt != nil {
 					orders[i].DeliveredAt = existing.DeliveredAt
 				}
+
+				// If NOT explicitly skipping inventory (e.g. AmazonPoller needs to deduct),
+				// we preserve the state. If skipping (e.g. SyncService), we also preserve.
 				orders[i].InventoryDeducted = existing.InventoryDeducted
 			}
 
@@ -490,17 +493,49 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		pairs := make([][]interface{}, 0)
 
 		for i := range orders {
-			// Calculate deltas for this order: New - Old
-			// Note: We use the same logic as syncInventoryDeltas to preserve behavior
-			orderSKUDeltas := make(map[string]int)
-			for _, li := range orders[i].LineItems {
-				if li.SKU != nil && *li.SKU != "" {
-					orderSKUDeltas[*li.SKU] += li.Quantity
-				}
+			if orders[i].SkipInventory {
+				continue
 			}
-			for _, li := range oldLinesByOrder[orders[i].ID] {
-				if li.SKU != nil && *li.SKU != "" {
-					orderSKUDeltas[*li.SKU] -= li.Quantity
+
+			key := fmt.Sprintf("%s:%s", orders[i].SourceID, orders[i].ExternalOrderID)
+			existing, wasFound := existingMap[key]
+
+			orderSKUDeltas := make(map[string]int)
+
+			// Robust Inventory Transition Logic:
+			// 1. Transition: NOT Deducted -> Deducted (Deduct everything new)
+			// 2. Transition: Deducted -> NOT Deducted (Reverse everything old)
+			// 3. Steady State: Deducted -> Deducted (Deduct New - Old deltas)
+			// 4. Steady State: NOT Deducted -> NOT Deducted (Do nothing)
+
+			isNowDeducted := orders[i].InventoryDeducted
+			wasDeducted := wasFound && existing.InventoryDeducted
+
+			if !wasDeducted && isNowDeducted {
+				// Deduct full quantities of new items
+				for _, li := range orders[i].LineItems {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] += li.Quantity
+					}
+				}
+			} else if wasDeducted && !isNowDeducted {
+				// Reverse full quantities of old items (Negative delta = ADD back to stock)
+				for _, li := range oldLinesByOrder[orders[i].ID] {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] -= li.Quantity
+					}
+				}
+			} else if wasDeducted && isNowDeducted {
+				// Deduct difference between new and old items
+				for _, li := range orders[i].LineItems {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] += li.Quantity
+					}
+				}
+				for _, li := range oldLinesByOrder[orders[i].ID] {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] -= li.Quantity
+					}
 				}
 			}
 
@@ -508,13 +543,12 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				if delta == 0 {
 					continue
 				}
-				key := skuKey{Platform: orders[i].SourceID, SKU: sku}
-				if _, exists := totalSKUDeltas[key]; !exists {
-					pairs = append(pairs, []interface{}{key.Platform, key.SKU})
+				sKey := skuKey{Platform: orders[i].SourceID, SKU: sku}
+				if _, exists := totalSKUDeltas[sKey]; !exists {
+					pairs = append(pairs, []interface{}{sKey.Platform, sKey.SKU})
 				}
-				totalSKUDeltas[key] += delta
+				totalSKUDeltas[sKey] += delta
 			}
-			orders[i].InventoryDeducted = true
 		}
 
 		if len(pairs) > 0 {
