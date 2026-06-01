@@ -249,6 +249,21 @@ function App() {
 
   // Sorting and Filtering State
   const [search, setSearch] = useState('');
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        if (activeTab === 'shopify') {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
+
   const [sourceFilter, setSourceFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
   const [fulfillmentFilter, setFulfillmentFilter] = useState('');
@@ -1499,7 +1514,7 @@ function App() {
               </div>
             </div>
             <div style={{overflowX: 'auto'}}>
-            <table>
+            <table aria-busy={isLoading}>
               <thead>
                 <tr>
 
@@ -1555,7 +1570,28 @@ function App() {
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No orders found. Click Sync Shopify to fetch.</td>
+                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '3rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                          {(search || sourceFilter || paymentFilter || fulfillmentFilter)
+                            ? "No orders match your filters."
+                            : "No orders found. Click Sync Shopify to fetch."}
+                        </div>
+                        {(search || sourceFilter || paymentFilter || fulfillmentFilter) && (
+                          <button
+                            className="btn-secondary"
+                            onClick={() => { setSearch(''); setSourceFilter(''); setPaymentFilter(''); setFulfillmentFilter(''); setPage(1); }}
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                          >
+                            Clear all filters
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   orders.map((order, idx) => (
@@ -1822,6 +1858,7 @@ function App() {
                                     <button 
                                       className="btn-icon-minimal" 
                                       title="Copy Feedback Link"
+                                      aria-label="Copy Feedback Link"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         navigator.clipboard.writeText(surveyURL);
