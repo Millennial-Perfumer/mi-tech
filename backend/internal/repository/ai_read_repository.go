@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -313,13 +314,27 @@ func (r *gormAIReadRepository) ExecuteRawQuery(sql string) ([]map[string]interfa
 }
 
 func (r *gormAIReadRepository) ListTables() ([]string, error) {
-	var tables []string
+	var allTables []string
 	query := "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-	err := r.db.Raw(query).Scan(&tables).Error
-	return tables, err
+	err := r.db.Raw(query).Scan(&allTables).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var allowedTables []string
+	for _, t := range allTables {
+		if r.guard.IsTableAllowed(t) {
+			allowedTables = append(allowedTables, t)
+		}
+	}
+	return allowedTables, nil
 }
 
 func (r *gormAIReadRepository) DescribeTable(tableName string) ([]map[string]interface{}, error) {
+	if !r.guard.IsTableAllowed(tableName) {
+		return nil, fmt.Errorf("SECURITY ALERT: access to table metadata for '%s' is restricted", tableName)
+	}
+
 	var columns []map[string]interface{}
 	query := "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = ?"
 	err := r.db.Raw(query, tableName).Scan(&columns).Error
