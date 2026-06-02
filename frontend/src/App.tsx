@@ -255,6 +255,28 @@ function App() {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
+  // Keyboard Shortcut for Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus search input when '/' is pressed, but only if 'shopify' tab is active
+      // and we are not already typing in an input-like element
+      if (e.key === '/' && activeTab === 'shopify') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement instanceof HTMLInputElement ||
+                               activeElement instanceof HTMLTextAreaElement ||
+                               (activeElement as HTMLElement)?.isContentEditable;
+
+        if (!isInputFocused) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
+
   // Column Selector State
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('shopifyAppVisibleColumns');
@@ -1404,7 +1426,7 @@ function App() {
                   <input 
                     ref={searchInputRef}
                     type="text" 
-                    placeholder="Search orders or customers..." 
+                    placeholder="Search orders or customers... (Press /)"
                     aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
