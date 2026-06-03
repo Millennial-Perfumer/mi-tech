@@ -29,3 +29,7 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+
+## 2026-05-19 - [Parallelizing Network-Bound Background Pollers]
+**Learning:** Sequential network requests in background workers (like fetching order items per order in a poller) create a linear bottleneck proportional to latency and batch size. Parallelizing these requests with a concurrency-limited worker pool (e.g., using a semaphore) significantly reduces total execution time. It is crucial to keep stateful database operations sequential outside the pool to maintain data integrity and avoid race conditions without complex locking.
+**Action:** Identify O(N) network-bound loops in pollers and replace them with a bounded worker pool for data fetching, while retaining a serial loop for persistence.
