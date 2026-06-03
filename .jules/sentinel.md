@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-03-31 - [Fragility of Regex-based SQL Validation]
+**Vulnerability:** Potential bypass of table allowlist if regex only looks for single identifiers after `FROM` or `JOIN`.
+**Learning:** SQL syntax for data source specification is diverse: it includes comma-separated tables (`FROM a, b`), explicit joins (`JOIN b ON ...`), schema qualification (`"public"."users"`), and subqueries (`FROM (SELECT ...)`). Simple regex patterns (`FROM\s+(\w+)`) are easily bypassed or fail on valid complex queries.
+**Prevention:** When using regex for defense-in-depth SQL validation, ensure the pattern or logic handles comma-joins, aliases, and recursively validates subqueries. A more robust (though heavier) approach would be using a real SQL parser.
