@@ -362,9 +362,30 @@ function App() {
       if (editingStatusId) setEditingStatusId(null);
       if (editingPaymentStatusId) setEditingPaymentStatusId(null);
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus search input when '/' is pressed, but only if on Shopify tab
+      // and not already in an input/textarea
+      if (e.key === '/' && activeTab === 'shopify') {
+        const activeElement = document.activeElement;
+        const isInput = activeElement?.tagName === 'INPUT' ||
+                        activeElement?.tagName === 'TEXTAREA' ||
+                        (activeElement as HTMLElement)?.isContentEditable;
+
+        if (!isInput) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+
     window.addEventListener('click', handleOutsideClick);
-    return () => window.removeEventListener('click', handleOutsideClick);
-  }, [editingStatusId]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingStatusId, editingPaymentStatusId, activeTab]);
 
   // Debounced search effect
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -1404,7 +1425,7 @@ function App() {
                   <input 
                     ref={searchInputRef}
                     type="text" 
-                    placeholder="Search orders or customers..." 
+                    placeholder="Search orders or customers... (Press /)"
                     aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -1499,7 +1520,7 @@ function App() {
               </div>
             </div>
             <div style={{overflowX: 'auto'}}>
-            <table>
+            <table aria-busy={isLoading}>
               <thead>
                 <tr>
 
@@ -1555,7 +1576,32 @@ function App() {
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No orders found. Click Sync Shopify to fetch.</td>
+                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '5rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: 'var(--text-tertiary)' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                        </svg>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>
+                            {search || sourceFilter || paymentFilter || fulfillmentFilter ? 'No orders match your filters' : 'No orders found'}
+                          </p>
+                          <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                            {search || sourceFilter || paymentFilter || fulfillmentFilter
+                              ? 'Try adjusting your search or filters to find what you’re looking for.'
+                              : 'Your order list is currently empty. Click Sync Shopify to fetch recent orders.'}
+                          </p>
+                        </div>
+                        {(search || sourceFilter || paymentFilter || fulfillmentFilter) && (
+                          <button
+                            className="btn-secondary"
+                            onClick={() => { setSearch(''); setSourceFilter(''); setPaymentFilter(''); setFulfillmentFilter(''); setPage(1); }}
+                            style={{ marginTop: '0.5rem', padding: '0.5rem 1.25rem' }}
+                          >
+                            Clear all filters
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ) : (
                   orders.map((order, idx) => (
@@ -1822,6 +1868,7 @@ function App() {
                                     <button 
                                       className="btn-icon-minimal" 
                                       title="Copy Feedback Link"
+                                      aria-label="Copy Feedback Link"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         navigator.clipboard.writeText(surveyURL);
