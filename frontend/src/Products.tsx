@@ -575,7 +575,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           <input 
             type="text" 
             ref={searchInputRef}
-            placeholder="Search by name, MI SKU, or platform SKU..." 
+            placeholder="Search products... (Press /)"
+            aria-label="Search products"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ 

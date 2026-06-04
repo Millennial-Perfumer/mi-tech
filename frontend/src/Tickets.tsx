@@ -148,7 +148,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           <input 
             type="text" 
             ref={searchInputRef}
-            placeholder="Search by ID or customer issue..." 
+            placeholder="Search tickets... (Press /)"
             aria-label="Search tickets"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
