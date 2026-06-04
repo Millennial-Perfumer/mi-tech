@@ -3,14 +3,12 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
 func TestCORSMiddleware(t *testing.T) {
 	// Setup allowed origins
-	os.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://mi-tech.millennialperfumer.in,https://feedback-form.millennialperfumer.in")
-	defer os.Unsetenv("ALLOWED_ORIGINS")
+	t.Setenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080,https://mi-tech.millennialperfumer.in,https://feedback-form.millennialperfumer.in")
 
 	tests := []struct {
 		name           string

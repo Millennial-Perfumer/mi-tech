@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-06-04 - [Insecure CORS Wildcard with Credentials]
+**Vulnerability:** 'CORSMiddleware' was reflecting the 'Origin' header and setting 'Access-Control-Allow-Credentials: true' even when a wildcard '*' was present in 'ALLOWED_ORIGINS'.
+**Learning:** Reflecting the origin while allowing credentials when a wildcard is present effectively bypasses CORS security, as any site can then make authenticated requests to the API. The CORS spec explicitly forbids the combination of 'Access-Control-Allow-Origin: *' and 'Access-Control-Allow-Credentials: true'.
+**Prevention:** Explicitly check if a match is made via a wildcard. If so, set 'Access-Control-Allow-Origin: *' and omit 'Access-Control-Allow-Credentials'. Only allow credentials for specific, trusted origins.
