@@ -19,6 +19,7 @@ type OrderFilter struct {
 	FulfillmentStatus string
 	SortBy            string
 	SortOrder         string
+	Status            string
 }
 
 // PlannerFilter holds query parameters for tasks and analytics.
@@ -57,6 +58,7 @@ type OrderRepository interface {
 	SaveCustomerFeedback(feedback entity.CustomerFeedback) error
 	GetCustomerFeedback() ([]dto.FeedbackResponse, error)
 	UpdateFeedbackAdminComment(id int, comment string) error
+	GetNextPOSSequence(terminalCode string) (string, error)
 }
 
 // LineItemRepository defines all data access operations for the order_line_items table.

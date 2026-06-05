@@ -9,6 +9,7 @@ interface InventoryItem {
   description: string;
   specification: string;
   current_stock: number;
+  price?: number;
   mappings?: InventoryMapping[];
 }
 
@@ -77,6 +78,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [sortBy, setSortBy] = useState<string>('mi-sku-asc');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncMode, setSyncMode] = useState<'shopify' | 'amazon'>('shopify');
   const [syncStartDate, setSyncStartDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }));
@@ -477,6 +479,26 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
   };
 
+  const handleFetchPrices = async () => {
+    setIsFetchingPrices(true);
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/inventory/sync-prices`, {
+        method: 'POST'
+      });
+      if (resp.ok) {
+        const stats = await resp.json();
+        toastSuccess(`Price backfill complete! Updated: ${stats.updated_count}, Processed: ${stats.total_processed}`);
+        fetchInventory();
+      } else {
+        toastError('Failed to fetch and synchronize prices');
+      }
+    } catch (err) {
+      toastError('Network error syncing prices from Shopify');
+    } finally {
+      setIsFetchingPrices(false);
+    }
+  };
+
   const toggleStagedSelection = (variantId: string) => {
     const next = new Set(selectedStagedIds);
     if (next.has(variantId)) next.delete(variantId);
@@ -544,6 +566,40 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                   <path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
                 </svg>
                 Sync Shopify
+              </button>
+              <button 
+                className="btn-secondary" 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} 
+                onClick={handleFetchPrices}
+                disabled={isFetchingPrices}
+              >
+                {isFetchingPrices ? (
+                  <>
+                    <svg 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2.5" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                      style={{ animation: 'spin 1.5s linear infinite' }}
+                    >
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" style={{ opacity: 0.25 }}></circle>
+                      <path d="M4 12a8 8 0 0 1 8-8"></path>
+                    </svg>
+                    Fetching...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="1" x2="12" y2="23"></line>
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    Fetch Prices
+                  </>
+                )}
               </button>
               <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncAmazon}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -872,18 +928,23 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="metric-card-adaptive" style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Warehouse Location</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px' }}>Main Cluster</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: '0.75rem' }}>
+                <div className="metric-card-adaptive" style={{ padding: '0.85rem' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Location</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, marginTop: '2px' }}>Main Cluster</div>
                 </div>
-                <div className="metric-card-adaptive" style={{ padding: '1rem' }} onClick={() => fetchLogs(selectedProduct.id)}>
-                  <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Global Status</span>
-                    <span style={{ color: 'var(--accent-color)', cursor: 'pointer' }}>View History →</span>
+                <div className="metric-card-adaptive" style={{ padding: '0.85rem', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0%, rgba(16, 185, 129, 0) 100%)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--accent-color)', textTransform: 'uppercase' }}>Shopify Price</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '2px', color: 'var(--text-primary)' }}>
+                    ₹{selectedProduct.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, marginTop: '2px', color: selectedProduct.current_stock > 0 ? 'var(--status-active)' : 'var(--status-danger)' }}>
-                    {selectedProduct.current_stock > 0 ? 'Active Supply' : 'Out of Stock'}
+                </div>
+                <div className="metric-card-adaptive" style={{ padding: '0.85rem', cursor: 'pointer' }} onClick={() => fetchLogs(selectedProduct.id)}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Status</span>
+                  </div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, marginTop: '2px', color: selectedProduct.current_stock > 0 ? 'var(--status-active)' : 'var(--status-danger)' }}>
+                    {selectedProduct.current_stock > 0 ? 'Active' : 'Out of Stock'}
                   </div>
                 </div>
               </div>

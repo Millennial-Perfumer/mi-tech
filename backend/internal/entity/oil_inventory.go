@@ -11,6 +11,7 @@ type Supplier struct {
 	ContactInfo string    `gorm:"column:contact_info" json:"contact_info"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+	OilsCount   int       `gorm:"-" json:"oils_count"`
 }
 
 func (Supplier) TableName() string {

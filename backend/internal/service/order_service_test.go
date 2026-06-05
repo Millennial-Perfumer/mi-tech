@@ -1,13 +1,16 @@
 package service
 
 import (
+	"context"
 	"testing"
 
+	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service/mocks"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestOrderService_ListOrders(t *testing.T) {
@@ -21,7 +24,7 @@ func TestOrderService_ListOrders(t *testing.T) {
 
 	mockOrderRepo.On("List", filter).Return(orders, 1, nil)
 
-	resp, total, err := service.ListOrders("", "", 1, 25, "", "", "", "", "", "")
+	resp, total, err := service.ListOrders("", "", 1, 25, "", "", "", "", "", "", "")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, total)
@@ -45,6 +48,58 @@ func TestOrderService_GetOrder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "ORD-1", resp.OrderNumber)
 	assert.Equal(t, 1, len(resp.LineItems))
+	mockOrderRepo.AssertExpectations(t)
+	mockLineItemRepo.AssertExpectations(t)
+}
+
+func TestOrderService_CreateManualOrder(t *testing.T) {
+	mockOrderRepo := new(mocks.MockOrderRepository)
+	mockLineItemRepo := new(mocks.MockLineItemRepository)
+	service := NewOrderService(mockOrderRepo, mockLineItemRepo, nil, nil, nil)
+
+	req := dto.OrderCreateRequest{
+		CustomerName:  "Aamir Siddiqui",
+		CustomerPhone: "9876543210",
+		TotalPrice:    118.0, // 18% inclusive GST: GST = 18, Subtotal = 100
+		LineItems: []dto.LineItemCreateRequest{
+			{
+				MISKU:    "mi-01",
+				Title:    "Oud Perfume",
+				Quantity: 2,
+				Price:    59.0,
+			},
+		},
+	}
+
+	mockOrderRepo.On("GetNextPOSSequence", "POS1").Return("POS1-001", nil)
+
+	mockOrderRepo.On("Upsert", mock.MatchedBy(func(o entity.Order) bool {
+		return o.OrderNumber == "POS1-001" && o.TotalPrice == 118.0 && *o.SubtotalPrice == 100.0 && *o.TotalTax == 18.0
+	})).Return([]int{5}, nil)
+
+	mockOrderRepo.On("GetByExternalID", "pos-POS1-001").Return(entity.Order{
+		ID:          42,
+		OrderNumber: "POS1-001",
+		TotalPrice:  118.0,
+	}, nil)
+
+	mockLineItemRepo.On("GetByOrderID", int64(42)).Return([]entity.LineItem{
+		{
+			ID:       "pos-POS1-001-0",
+			OrderID:  42,
+			SKU:      entity.StrPtr("mi-01"),
+			Quantity: 2,
+			Price:    59.0,
+		},
+	}, nil)
+
+	resp, err := service.CreateManualOrder(context.Background(), req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "POS1-001", resp.OrderNumber)
+	assert.Equal(t, "118.00", resp.TotalPrice)
+	assert.Equal(t, 1, len(resp.LineItems))
+	assert.Equal(t, "mi-01", resp.LineItems[0].SKU)
 	mockOrderRepo.AssertExpectations(t)
 	mockLineItemRepo.AssertExpectations(t)
 }

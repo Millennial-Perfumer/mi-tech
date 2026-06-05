@@ -59,6 +59,14 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 	if filter.FulfillmentStatus != "" {
 		query = query.Where("fulfillment_status = ?", filter.FulfillmentStatus)
 	}
+	if filter.Status != "" {
+		statusLower := strings.ToLower(filter.Status)
+		if statusLower == "cancelled" || statusLower == "canceled" {
+			query = query.Where("LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')")
+		} else {
+			query = query.Where("LOWER(status) = ?", statusLower)
+		}
+	}
 
 	// Count total matching
 	var totalCount int64
@@ -811,3 +819,23 @@ func (r *gormOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, err
 func (r *gormOrderRepository) UpdateFeedbackAdminComment(id int, comment string) error {
 	return r.db.Model(&entity.CustomerFeedback{}).Where("id = ?", id).Update("admin_comment", comment).Error
 }
+
+func (r *gormOrderRepository) GetNextPOSSequence(terminalCode string) (string, error) {
+	var result struct {
+		Code string
+		Seq  int
+	}
+	err := r.db.Raw(`
+		UPDATE pos_terminals SET next_sequence = next_sequence + 1
+		WHERE code = ? AND is_active = true
+		RETURNING code, next_sequence - 1 AS seq
+	`, terminalCode).Scan(&result).Error
+	if err != nil {
+		return "", fmt.Errorf("POS terminal '%s' not found or inactive: %w", terminalCode, err)
+	}
+	if result.Code == "" {
+		return "", fmt.Errorf("POS terminal '%s' not found or inactive", terminalCode)
+	}
+	return fmt.Sprintf("%s-%03d", result.Code, result.Seq), nil
+}
+

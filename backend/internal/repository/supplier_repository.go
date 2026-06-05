@@ -21,13 +21,42 @@ func (r *gormSupplierRepository) List(search string) ([]entity.Supplier, error) 
 		query = query.Where("name ILIKE ?", "%"+search+"%")
 	}
 	err := query.Find(&suppliers).Error
-	return suppliers, err
+	if err != nil {
+		return nil, err
+	}
+
+	type SupplierOilCount struct {
+		SupplierID int
+		Count      int
+	}
+	var counts []SupplierOilCount
+	err = r.db.Model(&entity.OilInventory{}).
+		Select("supplier_id, count(*) as count").
+		Where("supplier_id IS NOT NULL").
+		Group("supplier_id").
+		Scan(&counts).Error
+	if err == nil {
+		countMap := make(map[int]int)
+		for _, c := range counts {
+			countMap[c.SupplierID] = c.Count
+		}
+		for i := range suppliers {
+			suppliers[i].OilsCount = countMap[suppliers[i].ID]
+		}
+	}
+	return suppliers, nil
 }
 
 func (r *gormSupplierRepository) GetByID(id int) (entity.Supplier, error) {
 	var supplier entity.Supplier
 	err := r.db.First(&supplier, id).Error
-	return supplier, err
+	if err != nil {
+		return supplier, err
+	}
+	var count int64
+	r.db.Model(&entity.OilInventory{}).Where("supplier_id = ?", id).Count(&count)
+	supplier.OilsCount = int(count)
+	return supplier, nil
 }
 
 func (r *gormSupplierRepository) Create(supplier *entity.Supplier) error {

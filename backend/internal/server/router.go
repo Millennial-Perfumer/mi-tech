@@ -112,6 +112,8 @@ func RegisterRoutes(
 	// --- Order Routes ---
 	mux.HandleFunc("/api/orders", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
+		case http.MethodPost:
+			adminProtected(orderHandler.CreateOrder)(w, r)
 		case http.MethodPut:
 			adminProtected(orderHandler.UpdateOrder)(w, r)
 		default:
@@ -316,6 +318,7 @@ func RegisterRoutes(
 	}))
 	mux.HandleFunc("/api/inventory/next-sku", protected(inventoryHandler.GetNextSKU))
 	mux.HandleFunc("/api/inventory/sync-shopify", adminProtected(inventoryHandler.SyncShopify))
+	mux.HandleFunc("/api/inventory/sync-prices", adminProtected(inventoryHandler.SyncPrices))
 	mux.HandleFunc("/api/inventory/bulk", adminProtected(inventoryHandler.BulkCreate))
 	mux.HandleFunc("/api/inventory/map", adminProtected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

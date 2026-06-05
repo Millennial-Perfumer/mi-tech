@@ -128,6 +128,12 @@ func (m *MockOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, err
 	return args.Get(0).([]dto.FeedbackResponse), args.Error(1)
 }
 
+func (m *MockOrderRepository) GetNextPOSSequence(terminalCode string) (string, error) {
+	args := m.Called(terminalCode)
+	return args.String(0), args.Error(1)
+}
+
+
 type MockLineItemRepository struct {
 	mock.Mock
 }
