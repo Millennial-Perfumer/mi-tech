@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -508,7 +509,7 @@ func (s *CustomerService) toTitleCase(str string) string {
 	return strings.Join(words, " ")
 }
 
-func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []int64) ([]entity.Customer, error) {
 	return s.repo.GetByIDs(ctx, ids)
 }
 func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
@@ -719,12 +720,52 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 }
 
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
+
+	// 1. Fetch all customers in a single batch query to resolve N+1 bottleneck.
+	customers, err := s.repo.GetByIDs(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("BulkDeleteCustomers: failed to fetch customers: %w", err)
+	}
+
+	// 2. Parallelize Shopify deletions with bounded concurrency.
+	// Optimization: Reduces total network latency from O(N) to O(N/5).
+	if s.shopifyClient != nil {
+		var (
+			wg      sync.WaitGroup
+			sem     = make(chan struct{}, 5) // Limit concurrency to 5
+		)
+
+		for _, cust := range customers {
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if extID <= 0 {
+					continue
+				}
+
+				wg.Add(1)
+				go func(id int64) {
+					defer wg.Done()
+					sem <- struct{}{}        // Acquire
+					defer func() { <-sem }() // Release
+
+					if err := s.shopifyClient.DeleteCustomer(id); err != nil {
+						log.Printf("BulkDelete: Failed to sync deletion to Shopify for customer %d: %v", id, err)
+					}
+				}(extID)
+			}
+		}
+		wg.Wait()
+	}
+
+	// 3. Perform a single batch database delete (Soft Delete).
+	// Optimization: Minimizes DB roundtrips from O(N) to O(1).
+	if err := s.repo.BulkDelete(ctx, ids); err != nil {
+		return fmt.Errorf("BulkDeleteCustomers: failed to delete from database: %w", err)
+	}
+
 	return nil
 }
 
