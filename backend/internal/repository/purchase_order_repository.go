@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"mi-tech/internal/entity"
 	"gorm.io/gorm"
+	"mi-tech/internal/entity"
 )
 
 type pgPurchaseOrderRepository struct {

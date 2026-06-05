@@ -2,16 +2,16 @@ package dto
 
 // LineItemCreateRequest represents a line item within a manual order creation request.
 type LineItemCreateRequest struct {
-	MISKU    string  `json:"mi_sku"`    // e.g. "mi-01"
+	MISKU    string  `json:"mi_sku"` // e.g. "mi-01"
 	Title    string  `json:"title"`
 	Quantity int     `json:"quantity"`
-	Price    float64 `json:"price"`     // unit price
-	Discount float64 `json:"discount"`  // item-level discount amount
+	Price    float64 `json:"price"`    // unit price
+	Discount float64 `json:"discount"` // item-level discount amount
 }
 
 // OrderCreateRequest represents a manual order creation request (POS orders).
 type OrderCreateRequest struct {
-	TerminalCode      string                  `json:"terminal_code"`      // "POS1" (defaults if empty)
+	TerminalCode      string                  `json:"terminal_code"` // "POS1" (defaults if empty)
 	TotalPrice        float64                 `json:"total_price"`
 	TotalDiscount     float64                 `json:"total_discount"`
 	FinancialStatus   string                  `json:"financial_status"`   // default: "paid"

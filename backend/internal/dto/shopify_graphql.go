@@ -121,16 +121,16 @@ type GraphQLLineItemEdge struct {
 
 // GraphQLLineItemNode represents a single line item from the GraphQL response.
 type GraphQLLineItemNode struct {
-	ID                   string              `json:"id"`
-	Title                string              `json:"title"`
-	SKU                  string              `json:"sku"`
-	Quantity             int                 `json:"quantity"`
-	CurrentQuantity      *int                `json:"currentQuantity"`
-	Vendor               string              `json:"vendor"`
-	OriginalTotalSet     MoneySet            `json:"originalTotalSet"`
-	TotalDiscountSet     MoneySet            `json:"totalDiscountSet"`
-	OriginalUnitPriceSet MoneySet            `json:"originalUnitPriceSet"`
-	Variant              *GraphQLLineVariant `json:"variant"`
+	ID                   string               `json:"id"`
+	Title                string               `json:"title"`
+	SKU                  string               `json:"sku"`
+	Quantity             int                  `json:"quantity"`
+	CurrentQuantity      *int                 `json:"currentQuantity"`
+	Vendor               string               `json:"vendor"`
+	OriginalTotalSet     MoneySet             `json:"originalTotalSet"`
+	TotalDiscountSet     MoneySet             `json:"totalDiscountSet"`
+	OriginalUnitPriceSet MoneySet             `json:"originalUnitPriceSet"`
+	Variant              *GraphQLLineVariant  `json:"variant"`
 	DiscountAllocations  []DiscountAllocation `json:"discountAllocations"`
 }
 
@@ -168,9 +168,9 @@ type GraphQLProductEdge struct {
 }
 
 type GraphQLProductNode struct {
-	ID              string             `json:"id"`
-	Title           string             `json:"title"`
-	DescriptionHtml string             `json:"descriptionHtml"` // body_html in REST, descriptionHtml in GraphQL
+	ID                     string            `json:"id"`
+	Title                  string            `json:"title"`
+	DescriptionHtml        string            `json:"descriptionHtml"` // body_html in REST, descriptionHtml in GraphQL
 	Handle                 string            `json:"handle"`
 	DescriptionMetafield   *GraphQLMetafield `json:"descriptionMetafield"`
 	SpecificationMetafield *GraphQLMetafield `json:"specificationMetafield"`
@@ -195,7 +195,7 @@ type GraphQLVariantNode struct {
 	SKU           string `json:"sku"`
 	Price         string `json:"price"`
 	InventoryItem struct {
-		ID              string                         `json:"id"`
+		ID              string                          `json:"id"`
 		InventoryLevels GraphQLInventoryLevelConnection `json:"inventoryLevels"`
 	} `json:"inventoryItem"`
 }

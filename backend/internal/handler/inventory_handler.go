@@ -116,7 +116,6 @@ func (h *InventoryHandler) SyncPrices(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(stats)
 }
 
-
 // CreateMapping creates a link between an external and internal SKU.
 func (h *InventoryHandler) CreateMapping(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -157,7 +156,6 @@ func (h *InventoryHandler) DeleteMapping(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusOK)
 }
-
 
 // AdjustStock handles manual stock updates.
 func (h *InventoryHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +213,7 @@ func (h *InventoryHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
 		StartDate string `json:"start_date"`
 		EndDate   string `json:"end_date"`
 	}
-	
+
 	// Optional body
 	json.NewDecoder(r.Body).Decode(&req)
 

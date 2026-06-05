@@ -31,7 +31,7 @@ func NewMarketingHandler(metaClient *marketing.MetaMarketingClient) *MarketingHa
 func (h *MarketingHandler) GetMetaOverview(w http.ResponseWriter, r *http.Request) {
 	// 1. Get Configured Ad Account ID
 	configID := h.metaClient.GetConfiguredAdAccountID()
-	
+
 	// Always fetch available accounts to ensure UI has account names
 	accounts, err := h.metaClient.FetchAdAccounts()
 	if err != nil {
@@ -184,5 +184,3 @@ func (h *MarketingHandler) GetMetaAds(w http.ResponseWriter, r *http.Request) {
 		"insights": insights,
 	})
 }
-
-

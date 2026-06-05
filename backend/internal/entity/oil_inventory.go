@@ -23,8 +23,8 @@ type OilInventory struct {
 	ID                 int       `gorm:"primaryKey" json:"id"`
 	Name               string    `gorm:"column:name" json:"name"`
 	InventoryItemID    *int      `gorm:"column:inventory_item_id" json:"inventory_item_id"`
-	PurchasePricePerKg *float64   `gorm:"column:purchase_price_per_kg" json:"purchase_price_per_kg"`
-	GramsLeft          *float64   `gorm:"column:grams_left" json:"grams_left"`
+	PurchasePricePerKg *float64  `gorm:"column:purchase_price_per_kg" json:"purchase_price_per_kg"`
+	GramsLeft          *float64  `gorm:"column:grams_left" json:"grams_left"`
 	SupplierID         *int      `gorm:"column:supplier_id" json:"supplier_id"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`

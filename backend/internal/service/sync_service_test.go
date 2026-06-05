@@ -29,10 +29,10 @@ func TestSyncService_ResetAndSync(t *testing.T) {
 	service := NewSyncService(dummyClient, mockOrderRepo, nil, nil)
 
 	mockOrderRepo.On("TruncateAll").Return(nil)
-	
-	// We expect Sync to fail because shopifyClient is nil, 
+
+	// We expect Sync to fail because shopifyClient is nil,
 	// but we verify that ResetAndSync at least calls TruncateAll first.
 	_, err := service.ResetAndSync()
-	assert.Error(t, err) 
+	assert.Error(t, err)
 	mockOrderRepo.AssertExpectations(t)
 }

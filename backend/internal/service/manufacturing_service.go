@@ -176,7 +176,6 @@ func (s *ManufacturingService) Update(ctx context.Context, record *entity.Manufa
 	return err
 }
 
-
 func (s *ManufacturingService) Delete(ctx context.Context, id int) error {
 	var productsToSync []int
 

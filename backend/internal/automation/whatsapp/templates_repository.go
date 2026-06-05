@@ -223,7 +223,7 @@ func (r *TemplatesRepository) UpsertMetaTemplate(t AutomationTemplate) (int, err
 	if err != nil {
 		return 0, fmt.Errorf("failed to update meta template: %w", err)
 	}
-	
+
 	return existingID, nil
 }
 
@@ -263,4 +263,3 @@ func (r *TemplatesRepository) DeleteEvent(id int) error {
 	_, err := r.db.Exec(query, id)
 	return err
 }
-

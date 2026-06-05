@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
+	"mi-tech/internal/automation/whatsapp"
 	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
-	"mi-tech/internal/automation/whatsapp"
 )
 
 // OrderHandler is a thin HTTP adapter for order operations.
@@ -556,4 +556,3 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(orderResponse)
 }
-

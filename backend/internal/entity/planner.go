@@ -19,11 +19,11 @@ type Subtask struct {
 
 // PlannerBoard represents the "planner_boards" table.
 type PlannerBoard struct {
-	ID          uint           `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	Name        string         `gorm:"column:name;not null" json:"name"`
-	Description string         `gorm:"column:description" json:"description"`
-	CreatedAt   time.Time      `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt   time.Time      `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID          uint            `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Name        string          `gorm:"column:name;not null" json:"name"`
+	Description string          `gorm:"column:description" json:"description"`
+	CreatedAt   time.Time       `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt   time.Time       `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	Columns     []PlannerColumn `gorm:"foreignKey:BoardID" json:"columns,omitempty"`
 }
 

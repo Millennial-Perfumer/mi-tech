@@ -263,7 +263,7 @@ func (r *gormReportRepository) GetStateSummary(startDate, endDate string) ([]Sta
 func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
 
-		query := `
+	query := `
 		WITH LineItemShares AS (
 			SELECT 
 				li.order_id,
@@ -327,7 +327,6 @@ func (r *gormReportRepository) GetDocumentsIssued(startDate, endDate string) (mi
 	}
 	return
 }
-
 
 // --- Shared helper ---
 

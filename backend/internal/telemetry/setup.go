@@ -28,7 +28,7 @@ func InitProvider(serviceName string) (func(context.Context) error, error) {
 	if otelAgentAddr == "" {
 		// When running locally via 'make backend', tempo won't resolve.
 		// We'll default to localhost so users can run the monitoring stack in Docker but the backend on the host.
-		otelAgentAddr = "localhost:4317" 
+		otelAgentAddr = "localhost:4317"
 	}
 
 	res, err := resource.New(ctx,

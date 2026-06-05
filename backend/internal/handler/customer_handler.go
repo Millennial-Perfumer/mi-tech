@@ -128,6 +128,7 @@ func (h *CustomerHandler) DeleteAllCustomers(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "All customers cleared successfully"})
 }
+
 // CreateCustomer handles POST /api/customers.
 // @Summary Create customer
 // @Description Manually create a new customer profile.

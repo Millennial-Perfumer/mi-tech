@@ -94,7 +94,7 @@ func (s *socialService) GetOverview(platform string, startDate, endDate string) 
 
 			if (startDate == "" || pubTime.After(start) || pubTime.Equal(start)) &&
 				(endDate == "" || pubTime.Before(end) || pubTime.Equal(end)) {
-				
+
 				go func(m marketing.SocialPost) {
 					sem <- struct{}{}        // Acquire
 					defer func() { <-sem }() // Release
@@ -174,7 +174,7 @@ func (s *socialService) GetOverview(platform string, startDate, endDate string) 
 				}
 			}
 		}
-		
+
 		log.Printf("DEBUG: Parallel sync complete. Total media in range: %d", len(filteredMedia))
 		log.Printf("DEBUG: Total media filtered in range: %d", len(filteredMedia))
 
@@ -230,7 +230,7 @@ func (s *socialService) GetOverview(platform string, startDate, endDate string) 
 
 			if (startDate == "" || pubTime.After(start) || pubTime.Equal(start)) &&
 				(endDate == "" || pubTime.Before(end) || pubTime.Equal(end)) {
-				
+
 				go func(m marketing.SocialPost) {
 					sem <- struct{}{}
 					defer func() { <-sem }()

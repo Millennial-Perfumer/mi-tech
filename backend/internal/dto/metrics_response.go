@@ -2,8 +2,8 @@ package dto
 
 // MetricsResponse is the DTO for the dashboard metrics endpoint.
 type MetricsResponse struct {
-	Success bool                   `json:"success"`
-	Metrics DashboardMetrics       `json:"metrics"`
+	Success bool             `json:"success"`
+	Metrics DashboardMetrics `json:"metrics"`
 }
 
 // DashboardMetrics contains the computed dashboard values.

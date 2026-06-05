@@ -170,7 +170,7 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 
 func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Order, oldItems []entity.LineItem) ([]int, error) {
 	var affectedIDs []int
-	
+
 	// Index by SKU: delta = New - Old
 	skuDeltas := make(map[string]int)
 	var skus []string
@@ -272,7 +272,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 		if err == nil {
 			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
 			r.mergePII(&existing, &order)
-			
+
 			// Preserve delivered_at if already set
 			if existing.DeliveredAt != nil {
 				order.DeliveredAt = existing.DeliveredAt
@@ -300,11 +300,21 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 					log.Printf("Repository: Order %s auto-linked to customer %s to restore phone.", order.OrderNumber, cust.PhoneNumber)
 
 					// Also restore other fields if possible
-					if r.isWeak(order.CustomerFirstName) { order.CustomerFirstName = cust.FirstName }
-					if r.isWeak(order.CustomerLastName) { order.CustomerLastName = cust.LastName }
-					if r.isWeak(order.CustomerEmail) { order.CustomerEmail = cust.Email }
-					if r.isWeak(order.CustomerCity) { order.CustomerCity = cust.City }
-					if r.isWeak(order.CustomerState) { order.CustomerState = cust.State }
+					if r.isWeak(order.CustomerFirstName) {
+						order.CustomerFirstName = cust.FirstName
+					}
+					if r.isWeak(order.CustomerLastName) {
+						order.CustomerLastName = cust.LastName
+					}
+					if r.isWeak(order.CustomerEmail) {
+						order.CustomerEmail = cust.Email
+					}
+					if r.isWeak(order.CustomerCity) {
+						order.CustomerCity = cust.City
+					}
+					if r.isWeak(order.CustomerState) {
+						order.CustomerState = cust.State
+					}
 				}
 			}
 		}
@@ -411,7 +421,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			if existing, found := existingMap[key]; found {
 				orders[i].ID = existing.ID // Crucial to link line items correctly
 				r.mergePII(&existing, &orders[i])
-				
+
 				// Preserve delivered_at if already set
 				if existing.DeliveredAt != nil {
 					orders[i].DeliveredAt = existing.DeliveredAt
@@ -438,7 +448,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				orderIDs = append(orderIDs, o.ID)
 			}
 		}
-		
+
 		oldLinesByOrder := make(map[int64][]entity.LineItem)
 		if len(orderIDs) > 0 {
 			var allOldLineItems []entity.LineItem
@@ -705,9 +715,15 @@ func (r *gormOrderRepository) GetCustomerStats(phone string) (totalOrders int, t
 	return
 }
 
-func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error) {
+func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]struct {
+	Count int
+	Sum   float64
+}, error) {
 	if len(phones) == 0 {
-		return make(map[string]struct{ Count int; Sum float64 }), nil
+		return make(map[string]struct {
+			Count int
+			Sum   float64
+		}), nil
 	}
 
 	type result struct {
@@ -725,7 +741,10 @@ func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]str
 		return nil, err
 	}
 
-	statsMap := make(map[string]struct{ Count int; Sum float64 })
+	statsMap := make(map[string]struct {
+		Count int
+		Sum   float64
+	})
 	for _, res := range results {
 		statsMap[res.Phone] = struct {
 			Count int
@@ -769,7 +788,7 @@ func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.O
 	var orders []entity.Order
 	// Logic: Delivered but feedback is still 'pending' (status_id = 1 or NULL) and delivered_at <= delayMinutes ago
 	threshold := time.Now().Add(time.Duration(-delayMinutes) * time.Minute)
-	
+
 	// Use TRIM(LOWER()) to be resilient against trailing spaces found in DB ('delivered ')
 	err := r.db.Where("TRIM(LOWER(delivery_status)) = ? AND (feedback_status_id = ? OR feedback_status_id IS NULL) AND delivered_at <= ?", "delivered", 1, threshold).
 		Order("delivered_at DESC").
@@ -838,4 +857,3 @@ func (r *gormOrderRepository) GetNextPOSSequence(terminalCode string) (string, e
 	}
 	return fmt.Sprintf("%s-%03d", result.Code, result.Seq), nil
 }
-

@@ -88,6 +88,7 @@ func (h *SettingsHandler) GetAllSettings(w http.ResponseWriter, r *http.Request)
 		"settings": res,
 	})
 }
+
 // UpdateSetting updates a single setting value.
 // UpdateSetting handles PUT /api/settings.
 // @Summary Update application setting

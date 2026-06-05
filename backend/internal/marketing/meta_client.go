@@ -14,12 +14,12 @@ import (
 )
 
 type MetaMarketingClient struct {
-	settings              *config.SettingsProvider
-	baseURL               string
-	version               string
-	pageAccessTokenCache  map[string]string
-	cacheMu               sync.RWMutex
-	client                *http.Client
+	settings             *config.SettingsProvider
+	baseURL              string
+	version              string
+	pageAccessTokenCache map[string]string
+	cacheMu              sync.RWMutex
+	client               *http.Client
 }
 
 type MetaError struct {
@@ -68,10 +68,10 @@ func decodeResponse(resp *http.Response, target interface{}) error {
 
 func NewMetaMarketingClient(settings *config.SettingsProvider) *MetaMarketingClient {
 	return &MetaMarketingClient{
-		settings:              settings,
-		baseURL:               "https://graph.facebook.com",
-		version:               "v22.0", // Upgraded to v22.0 for latest SMM/Threads support
-		pageAccessTokenCache:  make(map[string]string),
+		settings:             settings,
+		baseURL:              "https://graph.facebook.com",
+		version:              "v22.0", // Upgraded to v22.0 for latest SMM/Threads support
+		pageAccessTokenCache: make(map[string]string),
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -139,22 +139,22 @@ type Insight struct {
 	AggregatedROAS string        `json:"purchase_roas_val"`
 
 	// New Categorized Metrics (Meta returns these as action arrays frequently)
-	QualityRanking          string `json:"quality_ranking"`
-	EngagementRateRanking  string `json:"engagement_rate_ranking"`
+	QualityRanking        string `json:"quality_ranking"`
+	EngagementRateRanking string `json:"engagement_rate_ranking"`
 	ConversionRateRanking string `json:"conversion_rate_ranking"`
 
 	// Video (Raw Arrays)
-	VideoP25Raw    []ActionValue `json:"video_p25_watched_actions"`
-	VideoP50Raw    []ActionValue `json:"video_p50_watched_actions"`
-	VideoP75Raw    []ActionValue `json:"video_p75_watched_actions"`
-	VideoP100Raw   []ActionValue `json:"video_p100_watched_actions"`
+	VideoP25Raw     []ActionValue `json:"video_p25_watched_actions"`
+	VideoP50Raw     []ActionValue `json:"video_p50_watched_actions"`
+	VideoP75Raw     []ActionValue `json:"video_p75_watched_actions"`
+	VideoP100Raw    []ActionValue `json:"video_p100_watched_actions"`
 	VideoAvgTimeRaw []ActionValue `json:"video_avg_time_watched_actions"`
-	
+
 	// Video (Flat values for frontend)
-	VideoP25    string `json:"video_p25_val"`
-	VideoP50    string `json:"video_p50_val"`
-	VideoP75    string `json:"video_p75_val"`
-	VideoP100   string `json:"video_p100_val"`
+	VideoP25     string `json:"video_p25_val"`
+	VideoP50     string `json:"video_p50_val"`
+	VideoP75     string `json:"video_p75_val"`
+	VideoP100    string `json:"video_p100_val"`
 	VideoAvgTime string `json:"video_avg_time_val"`
 
 	// Social Engagement
@@ -408,7 +408,7 @@ func (c *MetaMarketingClient) FetchInsights(id string, level string, startDate, 
 	params := url.Values{}
 	params.Add("access_token", token)
 	params.Add("level", level)
-	
+
 	if startDate != "" && endDate != "" {
 		timeRange := fmt.Sprintf("{\"since\":\"%s\",\"until\":\"%s\"}", startDate, endDate)
 		params.Add("time_range", timeRange)
@@ -444,7 +444,7 @@ func (c *MetaMarketingClient) FetchInsights(id string, level string, startDate, 
 		log.Printf("ERROR: Meta API Insights (%s) for %s returned %d: %s", level, normalizedID, resp.StatusCode, string(body))
 		return nil, fmt.Errorf("Meta API error (%d): %s", resp.StatusCode, string(body))
 	}
-	
+
 	log.Printf("DEBUG: Meta API Insights (%s) for %s: %s", level, normalizedID, string(body))
 
 	var result struct {
@@ -689,7 +689,7 @@ func (c *MetaMarketingClient) FetchInstagramInsights(igUserID string, since, unt
 	if since != "" && until != "" {
 		sTime, _ := time.Parse("2006-01-02", since)
 		uTime, _ := time.Parse("2006-01-02", until)
-		// Meta insights since/until are exclusive on until. 
+		// Meta insights since/until are exclusive on until.
 		// Add 24 hours to include the entire 'until' day (Graph API v22.0)
 		u += fmt.Sprintf("&since=%d&until=%d", sTime.Unix(), uTime.Add(24*time.Hour).Unix())
 	}
@@ -725,12 +725,12 @@ func (c *MetaMarketingClient) FetchInstagramInsights(igUserID string, since, unt
 		}
 		metrics[d.Name] = total
 	}
-	
+
 	// v22.0 Fallback Logic: Impressions vs Views
 	if metrics["views"] == 0 && metrics["impressions"] > 0 {
 		metrics["views"] = metrics["impressions"]
 	}
-	
+
 	return metrics, nil
 }
 
@@ -825,11 +825,11 @@ func (c *MetaMarketingClient) FetchFacebookPostInsights(postID string) (map[stri
 	// v22.0 Migration: Facebook 'New Pages Experience' deprecates legacy reach metrics.
 	// We iteratively try metric candidates until one succeeds.
 	candidates := []string{
-		"post_reach,post_engagements",               // Modern v22.0 standard
+		"post_reach,post_engagements",                // Modern v22.0 standard
 		"post_impressions_unique,post_engaged_users", // Classic (fallback)
 		"impressions,reach",                          // Basic Metadata (last resort)
 	}
-	
+
 	var lastErr error
 	var finalMetrics map[string]int
 
@@ -974,7 +974,7 @@ func (c *MetaMarketingClient) FetchPageInsights(pageID string, since, until stri
 	// DISCOVERY MODE: Log the raw response and available metrics for this Page node
 	// If the user sees 0s, these logs will provide the definitive list of supported metric strings.
 	log.Printf("DEBUG: Facebook Page Insights v22.0 Raw Response: %s", string(body))
-	
+
 	if strings.Contains(string(body), "\"error\"") {
 		// Attempt a discovery call to list available metrics for this specific Page Node
 		uDiscovery := fmt.Sprintf("%s/%s/%s/insights?access_token=%s", c.baseURL, c.version, pageID, token)
@@ -991,7 +991,7 @@ func (c *MetaMarketingClient) FetchPageInsights(pageID string, since, until stri
 			Value int `json:"value"`
 		} `json:"values"`
 	}
-	
+
 	// Reset reader for decoding if needed, or just Unmarshal
 	if err := json.Unmarshal(body, &result); err != nil {
 		log.Printf("ERROR: JSON Unmarshal failed for Page Insights: %v", err)
@@ -1191,9 +1191,9 @@ func (c *MetaMarketingClient) FetchDetailedMediaInsights(mediaID string, mediaTy
 }
 
 type AssetHealth struct {
-	PageAuthorized      bool `json:"page_authorized"`
-	InstagramLinked     bool `json:"instagram_linked"`
-	InstagramAuthorized bool `json:"instagram_authorized"`
+	PageAuthorized      bool   `json:"page_authorized"`
+	InstagramLinked     bool   `json:"instagram_linked"`
+	InstagramAuthorized bool   `json:"instagram_authorized"`
 	Error               string `json:"error,omitempty"`
 }
 
@@ -1329,7 +1329,7 @@ func (c *MetaMarketingClient) FetchAccountInsights(igUserID string, startDate, e
 	// 3. Fetch Demographic Breakdowns (Follower vs Non-follower)
 	sTime, _ := time.Parse("2006-01-02", startDate)
 	uTime, _ := time.Parse("2006-01-02", endDate)
-	uDemo := fmt.Sprintf("%s/%s/%s/insights?metric=reached_audience_demographics&breakdown=follow_type&metric_type=total_value&since=%d&until=%d&access_token=%s", 
+	uDemo := fmt.Sprintf("%s/%s/%s/insights?metric=reached_audience_demographics&breakdown=follow_type&metric_type=total_value&since=%d&until=%d&access_token=%s",
 		c.baseURL, c.version, igUserID, sTime.Unix(), uTime.Add(24*time.Hour).Unix(), token)
 	respD, err := c.client.Get(uDemo)
 	if err == nil {

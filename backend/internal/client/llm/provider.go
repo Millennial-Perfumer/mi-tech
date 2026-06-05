@@ -15,10 +15,10 @@ const (
 )
 
 type ChatMessage struct {
-	Role       ChatRole    `json:"role"`
-	Content    string      `json:"content"`
-	ToolCallID *string     `json:"tool_call_id,omitempty"` // For 'tool' role
-	ToolCalls  []ToolCall  `json:"tool_calls,omitempty"`   // For 'assistant' role
+	Role       ChatRole   `json:"role"`
+	Content    string     `json:"content"`
+	ToolCallID *string    `json:"tool_call_id,omitempty"` // For 'tool' role
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`   // For 'assistant' role
 }
 
 func (m ChatMessage) MarshalJSON() ([]byte, error) {
@@ -72,8 +72,8 @@ type ToolCall struct {
 }
 
 type ChatResponse struct {
-	Content   string      `json:"content"`
-	ToolCalls []ToolCall  `json:"tool_calls,omitempty"`
+	Content   string     `json:"content"`
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 }
 
 type StreamChunk struct {

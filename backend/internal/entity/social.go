@@ -6,22 +6,22 @@ import (
 
 // SocialAccount represents a linked social media platform account (Page/User).
 type SocialAccount struct {
-	ID           int       `gorm:"primaryKey" json:"id"`
-	Platform     string    `gorm:"not null" json:"platform"` // 'facebook', 'instagram', 'threads'
-	PlatformID   string    `gorm:"unique;not null" json:"platform_id"`
-	AccountName  string    `json:"account_name"`
-	AccessToken  string    `json:"access_token,omitempty"`
-	IsActive     bool      `gorm:"default:true" json:"is_active"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          int       `gorm:"primaryKey" json:"id"`
+	Platform    string    `gorm:"not null" json:"platform"` // 'facebook', 'instagram', 'threads'
+	PlatformID  string    `gorm:"unique;not null" json:"platform_id"`
+	AccountName string    `json:"account_name"`
+	AccessToken string    `json:"access_token,omitempty"`
+	IsActive    bool      `gorm:"default:true" json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // SocialPost archives organic media/posts from platforms.
 type SocialPost struct {
-	ID          int       `gorm:"primaryKey" json:"id"`
-	Platform    string    `gorm:"not null" json:"platform"`
-	PostID      string    `gorm:"unique;not null" json:"post_id"`
-	Content     string    `json:"content"`
+	ID           int       `gorm:"primaryKey" json:"id"`
+	Platform     string    `gorm:"not null" json:"platform"`
+	PostID       string    `gorm:"unique;not null" json:"post_id"`
+	Content      string    `json:"content"`
 	MediaURL     string    `json:"media_url"`
 	ThumbnailURL string    `json:"thumbnail_url"`
 	Permalink    string    `json:"permalink"`

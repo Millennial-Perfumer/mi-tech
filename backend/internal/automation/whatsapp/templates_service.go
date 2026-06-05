@@ -345,11 +345,11 @@ func (s *TemplatesService) FetchRemoteTemplate(templateName string) (*CreateTemp
 					btnMap, _ := b.(map[string]interface{})
 					bType, _ := btnMap["type"].(string)
 					bText, _ := btnMap["text"].(string)
-					
+
 					newBtn := TemplateButton{
 						Text: bText,
 					}
-					
+
 					switch bType {
 					case "QUICK_REPLY":
 						newBtn.Type = "custom"
@@ -386,7 +386,7 @@ func (s *TemplatesService) SyncAllTemplates(storeID string) error {
 	remoteNames := make(map[string]bool)
 	for _, remote := range remoteTemplates {
 		remoteNames[remote.Name] = true
-		
+
 		localTpl := AutomationTemplate{
 			StoreID:        storeID,
 			TemplateName:   remote.Name,
@@ -431,7 +431,7 @@ func (s *TemplatesService) SyncAllTemplates(storeID string) error {
 						btnMap, _ := b.(map[string]interface{})
 						bType, _ := btnMap["type"].(string)
 						bText, _ := btnMap["text"].(string)
-						
+
 						newBtn := TemplateButton{Text: bText}
 						switch bType {
 						case "QUICK_REPLY":
@@ -535,11 +535,11 @@ func (s *TemplatesService) SyncSingleTemplate(storeID, templateName string) erro
 					btnMap, _ := b.(map[string]interface{})
 					bType, _ := btnMap["type"].(string)
 					bText, _ := btnMap["text"].(string)
-					
+
 					newBtn := TemplateButton{
 						Text: bText,
 					}
-					
+
 					switch bType {
 					case "QUICK_REPLY":
 						newBtn.Type = "custom"

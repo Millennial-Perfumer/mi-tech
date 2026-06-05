@@ -14,7 +14,7 @@ import (
 func TestAmazonOrderPoller_MapStatus(t *testing.T) {
 	mockOrderRepo := new(mocks.MockOrderRepository)
 	mockInvRepo := new(mocks.MockInventoryRepository)
-	
+
 	poller := &AmazonOrderPoller{
 		orderRepo:     mockOrderRepo,
 		inventoryRepo: mockInvRepo,
@@ -34,7 +34,7 @@ func TestAmazonOrderPoller_MapStatus(t *testing.T) {
 	for _, tc := range tests {
 		// Mock GetByExternalID to return "not found" so it creates a new one
 		mockOrderRepo.On("GetByExternalID", mock.Anything).Return(entity.Order{}, assert.AnError).Once()
-		
+
 		// Mock Upsert
 		mockOrderRepo.On("Upsert", mock.Anything).Return([]int{1}, nil).Once()
 
@@ -45,7 +45,7 @@ func TestAmazonOrderPoller_MapStatus(t *testing.T) {
 			"PurchaseDate":  time.Now().Format(time.RFC3339),
 		}
 	}
-	
+
 	// Verification of mapping logic via direct check
 	assert.Equal(t, "fulfilled", getFulfillmentStatus("Shipped"))
 	assert.Equal(t, "cancelled", getFulfillmentStatus("Canceled"))
@@ -68,14 +68,14 @@ func getFulfillmentStatus(amazonStatus string) string {
 func TestAmazonOrderPoller_Fallbacks(t *testing.T) {
 	// Test the "Amazon Customer" and "N/A" fallbacks
 	order := entity.Order{}
-	
+
 	// Simulating the extraction logic
-	shippingAddress, ok := map[string]interface{}{}[ "ShippingAddress" ].(map[string]interface{})
+	shippingAddress, ok := map[string]interface{}{}["ShippingAddress"].(map[string]interface{})
 	if !ok || shippingAddress == nil {
 		order.CustomerFirstName = entity.StrPtr("Amazon Customer")
 		order.CustomerCity = entity.StrPtr("N/A")
 	}
-	
+
 	assert.Equal(t, "Amazon Customer", *order.CustomerFirstName)
 	assert.Equal(t, "N/A", *order.CustomerCity)
 }

@@ -139,7 +139,7 @@ func (s *OrderService) UpdateOrderStatusWithEntity(id int64, status string, orde
 						// Actually, our orchestrator Handles deduction based on the Platform SKU
 						// but AdjustStock usually takes the InventoryItemID.
 						// The poller uses inventoryRepo.GetItemByPlatformSKU.
-						
+
 						// To keep it simple and consistent with the poller:
 						// We'll perform the same reversal logic here for Amazon orders.
 						if order.SourceID == "amazon" {
@@ -168,13 +168,13 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 	for _, id := range affectedIDs {
 		_ = s.orchestrator.GlobalSync(context.Background(), id, order.SourceID)
 	}
-	
+
 	if s.customerService != nil {
 		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
 	}
 	return nil
 }
-	
+
 // UpdateOrderPaymentStatus updates the financial status of an order using its internal ID.
 func (s *OrderService) UpdateOrderPaymentStatus(id int64, status string) error {
 	return s.orderRepo.UpdateFinancialStatus(id, status)
@@ -231,7 +231,7 @@ func (s *OrderService) UpdateOrder(id int64, req dto.OrderUpdateRequest) error {
 	order.CustomerState = entity.StrPtr(req.CustomerState)
 	order.CustomerZip = entity.StrPtr(req.CustomerZip)
 	order.CustomerCountry = entity.StrPtr(req.CustomerCountry)
-	
+
 	fullName := req.CustomerFirstName
 	if req.CustomerLastName != "" {
 		fullName += " " + req.CustomerLastName
@@ -408,4 +408,3 @@ func (s *OrderService) CreateManualOrder(ctx context.Context, req dto.OrderCreat
 
 	return mapper.OrderEntityToResponse(savedOrder), nil
 }
-

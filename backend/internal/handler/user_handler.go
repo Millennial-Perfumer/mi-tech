@@ -3,8 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"log"
-	"net/http"
 	"mi-tech/internal/service"
+	"net/http"
 )
 
 type UserHandler struct {

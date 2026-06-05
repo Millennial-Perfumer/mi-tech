@@ -27,7 +27,7 @@ func NewQueryGuard() *QueryGuard {
 func (g *QueryGuard) IsSafe(sql string) error {
 	// Normalize whitespace
 	normalized := strings.TrimSpace(strings.Join(strings.Fields(sql), " "))
-	
+
 	// Must start with SELECT
 	if !strings.HasPrefix(strings.ToUpper(normalized), "SELECT") {
 		return fmt.Errorf("SECURITY ALERT: only SELECT queries are allowed")
@@ -41,7 +41,7 @@ func (g *QueryGuard) IsSafe(sql string) error {
 		}
 		return fmt.Errorf("SECURITY ALERT: mutation keyword detected in AI query: %s", snippet)
 	}
-	
+
 	return nil
 }
 

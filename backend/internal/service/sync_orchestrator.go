@@ -71,7 +71,7 @@ func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePla
 	}
 
 	log.Printf("SyncOrchestrator: Triggering global sync for SKU %s (Qty: %d)", item.MISKU, item.CurrentStock)
-	
+
 	if !s.IsSyncAllowed() {
 		log.Printf("SyncOrchestrator: Global sync is DISABLED via configuration or environment")
 		return nil

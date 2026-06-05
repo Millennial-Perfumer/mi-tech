@@ -155,7 +155,7 @@ func (r *plannerRepository) MoveTask(taskID uint, toColumnID uint, newOrder int)
 				tx.Model(&entity.PlannerTask{}).
 					Where("column_id = ? AND p_order > ?", oldColumnID, oldOrder).
 					UpdateColumn("p_order", gorm.Expr("p_order - 1"))
-				
+
 				// Make space in the new column
 				tx.Model(&entity.PlannerTask{}).
 					Where("column_id = ? AND p_order >= ?", toColumnID, newOrder).
@@ -233,7 +233,7 @@ func (r *plannerRepository) GetTaskLeadTime(taskID uint) (float64, error) {
 	duration := task.CompletedAt.Sub(task.CreatedAt)
 	return duration.Hours() / 24.0, nil // Return in days
 }
- 
+
 func (r *plannerRepository) GetNextTicketNumber() (string, error) {
 	var count int64
 	err := r.db.Model(&entity.PlannerTask{}).Where("ticket_id IS NOT NULL").Count(&count).Error

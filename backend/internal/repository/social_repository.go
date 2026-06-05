@@ -50,14 +50,14 @@ func (r *socialRepository) UpsertMetricSnapshot(metric entity.SocialMetricHistor
 func (r *socialRepository) GetHistoricalMetrics(platform string, postID string, days int) ([]entity.SocialMetricHistory, error) {
 	var results []entity.SocialMetricHistory
 	cutoff := time.Now().AddDate(0, 0, -days)
-	
+
 	query := r.db.Where("platform = ? AND metric_date >= ?", platform, cutoff)
 	if postID != "" {
 		query = query.Where("post_id = ?", postID)
 	} else {
 		query = query.Where("post_id IS NULL")
 	}
-	
+
 	err := query.Order("metric_date ASC").Find(&results).Error
 	return results, err
 }

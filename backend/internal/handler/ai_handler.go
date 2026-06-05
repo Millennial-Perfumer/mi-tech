@@ -72,10 +72,10 @@ func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "data: {\"error\": %q}\n\n", chunk.Error.Error())
 			return
 		}
-		
+
 		data, _ := json.Marshal(chunk)
 		fmt.Fprintf(w, "data: %s\n\n", string(data))
-		
+
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
@@ -84,13 +84,13 @@ func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
 
 func (h *AIHandler) ListConversations(w http.ResponseWriter, r *http.Request) {
 	userID, _ := r.Context().Value("userID").(int64)
-	
+
 	convs, err := h.aiService.ListConversations(userID) // Need to implement this in service
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(convs)
 }
 

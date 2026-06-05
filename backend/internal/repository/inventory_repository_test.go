@@ -185,4 +185,3 @@ func (s *InventoryRepositoryTestSuite) TestBulkCreateItem() {
 func TestInventoryRepositorySuite(t *testing.T) {
 	suite.Run(t, new(InventoryRepositoryTestSuite))
 }
-

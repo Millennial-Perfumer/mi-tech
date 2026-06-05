@@ -86,7 +86,7 @@ func (s *InvoiceService) safeSetFont(pdf *gofpdf.Fpdf, family, style string, siz
 func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem, w io.Writer) error {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
-	
+
 	// -- Font Path Discovery & Fallback --
 	// Montserrat is our premium font, but it requires local files.
 	// We try multiple paths (useful for tests) and fallback to Arial if missing.
@@ -95,7 +95,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 		"../../internal/fonts/",
 		"backend/internal/fonts/",
 	}
-	
+
 	regularName := "Montserrat-Regular.ttf"
 	boldName := "Montserrat-Bold.ttf"
 	semiBoldName := "Montserrat-SemiBold.ttf"
@@ -148,12 +148,12 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.CellFormat(30, 4, "Invoice No:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.CellFormat(60, 4, "INV-"+order.OrderNumber, "0", 1, "L", false, 0, "")
-	
+
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.CellFormat(30, 4, "Order No:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.CellFormat(60, 4, order.OrderNumber, "0", 1, "L", false, 0, "")
-	
+
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.CellFormat(30, 4, "Date:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
@@ -170,7 +170,7 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
 	pdf.SetX(leftCol + 15)
 	pdf.CellFormat(rightCol, 4, displayName, "0", 1, "L", false, 0, "")
-	
+
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	if email := ns(order.CustomerEmail); email != "" {
 		pdf.SetX(leftCol + 15)
@@ -286,10 +286,10 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		pdf.CellFormat(wHSN, h, hsCode, "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wQty, h, fmt.Sprintf("%d", item.Quantity), "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wPrice, h, fmt.Sprintf("%.2f", displayPrice), "1", 0, "R", false, 0, "")
-		
+
 		totalItemDiscountForDisplay := itemDiscount + orderDiscount
 		pdf.CellFormat(wDiscount, h, fmt.Sprintf("%.2f", totalItemDiscountForDisplay), "1", 0, "R", false, 0, "")
-		
+
 		pdf.CellFormat(wTaxable, h, fmt.Sprintf("%.2f", lineTaxable), "1", 0, "R", false, 0, "")
 		pdf.CellFormat(wGSTPct, h, "18%", "1", 0, "C", false, 0, "")
 		pdf.CellFormat(wGSTAmt, h, fmt.Sprintf("%.2f", lineTax), "1", 1, "R", false, 0, "")

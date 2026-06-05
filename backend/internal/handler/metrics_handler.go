@@ -3,8 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"strconv"
+	"strings"
 
 	"mi-tech/internal/service"
 )
@@ -64,7 +64,7 @@ func (h *MetricsHandler) GetTopProducts(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
+		"success":  true,
 		"products": products,
 	})
 }
@@ -106,7 +106,7 @@ func (h *MetricsHandler) GetGeoDistribution(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
+		"success":      true,
 		"distribution": geo,
 	})
 }

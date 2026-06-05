@@ -6,16 +6,16 @@ import (
 
 // InventoryItem represents a physical product in the warehouse (Warehouse Authority).
 type InventoryItem struct {
-	ID              int       `gorm:"primaryKey" json:"id"`
-	MISKU           string    `gorm:"column:mi_sku;uniqueIndex" json:"mi_sku"` // The canonical mi-XX SKU
-	Title           string    `gorm:"column:title" json:"title"`
-	Description     *string   `gorm:"column:description" json:"description"`
-	Specification   *string   `gorm:"column:specification" json:"specification"`
-	CurrentStock    int       `gorm:"column:current_stock" json:"current_stock"`
-	Price           float64   `gorm:"column:price" json:"price"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	
+	ID            int       `gorm:"primaryKey" json:"id"`
+	MISKU         string    `gorm:"column:mi_sku;uniqueIndex" json:"mi_sku"` // The canonical mi-XX SKU
+	Title         string    `gorm:"column:title" json:"title"`
+	Description   *string   `gorm:"column:description" json:"description"`
+	Specification *string   `gorm:"column:specification" json:"specification"`
+	CurrentStock  int       `gorm:"column:current_stock" json:"current_stock"`
+	Price         float64   `gorm:"column:price" json:"price"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+
 	// Relationships
 	Mappings []InventoryMapping `gorm:"foreignKey:InventoryItemID" json:"mappings,omitempty"`
 	Logs     []InventoryLog     `gorm:"foreignKey:InventoryItemID" json:"logs,omitempty"`

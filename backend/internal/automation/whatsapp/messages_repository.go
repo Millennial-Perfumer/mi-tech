@@ -64,7 +64,7 @@ func (r *MessagesRepository) HasSentTemplate(orderID int64, templateID int, sinc
 
 func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error {
 	now := time.Now().UTC()
-	
+
 	// 1. Update automation_messages
 	var queryAuto string
 	switch status {
@@ -82,7 +82,7 @@ func (r *MessagesRepository) UpdateMessageStatus(messageID, status string) error
 	// 2. Update whatsapp_chat_messages (the one used in Chat Hub)
 	queryChat := `UPDATE whatsapp_chat_messages SET status = $1 WHERE message_id = $2`
 	_, err := r.db.Exec(queryChat, status, messageID)
-	
+
 	return err
 }
 
@@ -373,17 +373,17 @@ func (r *MessagesRepository) GetChatMessages(conversationID int, limit, offset i
 			log.Printf("Scan error in GetChatMessages: %v", err)
 			return nil, err
 		}
-		
+
 		m.MessageID = messageID.String
 		m.Text = text.String
 		m.SenderRole = senderRole.String
-		
+
 		if metadata != nil {
 			if bytes, ok := metadata.([]byte); ok {
 				m.Metadata = json.RawMessage(bytes)
 			}
 		}
-		
+
 		messages = append(messages, m)
 	}
 	// Return in chronological order

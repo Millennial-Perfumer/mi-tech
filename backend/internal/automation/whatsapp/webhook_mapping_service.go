@@ -5,19 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mi-tech/internal/config"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
 	"net/url"
 	"regexp"
-	"mi-tech/internal/config"
 	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	phoneRegex        = regexp.MustCompile(`[^0-9]`)
+	phoneRegex         = regexp.MustCompile(`[^0-9]`)
 	templateParamRegex = regexp.MustCompile(`\{\{(\d+)\}\}`)
 )
 
@@ -250,7 +250,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
 			fieldToMap := mappings[mapKey]
 			val := s.resolveVariable(fieldToMap, order, totals)
-			
+
 			// Fallback logic for legacy templates that were not mapped yet
 			if val == "" {
 				if i == 1 {
@@ -277,7 +277,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 					if strings.Contains(url, "{{1}}") {
 						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
 						fieldToMap := mappings[mapKey]
-						
+
 						val := s.resolveVariable(fieldToMap, order, totals)
 						if val == "" {
 							// Legacy fallback for embedded tracking loop
@@ -315,7 +315,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 				Text string `json:"text"`
 			}
 			json.Unmarshal(*template.Header, &hTextData)
-			
+
 			reqCount := s.countRequiredParams(hTextData.Text)
 			if reqCount > 0 {
 				var headerParams []map[string]string
@@ -325,13 +325,13 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 					headerParams = append(headerParams, map[string]string{"type": "text", "text": val})
 				}
 				components = append(components, map[string]interface{}{
-					"type": "header",
+					"type":       "header",
 					"parameters": headerParams,
 				})
 			}
 		} else if hType == "DOCUMENT" || hType == "IMAGE" || hType == "VIDEO" {
 			headerHandle := mappings["header_handle"]
-			
+
 			// Dynamic generation
 			if headerHandle == "Dynamic Invoice" && hType == "DOCUMENT" {
 				log.Printf("Automation Detail: Generating real invoice PDF for order %s", order.OrderNumber)
@@ -375,7 +375,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 					idVal = numericID
 				}
 				paramType := strings.ToLower(hType)
-				
+
 				paramObj := map[string]interface{}{"id": idVal}
 				if paramType == "document" {
 					paramObj["filename"] = "Document" // generic fallback name
@@ -385,7 +385,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *Au
 					"type": "header",
 					"parameters": []map[string]interface{}{
 						{
-							"type": paramType,
+							"type":    paramType,
 							paramType: paramObj,
 						},
 					},
@@ -510,7 +510,7 @@ func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *A
 			mapKey := fmt.Sprintf("body_text_0_{{%d}}", i)
 			fieldToMap := mappings[mapKey]
 			val := resolveCustomerVariable(fieldToMap, customer)
-			
+
 			if val == "" && i == 1 {
 				val = resolveCustomerVariable("customer_name", customer)
 			}
@@ -533,9 +533,9 @@ func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *A
 						fieldToMap := mappings[mapKey]
 						val := resolveCustomerVariable(fieldToMap, customer)
 						components = append(components, map[string]interface{}{
-							"type":     "button",
-							"sub_type": "url",
-							"index":    strconv.Itoa(i),
+							"type":       "button",
+							"sub_type":   "url",
+							"index":      strconv.Itoa(i),
 							"parameters": []map[string]interface{}{{"type": "text", "text": val}},
 						})
 					}
@@ -567,7 +567,7 @@ func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *A
 					"type": "header",
 					"parameters": []map[string]interface{}{
 						{
-							"type": paramType,
+							"type":    paramType,
 							paramType: paramObj,
 						},
 					},

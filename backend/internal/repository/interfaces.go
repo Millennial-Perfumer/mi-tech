@@ -47,7 +47,10 @@ type OrderRepository interface {
 	UpdateOrderDetails(id int64, order entity.Order) error
 	ListSources() ([]entity.Source, error)
 	GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error)
-	GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error)
+	GetCustomersStats(phones []string) (map[string]struct {
+		Count int
+		Sum   float64
+	}, error)
 	TruncateAll() error
 
 	// Feedback & Delivery System
@@ -168,12 +171,13 @@ type PlannerRepository interface {
 	UpdateTask(task *entity.PlannerTask) error
 	DeleteTask(id uint) error
 	MoveTask(taskID uint, toColumnID uint, newOrder int) error
-	
+
 	// Analytics
 	GetSprintVelocity(sprintID uint) (int, error)
 	GetTaskLeadTime(taskID uint) (float64, error)
 	GetNextTicketNumber() (string, error)
 }
+
 // InventoryRepository defines all data access for the inventory hub and SKU mappings.
 type InventoryRepository interface {
 	WithTx(tx *gorm.DB) InventoryRepository

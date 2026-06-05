@@ -96,4 +96,3 @@ func TestFeedbackScheduler_ShouldTrigger(t *testing.T) {
 	assert.True(t, triggered)
 	assert.Equal(t, "2026-05-22", nextDate)
 }
-

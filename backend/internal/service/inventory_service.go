@@ -103,7 +103,6 @@ func (s *InventoryService) DeleteMapping(ctx context.Context, id int) error {
 	return s.repo.DeleteMapping(id)
 }
 
-
 // SyncShopifyProducts fetches all Shopify variants and stages them for sync.
 func (s *InventoryService) SyncShopifyProducts(ctx context.Context) ([]entity.InventoryItem, error) {
 	shopifyProducts, err := s.shopifyClient.FetchProducts()

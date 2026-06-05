@@ -83,9 +83,15 @@ func (m *MockOrderRepository) GetCustomerStats(phone string) (totalOrders int, t
 	return args.Int(0), args.Get(1).(float64), args.Error(2)
 }
 
-func (m *MockOrderRepository) GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error) {
+func (m *MockOrderRepository) GetCustomersStats(phones []string) (map[string]struct {
+	Count int
+	Sum   float64
+}, error) {
 	args := m.Called(phones)
-	return args.Get(0).(map[string]struct{ Count int; Sum float64 }), args.Error(1)
+	return args.Get(0).(map[string]struct {
+		Count int
+		Sum   float64
+	}), args.Error(1)
 }
 
 func (m *MockOrderRepository) TruncateAll() error {
@@ -133,7 +139,6 @@ func (m *MockOrderRepository) GetNextPOSSequence(terminalCode string) (string, e
 	return args.String(0), args.Error(1)
 }
 
-
 type MockLineItemRepository struct {
 	mock.Mock
 }
@@ -152,6 +157,7 @@ func (m *MockLineItemRepository) DeleteByOrderID(tx *gorm.DB, orderID int64) err
 	args := m.Called(tx, orderID)
 	return args.Error(0)
 }
+
 type MockInventoryRepository struct {
 	mock.Mock
 }

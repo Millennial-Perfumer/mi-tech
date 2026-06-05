@@ -523,12 +523,12 @@ func (c *Client) UpdateOrder(externalID string, updateData map[string]interface{
 	numericID := c.extractNumericID(externalID)
 
 	apiURL := fmt.Sprintf("https://%s/admin/api/%s/orders/%s.json", shopifyURL, apiVersion, numericID)
-	
+
 	// Wrap in "order" key as required by Shopify REST API
 	payload := map[string]interface{}{
 		"order": updateData,
 	}
-	
+
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal update payload: %w", err)
@@ -538,7 +538,7 @@ func (c *Client) UpdateOrder(externalID string, updateData map[string]interface{
 	if err != nil {
 		return err
 	}
-	
+
 	req.Header.Add("X-Shopify-Access-Token", accessToken)
 	req.Header.Add("Content-Type", "application/json")
 
