@@ -17,14 +17,6 @@ import (
 	"time"
 )
 
-func isValidDate(date string) bool {
-	if date == "" {
-		return true
-	}
-	_, err := time.Parse("2006-01-02", date)
-	return err == nil
-}
-
 // parseISTAsUTCBoundaries converts a YYYY-MM-DD string (assumed IST) to a UTC time.Time boundary.
 func parseISTAsUTCBoundaries(dateStr string, isEnd bool) (*time.Time, error) {
 	if dateStr == "" {

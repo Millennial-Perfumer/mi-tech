@@ -38,6 +38,11 @@ func SetupTestDB() (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)
 	}
 
+	// Clean the public schema completely to ensure a fresh start for seeds and schema
+	if err := db.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;").Error; err != nil {
+		return nil, fmt.Errorf("failed to drop/recreate public schema: %w", err)
+	}
+
 	// Run migrations from the migrations directory
 	migrationsPath := filepath.Join(root, "internal/database/migrations")
 	if err := runMigrations(db, migrationsPath); err != nil {

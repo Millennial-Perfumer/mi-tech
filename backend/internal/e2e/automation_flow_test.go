@@ -39,10 +39,11 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	sqlDB, _ := db.DB()
 
 	// 0. Setup Mock Meta Server
+	mockMsgID := fmt.Sprintf("wa_test_id_%d_%d", time.Now().UnixNano(), rand.Intn(1000))
 	mockMetaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// Respond with success to ensure transaction commits
-		fmt.Fprint(w, `{"messages":[{"id":"wa_test_id_123"}]}`)
+		fmt.Fprintf(w, `{"messages":[{"id":"%s"}]}`, mockMsgID)
 	}))
 	defer mockMetaServer.Close()
 
@@ -166,7 +167,7 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 		if m.TemplateID == templateID {
 			found = true
 			assert.Equal(t, "sent", m.Status)
-			assert.Equal(t, "wa_test_id_123", m.MessageID)
+			assert.Equal(t, mockMsgID, m.MessageID)
 			break
 		}
 	}
