@@ -26,6 +26,10 @@
 **Learning:** Flexible ID lookups (supporting both internal numeric and external string IDs) often lead to N+1 database roundtrips if handlers first resolve the ID and then call a separate service method to fetch the full object or DTO. Consolidating this into a single service-side "GetByFlexibleID" flow that returns the final DTO (including associations like line items) reduces per-request latency.
 **Action:** When an API supports both internal and external IDs, implement a single service method that performs resolution and fetching of all required data in one path. Re-use resolved entities for subsequent logic (like notifications or status updates) to avoid redundant DB hits.
 
+## 2026-06-06 - [Parallel Item Fetching in Amazon Poller]
+**Learning:** Sequential network requests in background workers (like fetching line items for each order in a sync poll) create significant latency that scales linearly with the number of orders. Parallelizing these I/O-bound operations using a bounded worker pool (e.g., semaphore of 5) drastically reduces overall sync duration while staying within SP-API rate limits.
+**Action:** Identify I/O-bound loops in background pollers and parallelize them using worker pools. Always separate the parallel data-fetching phase from the sequential data-processing phase if the latter involves database transactions or state-sensitive logic.
+
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).

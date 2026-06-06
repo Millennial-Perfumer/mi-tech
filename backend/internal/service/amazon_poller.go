@@ -9,6 +9,7 @@ import (
 	"mi-tech/internal/repository"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -94,7 +95,40 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 
 	slog.Info("AmazonOrderPoller: API Response", "orderCount", len(amazonOrders))
 
-	for _, ao := range amazonOrders {
+	// Optimization: Parallelize order items fetching to reduce overall sync time.
+	// We use a worker pool of 5 to respect Amazon's rate limits while improving performance.
+	type orderResult struct {
+		ao    map[string]interface{}
+		items []map[string]interface{}
+		err   error
+	}
+
+	results := make([]orderResult, len(amazonOrders))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 5)
+
+	for i, ao := range amazonOrders {
+		wg.Add(1)
+		go func(idx int, orderData map[string]interface{}) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			amazonOrderID := orderData["AmazonOrderId"].(string)
+			items, err := p.amazonClient.GetOrderItems(amazonOrderID)
+			results[idx] = orderResult{ao: orderData, items: items, err: err}
+		}(i, ao)
+	}
+	wg.Wait()
+
+	for _, res := range results {
+		if res.err != nil {
+			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", res.ao["AmazonOrderId"], "error", res.err)
+			continue
+		}
+
+		ao := res.ao
+		items := res.items
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
 		esStatus, _ := ao["EasyShipShipmentStatus"].(string)
@@ -104,13 +138,6 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			"status", amazonStatus,
 			"esStatus", esStatus,
 		)
-
-		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
-			continue
-		}
 
 		lineItems := []entity.LineItem{}
 		for _, item := range items {
