@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-06-15 - [Timing Attack Vulnerabilities in OTP and Webhook Validation]
+**Vulnerability:** Standard equality operators were used to compare OTP codes and HMAC signatures, making the system susceptible to timing attacks.
+**Learning:** While functional, standard string comparisons leak information about how many leading characters match. In security-critical paths like authentication and webhook verification, this can be exploited to guess secrets.
+**Prevention:** Always use constant-time comparison functions like `crypto/subtle.ConstantTimeCompare` or `hmac.Equal` for sensitive tokens and signatures.
