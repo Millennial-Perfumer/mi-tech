@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 interface ConfirmOptions {
@@ -30,7 +30,22 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
     resolve: (value: boolean) => void;
   } | null>(null);
 
+  const previousFocus = useRef<HTMLElement | null>(null);
+
+  const handleClose = useCallback((value: boolean) => {
+    if (modalState) {
+      modalState.resolve(value);
+      setModalState(null);
+      // Restore focus
+      if (previousFocus.current) {
+        previousFocus.current.focus();
+        previousFocus.current = null;
+      }
+    }
+  }, [modalState]);
+
   const confirm = useCallback((options: ConfirmOptions) => {
+    previousFocus.current = document.activeElement as HTMLElement;
     return new Promise<boolean>((resolve) => {
       setModalState({
         isOpen: true,
@@ -40,19 +55,32 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
   }, []);
 
-  const handleClose = (value: boolean) => {
-    if (modalState) {
-      modalState.resolve(value);
-      setModalState(null);
-    }
-  };
+  useEffect(() => {
+    if (!modalState?.isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [modalState?.isOpen, handleClose]);
 
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       {modalState?.isOpen && (
         <div className="modal-overlay" onClick={() => handleClose(false)}>
-          <div className="premium-modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="premium-modal confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-modal-title"
+            aria-describedby="confirm-modal-message"
+          >
             <div className={`modal-header-icon ${modalState.options?.variant === 'danger' ? 'danger' : 'primary'}`}>
               {modalState.options?.variant === 'danger' ? (
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -68,19 +96,22 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
                 </svg>
               )}
             </div>
-            <h2>{modalState.options?.title || 'Are you sure?'}</h2>
-            <p>{modalState.options?.message}</p>
+            <h2 id="confirm-modal-title">{modalState.options?.title || 'Are you sure?'}</h2>
+            <p id="confirm-modal-message">{modalState.options?.message}</p>
             <div className="modal-actions">
               <button 
+                type="button"
                 className="btn-secondary" 
                 onClick={() => handleClose(false)}
+                autoFocus={modalState.options?.variant === 'danger'}
               >
                 {modalState.options?.cancelLabel || 'Cancel'}
               </button>
               <button 
+                type="button"
                 className={modalState.options?.variant === 'danger' ? 'btn-danger' : 'btn-primary'}
                 onClick={() => handleClose(true)}
-                autoFocus
+                autoFocus={modalState.options?.variant !== 'danger'}
               >
                 {modalState.options?.confirmLabel || 'Confirm'}
               </button>
