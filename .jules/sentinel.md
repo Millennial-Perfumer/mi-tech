@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-03-29 - [Timing Attacks on OTP and Webhook Signatures]
+**Vulnerability:** Insecure string equality (==) was used for comparing sensitive OTP codes and Shopify HMAC signatures.
+**Learning:** Standard string comparisons return early upon finding the first mismatched character, allowing an attacker to deduce the correct value byte-by-byte by measuring the response time. Additionally, Shopify HMAC headers are base64-encoded, so they must be decoded before using `hmac.Equal` on the raw bytes.
+**Prevention:** Always use `subtle.ConstantTimeCompare` for short secrets (like OTPs) and `hmac.Equal` for cryptographic signatures (like HMACs) to ensure the comparison time is independent of the values being compared.

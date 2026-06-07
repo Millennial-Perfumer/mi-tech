@@ -266,15 +266,22 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 		return false
 	}
 
+	// Decode the received HMAC header (Shopify sends it as base64)
+	receivedHmac, err := base64.StdEncoding.DecodeString(hmacHeader)
+	if err != nil {
+		log.Printf("Webhook Error: Failed to decode HMAC header: %v", err)
+		return false
+	}
+
+	// Calculate expected HMAC
 	hash := hmac.New(sha256.New, []byte(secret))
 	hash.Write(body)
-	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+	expectedHmac := hash.Sum(nil)
 
-	isMatch := hmacHeader == expectedHmac
+	// Use hmac.Equal for constant-time comparison to prevent timing attacks
+	isMatch := hmac.Equal(receivedHmac, expectedHmac)
 	if !isMatch {
-		log.Printf("Webhook HMAC Mismatch!")
-		log.Printf("  Received: %s", hmacHeader)
-		log.Printf("  Expected: %s", expectedHmac)
+		log.Printf("Webhook HMAC Mismatch! (Security: Constant-time comparison failed)")
 		log.Printf("  Body Length: %d", len(body))
 		log.Printf("  Secret Length: %d", len(secret))
 	}
