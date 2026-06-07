@@ -214,7 +214,7 @@ func (r *CustomerRepository) UpsertBatch(ctx context.Context, customers []entity
 	}).Create(&customers).Error
 }
 
-func (r *CustomerRepository) GetByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+func (r *CustomerRepository) GetByIDs(ctx context.Context, ids []int64) ([]entity.Customer, error) {
 	var customers []entity.Customer
 	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&customers).Error
 	return customers, err

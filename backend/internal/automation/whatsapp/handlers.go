@@ -947,8 +947,8 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 	}
 
 	var req struct {
-		CustomerIDs []uint `json:"customer_ids"`
-		TemplateID  int    `json:"template_id"`
+		CustomerIDs []int64 `json:"customer_ids"`
+		TemplateID  int     `json:"template_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)

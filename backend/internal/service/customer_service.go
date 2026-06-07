@@ -11,6 +11,7 @@ import (
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
+	"golang.org/x/sync/errgroup"
 	"regexp"
 	"strconv"
 	"strings"
@@ -569,7 +570,7 @@ func (s *CustomerService) toTitleCase(str string) string {
 	return strings.Join(words, " ")
 }
 
-func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []int64) ([]entity.Customer, error) {
 	return s.repo.GetByIDs(ctx, ids)
 }
 func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
@@ -797,14 +798,47 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 	return s.repo.Delete(ctx, cust.ID)
 }
 
+// BulkDeleteCustomers deletes multiple customers by their IDs.
+// Optimization: Resolves N+1 bottleneck by batch fetching customers and parallelizing Shopify deletions.
+// Expected Impact: Reduces database roundtrips for fetching from O(N) to O(1) and uses O(1) for batch deletion.
+// Parallelized external sync (Shopify) with concurrency limit 5 respects rate limits while slashing latency.
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
-	return nil
+
+	// 1. Fetch all customer records in a single batch to check for Shopify links
+	customers, err := s.repo.GetByIDs(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("bulk delete: failed to fetch customers: %w", err)
+	}
+
+	// 2. Parallelize Shopify deletions with bounded concurrency
+	if s.shopifyClient != nil {
+		g, groupCtx := errgroup.WithContext(ctx)
+		g.SetLimit(5) // Concurrency limit to respect Shopify rate limits
+
+		for _, cust := range customers {
+			c := cust
+			if c.ExternalID != nil && *c.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*c.ExternalID, 10, 64)
+				if extID > 0 {
+					g.Go(func() error {
+						err := s.shopifyClient.DeleteCustomer(extID)
+						if err != nil {
+							log.Printf("BulkDelete: Shopify deletion failed for customer %d: %v", c.ID, err)
+						}
+						return nil // We continue local deletion even if Shopify fails
+					})
+				}
+			}
+		}
+		_ = g.Wait() // Wait for all Shopify calls to complete
+		_ = groupCtx // Silence warning
+	}
+
+	// 3. Perform local batch deletion in a single O(1) roundtrip
+	return s.repo.BulkDelete(ctx, ids)
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {
