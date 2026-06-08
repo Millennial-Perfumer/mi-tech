@@ -32,6 +32,7 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Always set Vary: Origin to handle caching behind proxies/CDNs
 		w.Header().Add("Vary", "Origin")
 
+		isWildcard := false
 		if rawOrigin == "" {
 			// If no origin, we can consider it a direct request or same-origin
 			isAllowed = true
@@ -39,7 +40,12 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			allowedOrigins := strings.Split(allowedOriginsEnv, ",")
 			for _, allowed := range allowedOrigins {
 				trimmed := normalizeOrigin(allowed)
-				if trimmed == "*" || origin == trimmed {
+				if trimmed == "*" {
+					isAllowed = true
+					isWildcard = true
+					break
+				}
+				if origin == trimmed {
 					isAllowed = true
 					break
 				}
@@ -48,9 +54,13 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		if isAllowed {
 			if rawOrigin != "" {
-				// Use the actual origin for the allow header to support multiple origins with credentials
-				w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				if isWildcard {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				} else {
+					// Use the actual origin for the allow header to support multiple origins with credentials
+					w.Header().Set("Access-Control-Allow-Origin", rawOrigin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				}
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-Requested-With, X-Amz-Date, X-Api-Key, X-Amz-Security-Token, X-Forwarded-For, X-Real-IP, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
 				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
