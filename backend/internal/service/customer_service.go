@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -569,7 +570,7 @@ func (s *CustomerService) toTitleCase(str string) string {
 	return strings.Join(words, " ")
 }
 
-func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []int64) ([]entity.Customer, error) {
 	return s.repo.GetByIDs(ctx, ids)
 }
 func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
@@ -798,13 +799,44 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 }
 
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
-	return nil
+
+	// 1. Fetch customers to check for Shopify IDs
+	// Optimization: Resolve N+1 query bottleneck by fetching all customers in a single batch.
+	customers, err := s.repo.GetByIDs(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("BulkDeleteCustomers: failed to fetch customers: %w", err)
+	}
+
+	// 2. Parallelize Shopify deletions
+	// Optimization: Uses errgroup to delete multiple customers from Shopify concurrently.
+	// This significantly reduces total latency for large batches.
+	if s.shopifyClient != nil {
+		var g errgroup.Group
+		g.SetLimit(5) // Limit concurrency to respect Shopify rate limits
+
+		for _, cust := range customers {
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if extID > 0 {
+					g.Go(func() error {
+						if err := s.shopifyClient.DeleteCustomer(extID); err != nil {
+							log.Printf("BulkDelete: Failed to sync customer %d deletion to Shopify: %v", extID, err)
+							// We continue local deletion even if Shopify sync fails for one customer
+						}
+						return nil
+					})
+				}
+			}
+		}
+		_ = g.Wait()
+	}
+
+	// 3. Delete locally (Soft delete)
+	// Optimization: Use a single batch database delete instead of O(N) iterative calls.
+	return s.repo.BulkDelete(ctx, ids)
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {
