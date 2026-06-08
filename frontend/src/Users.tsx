@@ -94,7 +94,7 @@ export function Users({ fetchWithAuth }: UsersProps) {
                         <input 
                             type="text" 
                             ref={searchInputRef}
-                            placeholder="Search users..." 
+                            placeholder="Search users... (Press /)"
                             aria-label="Search users"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}

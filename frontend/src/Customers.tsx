@@ -627,7 +627,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                         <input 
                             type="text" 
                             ref={searchInputRef}
-                            placeholder="Search (e.g. city:Mumbai spent>1000 or first_name='')" 
+                            placeholder="Search (e.g. city:Mumbai spent>1000 or first_name='') (Press /)"
                             aria-label="Search customers"
                             value={search}
                             onChange={(e) => { setSearch(e.target.value); setPage(1); }}

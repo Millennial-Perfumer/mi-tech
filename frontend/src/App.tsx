@@ -165,6 +165,24 @@ function App() {
     localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.toString());
   }, [isSidebarCollapsed]);
 
+  // Global search shortcut ('/')
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) && !(e.target as HTMLElement).isContentEditable) {
+        e.preventDefault();
+        // Focus the first visible search-like input on the page
+        const searchInput = document.querySelector('input[aria-label*="Search"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
@@ -1480,7 +1498,7 @@ function App() {
                   <input 
                     ref={searchInputRef}
                     type="text" 
-                    placeholder="Search orders or customers..." 
+                    placeholder="Search orders or customers... (Press /)"
                     aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
