@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-06-09 - [Timing Attack Vulnerabilities in Secret Comparisons]
+**Vulnerability:** Use of standard equality operators (==, !=) for comparing sensitive values such as OTP codes, HMAC signatures, and verification tokens.
+**Learning:** Standard string comparisons return early as soon as a mismatch is found, allowing an attacker to measure the time taken and determine the secret byte-by-byte. Additionally, logging "expected" HMACs or secrets in error paths leaks sensitive information.
+**Prevention:** Always use constant-time comparison functions like `crypto/subtle.ConstantTimeCompare` for general secrets and `crypto/hmac.Equal` for MACs. Avoid logging sensitive data or expected values in error messages.
