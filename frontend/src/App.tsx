@@ -165,6 +165,33 @@ function App() {
     localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.toString());
   }, [isSidebarCollapsed]);
 
+  // Global Keyboard Shortcut: '/' to focus search
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' ||
+                     target.tagName === 'TEXTAREA' ||
+                     target.isContentEditable;
+
+      if (e.key === '/' && !isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        // Look for the visible search input first
+        const allSearchInputs = document.querySelectorAll<HTMLInputElement>('input[aria-label*="Search"], .search-box-premium input, .orders-filter-bar input[type="text"]');
+        const visibleSearchInput = Array.from(allSearchInputs).find(input => {
+          const rect = input.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+
+        if (visibleSearchInput) {
+          visibleSearchInput.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
@@ -1480,7 +1507,7 @@ function App() {
                   <input 
                     ref={searchInputRef}
                     type="text" 
-                    placeholder="Search orders or customers..." 
+                    placeholder="Search orders or customers... (Press /)"
                     aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
