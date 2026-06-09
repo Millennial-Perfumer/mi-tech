@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -797,13 +798,55 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 	return s.repo.Delete(ctx, cust.ID)
 }
 
+// BulkDeleteCustomers optimizes bulk customer deletion by fetching entities in one batch,
+// parallelizing Shopify deletions, and performing a single batch database delete.
+// Optimization: Reduces DB roundtrips from O(2N) to O(2) and handles Shopify deletions concurrently.
+// Expected Impact: Significantly slashes latency for large batch deletions.
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
+
+	// 1. Fetch all customers in one batch to get ExternalIDs
+	uids := make([]uint, len(ids))
+	for i, id := range ids {
+		uids[i] = uint(id)
+	}
+
+	customers, err := s.repo.GetByIDs(ctx, uids)
+	if err != nil {
+		return fmt.Errorf("BulkDelete: failed to fetch customers: %w", err)
+	}
+
+	// 2. Parallelize Shopify deletions using errgroup with bounded concurrency
+	if s.shopifyClient != nil {
+		g, _ := errgroup.WithContext(ctx)
+		g.SetLimit(5) // Respect rate limits while gaining parallelism
+
+		for _, cust := range customers {
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				c := cust // shadow for closure
+				g.Go(func() error {
+					extID, _ := strconv.ParseInt(*c.ExternalID, 10, 64)
+					if extID > 0 {
+						if err := s.shopifyClient.DeleteCustomer(extID); err != nil {
+							// Log but don't fail the whole group to maintain existing behavior
+							log.Printf("BulkDelete: Failed to sync customer deletion to Shopify for %d: %v", c.ID, err)
+						}
+					}
+					return nil
+				})
+			}
+		}
+		// Wait for all Shopify deletions to finish (they all return nil)
+		_ = g.Wait()
+	}
+
+	// 3. Perform a single batch database delete
+	if err := s.repo.BulkDelete(ctx, ids); err != nil {
+		return fmt.Errorf("BulkDelete: failed to delete customers from database: %w", err)
+	}
+
 	return nil
 }
 

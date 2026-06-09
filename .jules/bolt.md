@@ -29,3 +29,6 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+## 2026-05-24 - [Optimizing Bulk Customer Deletion with Concurrency]
+**Learning:** Sequential external API calls (like Shopify deletions) and database roundtrips create a significant O(N) bottleneck in bulk operations. Using `errgroup` with a bounded concurrency limit (e.g., 5) allows for efficient parallelization of external tasks while batching database queries (`GetByIDs`, `BulkDelete`) reduces overhead to O(1).
+**Action:** Always prefer batch repository methods and parallelize external API calls with `errgroup.SetLimit` for bulk service operations.
