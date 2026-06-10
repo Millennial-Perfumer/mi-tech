@@ -270,7 +270,7 @@ func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	hash.Write(body)
 	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
 
-	isMatch := hmacHeader == expectedHmac
+	isMatch := hmac.Equal([]byte(hmacHeader), []byte(expectedHmac))
 	if !isMatch {
 		log.Printf("Webhook HMAC Mismatch!")
 		log.Printf("  Received: %s", hmacHeader)

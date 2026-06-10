@@ -12,3 +12,8 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+
+## 2026-06-10 - [Timing Attacks in Security Token Comparisons]
+**Vulnerability:** Use of variable-time comparison operators (`==` and `!=`) for sensitive security tokens like 2FA OTP codes, Shopify HMAC signatures, and Meta verify tokens.
+**Learning:** Standard string comparisons return as soon as a mismatch is found, leaking information about how much of the token was correct via the execution time. This can allow an attacker to brute-force tokens character by character.
+**Prevention:** Always use constant-time comparison functions for sensitive security tokens, such as `crypto/subtle.ConstantTimeCompare` or `crypto/hmac.Equal` (which uses constant-time comparison internally).
