@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type AmazonOrderPoller struct {
@@ -94,174 +96,168 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 
 	slog.Info("AmazonOrderPoller: API Response", "orderCount", len(amazonOrders))
 
-	for _, ao := range amazonOrders {
-		amazonOrderID := ao["AmazonOrderId"].(string)
-		amazonStatus := ao["OrderStatus"].(string)
-		esStatus, _ := ao["EasyShipShipmentStatus"].(string)
+	if len(amazonOrders) == 0 {
+		return
+	}
 
-		slog.Info("AmazonOrderPoller: Processing order",
-			"orderID", amazonOrderID,
-			"status", amazonStatus,
-			"esStatus", esStatus,
-		)
+	// 1. Fetch Line Items in Parallel
+	// Optimization: Parallelize API calls to overcome sequential network bottleneck.
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(5) // Respect rate limits
 
-		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+	type orderResult struct {
+		order entity.Order
+		ao    map[string]interface{}
+	}
+	results := make([]orderResult, len(amazonOrders))
+
+	for i, ao := range amazonOrders {
+		i, ao := i, ao // closure capture
+		g.Go(func() error {
+			amazonOrderID := ao["AmazonOrderId"].(string)
+			amazonStatus := ao["OrderStatus"].(string)
+
+			items, err := p.amazonClient.GetOrderItems(amazonOrderID)
+			if err != nil {
+				slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+				return nil // Continue with others
+			}
+
+			lineItems := []entity.LineItem{}
+			for _, item := range items {
+				qty := int(item["QuantityOrdered"].(float64))
+				sku := item["SellerSKU"].(string)
+				lineItems = append(lineItems, entity.LineItem{
+					ID:       item["OrderItemId"].(string),
+					SKU:      &sku,
+					Quantity: qty,
+				})
+			}
+
+			order := entity.Order{
+				SourceID:          "amazon",
+				ExternalOrderID:   amazonOrderID,
+				OrderNumber:       amazonOrderID,
+				Status:            &amazonStatus,
+				FinancialStatus:   entity.StrPtr("paid"),
+				FulfillmentStatus: entity.StrPtr("unfulfilled"),
+				LineItems:         lineItems,
+				CreatedAt:         p.parseAmazonDate(ao["PurchaseDate"].(string)),
+			}
+
+			// Map PII and Status (Logic moved to helper for readability)
+			p.mapAmazonOrderData(&order, ao)
+
+			results[i] = orderResult{order: order, ao: ao}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil && gCtx.Err() != nil {
+		slog.Error("AmazonOrderPoller: Error during parallel item fetch", "error", err)
+		return
+	}
+
+	// 2. Prepare for Batch Sink
+	var ordersToUpsert []entity.Order
+	for _, res := range results {
+		if res.order.ExternalOrderID == "" {
 			continue
 		}
+		ordersToUpsert = append(ordersToUpsert, res.order)
+	}
 
-		lineItems := []entity.LineItem{}
-		for _, item := range items {
-			qty := int(item["QuantityOrdered"].(float64))
-			sku := item["SellerSKU"].(string)
-			lineItems = append(lineItems, entity.LineItem{
-				ID:       item["OrderItemId"].(string),
-				SKU:      &sku,
-				Quantity: qty,
-			})
+	if len(ordersToUpsert) == 0 {
+		return
+	}
+
+	// 3. Batch Sink to DB
+	// Optimization: Reduce DB roundtrips from O(N) to O(1).
+	affectedIDs, err := p.orderRepo.UpsertBatch(ordersToUpsert)
+	if err != nil {
+		slog.Error("AmazonOrderPoller: Failed to batch upsert orders", "error", err)
+		return
+	}
+
+	// 4. Trigger Global Sync for affected items to ensure cross-platform consistency
+	if p.orchestrator != nil {
+		for _, id := range affectedIDs {
+			_ = p.orchestrator.GlobalSync(ctx, id, "amazon")
 		}
+	}
 
-		order := entity.Order{
-			SourceID:          "amazon",
-			ExternalOrderID:   amazonOrderID,
-			OrderNumber:       amazonOrderID, // Amazon uses OrderID as the display number
-			Status:            &amazonStatus,
-			FinancialStatus:   entity.StrPtr("paid"), // Usually paid on Amazon
-			FulfillmentStatus: entity.StrPtr("unfulfilled"),
-			LineItems:         lineItems,
-			CreatedAt:         p.parseAmazonDate(ao["PurchaseDate"].(string)),
+	slog.Info("AmazonOrderPoller: Sync complete", "processed", len(ordersToUpsert))
+}
+
+func (p *AmazonOrderPoller) mapAmazonOrderData(order *entity.Order, ao map[string]interface{}) {
+	amazonStatus := entity.DerefStr(order.Status)
+	matchStatus := strings.TrimSpace(amazonStatus)
+
+	// Billing/Shipping info mapping
+	name := ""
+	if shipping, ok := ao["ShippingAddress"].(map[string]interface{}); ok {
+		name = fmt.Sprintf("%v", shipping["Name"])
+	}
+	if (name == "" || name == "<nil>") && ao["BuyerInfo"] != nil {
+		if buyerInfo, ok := ao["BuyerInfo"].(map[string]interface{}); ok {
+			name = fmt.Sprintf("%v", buyerInfo["BuyerName"])
 		}
+	}
+	if name == "" || name == "<nil>" {
+		name = "Amazon Customer"
+	}
+	order.CustomerName = &name
 
-		// Billing/Shipping info mapping
-		name := ""
-		if shipping, ok := ao["ShippingAddress"].(map[string]interface{}); ok {
-			name = fmt.Sprintf("%v", shipping["Name"])
-		}
+	if shipping, ok := ao["ShippingAddress"].(map[string]interface{}); ok {
+		order.CustomerCity = entity.StrPtr(fmt.Sprintf("%v", shipping["City"]))
+		order.CustomerState = entity.StrPtr(fmt.Sprintf("%v", shipping["StateOrRegion"]))
+		order.CustomerZip = entity.StrPtr(fmt.Sprintf("%v", shipping["PostalCode"]))
+		order.CustomerCountry = entity.StrPtr(fmt.Sprintf("%v", shipping["CountryCode"]))
+	} else {
+		order.CustomerName = entity.StrPtr("Amazon Customer")
+		order.CustomerCity = entity.StrPtr("N/A")
+		order.CustomerState = entity.StrPtr("N/A")
+		order.CustomerZip = entity.StrPtr("N/A")
+		order.CustomerCountry = entity.StrPtr("IN")
+	}
 
-		// Fallback to BuyerInfo if ShippingAddress Name is empty
-		if (name == "" || name == "<nil>") && ao["BuyerInfo"] != nil {
-			if buyerInfo, ok := ao["BuyerInfo"].(map[string]interface{}); ok {
-				name = fmt.Sprintf("%v", buyerInfo["BuyerName"])
-			}
-		}
+	if total, ok := ao["OrderTotal"].(map[string]interface{}); ok {
+		amountStr := fmt.Sprintf("%v", total["Amount"])
+		amount, _ := strconv.ParseFloat(amountStr, 64)
+		order.TotalPrice = amount
+	}
 
-		if name == "" || name == "<nil>" {
-			name = "Amazon Customer"
-		}
-		order.CustomerName = &name
+	// Status Mapping
+	switch matchStatus {
+	case "Shipped", "InvoiceConfirmation":
+		order.FulfillmentStatus = entity.StrPtr("fulfilled")
+	case "Canceled":
+		order.FulfillmentStatus = entity.StrPtr("cancelled")
+		cancelledAt := time.Now()
+		order.CancelledAt = &cancelledAt
+	case "Unshipped", "PartiallyShipped":
+		order.FulfillmentStatus = entity.StrPtr("unfulfilled")
+	case "Pending":
+		order.FulfillmentStatus = entity.StrPtr("unfulfilled")
+		// Optimization: Don't deduct inventory for Pending orders yet
+		order.SkipInventorySync = true
+	default:
+		order.FulfillmentStatus = entity.StrPtr("unfulfilled")
+	}
 
-		if shipping, ok := ao["ShippingAddress"].(map[string]interface{}); ok {
-			city := fmt.Sprintf("%v", shipping["City"])
-			if city == "" || city == "<nil>" {
-				city = "N/A"
-			}
-			order.CustomerCity = &city
-
-			state := fmt.Sprintf("%v", shipping["StateOrRegion"])
-			if state == "" || state == "<nil>" {
-				state = "N/A"
-			}
-			order.CustomerState = &state
-
-			zip := fmt.Sprintf("%v", shipping["PostalCode"])
-			if zip == "" || zip == "<nil>" {
-				zip = "N/A"
-			}
-			order.CustomerZip = &zip
-
-			country := fmt.Sprintf("%v", shipping["CountryCode"])
-			if country == "" || country == "<nil>" {
-				country = "IN"
-			}
-			order.CustomerCountry = &country
-		} else {
-			// Fallback if ShippingAddress is entirely missing (PII restricted)
-			order.CustomerName = entity.StrPtr("Amazon Customer")
-			order.CustomerCity = entity.StrPtr("N/A")
-			order.CustomerState = entity.StrPtr("N/A")
-			order.CustomerZip = entity.StrPtr("N/A")
-			order.CustomerCountry = entity.StrPtr("IN")
-		}
-
-		if total, ok := ao["OrderTotal"].(map[string]interface{}); ok {
-			amountStr := fmt.Sprintf("%v", total["Amount"])
-			amount, _ := strconv.ParseFloat(amountStr, 64)
-			order.TotalPrice = amount
-		}
-
-		// Financial status is usually paid on Amazon
-		order.FinancialStatus = entity.StrPtr("paid")
-
-		// Dynamic Status Mapping
-		// Amazon Statuses: Pending, Unshipped, PartiallyShipped, Shipped, Canceled, Unfulfillable, InvoiceConfirmation, etc.
-
-		// Normalize for matching
-		matchStatus := strings.TrimSpace(amazonStatus)
-
-		switch matchStatus {
-		case "Shipped", "InvoiceConfirmation":
+	// Easy Ship Specifics
+	if esStatus, ok := ao["EasyShipShipmentStatus"].(string); ok {
+		esStatus = strings.TrimSpace(esStatus)
+		if esStatus == "PickedUp" || esStatus == "OutForDelivery" || esStatus == "Delivered" {
 			order.FulfillmentStatus = entity.StrPtr("fulfilled")
-		case "Canceled":
-			order.FulfillmentStatus = entity.StrPtr("cancelled")
-			cancelledAt := time.Now()
-			order.CancelledAt = &cancelledAt
-		case "Unshipped", "PartiallyShipped":
-			order.FulfillmentStatus = entity.StrPtr("unfulfilled")
-		default:
-			order.FulfillmentStatus = entity.StrPtr("unfulfilled")
 		}
-
-		// Easy Ship Specific: Override fulfillment and delivery status based on tracking
-		if esStatus, ok := ao["EasyShipShipmentStatus"].(string); ok {
-			esStatus = strings.TrimSpace(esStatus)
-			if esStatus == "PickedUp" || esStatus == "OutForDelivery" || esStatus == "Delivered" {
-				order.FulfillmentStatus = entity.StrPtr("fulfilled")
-			}
-			if strings.EqualFold(esStatus, "Delivered") {
-				order.DeliveryStatus = entity.StrPtr("delivered")
-				now := time.Now()
-				order.DeliveredAt = &now
-				// Amazon orders lack customer phone numbers (PII restricted), so we skip feedback automation.
-				// Status 4 (expired/skipped) ensures they don't appear in the feedback trigger list.
-				pStatus := 4
-				order.FeedbackStatusID = &pStatus
-			}
+		if strings.EqualFold(esStatus, "Delivered") {
+			order.DeliveryStatus = entity.StrPtr("delivered")
+			now := time.Now()
+			order.DeliveredAt = &now
+			pStatus := 4
+			order.FeedbackStatusID = &pStatus
 		}
-
-		// Check if we already have this order to preserve internal state
-		existing, err := p.orderRepo.GetByExternalID(amazonOrderID)
-		if err == nil {
-			order.ID = existing.ID
-			order.InventoryDeducted = existing.InventoryDeducted
-
-			// Preserve manually set or previously discovered delivery data
-			if existing.DeliveryStatus != nil && *existing.DeliveryStatus == "delivered" {
-				order.DeliveryStatus = existing.DeliveryStatus
-				if existing.DeliveredAt != nil {
-					order.DeliveredAt = existing.DeliveredAt
-				}
-				if existing.FeedbackStatusID != nil {
-					order.FeedbackStatusID = existing.FeedbackStatusID
-				}
-			}
-		}
-
-		// 2. Logic for Stock Deduction (Unshipped/Shipped/fulfilled = Amazon has committed or we have fulfilled the inventory)
-		isFulfilledOrCommitted := (matchStatus == "Unshipped" || matchStatus == "Shipped" || matchStatus == "InvoiceConfirmation" || (order.FulfillmentStatus != nil && *order.FulfillmentStatus == "fulfilled"))
-
-		if isFulfilledOrCommitted {
-			p.processDeduction(ctx, &order)
-		}
-
-		// 3. Logic for Reversal (Canceled)
-		if amazonStatus == "Canceled" {
-			p.processReversal(ctx, &order)
-		}
-
-		// 4. Final Upsert to keep status current
-		p.orderRepo.Upsert(order)
 	}
 }
 

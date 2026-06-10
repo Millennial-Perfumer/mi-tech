@@ -363,15 +363,39 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 			}
 		}
 
-		// 4. Sync Inventory Deltas
-		ids, err := r.syncInventoryDeltas(tx, &order, oldLineItems)
-		if err != nil {
-			return err
-		}
-		affectedIDs = ids
+		// 4. Sync Inventory Deltas (Status-Aware)
+		status := strings.ToLower(entity.DerefStr(order.Status))
+		isCanceled := status == "canceled" || status == "cancelled"
 
-		// Update order again with inventory_deducted flag
-		return tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error
+		if !order.SkipInventorySync {
+			// Deduction or Delta logic
+			if !existing.InventoryDeducted {
+				// Force full deduction if not already deducted
+				ids, err := r.syncInventoryDeltas(tx, &order, nil) // passing nil for old items forces full deduction of new items
+				if err != nil {
+					return err
+				}
+				affectedIDs = ids
+			} else {
+				// Delta deduction
+				ids, err := r.syncInventoryDeltas(tx, &order, oldLineItems)
+				if err != nil {
+					return err
+				}
+				affectedIDs = ids
+			}
+			return tx.Model(&order).Update("inventory_deducted", true).Error
+		} else if isCanceled && existing.InventoryDeducted {
+			// Reversal logic
+			ids, err := r.syncInventoryDeltas(tx, nil, oldLineItems) // passing nil for new items reverses old items
+			if err != nil {
+				return err
+			}
+			affectedIDs = ids
+			return tx.Model(&order).Update("inventory_deducted", false).Error
+		}
+
+		return nil
 	})
 	return affectedIDs, err
 }
@@ -426,6 +450,13 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				if existing.DeliveredAt != nil {
 					orders[i].DeliveredAt = existing.DeliveredAt
 				}
+			// Preserve delivery status and feedback ID if already delivered
+			if existing.DeliveryStatus != nil && strings.ToLower(strings.TrimSpace(*existing.DeliveryStatus)) == "delivered" {
+				orders[i].DeliveryStatus = existing.DeliveryStatus
+				if existing.FeedbackStatusID != nil {
+					orders[i].FeedbackStatusID = existing.FeedbackStatusID
+				}
+			}
 				orders[i].InventoryDeducted = existing.InventoryDeducted
 			}
 
@@ -506,46 +537,80 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		}
 		totalSKUDeltas := make(map[skuKey]int)
 		pairs := make([][]interface{}, 0)
+		var orderIDsToMarkDeducted []int64
+		var orderIDsToMarkNotDeducted []int64
 
 		for i := range orders {
-			// Calculate deltas for this order: New - Old
-			// Note: We use the same logic as syncInventoryDeltas to preserve behavior
-			orderSKUDeltas := make(map[string]int)
-			for _, li := range orders[i].LineItems {
-				if li.SKU != nil && *li.SKU != "" {
-					orderSKUDeltas[*li.SKU] += li.Quantity
-				}
+			status := strings.ToLower(entity.DerefStr(orders[i].Status))
+			isCanceled := status == "canceled" || status == "cancelled"
+
+			if orders[i].SkipInventorySync && !isCanceled {
+				continue
 			}
-			for _, li := range oldLinesByOrder[orders[i].ID] {
-				if li.SKU != nil && *li.SKU != "" {
-					orderSKUDeltas[*li.SKU] -= li.Quantity
+
+			// Calculate deltas for this order
+			orderSKUDeltas := make(map[string]int)
+
+			// Resolve if we already have this order to check deduction state
+			key := fmt.Sprintf("%s:%s", orders[i].SourceID, orders[i].ExternalOrderID)
+			existing, exists := existingMap[key]
+
+			if !orders[i].SkipInventorySync && (!exists || !existing.InventoryDeducted) {
+				// 1. FRESH DEDUCTION (New order or previously skipped)
+				for _, li := range orders[i].LineItems {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] += li.Quantity
+					}
 				}
+				orders[i].InventoryDeducted = true
+				orderIDsToMarkDeducted = append(orderIDsToMarkDeducted, orders[i].ID)
+			} else if !orders[i].SkipInventorySync && existing.InventoryDeducted {
+				// 2. DELTA UPDATE (Already deducted, check for quantity changes)
+				for _, li := range orders[i].LineItems {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] += li.Quantity
+					}
+				}
+				for _, li := range oldLinesByOrder[orders[i].ID] {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] -= li.Quantity
+					}
+				}
+				orders[i].InventoryDeducted = true
+				orderIDsToMarkDeducted = append(orderIDsToMarkDeducted, orders[i].ID)
+			} else if isCanceled && exists && existing.InventoryDeducted {
+				// 3. REVERSAL (Restock if it was previously deducted)
+				for _, li := range oldLinesByOrder[orders[i].ID] {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] -= li.Quantity // negative delta = restock
+					}
+				}
+				orders[i].InventoryDeducted = false
+				orderIDsToMarkNotDeducted = append(orderIDsToMarkNotDeducted, orders[i].ID)
 			}
 
 			for sku, delta := range orderSKUDeltas {
 				if delta == 0 {
 					continue
 				}
-				key := skuKey{Platform: orders[i].SourceID, SKU: sku}
-				if _, exists := totalSKUDeltas[key]; !exists {
-					pairs = append(pairs, []interface{}{key.Platform, key.SKU})
+				skey := skuKey{Platform: orders[i].SourceID, SKU: sku}
+				if _, exists := totalSKUDeltas[skey]; !exists {
+					pairs = append(pairs, []interface{}{skey.Platform, skey.SKU})
 				}
-				totalSKUDeltas[key] += delta
+				totalSKUDeltas[skey] += delta
 			}
-			orders[i].InventoryDeducted = true
 		}
 
 		if len(pairs) > 0 {
 			var mappings []entity.InventoryMapping
-			// Optimization: Batch fetch all relevant mappings in a single O(1) round-trip using tuple IN
 			if err := tx.Where("(platform, external_sku) IN ?", pairs).Find(&mappings).Error; err != nil {
 				return fmt.Errorf("failed to fetch mappings in batch: %w", err)
 			}
 
 			itemDeltas := make(map[int]int)
 			for _, m := range mappings {
-				key := skuKey{Platform: m.Platform, SKU: m.ExternalSKU}
-				itemDeltas[m.InventoryItemID] += totalSKUDeltas[key]
+				skey := skuKey{Platform: m.Platform, SKU: m.ExternalSKU}
+				itemDeltas[m.InventoryItemID] += totalSKUDeltas[skey]
 			}
 
 			var logs []entity.InventoryLog
@@ -553,22 +618,23 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				if delta == 0 {
 					continue
 				}
-				// Optimization: Aggregate deltas by InventoryItemID to minimize update queries
 				if err := tx.Model(&entity.InventoryItem{}).
 					Where("id = ?", itemID).
 					Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
 					return fmt.Errorf("failed to adjust stock for item %d: %w", itemID, err)
 				}
 
-				// Note: Batch upsert logs are aggregated by itemID for performance.
-				// Optimization: Batch insert logs after the loop to reduce DB roundtrips.
+				reason := "batch_sync"
+				if delta < 0 {
+					reason = "reversal"
+				}
+
 				logs = append(logs, entity.InventoryLog{
 					InventoryItemID: itemID,
 					Delta:           -delta,
-					Reason:          "batch_sync",
-					Platform:        uniqueSources[0], // Assuming batch is usually from one source
+					Reason:          reason,
+					Platform:        uniqueSources[0],
 				})
-
 				affectedIDs = append(affectedIDs, itemID)
 			}
 
@@ -579,13 +645,16 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			}
 		}
 
-		// Optimization: Batch update inventory_deducted flag for all processed orders
-		orderIDsForFlag := make([]int64, len(orders))
-		for i := range orders {
-			orderIDsForFlag[i] = orders[i].ID
+		// Update inventory_deducted flag in DB to maintain consistency
+		if len(orderIDsToMarkDeducted) > 0 {
+			if err := tx.Model(&entity.Order{}).Where("id IN ?", orderIDsToMarkDeducted).Update("inventory_deducted", true).Error; err != nil {
+				return fmt.Errorf("failed to mark inventory as deducted: %w", err)
+			}
 		}
-		if err := tx.Model(&entity.Order{}).Where("id IN ?", orderIDsForFlag).Update("inventory_deducted", true).Error; err != nil {
-			return fmt.Errorf("failed to batch update inventory_deducted flag: %w", err)
+		if len(orderIDsToMarkNotDeducted) > 0 {
+			if err := tx.Model(&entity.Order{}).Where("id IN ?", orderIDsToMarkNotDeducted).Update("inventory_deducted", false).Error; err != nil {
+				return fmt.Errorf("failed to mark inventory as NOT deducted: %w", err)
+			}
 		}
 
 		return nil

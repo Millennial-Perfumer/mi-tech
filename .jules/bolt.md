@@ -29,3 +29,7 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+
+## 2026-06-10 - [Parallelizing Network-Bound Pollers]
+**Learning:** Sequential O(N) network requests in background workers (like fetching order items in a poller) create a performance ceiling. Offloading these to concurrent goroutines using `errgroup` with a bounded concurrency limit significantly reduces sync time. However, when switching to batch database operations (`UpsertBatch`), it is critical to ensure the repository logic is status-aware to handle inventory deductions and reversals correctly based on the diff between incoming data and existing database state.
+**Action:** Use `errgroup` for parallel API requests and ensure batch repository methods maintain state-aware inventory consistency (deductions vs reversals).
