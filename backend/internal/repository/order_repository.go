@@ -450,13 +450,13 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				if existing.DeliveredAt != nil {
 					orders[i].DeliveredAt = existing.DeliveredAt
 				}
-			// Preserve delivery status and feedback ID if already delivered
-			if existing.DeliveryStatus != nil && strings.ToLower(strings.TrimSpace(*existing.DeliveryStatus)) == "delivered" {
-				orders[i].DeliveryStatus = existing.DeliveryStatus
-				if existing.FeedbackStatusID != nil {
-					orders[i].FeedbackStatusID = existing.FeedbackStatusID
+				// Preserve delivery status and feedback ID if already delivered
+				if existing.DeliveryStatus != nil && strings.ToLower(strings.TrimSpace(*existing.DeliveryStatus)) == "delivered" {
+					orders[i].DeliveryStatus = existing.DeliveryStatus
+					if existing.FeedbackStatusID != nil {
+						orders[i].FeedbackStatusID = existing.FeedbackStatusID
+					}
 				}
-			}
 				orders[i].InventoryDeducted = existing.InventoryDeducted
 			}
 
