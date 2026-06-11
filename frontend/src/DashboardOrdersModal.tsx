@@ -163,7 +163,7 @@ export const DashboardOrdersModal: React.FC<DashboardOrdersModalProps> = ({
                       {o.order_number}
                     </td>
                     <td>{o.customer_name || 'N/A'}</td>
-                    <td>{new Date(o.created_at).toLocaleDateString()}</td>
+                    <td>{o.created_at && !o.created_at.startsWith('0001-01-01') && !isNaN(Date.parse(o.created_at)) ? new Date(o.created_at).toLocaleDateString() : 'N/A'}</td>
                     <td style={{ fontWeight: 800 }}>₹{o.total_price}</td>
                     <td>
                       <span className={`badge-pill badge-pill-${o.status === 'CANCELLED' || o.fulfillment_status === 'cancelled' ? 'danger' : (o.fulfillment_status === 'fulfilled' ? 'success' : 'warning')}`}>
