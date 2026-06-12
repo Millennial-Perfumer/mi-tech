@@ -21,24 +21,24 @@ func TestSignV4(t *testing.T) {
 		expectedPrefix string
 	}{
 		{
-			name:   "GET request no body",
-			method: "GET",
-			urlStr: "https://example.amazonaws.com/",
-			body:   nil,
+			name:           "GET request no body",
+			method:         "GET",
+			urlStr:         "https://example.amazonaws.com/",
+			body:           nil,
 			expectedPrefix: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=",
 		},
 		{
-			name:   "POST request with body",
-			method: "POST",
-			urlStr: "https://example.amazonaws.com/",
-			body:   []byte(`{"test":"body"}`),
+			name:           "POST request with body",
+			method:         "POST",
+			urlStr:         "https://example.amazonaws.com/",
+			body:           []byte(`{"test":"body"}`),
 			expectedPrefix: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=",
 		},
 		{
-			name:   "GET request with query params",
-			method: "GET",
-			urlStr: "https://example.amazonaws.com/?Param1=Value1&Param2=Value2",
-			body:   nil,
+			name:           "GET request with query params",
+			method:         "GET",
+			urlStr:         "https://example.amazonaws.com/?Param1=Value1&Param2=Value2",
+			body:           nil,
 			expectedPrefix: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=",
 		},
 	}
