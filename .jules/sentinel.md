@@ -12,3 +12,7 @@
 **Vulnerability:** `CustomerRepository.List` passed the `sortBy` parameter from user input directly to GORM's `Order()` method without validation.
 **Learning:** ORM methods like GORM's `Order()` often do not parameterize identifiers (like column names) and instead concatenate them into the raw SQL query. This makes them a direct sink for SQL injection if the input is not strictly validated against an allowlist of permitted columns.
 **Prevention:** Always validate dynamic sorting parameters against a hardcoded allowlist map of valid column names before passing them to the database query layer.
+## 2026-06-12 - [Missing HMAC Signature Verification in Webhooks]
+**Vulnerability:** The `MarketingWebhookHandler.handleNotification` endpoint did not verify the `X-Hub-Signature-256` header, allowing unauthenticated attackers to spoof requests.
+**Learning:** For endpoints handling payloads from external systems, validation must happen implicitly via signature verification before any business logic executes. Missing these checks leaves the endpoints wide open.
+**Prevention:** Implement HMAC verification for all external webhooks. Specifically, utilize `io.LimitReader` (for DoS protection), restore the body via `io.NopCloser(bytes.NewBuffer(body))`, and enforce strict string comparison logic using `hmac.Equal` to defend against timing attacks.
