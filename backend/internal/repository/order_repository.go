@@ -255,6 +255,29 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 	return affectedIDs, nil
 }
 
+func (r *gormOrderRepository) recalculateOrderTotals(order *entity.Order) {
+	var calculatedTotal float64
+	var calculatedSubtotal float64
+	var calculatedTax float64
+	for _, item := range order.LineItems {
+		qty := float64(item.Quantity)
+		lineGross := (item.Price * qty) - item.Discount
+		lineNet := lineGross - item.OrderDiscount
+		if lineNet < 0 {
+			lineNet = 0
+		}
+		lineTaxable := lineNet / 1.18
+		lineTax := lineNet - lineTaxable
+
+		calculatedTotal += lineNet
+		calculatedSubtotal += lineTaxable
+		calculatedTax += lineTax
+	}
+	order.TotalPrice = calculatedTotal
+	order.SubtotalPrice = &calculatedSubtotal
+	order.TotalTax = &calculatedTax
+}
+
 func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 	var affectedIDs []int
 	if order.CustomerPhone != nil {
@@ -320,27 +343,8 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 		}
 
 		// 1.8 Recalculate totals from line items to prevent discrepancies / doubling
-		if len(order.LineItems) > 0 {
-			var calculatedTotal float64
-			var calculatedSubtotal float64
-			var calculatedTax float64
-			for _, item := range order.LineItems {
-				qty := float64(item.Quantity)
-				lineGross := (item.Price * qty) - item.Discount
-				lineNet := lineGross - item.OrderDiscount
-				if lineNet < 0 {
-					lineNet = 0
-				}
-				lineTaxable := lineNet / 1.18
-				lineTax := lineNet - lineTaxable
-
-				calculatedTotal += lineNet
-				calculatedSubtotal += lineTaxable
-				calculatedTax += lineTax
-			}
-			order.TotalPrice = calculatedTotal
-			order.SubtotalPrice = &calculatedSubtotal
-			order.TotalTax = &calculatedTax
+		if order.SourceID == "shopify" && len(order.LineItems) > 0 {
+			r.recalculateOrderTotals(&order)
 		}
 
 		// 2. Upsert the order
@@ -491,27 +495,8 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 
 		// 1.8 Recalculate totals from line items to prevent discrepancies / doubling
 		for i := range orders {
-			if len(orders[i].LineItems) > 0 {
-				var calculatedTotal float64
-				var calculatedSubtotal float64
-				var calculatedTax float64
-				for _, item := range orders[i].LineItems {
-					qty := float64(item.Quantity)
-					lineGross := (item.Price * qty) - item.Discount
-					lineNet := lineGross - item.OrderDiscount
-					if lineNet < 0 {
-						lineNet = 0
-					}
-					lineTaxable := lineNet / 1.18
-					lineTax := lineNet - lineTaxable
-
-					calculatedTotal += lineNet
-					calculatedSubtotal += lineTaxable
-					calculatedTax += lineTax
-				}
-				orders[i].TotalPrice = calculatedTotal
-				orders[i].SubtotalPrice = &calculatedSubtotal
-				orders[i].TotalTax = &calculatedTax
+			if orders[i].SourceID == "shopify" && len(orders[i].LineItems) > 0 {
+				r.recalculateOrderTotals(&orders[i])
 			}
 		}
 
