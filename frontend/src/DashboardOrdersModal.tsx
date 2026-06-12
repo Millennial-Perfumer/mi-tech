@@ -54,7 +54,17 @@ export const DashboardOrdersModal: React.FC<DashboardOrdersModalProps> = ({
     const fetchOrders = async () => {
       setIsLoading(true);
       try {
-        let url = `${API_BASE}/api/orders?start_date=${startDate}&end_date=${endDate}&page=${page}&limit=${limit}&sort_by=created_at&sort_order=DESC`;
+        let startObj = startDate;
+        let endObj = endDate;
+        if (startDate && startDate.length === 10) {
+          const [y, m, d] = startDate.split('-').map(Number);
+          startObj = new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
+        }
+        if (endDate && endDate.length === 10) {
+          const [y, m, d] = endDate.split('-').map(Number);
+          endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
+        }
+        let url = `${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&sort_by=created_at&sort_order=DESC`;
         
         if (selectedChannels.length > 0) {
           url += `&source=${selectedChannels.join(',')}`;
