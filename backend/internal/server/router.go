@@ -15,6 +15,14 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+type Router struct {
+	mux            *http.ServeMux
+	protected      func(http.HandlerFunc) http.HandlerFunc
+	adminProtected func(http.HandlerFunc) http.HandlerFunc
+	metrics        func(http.Handler) http.Handler
+	cors           func(http.HandlerFunc) http.HandlerFunc
+}
+
 // RegisterRoutes sets up all API routes in one place.
 func RegisterRoutes(
 	mux *http.ServeMux,
@@ -59,350 +67,387 @@ func RegisterRoutes(
 		return cors(auth(h).ServeHTTP)
 	}
 
-	// Force-register marketing routes early to prevent potential shadowing
-	mux.HandleFunc("/api/marketing/meta/overview", protected(marketingHandler.GetMetaOverview))
-	mux.HandleFunc("/api/marketing/meta/campaigns", protected(marketingHandler.GetMetaCampaigns))
-	mux.HandleFunc("/api/marketing/meta/adsets", protected(marketingHandler.GetMetaAdSets))
-	mux.HandleFunc("/api/marketing/meta/ads", protected(marketingHandler.GetMetaAds))
-	mux.HandleFunc("/api/marketing/meta/webhook", metrics(cors(marketingWebhookHandler.MetaWebhook)).ServeHTTP)
+	r := &Router{
+		mux:            mux,
+		protected:      protected,
+		adminProtected: adminProtected,
+		metrics:        metrics,
+		cors:           cors,
+	}
 
-	// Social Media Management (SMM) Routes
-	mux.HandleFunc("/api/marketing/smm/overview", protected(smmHandler.GetOverview))
-	mux.HandleFunc("/api/marketing/smm/health", protected(smmHandler.CheckHealth))
-	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
-	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
-	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
+	r.registerMarketingRoutes(marketingHandler, marketingWebhookHandler, smmHandler)
+	r.registerSystemRoutes(systemHandler, redirectHandler)
+	r.registerFeedbackRoutes(feedbackHandler)
+	r.registerAuthRoutes(authHandler)
+	r.registerUserRoutes(userHandler)
+	r.registerOrderRoutes(orderHandler, feedbackHandler)
+	r.registerCustomerRoutes(customerHandler)
+	r.registerSyncRoutes(syncHandler)
+	r.registerMetricsRoutes(metricsHandler)
+	r.registerReportRoutes(reportHandler)
+	r.registerWebhookRoutes(webhookHandler)
+	r.registerSettingsRoutes(settingsHandler)
+	r.registerConfigsRoutes(configsHandler)
+	r.registerAutomationRoutes(automationHandler)
+	r.registerPlannerRoutes(plannerHandler)
+	r.registerInventoryRoutes(inventoryHandler)
+	r.registerOilRoutes(oilHandler)
+	r.registerSupplierRoutes(supplierHandler)
+	r.registerPORoutes(poHandler)
+	r.registerMfgRoutes(mfgHandler)
+	r.registerAIRoutes(aiHandler)
+}
 
-	log.Println("DEBUG: Marketing & SMM Routes Registered")
+func (r *Router) registerMarketingRoutes(marketingHandler *handler.MarketingHandler, marketingWebhookHandler *handler.MarketingWebhookHandler, smmHandler *handler.SMMHandler) {
+	r.mux.HandleFunc("/api/marketing/meta/overview", r.protected(marketingHandler.GetMetaOverview))
+	r.mux.HandleFunc("/api/marketing/meta/campaigns", r.protected(marketingHandler.GetMetaCampaigns))
+	r.mux.HandleFunc("/api/marketing/meta/adsets", r.protected(marketingHandler.GetMetaAdSets))
+	r.mux.HandleFunc("/api/marketing/meta/ads", r.protected(marketingHandler.GetMetaAds))
+	r.mux.HandleFunc("/api/marketing/meta/webhook", r.metrics(r.cors(marketingWebhookHandler.MetaWebhook)).ServeHTTP)
+	r.mux.HandleFunc("/api/marketing/smm/overview", r.protected(smmHandler.GetOverview))
+	r.mux.HandleFunc("/api/marketing/smm/health", r.protected(smmHandler.CheckHealth))
+	r.mux.HandleFunc("/api/marketing/smm/post", r.protected(smmHandler.PostContent))
+	r.mux.HandleFunc("/api/marketing/smm/sync", r.protected(smmHandler.Sync))
+	r.mux.HandleFunc("/api/marketing/smm/post/insights", r.protected(smmHandler.GetPostInsights))
+}
 
-	// Metrics endpoint (unprotected for scraping, but could be internal-only)
-	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))
-
-	// Health check
-	mux.HandleFunc("/api/health", metrics(cors(func(w http.ResponseWriter, r *http.Request) {
+func (r *Router) registerSystemRoutes(systemHandler *handler.SystemHandler, redirectHandler *handler.RedirectHandler) {
+	r.mux.Handle("/api/metrics", r.cors(promhttp.Handler().ServeHTTP))
+	r.mux.HandleFunc("/api/health", r.metrics(r.cors(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "ok",
 			"message": "mi-tech API is running",
 		})
-	})).ServeHTTP)
+	}))).ServeHTTP)
+	r.mux.Handle("/api/swagger/", r.cors(httpSwagger.WrapHandler.ServeHTTP))
+	r.mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
+	r.mux.HandleFunc("/api/system/docs", r.protected(systemHandler.ListDocs))
+	r.mux.HandleFunc("/api/system/docs/", r.protected(systemHandler.GetDoc))
+}
 
-	// --- Feedback Routes ---
-	mux.HandleFunc("/api/feedback/submit", metrics(cors(feedbackHandler.SubmitFeedback)).ServeHTTP)
-	mux.HandleFunc("/api/feedback/validate", metrics(cors(feedbackHandler.ValidateFeedback)).ServeHTTP)
-	mux.HandleFunc("/api/feedback/config-status", protected(feedbackHandler.GetConfigStatus))
-	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
+func (r *Router) registerFeedbackRoutes(feedbackHandler *handler.FeedbackHandler) {
+	r.mux.HandleFunc("/api/feedback/submit", r.metrics(r.cors(feedbackHandler.SubmitFeedback)).ServeHTTP)
+	r.mux.HandleFunc("/api/feedback/validate", r.metrics(r.cors(feedbackHandler.ValidateFeedback)).ServeHTTP)
+	r.mux.HandleFunc("/api/feedback/config-status", r.protected(feedbackHandler.GetConfigStatus))
+	r.mux.HandleFunc("/api/feedback", r.protected(feedbackHandler.GetFeedback))
+}
 
-	// --- Auth Routes ---
-	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)
-	mux.HandleFunc("/api/auth/verify-otp", metrics(cors(authHandler.VerifyOTP)).ServeHTTP)
-	mux.HandleFunc("/api/auth/verify", metrics(protected(authHandler.VerifyAuth)).ServeHTTP)
+func (r *Router) registerAuthRoutes(authHandler *handler.AuthHandler) {
+	r.mux.HandleFunc("/api/auth/login", r.metrics(r.cors(authHandler.Login)).ServeHTTP)
+	r.mux.HandleFunc("/api/auth/verify-otp", r.metrics(r.cors(authHandler.VerifyOTP)).ServeHTTP)
+	r.mux.HandleFunc("/api/auth/verify", r.metrics(r.protected(authHandler.VerifyAuth)).ServeHTTP)
+}
 
-	// --- User Routes ---
-	mux.HandleFunc("/api/users", adminProtected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerUserRoutes(userHandler *handler.UserHandler) {
+	r.mux.HandleFunc("/api/users", r.adminProtected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			userHandler.CreateUser(w, r)
+			userHandler.CreateUser(w, req)
 		default:
-			userHandler.GetUsers(w, r)
+			userHandler.GetUsers(w, req)
 		}
 	}))
+}
 
-	// --- Order Routes ---
-	mux.HandleFunc("/api/orders", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerOrderRoutes(orderHandler *handler.OrderHandler, feedbackHandler *handler.FeedbackHandler) {
+	r.mux.HandleFunc("/api/orders", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPut:
-			adminProtected(orderHandler.UpdateOrder)(w, r)
+			r.adminProtected(orderHandler.UpdateOrder)(w, req)
 		default:
-			if r.URL.Query().Get("id") != "" {
-				orderHandler.GetOrder(w, r)
+			if req.URL.Query().Get("id") != "" {
+				orderHandler.GetOrder(w, req)
 			} else {
-				orderHandler.GetOrders(w, r)
+				orderHandler.GetOrders(w, req)
 			}
 		}
 	}))
-	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
-	mux.HandleFunc("/api/orders/payment-status", protected(orderHandler.UpdatePaymentStatus))
-	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
-	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
-	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))
-	mux.HandleFunc("/api/orders/feedback", protected(orderHandler.GetFeedback))
-	mux.HandleFunc("/api/orders/feedback/comment", protected(orderHandler.UpdateFeedbackAdminComment))
-	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
-	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))
+	r.mux.HandleFunc("/api/orders/status", r.protected(orderHandler.UpdateOrderStatus))
+	r.mux.HandleFunc("/api/orders/payment-status", r.protected(orderHandler.UpdatePaymentStatus))
+	r.mux.HandleFunc("/api/orders/delivered", r.protected(orderHandler.MarkAsDelivered))
+	r.mux.HandleFunc("/api/feedback/scan", r.protected(feedbackHandler.ScanFeedbackCandidates))
+	r.mux.HandleFunc("/api/feedback/bulk-send", r.protected(feedbackHandler.BulkSendFeedbackRequests))
+	r.mux.HandleFunc("/api/orders/feedback", r.protected(orderHandler.GetFeedback))
+	r.mux.HandleFunc("/api/orders/feedback/comment", r.protected(orderHandler.UpdateFeedbackAdminComment))
+	r.mux.HandleFunc("/api/orders/invoice", r.protected(orderHandler.GenerateInvoice))
+	r.mux.HandleFunc("/api/sources", r.protected(orderHandler.GetSources))
+}
 
-	// --- Customer Routes ---
-	mux.HandleFunc("/api/customers/import", adminProtected(customerHandler.ImportCSV))
-	mux.HandleFunc("/api/customers/export-meta", protected(customerHandler.ExportMetaCSV))
-	mux.HandleFunc("/api/customers/bulk-delete", adminProtected(customerHandler.BulkDeleteCustomers))
-	mux.HandleFunc("/api/customers", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerCustomerRoutes(customerHandler *handler.CustomerHandler) {
+	r.mux.HandleFunc("/api/customers/import", r.adminProtected(customerHandler.ImportCSV))
+	r.mux.HandleFunc("/api/customers/export-meta", r.protected(customerHandler.ExportMetaCSV))
+	r.mux.HandleFunc("/api/customers/bulk-delete", r.adminProtected(customerHandler.BulkDeleteCustomers))
+	r.mux.HandleFunc("/api/customers", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(customerHandler.CreateCustomer)(w, r)
+			r.adminProtected(customerHandler.CreateCustomer)(w, req)
 		case http.MethodDelete:
-			adminProtected(customerHandler.DeleteAllCustomers)(w, r)
+			r.adminProtected(customerHandler.DeleteAllCustomers)(w, req)
 		default:
-			customerHandler.ListCustomers(w, r)
+			customerHandler.ListCustomers(w, req)
 		}
 	}))
-
-	mux.HandleFunc("/api/customers/", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/customers/", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPut:
-			adminProtected(customerHandler.UpdateCustomer)(w, r)
+			r.adminProtected(customerHandler.UpdateCustomer)(w, req)
 		case http.MethodDelete:
-			adminProtected(customerHandler.DeleteCustomer)(w, r)
+			r.adminProtected(customerHandler.DeleteCustomer)(w, req)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+}
 
-	// --- Sync Routes ---
-	mux.HandleFunc("/api/shopify/sync", adminProtected(syncHandler.SyncOrders))
-	mux.HandleFunc("/api/shopify/reset", adminProtected(syncHandler.ResetOrders))
+func (r *Router) registerSyncRoutes(syncHandler *handler.SyncHandler) {
+	r.mux.HandleFunc("/api/shopify/sync", r.adminProtected(syncHandler.SyncOrders))
+	r.mux.HandleFunc("/api/shopify/reset", r.adminProtected(syncHandler.ResetOrders))
+}
 
-	// --- Dashboard Metrics ---
-	mux.HandleFunc("/api/dashboard/metrics", protected(metricsHandler.GetDashboardMetrics))
-	mux.HandleFunc("/api/dashboard/top-products", protected(metricsHandler.GetTopProducts))
-	mux.HandleFunc("/api/dashboard/revenue-trend", protected(metricsHandler.GetRevenueTrend))
-	mux.HandleFunc("/api/dashboard/geo-distribution", protected(metricsHandler.GetGeoDistribution))
+func (r *Router) registerMetricsRoutes(metricsHandler *handler.MetricsHandler) {
+	r.mux.HandleFunc("/api/dashboard/metrics", r.protected(metricsHandler.GetDashboardMetrics))
+	r.mux.HandleFunc("/api/dashboard/top-products", r.protected(metricsHandler.GetTopProducts))
+	r.mux.HandleFunc("/api/dashboard/revenue-trend", r.protected(metricsHandler.GetRevenueTrend))
+	r.mux.HandleFunc("/api/dashboard/geo-distribution", r.protected(metricsHandler.GetGeoDistribution))
+}
 
-	// --- Report Routes ---
-	mux.HandleFunc("/api/reports/summary", protected(reportHandler.GetGSTSummary))
-	mux.HandleFunc("/api/reports/state-wise", protected(reportHandler.GetStateSummary))
-	mux.HandleFunc("/api/reports/hsn-wise", protected(reportHandler.GetHSNSummary))
-	mux.HandleFunc("/api/reports/documents-issued", protected(reportHandler.GetDocumentsIssued))
+func (r *Router) registerReportRoutes(reportHandler *handler.ReportHandler) {
+	r.mux.HandleFunc("/api/reports/summary", r.protected(reportHandler.GetGSTSummary))
+	r.mux.HandleFunc("/api/reports/state-wise", r.protected(reportHandler.GetStateSummary))
+	r.mux.HandleFunc("/api/reports/hsn-wise", r.protected(reportHandler.GetHSNSummary))
+	r.mux.HandleFunc("/api/reports/documents-issued", r.protected(reportHandler.GetDocumentsIssued))
+}
 
-	// --- Webhook Routes ---
-	mux.HandleFunc("/api/webhooks/shopify", webhookHandler.ShopifyWebhookHandler)
-	mux.HandleFunc("/api/webhook/status", protected(webhookHandler.GetWebhookStatus))
+func (r *Router) registerWebhookRoutes(webhookHandler *handler.WebhookHandler) {
+	r.mux.HandleFunc("/api/webhooks/shopify", webhookHandler.ShopifyWebhookHandler)
+	r.mux.HandleFunc("/api/webhook/status", r.protected(webhookHandler.GetWebhookStatus))
+}
 
-	// --- Settings Routes ---
-	mux.HandleFunc("/api/settings", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerSettingsRoutes(settingsHandler *handler.SettingsHandler) {
+	r.mux.HandleFunc("/api/settings", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPut:
-			adminProtected(settingsHandler.UpdateSetting)(w, r)
+			r.adminProtected(settingsHandler.UpdateSetting)(w, req)
 		default:
-			settingsHandler.GetAllSettings(w, r)
+			settingsHandler.GetAllSettings(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/settings/date-range", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/settings/date-range", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPut:
-			adminProtected(settingsHandler.SetDateRange)(w, r)
+			r.adminProtected(settingsHandler.SetDateRange)(w, req)
 		default:
-			settingsHandler.GetDateRange(w, r)
+			settingsHandler.GetDateRange(w, req)
 		}
 	}))
+}
 
-	// --- Configs Routes (API Keys & Secrets) ---
-	mux.HandleFunc("/api/configs", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerConfigsRoutes(configsHandler *handler.ConfigsHandler) {
+	r.mux.HandleFunc("/api/configs", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPut:
-			adminProtected(configsHandler.UpdateConfig)(w, r)
+			r.adminProtected(configsHandler.UpdateConfig)(w, req)
 		default:
-			configsHandler.GetAllConfigs(w, r)
+			configsHandler.GetAllConfigs(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/configs/reveal", adminProtected(configsHandler.RevealConfigs))
+	r.mux.HandleFunc("/api/configs/reveal", r.adminProtected(configsHandler.RevealConfigs))
+}
 
-	// --- WhatsApp Automation Routes ---
-	mux.HandleFunc("/api/automation/whatsapp/metrics", protected(automationHandler.GetAutomationMetrics))
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync", adminProtected(automationHandler.SyncTemplateStatus))
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync-all", adminProtected(automationHandler.SyncAllTemplates))
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync-single", adminProtected(automationHandler.SyncSingleTemplate))
-	mux.HandleFunc("/api/automation/whatsapp/templates/fetch", adminProtected(automationHandler.FetchTemplateFromMeta))
-	mux.HandleFunc("/api/automation/whatsapp/templates/upload", adminProtected(automationHandler.UploadTemplateMedia))
-	mux.HandleFunc("/api/automation/whatsapp/templates", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerAutomationRoutes(automationHandler *whatsapp.AutomationHandler) {
+	r.mux.HandleFunc("/api/automation/whatsapp/metrics", r.protected(automationHandler.GetAutomationMetrics))
+	r.mux.HandleFunc("/api/automation/whatsapp/templates/sync", r.adminProtected(automationHandler.SyncTemplateStatus))
+	r.mux.HandleFunc("/api/automation/whatsapp/templates/sync-all", r.adminProtected(automationHandler.SyncAllTemplates))
+	r.mux.HandleFunc("/api/automation/whatsapp/templates/sync-single", r.adminProtected(automationHandler.SyncSingleTemplate))
+	r.mux.HandleFunc("/api/automation/whatsapp/templates/fetch", r.adminProtected(automationHandler.FetchTemplateFromMeta))
+	r.mux.HandleFunc("/api/automation/whatsapp/templates/upload", r.adminProtected(automationHandler.UploadTemplateMedia))
+	r.mux.HandleFunc("/api/automation/whatsapp/templates", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(automationHandler.CreateTemplate)(w, r)
+			r.adminProtected(automationHandler.CreateTemplate)(w, req)
 		case http.MethodPut:
-			adminProtected(automationHandler.UpdateTemplate)(w, r)
+			r.adminProtected(automationHandler.UpdateTemplate)(w, req)
 		case http.MethodDelete:
-			adminProtected(automationHandler.DeleteTemplate)(w, r)
+			r.adminProtected(automationHandler.DeleteTemplate)(w, req)
 		default:
-			automationHandler.GetTemplates(w, r)
+			automationHandler.GetTemplates(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/automation/whatsapp/triggers", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/automation/whatsapp/triggers", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(automationHandler.CreateTrigger)(w, r)
+			r.adminProtected(automationHandler.CreateTrigger)(w, req)
 		case http.MethodPut:
-			adminProtected(automationHandler.UpdateTrigger)(w, r)
+			r.adminProtected(automationHandler.UpdateTrigger)(w, req)
 		case http.MethodDelete:
-			adminProtected(automationHandler.DeleteTrigger)(w, r)
+			r.adminProtected(automationHandler.DeleteTrigger)(w, req)
 		default:
-			automationHandler.GetTriggers(w, r)
+			automationHandler.GetTriggers(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/automation/whatsapp/messages", protected(automationHandler.GetMessages))
-	mux.HandleFunc("/api/automation/whatsapp/messages/order", protected(automationHandler.GetOrderMessages))
-
-	mux.HandleFunc("/api/automation/whatsapp/conversations", protected(automationHandler.GetConversations))
-	mux.HandleFunc("/api/automation/whatsapp/chat", protected(automationHandler.GetChatMessages))
-	mux.HandleFunc("/api/automation/whatsapp/chat/upload", adminProtected(automationHandler.UploadChatMedia))
-	mux.HandleFunc("/api/automation/whatsapp/chat/send-media", adminProtected(automationHandler.SendChatMedia))
-	mux.HandleFunc("/api/automation/whatsapp/send-message", adminProtected(automationHandler.SendFreeTextMessage))
-	mux.HandleFunc("/api/automation/whatsapp/conversations/mode", adminProtected(automationHandler.UpdateConversationMode))
-	mux.HandleFunc("/api/automation/whatsapp/events", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/automation/whatsapp/messages", r.protected(automationHandler.GetMessages))
+	r.mux.HandleFunc("/api/automation/whatsapp/messages/order", r.protected(automationHandler.GetOrderMessages))
+	r.mux.HandleFunc("/api/automation/whatsapp/conversations", r.protected(automationHandler.GetConversations))
+	r.mux.HandleFunc("/api/automation/whatsapp/chat", r.protected(automationHandler.GetChatMessages))
+	r.mux.HandleFunc("/api/automation/whatsapp/chat/upload", r.adminProtected(automationHandler.UploadChatMedia))
+	r.mux.HandleFunc("/api/automation/whatsapp/chat/send-media", r.adminProtected(automationHandler.SendChatMedia))
+	r.mux.HandleFunc("/api/automation/whatsapp/send-message", r.adminProtected(automationHandler.SendFreeTextMessage))
+	r.mux.HandleFunc("/api/automation/whatsapp/conversations/mode", r.adminProtected(automationHandler.UpdateConversationMode))
+	r.mux.HandleFunc("/api/automation/whatsapp/events", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(automationHandler.CreateEvent)(w, r)
+			r.adminProtected(automationHandler.CreateEvent)(w, req)
 		case http.MethodDelete:
-			adminProtected(automationHandler.DeleteEvent)(w, r)
+			r.adminProtected(automationHandler.DeleteEvent)(w, req)
 		default:
-			automationHandler.GetEvents(w, r)
+			automationHandler.GetEvents(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/automation/whatsapp/send-manual", adminProtected(automationHandler.SendManualMessage))
-	mux.HandleFunc("/api/automation/whatsapp/send-bulk", adminProtected(automationHandler.SendBulkMarketing))
-	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", adminProtected(automationHandler.SyncAutomationMetrics))
-	mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
-	mux.HandleFunc("/api/automation/whatsapp/telegram-webhook", automationHandler.TelegramWebhook)
-	mux.HandleFunc("/api/automation/whatsapp/media", protected(automationHandler.GetWhatsAppMedia))
-	// Marketing routes moved to top
+	r.mux.HandleFunc("/api/automation/whatsapp/send-manual", r.adminProtected(automationHandler.SendManualMessage))
+	r.mux.HandleFunc("/api/automation/whatsapp/send-bulk", r.adminProtected(automationHandler.SendBulkMarketing))
+	r.mux.HandleFunc("/api/automation/whatsapp/sync-metrics", r.adminProtected(automationHandler.SyncAutomationMetrics))
+	r.mux.HandleFunc("/api/automation/whatsapp/webhook", automationHandler.WhatsAppWebhook)
+	r.mux.HandleFunc("/api/automation/whatsapp/telegram-webhook", automationHandler.TelegramWebhook)
+	r.mux.HandleFunc("/api/automation/whatsapp/media", r.protected(automationHandler.GetWhatsAppMedia))
+}
 
-	// --- Swagger ---
-	mux.Handle("/api/swagger/", cors(httpSwagger.WrapHandler.ServeHTTP))
-
-	// --- Redirect Tracking ---
-	mux.HandleFunc("/t/", redirectHandler.RedirectTracking)
-
-	// --- Knowledge API (System Docs) ---
-	mux.HandleFunc("/api/system/docs", protected(systemHandler.ListDocs))
-	mux.HandleFunc("/api/system/docs/", protected(systemHandler.GetDoc))
-
-	// --- Planner Routes ---
-	mux.HandleFunc("/api/planner/boards", protected(plannerHandler.GetBoards))
-	mux.HandleFunc("/api/planner/tasks", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerPlannerRoutes(plannerHandler *handler.PlannerHandler) {
+	r.mux.HandleFunc("/api/planner/boards", r.protected(plannerHandler.GetBoards))
+	r.mux.HandleFunc("/api/planner/tasks", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(plannerHandler.CreateTask)(w, r)
+			r.adminProtected(plannerHandler.CreateTask)(w, req)
 		case http.MethodPut:
-			adminProtected(plannerHandler.UpdateTask)(w, r)
+			r.adminProtected(plannerHandler.UpdateTask)(w, req)
 		case http.MethodDelete:
-			adminProtected(plannerHandler.DeleteTask)(w, r)
+			r.adminProtected(plannerHandler.DeleteTask)(w, req)
 		default:
-			plannerHandler.GetTasks(w, r)
+			plannerHandler.GetTasks(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/planner/tasks/move", adminProtected(plannerHandler.MoveTask))
-	mux.HandleFunc("/api/planner/sprints", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/planner/tasks/move", r.adminProtected(plannerHandler.MoveTask))
+	r.mux.HandleFunc("/api/planner/sprints", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(plannerHandler.CreateSprint)(w, r)
+			r.adminProtected(plannerHandler.CreateSprint)(w, req)
 		case http.MethodPut:
-			adminProtected(plannerHandler.UpdateSprint)(w, r)
+			r.adminProtected(plannerHandler.UpdateSprint)(w, req)
 		case http.MethodDelete:
-			adminProtected(plannerHandler.DeleteSprint)(w, r)
+			r.adminProtected(plannerHandler.DeleteSprint)(w, req)
 		default:
-			plannerHandler.GetSprints(w, r)
+			plannerHandler.GetSprints(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/planner/analytics", protected(plannerHandler.GetAnalytics))
-	
-	mux.HandleFunc("/api/inventory", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/planner/analytics", r.protected(plannerHandler.GetAnalytics))
+}
+
+func (r *Router) registerInventoryRoutes(inventoryHandler *handler.InventoryHandler) {
+	r.mux.HandleFunc("/api/inventory", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(inventoryHandler.CreateItem)(w, r)
+			r.adminProtected(inventoryHandler.CreateItem)(w, req)
 		case http.MethodDelete:
-			adminProtected(inventoryHandler.Clear)(w, r)
+			r.adminProtected(inventoryHandler.Clear)(w, req)
 		default:
-			inventoryHandler.GetDashboard(w, r)
+			inventoryHandler.GetDashboard(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/inventory/next-sku", protected(inventoryHandler.GetNextSKU))
-	mux.HandleFunc("/api/inventory/sync-shopify", adminProtected(inventoryHandler.SyncShopify))
-	mux.HandleFunc("/api/inventory/bulk", adminProtected(inventoryHandler.BulkCreate))
-	mux.HandleFunc("/api/inventory/map", adminProtected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/inventory/next-sku", r.protected(inventoryHandler.GetNextSKU))
+	r.mux.HandleFunc("/api/inventory/sync-shopify", r.adminProtected(inventoryHandler.SyncShopify))
+	r.mux.HandleFunc("/api/inventory/bulk", r.adminProtected(inventoryHandler.BulkCreate))
+	r.mux.HandleFunc("/api/inventory/map", r.adminProtected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			inventoryHandler.CreateMapping(w, r)
+			inventoryHandler.CreateMapping(w, req)
 		case http.MethodDelete:
-			inventoryHandler.DeleteMapping(w, r)
+			inventoryHandler.DeleteMapping(w, req)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
-	mux.HandleFunc("/api/inventory/stock", adminProtected(inventoryHandler.UpdateStock))
-	mux.HandleFunc("/api/inventory/adjust", adminProtected(inventoryHandler.AdjustStock))
-	mux.HandleFunc("/api/inventory/logs", adminProtected(inventoryHandler.GetLogs))
-	mux.HandleFunc("/api/inventory/amazon/sync", adminProtected(inventoryHandler.SyncAmazon))
-	mux.HandleFunc("/api/inventory/item", adminProtected(inventoryHandler.UpdateItem))
-	
-	// --- Oil Inventory Routes ---
-	mux.HandleFunc("/api/inventory/oil/bulk-delete", adminProtected(oilHandler.BulkDeleteOils))
-	mux.HandleFunc("/api/inventory/oil", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	r.mux.HandleFunc("/api/inventory/stock", r.adminProtected(inventoryHandler.UpdateStock))
+	r.mux.HandleFunc("/api/inventory/adjust", r.adminProtected(inventoryHandler.AdjustStock))
+	r.mux.HandleFunc("/api/inventory/logs", r.adminProtected(inventoryHandler.GetLogs))
+	r.mux.HandleFunc("/api/inventory/amazon/sync", r.adminProtected(inventoryHandler.SyncAmazon))
+	r.mux.HandleFunc("/api/inventory/item", r.adminProtected(inventoryHandler.UpdateItem))
+}
+
+func (r *Router) registerOilRoutes(oilHandler *handler.OilInventoryHandler) {
+	r.mux.HandleFunc("/api/inventory/oil/bulk-delete", r.adminProtected(oilHandler.BulkDeleteOils))
+	r.mux.HandleFunc("/api/inventory/oil", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(oilHandler.CreateOil)(w, r)
+			r.adminProtected(oilHandler.CreateOil)(w, req)
 		case http.MethodPut:
-			adminProtected(oilHandler.UpdateOil)(w, r)
+			r.adminProtected(oilHandler.UpdateOil)(w, req)
 		case http.MethodDelete:
-			adminProtected(oilHandler.DeleteOil)(w, r)
+			r.adminProtected(oilHandler.DeleteOil)(w, req)
 		default:
-			oilHandler.ListOils(w, r)
+			oilHandler.ListOils(w, req)
 		}
 	}))
+}
 
-	// --- Supplier Routes ---
-	mux.HandleFunc("/api/inventory/suppliers", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerSupplierRoutes(supplierHandler *handler.SupplierHandler) {
+	r.mux.HandleFunc("/api/inventory/suppliers", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(supplierHandler.CreateSupplier)(w, r)
+			r.adminProtected(supplierHandler.CreateSupplier)(w, req)
 		case http.MethodPut:
-			adminProtected(supplierHandler.UpdateSupplier)(w, r)
+			r.adminProtected(supplierHandler.UpdateSupplier)(w, req)
 		case http.MethodDelete:
-			adminProtected(supplierHandler.DeleteSupplier)(w, r)
+			r.adminProtected(supplierHandler.DeleteSupplier)(w, req)
 		default:
-			supplierHandler.ListSuppliers(w, r)
+			supplierHandler.ListSuppliers(w, req)
 		}
 	}))
+}
 
-	// --- Purchase Order Routes ---
-	mux.HandleFunc("/api/inventory/po", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerPORoutes(poHandler *handler.PurchaseOrderHandler) {
+	r.mux.HandleFunc("/api/inventory/po", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(poHandler.Create)(w, r)
+			r.adminProtected(poHandler.Create)(w, req)
 		case http.MethodPut:
-			adminProtected(poHandler.Update)(w, r)
+			r.adminProtected(poHandler.Update)(w, req)
 		case http.MethodDelete:
-			adminProtected(poHandler.Delete)(w, r)
+			r.adminProtected(poHandler.Delete)(w, req)
 		default:
-			poHandler.List(w, r)
+			poHandler.List(w, req)
 		}
 	}))
-	mux.HandleFunc("/api/inventory/po/bulk", adminProtected(poHandler.BulkCreate))
+	r.mux.HandleFunc("/api/inventory/po/bulk", r.adminProtected(poHandler.BulkCreate))
+}
 
-	// --- Manufacturing Routes ---
-	mux.HandleFunc("/api/inventory/manufacturing", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerMfgRoutes(mfgHandler *handler.ManufacturingHandler) {
+	r.mux.HandleFunc("/api/inventory/manufacturing", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodPost:
-			adminProtected(mfgHandler.Create)(w, r)
+			r.adminProtected(mfgHandler.Create)(w, req)
 		case http.MethodPut:
-			adminProtected(mfgHandler.Update)(w, r)
+			r.adminProtected(mfgHandler.Update)(w, req)
 		case http.MethodDelete:
-			adminProtected(mfgHandler.Delete)(w, r)
+			r.adminProtected(mfgHandler.Delete)(w, req)
 		default:
-			mfgHandler.List(w, r)
+			mfgHandler.List(w, req)
 		}
 	}))
+}
 
-	// --- AI Analysis Routes ---
-	mux.HandleFunc("/api/ai/chat", protected(aiHandler.Chat))
-	mux.HandleFunc("/api/ai/conversations", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+func (r *Router) registerAIRoutes(aiHandler *handler.AIHandler) {
+	r.mux.HandleFunc("/api/ai/chat", r.protected(aiHandler.Chat))
+	r.mux.HandleFunc("/api/ai/conversations", r.protected(func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case http.MethodGet:
-			if r.URL.Query().Get("id") != "" {
-				aiHandler.GetConversation(w, r)
+			if req.URL.Query().Get("id") != "" {
+				aiHandler.GetConversation(w, req)
 			} else {
-				aiHandler.ListConversations(w, r)
+				aiHandler.ListConversations(w, req)
 			}
 		case http.MethodDelete:
-			aiHandler.DeleteConversation(w, r)
+			aiHandler.DeleteConversation(w, req)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
