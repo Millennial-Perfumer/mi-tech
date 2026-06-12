@@ -81,9 +81,7 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 
 	// Trigger global sync for all affected inventory items
 	if s.orchestrator != nil {
-		for _, id := range affectedIDs {
-			_ = s.orchestrator.GlobalSync(context.Background(), id, "shopify")
-		}
+		_ = s.orchestrator.GlobalSyncBatch(context.Background(), affectedIDs, "shopify")
 	}
 
 	// Update customer metadata in batch to avoid N+1 queries

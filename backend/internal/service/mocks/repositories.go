@@ -177,6 +177,11 @@ func (m *MockInventoryRepository) GetItemByID(id int) (entity.InventoryItem, err
 	return args.Get(0).(entity.InventoryItem), args.Error(1)
 }
 
+func (m *MockInventoryRepository) GetItemsByIDs(ids []int) ([]entity.InventoryItem, error) {
+	args := m.Called(ids)
+	return args.Get(0).([]entity.InventoryItem), args.Error(1)
+}
+
 func (m *MockInventoryRepository) CreateItem(item *entity.InventoryItem) error {
 	args := m.Called(item)
 	return args.Error(0)

@@ -29,3 +29,9 @@
 ## 2026-05-18 - [Optimizing Single-Order Inventory Sync]
 **Learning:** Even within single-entity operations (like a webhook processing one order), internal child loops (e.g., iterating over line items/SKUs) can create N+1 query patterns. Batching lookups for mappings and batching the resulting audit logs reduces database roundtrips from O(3N) to O(N+2).
 **Action:** Always look for loops within repository methods that perform DB lookups or inserts. Replace them with batch queries (IN clauses) and batch inserts (passing slices to Create).
+## 2026-06-12 - [Batching Global Sync for Orders]
+**Learning:** Sequential inventory synchronization within `SyncService.Sync` looping over `affectedIDs` to trigger `GlobalSync` causes an N+1 query issue since it internally queries `GetItemByID`.
+**Action:** Always batch lookups using an `IN` clause via a repository method like `GetItemsByIDs` and then perform synchronization processing in bulk to eliminate N+1 DB calls.
+## 2026-06-12 - [ESLint 9 Flat Config Bug in Vite React TS]
+**Learning:** Across frontend projects, trying to extend `reactHooks.configs.flat.recommended` with ESLint 9 Flat Config causes a `TypeError: Cannot read properties of undefined (reading 'recommended')` because `reactHooks.configs` does not natively have a `flat` property yet in some versions.
+**Action:** When updating ESLint configs for frontend projects, instead of relying on the broken `flat` property on `eslint-plugin-react-hooks`, manually configure the `plugins: { 'react-hooks': reactHooks }` and spread the rules `...reactHooks.configs.recommended.rules` inside the flat config object.
