@@ -19,6 +19,7 @@ type OrderFilter struct {
 	FulfillmentStatus string
 	SortBy            string
 	SortOrder         string
+	Status            string
 }
 
 // PlannerFilter holds query parameters for tasks and analytics.
@@ -46,7 +47,10 @@ type OrderRepository interface {
 	UpdateOrderDetails(id int64, order entity.Order) error
 	ListSources() ([]entity.Source, error)
 	GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error)
-	GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error)
+	GetCustomersStats(phones []string) (map[string]struct {
+		Count int
+		Sum   float64
+	}, error)
 	TruncateAll() error
 
 	// Feedback & Delivery System
@@ -57,6 +61,7 @@ type OrderRepository interface {
 	SaveCustomerFeedback(feedback entity.CustomerFeedback) error
 	GetCustomerFeedback() ([]dto.FeedbackResponse, error)
 	UpdateFeedbackAdminComment(id int, comment string) error
+	GetNextPOSSequence(terminalCode string) (string, error)
 }
 
 // LineItemRepository defines all data access operations for the order_line_items table.
@@ -166,18 +171,20 @@ type PlannerRepository interface {
 	UpdateTask(task *entity.PlannerTask) error
 	DeleteTask(id uint) error
 	MoveTask(taskID uint, toColumnID uint, newOrder int) error
-	
+
 	// Analytics
 	GetSprintVelocity(sprintID uint) (int, error)
 	GetTaskLeadTime(taskID uint) (float64, error)
 	GetNextTicketNumber() (string, error)
 }
+
 // InventoryRepository defines all data access for the inventory hub and SKU mappings.
 type InventoryRepository interface {
 	WithTx(tx *gorm.DB) InventoryRepository
 	// Items
 	ListItems(search string) ([]entity.InventoryItem, error)
 	GetItemByID(id int) (entity.InventoryItem, error)
+	GetItemsByIDs(ids []int) ([]entity.InventoryItem, error)
 	CreateItem(item *entity.InventoryItem) error
 	UpdateItem(item *entity.InventoryItem) error
 	AdjustStock(id int, delta int) error

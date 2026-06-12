@@ -50,7 +50,7 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 		end = time.Now()
 	}
 
-	log.Printf("Starting Shopify order sync fetching orders updated between %s and %s...", 
+	log.Printf("Starting Shopify order sync fetching orders updated between %s and %s...",
 		start.Format(time.RFC3339), end.Format(time.RFC3339))
 
 	shopifyOrders, err := s.shopifyClient.FetchOrders(start, end)
@@ -59,7 +59,7 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 	}
 
 	if len(shopifyOrders) == 0 {
-		log.Printf("No new or updated orders found from Shopify between %s and %s", 
+		log.Printf("No new or updated orders found from Shopify between %s and %s",
 			start.Format(time.RFC3339), end.Format(time.RFC3339))
 		return 0, nil
 	}
@@ -81,9 +81,7 @@ func (s *SyncService) Sync(startTime *time.Time, endTime *time.Time) (int, error
 
 	// Trigger global sync for all affected inventory items
 	if s.orchestrator != nil {
-		for _, id := range affectedIDs {
-			_ = s.orchestrator.GlobalSync(context.Background(), id, "shopify")
-		}
+		_ = s.orchestrator.GlobalSyncBatch(context.Background(), affectedIDs, "shopify")
 	}
 
 	// Update customer metadata in batch to avoid N+1 queries

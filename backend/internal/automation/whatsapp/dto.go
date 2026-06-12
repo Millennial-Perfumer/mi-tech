@@ -35,11 +35,11 @@ type CreateTemplateRequest struct {
 }
 
 type Trigger struct {
-	ID           int       `json:"id"`
-	StoreID      string    `json:"store_id"`
-	WebhookTopic string    `json:"webhook_topic"`
-	TemplateID   int       `json:"template_id"`
-	Enabled      bool      `json:"enabled"`
+	ID             int       `json:"id"`
+	StoreID        string    `json:"store_id"`
+	WebhookTopic   string    `json:"webhook_topic"`
+	TemplateID     int       `json:"template_id"`
+	Enabled        bool      `json:"enabled"`
 	TemplateName   string    `json:"template_name,omitempty"`   // Joined field
 	TemplateBody   string    `json:"template_body,omitempty"`   // Joined field
 	TemplateStatus string    `json:"template_status,omitempty"` // Joined field
@@ -55,23 +55,23 @@ type AutomationEvent struct {
 }
 
 type AutomationTemplate struct {
-	ID             int              `json:"id"`
-	StoreID        string           `json:"store_id"`
-	TemplateName   string           `json:"template_name"`
-	Language       string           `json:"language"`
-	Category       string           `json:"category"`
-	Body           string           `json:"body"`
-	Header         *json.RawMessage `json:"header,omitempty"`
-	Footer         *string          `json:"footer,omitempty"`
-	Buttons        *json.RawMessage `json:"buttons,omitempty"`
-	Status         string           `json:"status"` // PENDING, APPROVED, REJECTED
-	MetaTemplateID string           `json:"meta_template_id"`
+	ID               int              `json:"id"`
+	StoreID          string           `json:"store_id"`
+	TemplateName     string           `json:"template_name"`
+	Language         string           `json:"language"`
+	Category         string           `json:"category"`
+	Body             string           `json:"body"`
+	Header           *json.RawMessage `json:"header,omitempty"`
+	Footer           *string          `json:"footer,omitempty"`
+	Buttons          *json.RawMessage `json:"buttons,omitempty"`
+	Status           string           `json:"status"` // PENDING, APPROVED, REJECTED
+	MetaTemplateID   string           `json:"meta_template_id"`
 	VariableMappings *json.RawMessage `json:"variable_mappings,omitempty"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
-	SentCount      int              `json:"sent_count"`
-	DeliveredCount int              `json:"delivered_count"`
-	ReadCount      int              `json:"read_count"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
+	SentCount        int              `json:"sent_count"`
+	DeliveredCount   int              `json:"delivered_count"`
+	ReadCount        int              `json:"read_count"`
 }
 
 type Conversation struct {

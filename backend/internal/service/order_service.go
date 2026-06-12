@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"mi-tech/internal/client/shopify"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
@@ -31,7 +34,7 @@ func NewOrderService(orderRepo repository.OrderRepository, lineItemRepo reposito
 }
 
 // ListOrders retrieves a paginated list of orders and converts them to DTOs.
-func (s *OrderService) ListOrders(startDate, endDate string, page, limit int, search, source, finStatus, fulStatus, sortBy, sortOrder string) ([]dto.OrderResponse, int, error) {
+func (s *OrderService) ListOrders(startDate, endDate string, page, limit int, search, source, finStatus, fulStatus, status, sortBy, sortOrder string) ([]dto.OrderResponse, int, error) {
 	filter := repository.OrderFilter{
 		StartDate:         startDate,
 		EndDate:           endDate,
@@ -43,6 +46,7 @@ func (s *OrderService) ListOrders(startDate, endDate string, page, limit int, se
 		FulfillmentStatus: fulStatus,
 		SortBy:            sortBy,
 		SortOrder:         sortOrder,
+		Status:            status,
 	}
 
 	entities, totalCount, err := s.orderRepo.List(filter)
@@ -135,7 +139,7 @@ func (s *OrderService) UpdateOrderStatusWithEntity(id int64, status string, orde
 						// Actually, our orchestrator Handles deduction based on the Platform SKU
 						// but AdjustStock usually takes the InventoryItemID.
 						// The poller uses inventoryRepo.GetItemByPlatformSKU.
-						
+
 						// To keep it simple and consistent with the poller:
 						// We'll perform the same reversal logic here for Amazon orders.
 						if order.SourceID == "amazon" {
@@ -164,13 +168,13 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 	for _, id := range affectedIDs {
 		_ = s.orchestrator.GlobalSync(context.Background(), id, order.SourceID)
 	}
-	
+
 	if s.customerService != nil {
 		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
 	}
 	return nil
 }
-	
+
 // UpdateOrderPaymentStatus updates the financial status of an order using its internal ID.
 func (s *OrderService) UpdateOrderPaymentStatus(id int64, status string) error {
 	return s.orderRepo.UpdateFinancialStatus(id, status)
@@ -227,7 +231,7 @@ func (s *OrderService) UpdateOrder(id int64, req dto.OrderUpdateRequest) error {
 	order.CustomerState = entity.StrPtr(req.CustomerState)
 	order.CustomerZip = entity.StrPtr(req.CustomerZip)
 	order.CustomerCountry = entity.StrPtr(req.CustomerCountry)
-	
+
 	fullName := req.CustomerFirstName
 	if req.CustomerLastName != "" {
 		fullName += " " + req.CustomerLastName
@@ -294,4 +298,113 @@ func (s *OrderService) ValidateFeedback(orderID int64, phone string) (bool, erro
 		return false, err
 	}
 	return true, nil
+}
+
+// CreateManualOrder generates a new sequential POS order, updates inventory, and syncs to other platforms.
+func (s *OrderService) CreateManualOrder(ctx context.Context, req dto.OrderCreateRequest) (dto.OrderResponse, error) {
+	// 1. Generate sequential order number
+	if req.TerminalCode == "" {
+		req.TerminalCode = "POS1"
+	}
+	orderNumber, err := s.orderRepo.GetNextPOSSequence(req.TerminalCode)
+	if err != nil {
+		return dto.OrderResponse{}, fmt.Errorf("failed to generate POS order number: %w", err)
+	}
+
+	fullName := strings.TrimSpace(req.CustomerName)
+	firstName := fullName
+	lastName := ""
+	if parts := strings.SplitN(fullName, " ", 2); len(parts) == 2 {
+		firstName = parts[0]
+		lastName = parts[1]
+	}
+
+	financialStatus := req.FinancialStatus
+	if financialStatus == "" {
+		financialStatus = "paid"
+	}
+	fulfillmentStatus := req.FulfillmentStatus
+	if fulfillmentStatus == "" {
+		fulfillmentStatus = "fulfilled"
+	}
+
+	// Calculate subtotal price and tax
+	// TotalPrice is inclusive of GST. Inclusive tax calculation (18% inclusive GST):
+	totalTax := req.TotalPrice - (req.TotalPrice / 1.18)
+	subtotalPrice := req.TotalPrice - totalTax
+
+	order := entity.Order{
+		SourceID:          "pos",
+		ExternalOrderID:   "pos-" + orderNumber,
+		OrderNumber:       orderNumber,
+		TotalPrice:        req.TotalPrice,
+		SubtotalPrice:     entity.Float64Ptr(subtotalPrice),
+		TotalTax:          entity.Float64Ptr(totalTax),
+		TotalDiscount:     req.TotalDiscount,
+		Currency:          entity.StrPtr("INR"),
+		FinancialStatus:   entity.StrPtr(financialStatus),
+		FulfillmentStatus: entity.StrPtr(fulfillmentStatus),
+		CustomerName:      entity.StrPtr(fullName),
+		CustomerFirstName: entity.StrPtr(firstName),
+		CustomerLastName:  entity.StrPtr(lastName),
+		CustomerEmail:     entity.StrPtr(req.CustomerEmail),
+		CustomerPhone:     entity.StrPtr(req.CustomerPhone),
+		CustomerAddress1:  entity.StrPtr(req.CustomerAddress1),
+		CustomerAddress2:  entity.StrPtr(req.CustomerAddress2),
+		CustomerCity:      entity.StrPtr(req.CustomerCity),
+		CustomerState:     entity.StrPtr(req.CustomerState),
+		CustomerZip:       entity.StrPtr(req.CustomerZip),
+		CustomerCountry:   entity.StrPtr(req.CustomerCountry),
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	for i, li := range req.LineItems {
+		order.LineItems = append(order.LineItems, entity.LineItem{
+			ID:       fmt.Sprintf("pos-%s-%d", orderNumber, i),
+			SKU:      entity.StrPtr(li.MISKU),
+			Title:    entity.StrPtr(li.Title),
+			Quantity: li.Quantity,
+			Price:    li.Price,
+			Discount: li.Discount,
+		})
+	}
+
+	// 4. Upsert → syncInventoryDeltas → deducts current_stock
+	affectedIDs, err := s.orderRepo.Upsert(order)
+	if err != nil {
+		return dto.OrderResponse{}, fmt.Errorf("failed to save manual order: %w", err)
+	}
+
+	// Fetch fully saved order with generated ID
+	savedOrder, err := s.orderRepo.GetByExternalID(order.ExternalOrderID)
+	if err != nil {
+		return dto.OrderResponse{}, fmt.Errorf("failed to fetch saved manual order: %w", err)
+	}
+
+	// Fetch or assign line items
+	if s.lineItemRepo != nil {
+		lineItems, err := s.lineItemRepo.GetByOrderID(savedOrder.ID)
+		if err == nil {
+			savedOrder.LineItems = lineItems
+		} else {
+			savedOrder.LineItems = order.LineItems
+		}
+	} else {
+		savedOrder.LineItems = order.LineItems
+	}
+
+	// 5. GlobalSync → push updated stock to Shopify + Amazon
+	if s.orchestrator != nil {
+		for _, id := range affectedIDs {
+			_ = s.orchestrator.GlobalSync(ctx, id, "pos")
+		}
+	}
+
+	// 6. Create/update customer profile
+	if s.customerService != nil {
+		_ = s.customerService.UpdateFromOrder(ctx, &savedOrder)
+	}
+
+	return mapper.OrderEntityToResponse(savedOrder), nil
 }

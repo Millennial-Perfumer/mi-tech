@@ -85,7 +85,7 @@ type ShopifyLineItem struct {
 		Price string  `json:"price"`
 		Rate  float64 `json:"rate"`
 	} `json:"tax_lines"`
-	TotalDiscount       string                     `json:"total_discount"`
+	TotalDiscount       string                      `json:"total_discount"`
 	DiscountAllocations []ShopifyDiscountAllocation `json:"discount_allocations"`
 }
 

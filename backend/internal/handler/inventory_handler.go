@@ -103,6 +103,19 @@ func (h *InventoryHandler) SyncShopify(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(staged)
 }
 
+// SyncPrices calls the shopify api and gets the price of each product and updates the local db.
+func (h *InventoryHandler) SyncPrices(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.service.SyncShopifyPrices(r.Context())
+	if err != nil {
+		log.Printf("InventoryHandler.SyncPrices error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
 // CreateMapping creates a link between an external and internal SKU.
 func (h *InventoryHandler) CreateMapping(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -143,7 +156,6 @@ func (h *InventoryHandler) DeleteMapping(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusOK)
 }
-
 
 // AdjustStock handles manual stock updates.
 func (h *InventoryHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +213,7 @@ func (h *InventoryHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
 		StartDate string `json:"start_date"`
 		EndDate   string `json:"end_date"`
 	}
-	
+
 	// Optional body
 	json.NewDecoder(r.Body).Decode(&req)
 

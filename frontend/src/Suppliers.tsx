@@ -7,6 +7,7 @@ interface Supplier {
   id: number;
   name: string;
   contact_info: string;
+  oils_count: number;
 }
 
 export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
@@ -172,13 +173,14 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
             <tr>
               <th style={{ paddingLeft: '2rem' }}>Name</th>
               <th>Contact Info</th>
+              <th>Oils Supplied</th>
               <th style={{ paddingRight: '2rem', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredSuppliers.length === 0 && !isLoading ? (
               <tr>
-                <td colSpan={3} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>No suppliers found.</td>
+                <td colSpan={4} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>No suppliers found.</td>
               </tr>
             ) : (
               filteredSuppliers.map(s => (
@@ -208,6 +210,26 @@ export const Suppliers: React.FC<{ token: string | null }> = ({ token }) => {
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                       </svg>
                       {s.contact_info || '—'}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="badge-pill" style={{ 
+                      background: 'rgba(99, 102, 241, 0.1)', 
+                      color: 'var(--accent-indigo)',
+                      fontWeight: 800,
+                      fontSize: '0.8rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      padding: '0.3rem 0.6rem',
+                      borderRadius: '8px'
+                    }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/>
+                        <line x1="16" y1="8" x2="2" y2="22"/>
+                        <line x1="17.5" y1="15" x2="9" y2="15"/>
+                      </svg>
+                      {s.oils_count || 0}
                     </div>
                   </td>
                   <td style={{ paddingRight: '2rem', textAlign: 'right' }}>

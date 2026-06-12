@@ -17,14 +17,6 @@ import (
 	"time"
 )
 
-func isValidDate(date string) bool {
-	if date == "" {
-		return true
-	}
-	_, err := time.Parse("2006-01-02", date)
-	return err == nil
-}
-
 // parseISTAsUTCBoundaries converts a YYYY-MM-DD string (assumed IST) to a UTC time.Time boundary.
 func parseISTAsUTCBoundaries(dateStr string, isEnd bool) (*time.Time, error) {
 	if dateStr == "" {
@@ -220,12 +212,23 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 							Text struct {
 								Body string `json:"body"`
 							} `json:"text"`
-							Type     string `json:"type"`
-							Image    *struct { ID string `json:"id"` } `json:"image,omitempty"`
-							Video    *struct { ID string `json:"id"` } `json:"video,omitempty"`
-							Audio    *struct { ID string `json:"id"` } `json:"audio,omitempty"`
-							Document *struct { ID string `json:"id"`; Filename string `json:"filename"` } `json:"document,omitempty"`
-							Sticker  *struct { ID string `json:"id"` } `json:"sticker,omitempty"`
+							Type  string `json:"type"`
+							Image *struct {
+								ID string `json:"id"`
+							} `json:"image,omitempty"`
+							Video *struct {
+								ID string `json:"id"`
+							} `json:"video,omitempty"`
+							Audio *struct {
+								ID string `json:"id"`
+							} `json:"audio,omitempty"`
+							Document *struct {
+								ID       string `json:"id"`
+								Filename string `json:"filename"`
+							} `json:"document,omitempty"`
+							Sticker *struct {
+								ID string `json:"id"`
+							} `json:"sticker,omitempty"`
 							Reaction *struct {
 								MessageID string `json:"message_id"`
 								Emoji     string `json:"emoji"`
@@ -247,7 +250,6 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "Invalid payload", http.StatusBadRequest)
 			return
 		}
-
 
 		for _, entry := range payload.Entry {
 			for _, change := range entry.Changes {
@@ -311,8 +313,8 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 							if err == nil {
 								text = fmt.Sprintf("Sent a document: %s", msg.Document.Filename)
 								mediaMetadata = map[string]interface{}{
-									"media_id": msg.Document.ID, 
-									"filename": filename,
+									"media_id":      msg.Document.ID,
+									"filename":      filename,
 									"original_name": msg.Document.Filename,
 								}
 							} else {
@@ -717,6 +719,7 @@ func (h *AutomationHandler) UploadTemplateMedia(w http.ResponseWriter, r *http.R
 		"handle": handle,
 	})
 }
+
 // SyncAutomationMetrics handles POST /api/automation/whatsapp/metrics/sync.
 // @Summary Sync Meta insights
 // @Description Fetch delivery and read analytics directly from Meta's Insight API.
@@ -967,7 +970,7 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 	suffix := h.settings.GetBulkTemplateSuffix()
 	cat := strings.ToUpper(strings.TrimSpace(template.Category))
 	isMarketing := cat == "MARKETING"
-	
+
 	log.Printf("SendBulkMarketing: Validating template '%s' (Category: '%s', Suffix: '%s')", template.TemplateName, cat, suffix)
 
 	if !isMarketing && (suffix == "" || !strings.HasSuffix(strings.ToLower(template.TemplateName), strings.ToLower(suffix))) {
@@ -1156,7 +1159,7 @@ func (h *AutomationHandler) SendFreeTextMessage(w http.ResponseWriter, r *http.R
 
 	// Determine sender role from context/token if available, else default to 'human'
 	senderRole := "human"
-	
+
 	_, err := h.messagesService.SendFreeTextMessage(req.PhoneNumber, req.Text, senderRole)
 	if err != nil {
 		log.Printf("SendFreeTextMessage Error: %v", err)
@@ -1232,7 +1235,7 @@ func (h *AutomationHandler) GetWhatsAppMedia(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Invalid path", http.StatusInternalServerError)
 		return
 	}
-	
+
 	absDir, _ := filepath.Abs(dir)
 	if !strings.HasPrefix(absPath, absDir) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
@@ -1335,4 +1338,3 @@ func (h *AutomationHandler) GetOrderMessages(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(messages)
 }
-

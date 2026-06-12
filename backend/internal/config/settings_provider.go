@@ -3,8 +3,8 @@ package config
 import (
 	"fmt"
 	"log"
-	"os"
 	"mi-tech/internal/repository"
+	"os"
 )
 
 type SettingsProvider struct {

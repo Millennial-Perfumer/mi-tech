@@ -56,7 +56,7 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 			}
 		} else {
-			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) Method=[%s] Path=[%s] not in ALLOWED_ORIGINS=[%s]", 
+			log.Printf("CORS REJECTED: Origin=[%s] (normalized=[%s]) Method=[%s] Path=[%s] not in ALLOWED_ORIGINS=[%s]",
 				rawOrigin, origin, r.Method, r.URL.Path, allowedOriginsEnv)
 		}
 
@@ -79,9 +79,9 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 			path := r.URL.Path
 			log.Printf("AuthMiddleware: %s %s", r.Method, path)
 			if r.Method == "OPTIONS" ||
-			   strings.HasPrefix(path, "/api/webhooks") || 
-			   path == "/api/health" || 
-			   path == "/api/auth/login" {
+				strings.HasPrefix(path, "/api/webhooks") ||
+				path == "/api/health" ||
+				path == "/api/auth/login" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -110,7 +110,7 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 				http.Error(w, "invalid token claims", http.StatusUnauthorized)
 				return
 			}
-			
+
 			role, _ := claims["role"].(string)
 			if role == "" {
 				role = "read" // default fallback
@@ -164,15 +164,15 @@ func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
 func MetricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Create a custom response writer to capture the status code
 		rw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
-		
+
 		next.ServeHTTP(rw, r)
-		
+
 		duration := time.Since(start).Seconds()
 		path := r.URL.Path
-		
+
 		// Clean up path for cardinality (e.g. /api/orders/1 -> /api/orders/:id if possible)
 		// For now simple path tracking
 		telemetry.HttpRequestsTotal.With(prometheus.Labels{
@@ -180,7 +180,7 @@ func MetricsMiddleware(next http.Handler) http.Handler {
 			"method": r.Method,
 			"status": string(rune(rw.status)), // This is slightly wrong, should be string representation
 		}).Inc()
-		
+
 		// Better status as string
 		statusStr := fmt.Sprintf("%d", rw.status)
 		telemetry.HttpRequestsTotal.With(prometheus.Labels{

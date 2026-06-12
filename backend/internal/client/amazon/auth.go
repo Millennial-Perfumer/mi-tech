@@ -24,12 +24,12 @@ type TokenManager struct {
 	clientID     string
 	clientSecret string
 	refreshToken string
-	
-	cacheLock    sync.RWMutex
-	accessToken  string
-	expiryTime   time.Time
-	
-	httpClient   *http.Client
+
+	cacheLock   sync.RWMutex
+	accessToken string
+	expiryTime  time.Time
+
+	httpClient *http.Client
 }
 
 func NewTokenManager(clientID, clientSecret, refreshToken string) *TokenManager {

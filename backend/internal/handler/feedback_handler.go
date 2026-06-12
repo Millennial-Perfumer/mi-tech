@@ -191,6 +191,7 @@ func (h *FeedbackHandler) ValidateFeedback(w http.ResponseWriter, r *http.Reques
 		"already_submitted": alreadySubmitted,
 	})
 }
+
 // ScanFeedbackCandidates handles GET /api/feedback/scan
 func (h *FeedbackHandler) ScanFeedbackCandidates(w http.ResponseWriter, r *http.Request) {
 	delayMins := h.settingsProvider.GetFeedbackAutomationDelayMinutes()
@@ -206,7 +207,7 @@ func (h *FeedbackHandler) ScanFeedbackCandidates(w http.ResponseWriter, r *http.
 			log.Printf("DEBUG: Skipping order %d, delivered_at is nil", order.ID)
 			continue
 		}
-		
+
 		customerPhone := entity.DerefStr(order.CustomerPhone)
 		if customerPhone == "" {
 			log.Printf("DEBUG: Skipping order %d, customer_phone is empty", order.ID)
@@ -278,7 +279,7 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 		wg.Add(1)
 		go func(orderID int64) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			sem <- struct{}{}
 			defer func() { <-sem }()
@@ -307,7 +308,7 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 
 			// Update feedback status to 'sent' (2)
 			_ = h.orderService.UpdateFeedbackStatus(order.ID, 2)
-			
+
 			mu.Lock()
 			successCount++
 			mu.Unlock()
@@ -347,7 +348,7 @@ func (h *FeedbackHandler) GetConfigStatus(w http.ResponseWriter, r *http.Request
 	} else if !templateFound {
 		missing = append(missing, "template_not_found")
 	}
-	
+
 	if baseURL == "" {
 		missing = append(missing, "base_url")
 	}

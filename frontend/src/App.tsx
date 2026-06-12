@@ -22,6 +22,8 @@ import Feedback from './Feedback';
 import OrderDetailsModal from './OrderDetailsModal';
 import { InventoryHub } from './InventoryHub';
 import { AIAnalysis } from './AIAnalysis';
+import { CreateOrderModal } from './CreateOrderModal';
+import { DashboardOrdersModal } from './DashboardOrdersModal';
 
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -246,6 +248,8 @@ function App() {
   const [syncMode, setSyncMode] = useState<'shopify' | 'amazon'>('shopify');
   const [syncStartDate, setSyncStartDate] = useState(getTodayIST());
   const [syncEndDate, setSyncEndDate] = useState(getTodayIST());
+  const [showCreateOrderModal, setShowCreateOrderModal] = useState(false);
+  const [dashboardMetricModalLabel, setDashboardMetricModalLabel] = useState<string | null>(null);
 
   // Sorting and Filtering State
   const [search, setSearch] = useState('');
@@ -620,6 +624,15 @@ function App() {
 
   return (
     <div className="app-container">
+      <CreateOrderModal
+        isOpen={showCreateOrderModal}
+        onClose={() => setShowCreateOrderModal(false)}
+        fetchWithAuth={fetchWithAuth}
+        API_BASE={API_BASE}
+        onSuccess={() => {
+          fetchDashboardData(false, true);
+        }}
+      />
       {showSyncModal && (
         <div className="modal-overlay" onClick={() => setShowSyncModal(false)}>
           <div className="premium-modal wide" onClick={e => e.stopPropagation()}>
@@ -1139,28 +1152,64 @@ function App() {
 
             {/* Order Metrics Grid */}
             <div className="metrics-grid">
-              <div className="metric-card">
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
+                   onClick={() => setDashboardMetricModalLabel('Total')}
+                   onMouseEnter={(e) => {
+                     e.currentTarget.style.transform = 'translateY(-4px)';
+                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.style.transform = 'translateY(0)';
+                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                   }}>
                 <div className="metric-icon metric-icon-1">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 </div>
                 <div className="metric-label">Total Orders</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card">
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
+                   onClick={() => setDashboardMetricModalLabel('Fulfilled')}
+                   onMouseEnter={(e) => {
+                     e.currentTarget.style.transform = 'translateY(-4px)';
+                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.style.transform = 'translateY(0)';
+                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                   }}>
                 <div className="metric-icon metric-icon-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div className="metric-label">Fulfilled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--status-active)' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card">
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
+                   onClick={() => setDashboardMetricModalLabel('Unfulfilled')}
+                   onMouseEnter={(e) => {
+                     e.currentTarget.style.transform = 'translateY(-4px)';
+                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.style.transform = 'translateY(0)';
+                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                   }}>
                 <div className="metric-icon metric-icon-3">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </div>
                 <div className="metric-label">Unfulfilled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: '#f59e0b' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card">
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
+                   onClick={() => setDashboardMetricModalLabel('Cancelled')}
+                   onMouseEnter={(e) => {
+                     e.currentTarget.style.transform = 'translateY(-4px)';
+                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.style.transform = 'translateY(0)';
+                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                   }}>
                 <div className="metric-icon metric-icon-4">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                 </div>
@@ -1343,6 +1392,33 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>Stored Orders</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  {userRole === 'admin' && (
+                    <button 
+                      className="btn-primary" 
+                      title="Create a new manual/POS order"
+                      onClick={() => setShowCreateOrderModal(true)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.85rem',
+                        height: '42px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                        border: 'none',
+                        color: 'white',
+                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                      Create Order
+                    </button>
+                  )}
                   <button 
                     className="btn-secondary" 
                     onClick={handleSyncAmazon} 
@@ -2083,6 +2159,20 @@ function App() {
           fetchWithAuth={fetchWithAuth}
           userRole={userRole}
           onOrderUpdated={() => fetchDashboardData(true)}
+        />
+      )}
+
+      {/* Dashboard Orders List Modal */}
+      {dashboardMetricModalLabel && (
+        <DashboardOrdersModal
+          isOpen={!!dashboardMetricModalLabel}
+          onClose={() => setDashboardMetricModalLabel(null)}
+          metricLabel={dashboardMetricModalLabel}
+          startDate={startDate}
+          endDate={endDate}
+          selectedChannels={selectedChannels}
+          token={token}
+          onViewOrderDetails={(id) => setSelectedOrderDetailsId(id)}
         />
       )}
     </div>

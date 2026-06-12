@@ -176,18 +176,6 @@ func (s *ManufacturingService) Update(ctx context.Context, record *entity.Manufa
 	return err
 }
 
-// Helper types for delta computation
-type oilState struct {
-	grams  float64
-	deduct bool
-}
-
-type prodState struct {
-	qty      int
-	addStock bool
-}
-
-
 func (s *ManufacturingService) Delete(ctx context.Context, id int) error {
 	var productsToSync []int
 

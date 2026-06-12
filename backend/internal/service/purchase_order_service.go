@@ -2,9 +2,9 @@ package service
 
 import (
 	"fmt"
-	"time"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
+	"time"
 )
 
 type PurchaseOrderService struct {
@@ -50,7 +50,7 @@ func (s *PurchaseOrderService) Create(po *entity.PurchaseOrder) error {
 
 	// Update price per kg to the latest PO price
 	oil.PurchasePricePerKg = &po.UnitPricePerKg
-	
+
 	// Ensure supplier is set if not already or if changed
 	oil.SupplierID = &po.SupplierID
 

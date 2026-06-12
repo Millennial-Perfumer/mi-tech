@@ -225,7 +225,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
 
             <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0 0' }}>
-              {isLoading ? 'Loading...' : `Order ${order?.order_number} • ${new Date(order?.created_at || '').toLocaleDateString()} ${new Date(order?.created_at || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+              {isLoading ? 'Loading...' : `Order ${order?.order_number} • ${order?.created_at && !order.created_at.startsWith('0001-01-01') && !isNaN(Date.parse(order.created_at)) ? `${new Date(order.created_at).toLocaleDateString()} ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}` : 'N/A'}`}
             </p>
           </div>
           {!isLoading && order && (

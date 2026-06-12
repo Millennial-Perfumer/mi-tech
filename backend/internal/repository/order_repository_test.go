@@ -77,11 +77,11 @@ func (s *OrderRepositoryTestSuite) TestListWithFilters() {
 	// Seed some orders
 	c1 := "User One"
 	c2 := "User Two"
-	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "e1", OrderNumber: "O1", SourceID: "s1", CustomerName: &c1})
-	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "e2", OrderNumber: "O2", SourceID: "s2", CustomerName: &c2})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "e1", OrderNumber: "O1", SourceID: "shopify", CustomerName: &c1})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "e2", OrderNumber: "O2", SourceID: "amazon", CustomerName: &c2})
 
 	// Filter by Source
-	orders, count, err := s.repo.List(OrderFilter{Source: "s1"})
+	orders, count, err := s.repo.List(OrderFilter{Source: "shopify"})
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), 1, count)
 	assert.Equal(s.T(), "O1", orders[0].OrderNumber)
@@ -94,7 +94,7 @@ func (s *OrderRepositoryTestSuite) TestListWithFilters() {
 }
 
 func (s *OrderRepositoryTestSuite) TestUpdateStatus() {
-	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "ext_update", OrderNumber: "U1", SourceID: "s1"})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "ext_update", OrderNumber: "U1", SourceID: "shopify"})
 
 	err := s.repo.UpdateStatus("ext_update", "paid", "fulfilled")
 	assert.NoError(s.T(), err)
@@ -109,10 +109,10 @@ func (s *OrderRepositoryTestSuite) TestUpsertPIIMerge() {
 	strongName := "John Strong"
 
 	// 1. Upsert with strong name
-	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "s1", CustomerName: &strongName})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "shopify", CustomerName: &strongName})
 
 	// 2. Upsert same order with weak name
-	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "s1", CustomerName: &weakName})
+	_, _ = s.repo.Upsert(entity.Order{ExternalOrderID: "pii_1", SourceID: "shopify", CustomerName: &weakName})
 
 	// 3. Verify strong name is preserved
 	fetched, _ := s.repo.GetByExternalID("pii_1")
@@ -121,8 +121,8 @@ func (s *OrderRepositoryTestSuite) TestUpsertPIIMerge() {
 
 func (s *OrderRepositoryTestSuite) TestUpsertBatch() {
 	orders := []entity.Order{
-		{ExternalOrderID: "b1", OrderNumber: "BN1", SourceID: "s1"},
-		{ExternalOrderID: "b2", OrderNumber: "BN2", SourceID: "s1"},
+		{ExternalOrderID: "b1", OrderNumber: "BN1", SourceID: "shopify"},
+		{ExternalOrderID: "b2", OrderNumber: "BN2", SourceID: "shopify"},
 	}
 
 	_, err := s.repo.UpsertBatch(orders)

@@ -96,8 +96,8 @@ func TestCustomerService_UpdateCustomer_PreserveStats(t *testing.T) {
 	// 3. Verify name updated but stats preserved
 	fetched, _ := repo.GetByID(context.Background(), cust.ID)
 	assert.Equal(t, "New", *fetched.FirstName)
-	assert.Equal(t, "Name", *fetched.LastName) // Preserved by patching
-	assert.Equal(t, 5, fetched.TotalOrders)   // Preserved!
+	assert.Equal(t, "Name", *fetched.LastName)  // Preserved by patching
+	assert.Equal(t, 5, fetched.TotalOrders)     // Preserved!
 	assert.Equal(t, 500.25, fetched.TotalSpent) // Preserved!
 }
 
@@ -138,7 +138,7 @@ func TestCustomerService_UpdateFromOrder_RecalculatesStats(t *testing.T) {
 		TotalPrice:      200.0,
 		Status:          &status,
 	}
-	
+
 	// We use orderRepo.Upsert to put them in the DB
 	_, err = orderRepo.Upsert(order1)
 	assert.NoError(t, err)

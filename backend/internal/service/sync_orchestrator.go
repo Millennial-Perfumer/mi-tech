@@ -71,7 +71,7 @@ func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePla
 	}
 
 	log.Printf("SyncOrchestrator: Triggering global sync for SKU %s (Qty: %d)", item.MISKU, item.CurrentStock)
-	
+
 	if !s.IsSyncAllowed() {
 		log.Printf("SyncOrchestrator: Global sync is DISABLED via configuration or environment")
 		return nil
@@ -109,6 +109,73 @@ func (s *SyncOrchestrator) GlobalSync(ctx context.Context, itemID int, sourcePla
 			err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
 			if err != nil {
 				log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// GlobalSyncBatch updates all platforms for multiple internal inventory items efficiently.
+func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, sourcePlatform string) error {
+	if len(itemIDs) == 0 {
+		return nil
+	}
+
+	if !s.IsSyncAllowed() {
+		log.Printf("SyncOrchestrator: Global sync batch is DISABLED via configuration or environment")
+		return nil
+	}
+
+	items, err := s.inventoryRepo.GetItemsByIDs(itemIDs)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("SyncOrchestrator: Triggering global sync batch for %d items", len(items))
+
+	// Discover location ID once per batch if needed
+	var shopifyLocationID string
+	var locationDiscovered bool
+
+	for _, item := range items {
+		for _, m := range item.Mappings {
+			if m.Platform == sourcePlatform {
+				continue // Don't push back to the platform that triggered the change
+			}
+
+			switch m.Platform {
+			case "shopify":
+				if m.ExternalVariantID != nil {
+					log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
+
+					if shopifyLocationID == "" && !locationDiscovered {
+						shopifyLocationID = s.shopifyClient.GetLocationID()
+						if shopifyLocationID == "" {
+							discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
+							if err == nil {
+								shopifyLocationID = discoveredID
+								log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
+							} else {
+								log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+							}
+						}
+						locationDiscovered = true
+					}
+
+					if shopifyLocationID != "" {
+						err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
+						if err != nil {
+							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
+						}
+					}
+				}
+			case "amazon":
+				log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
+				err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
+				if err != nil {
+					log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
+				}
 			}
 		}
 	}

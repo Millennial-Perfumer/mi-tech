@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"mi-tech/internal/automation/whatsapp"
+	"mi-tech/internal/client/shopify"
 	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/handler"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
 	"mi-tech/internal/testutil"
-	"mi-tech/internal/client/shopify"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -39,10 +39,11 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	sqlDB, _ := db.DB()
 
 	// 0. Setup Mock Meta Server
+	mockMsgID := fmt.Sprintf("wa_test_id_%d_%d", time.Now().UnixNano(), rand.Intn(1000))
 	mockMetaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// Respond with success to ensure transaction commits
-		fmt.Fprint(w, `{"messages":[{"id":"wa_test_id_123"}]}`)
+		fmt.Fprintf(w, `{"messages":[{"id":"%s"}]}`, mockMsgID)
 	}))
 	defer mockMetaServer.Close()
 
@@ -58,7 +59,7 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	})
 	defer func() { http.DefaultClient.Transport = originalTransport }()
 
-	// 1. Setup repos 
+	// 1. Setup repos
 	orderRepo := repository.NewOrderRepository(db)
 	lineItemRepo := repository.NewLineItemRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
@@ -74,10 +75,10 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	customerService := service.NewCustomerService(customerRepo, orderRepo, nil)
 	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, nil, nil)
 	invoiceService := service.NewInvoiceService(settingsRepo)
-	
+
 	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo, nil)
 	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
-	
+
 	shopifyClient := shopify.NewClient(settingsProvider)
 	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 
@@ -114,12 +115,12 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	deliveryID := fmt.Sprintf("del_%d", time.Now().UnixNano())
 
 	payload := dto.ShopifyWebhookOrder{
-		ID:            orderID,
-		OrderNumber:   orderID,
-		Name:          fmt.Sprintf("#%d", orderID),
-		TotalPrice:    "150.00",
-		Currency:      "INR",
-		CreatedAt:     time.Now().Format(time.RFC3339),
+		ID:          orderID,
+		OrderNumber: orderID,
+		Name:        fmt.Sprintf("#%d", orderID),
+		TotalPrice:  "150.00",
+		Currency:    "INR",
+		CreatedAt:   time.Now().Format(time.RFC3339),
 		Customer: &dto.ShopifyCustomer{
 			ID:        orderID + 10,
 			FirstName: "John",
@@ -142,7 +143,7 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	// 5. Wait for async processing 
+	// 5. Wait for async processing
 	time.Sleep(5 * time.Second)
 
 	// 6. Verify order was created
@@ -154,19 +155,19 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	// 7. Verify automation message was recorded as 'sent'
 	messages, err := messagesRepo.GetMessagesByOrderID(order.ID)
 	assert.NoError(t, err)
-	
+
 	if len(messages) == 0 {
 		t.Errorf("No automation messages found for Order ID %d (External %s). Trigger may have failed silently.", order.ID, extIDStr)
 	}
 
 	assert.GreaterOrEqual(t, len(messages), 1, "Automation message should have been recorded for the new order")
-	
+
 	found := false
 	for _, m := range messages {
 		if m.TemplateID == templateID {
 			found = true
 			assert.Equal(t, "sent", m.Status)
-			assert.Equal(t, "wa_test_id_123", m.MessageID)
+			assert.Equal(t, mockMsgID, m.MessageID)
 			break
 		}
 	}

@@ -10,12 +10,12 @@ import (
 
 // SyncHandler is a thin HTTP adapter for Shopify sync operations.
 type SyncHandler struct {
-	syncService       *service.SyncService
+	syncService *service.SyncService
 }
 
 func NewSyncHandler(syncService *service.SyncService) *SyncHandler {
 	return &SyncHandler{
-		syncService:       syncService,
+		syncService: syncService,
 	}
 }
 
@@ -138,7 +138,6 @@ func (h *SyncHandler) ResetOrders(w http.ResponseWriter, r *http.Request) {
 		"count":   count,
 	})
 }
-
 
 // endOfDay returns the latest nanosecond of the given date.
 func endOfDay(t time.Time) time.Time {

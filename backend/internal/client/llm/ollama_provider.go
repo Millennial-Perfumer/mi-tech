@@ -39,7 +39,7 @@ func (p *OllamaProvider) Chat(ctx context.Context, messages []ChatMessage, tools
 		Messages: messages,
 		Stream:   false,
 	}
-	
+
 	if len(tools) > 0 {
 		for _, t := range tools {
 			reqBody.Tools = append(reqBody.Tools, openAITool{
@@ -107,16 +107,16 @@ func (p *OllamaProvider) Chat(ctx context.Context, messages []ChatMessage, tools
 func (p *OllamaProvider) StreamChat(ctx context.Context, messages []ChatMessage, tools []ToolDef) (<-chan StreamChunk, error) {
 	// For streaming, we'll use a similar approach to OpenAI
 	ch := make(chan StreamChunk)
-	
+
 	go func() {
 		defer close(ch)
-		
+
 		reqBody := openAIChatRequest{
 			Model:    p.model,
 			Messages: messages,
 			Stream:   true,
 		}
-		
+
 		if len(tools) > 0 {
 			for _, t := range tools {
 				reqBody.Tools = append(reqBody.Tools, openAITool{
@@ -152,7 +152,7 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, messages []ChatMessage,
 			if line == "" || !strings.HasPrefix(line, "data: ") {
 				continue
 			}
-			
+
 			data := strings.TrimPrefix(line, "data: ")
 			if data == "[DONE]" {
 				ch <- StreamChunk{Done: true}
@@ -178,7 +178,7 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, messages []ChatMessage,
 			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 				continue
 			}
-			
+
 			if len(chunk.Choices) > 0 {
 				delta := chunk.Choices[0].Delta
 				chunkRes := StreamChunk{

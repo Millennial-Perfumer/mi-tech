@@ -41,19 +41,24 @@ func (s *MetricsReportRepositoryTestSuite) SetupTest() {
 
 func (s *MetricsReportRepositoryTestSuite) TestGetDashboardMetrics() {
 	// Seed orders
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
 	ka := "Karnataka"
 
-	s.db.Create(&entity.Order{
-		ExternalOrderID: "m1", TotalPrice: 118.0, CustomerState: &tn, CreatedAt: time.Now(),
-	})
-	s.db.Create(&entity.Order{
-		ExternalOrderID: "m2", TotalPrice: 118.0, CustomerState: &ka, CreatedAt: time.Now(),
-	})
-	s.db.Create(&entity.Order{
-		ExternalOrderID: "m3", TotalPrice: 100.0, Status: entity.StrPtr("CANCELLED"), CreatedAt: time.Now(),
-	})
+	err := s.db.Create(&entity.Order{
+		SourceID: "shopify", ExternalOrderID: "m1", TotalPrice: 118.0, CustomerState: &tn, CreatedAt: time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	err = s.db.Create(&entity.Order{
+		SourceID: "shopify", ExternalOrderID: "m2", TotalPrice: 118.0, CustomerState: &ka, CreatedAt: time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	err = s.db.Create(&entity.Order{
+		SourceID: "shopify", ExternalOrderID: "m3", TotalPrice: 100.0, Status: entity.StrPtr("CANCELLED"), CreatedAt: time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
 
 	metrics, err := s.metricsRepo.GetDashboardMetrics("", now, []string{})
 	assert.NoError(s.T(), err)
@@ -73,11 +78,12 @@ func (s *MetricsReportRepositoryTestSuite) TestGetDashboardMetrics() {
 }
 
 func (s *MetricsReportRepositoryTestSuite) TestGetGSTSummary() {
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
-	s.db.Create(&entity.Order{
-		ExternalOrderID: "r1", TotalPrice: 118.0, CustomerState: &tn, FinancialStatus: entity.StrPtr("paid"), CreatedAt: time.Now(),
-	})
+	err := s.db.Create(&entity.Order{
+		SourceID: "shopify", ExternalOrderID: "r1", TotalPrice: 118.0, CustomerState: &tn, FinancialStatus: entity.StrPtr("paid"), CreatedAt: time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
 
 	res, err := s.reportRepo.GetGSTSummary("", now)
 	assert.NoError(s.T(), err)
@@ -92,12 +98,15 @@ func (s *MetricsReportRepositoryTestSuite) TestGetGSTSummary() {
 }
 
 func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
 	ka := "Karnataka"
-	s.db.Create(&entity.Order{ExternalOrderID: "s1", TotalPrice: 100, CustomerState: &tn, CreatedAt: time.Now()})
-	s.db.Create(&entity.Order{ExternalOrderID: "s2", TotalPrice: 200, CustomerState: &tn, CreatedAt: time.Now()})
-	s.db.Create(&entity.Order{ExternalOrderID: "s3", TotalPrice: 50, CustomerState: &ka, CreatedAt: time.Now()})
+	err := s.db.Create(&entity.Order{SourceID: "shopify", ExternalOrderID: "s1", TotalPrice: 100, CustomerState: &tn, CreatedAt: time.Now()}).Error
+	assert.NoError(s.T(), err)
+	err = s.db.Create(&entity.Order{SourceID: "shopify", ExternalOrderID: "s2", TotalPrice: 200, CustomerState: &tn, CreatedAt: time.Now()}).Error
+	assert.NoError(s.T(), err)
+	err = s.db.Create(&entity.Order{SourceID: "shopify", ExternalOrderID: "s3", TotalPrice: 50, CustomerState: &ka, CreatedAt: time.Now()}).Error
+	assert.NoError(s.T(), err)
 
 	results, err := s.reportRepo.GetStateSummary("", now)
 	assert.NoError(s.T(), err)
@@ -112,26 +121,29 @@ func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
 }
 
 func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
 
 	// Create order
 	order := entity.Order{
+		SourceID:        "shopify",
 		ExternalOrderID: "h1",
 		TotalPrice:      118.0,
 		CustomerState:   &tn,
 		CreatedAt:       time.Now(),
 	}
-	s.db.Create(&order)
+	err := s.db.Create(&order).Error
+	assert.NoError(s.T(), err)
 
 	// Create line items
-	s.db.Create(&entity.LineItem{
+	err = s.db.Create(&entity.LineItem{
 		OrderID:  order.ID,
 		HSCode:   entity.StrPtr("123456"),
 		Price:    100.0,
 		Quantity: 1,
 		Discount: 0,
-	})
+	}).Error
+	assert.NoError(s.T(), err)
 
 	results, err := s.reportRepo.GetHSNSummary("", now)
 	assert.NoError(s.T(), err)

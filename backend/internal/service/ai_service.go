@@ -11,25 +11,25 @@ import (
 )
 
 type AIService struct {
-	readRepo    repository.AIReadRepository
-	convRepo    repository.AIConversationRepository
-	memRepo     repository.AIMemoryRepository
-	settings    *config.SettingsProvider
+	readRepo repository.AIReadRepository
+	convRepo repository.AIConversationRepository
+	memRepo  repository.AIMemoryRepository
+	settings *config.SettingsProvider
 }
 
 func NewAIService(readRepo repository.AIReadRepository, convRepo repository.AIConversationRepository, memRepo repository.AIMemoryRepository, settings *config.SettingsProvider) *AIService {
 	return &AIService{
-		readRepo:    readRepo,
-		convRepo:    convRepo,
-		memRepo:     memRepo,
-		settings:    settings,
+		readRepo: readRepo,
+		convRepo: convRepo,
+		memRepo:  memRepo,
+		settings: settings,
 	}
 }
 
 func (s *AIService) getProvider() (llm.LLMProvider, error) {
 	providerType := s.settings.GetAIProvider()
 	enabled := s.settings.IsAIEnabled()
-	
+
 	if !enabled {
 		return nil, fmt.Errorf("AI analysis is currently disabled in settings")
 	}
@@ -125,7 +125,7 @@ func (s *AIService) getTools() []llm.ToolDef {
 		{
 			Name:        "get_customer_segmentation",
 			Description: "Get customer analytics: total count, new customers in last 30 days, repeat purchase rate, and channel split",
-			Parameters: map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
+			Parameters:  map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
 		},
 		{
 			Name:        "get_top_customers",
@@ -140,7 +140,7 @@ func (s *AIService) getTools() []llm.ToolDef {
 		{
 			Name:        "get_inventory_status",
 			Description: "Get current inventory stock levels, low stock alerts, and out-of-stock items for all products",
-			Parameters: map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
+			Parameters:  map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
 		},
 		{
 			Name:        "get_business_snapshot",
@@ -385,7 +385,7 @@ func (s *AIService) Chat(ctx context.Context, userID int64, conversationID int64
 			if !isToolTurn {
 				// Final response reached
 				outCh <- llm.StreamChunk{Done: true}
-				
+
 				// Persist assistant message
 				s.convRepo.AddMessage(conversationID, "assistant", currentContent, nil)
 				return
@@ -398,19 +398,19 @@ func (s *AIService) Chat(ctx context.Context, userID int64, conversationID int64
 				ToolCalls: currentToolCalls,
 			}
 			llmMsgs = append(llmMsgs, assistantMsg)
-			
+
 			// Persist assistant tool call message
 			meta, _ := json.Marshal(assistantMsg)
 			rawMeta := json.RawMessage(meta)
 			s.convRepo.AddMessage(conversationID, "assistant", currentContent, &rawMeta)
-			
+
 			// Execute tools
 			for _, tc := range currentToolCalls {
 				result, err := s.executeTool(tc.Function.Name, tc.Function.Arguments)
 				if err != nil {
 					result = fmt.Sprintf("Error: %v", err)
 				}
-				
+
 				// Add tool result to history
 				toolMsg := llm.ChatMessage{
 					Role:       llm.RoleTool,
@@ -418,7 +418,7 @@ func (s *AIService) Chat(ctx context.Context, userID int64, conversationID int64
 					ToolCallID: &tc.ID,
 				}
 				llmMsgs = append(llmMsgs, toolMsg)
-				
+
 				// Persist tool message
 				toolMeta, _ := json.Marshal(toolMsg)
 				rawToolMeta := json.RawMessage(toolMeta)
@@ -426,7 +426,7 @@ func (s *AIService) Chat(ctx context.Context, userID int64, conversationID int64
 			}
 			// Loop continues for the next turn
 		}
-		
+
 		outCh <- llm.StreamChunk{Error: fmt.Errorf("AI reached maximum reasoning depth")}
 	}()
 

@@ -32,7 +32,7 @@ func (s *NotificationService) PingIssue(contactName, text, priority string) erro
 		"*From:* %s\n"+
 		"*Priority:* %s\n"+
 		"*Message:* %s\n\n"+
-		"Check the Kanban board for details.", 
+		"Check the Kanban board for details.",
 		contactName, strings.ToUpper(priority), text)
 
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)

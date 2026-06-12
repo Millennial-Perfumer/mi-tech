@@ -254,6 +254,150 @@ definitions:
       username:
         type: string
     type: object
+  mi-tech_internal_dto.LineItemCreateRequest:
+    properties:
+      discount:
+        description: item-level discount amount
+        type: number
+      mi_sku:
+        description: e.g. "mi-01"
+        type: string
+      price:
+        description: unit price
+        type: number
+      quantity:
+        type: integer
+      title:
+        type: string
+    type: object
+  mi-tech_internal_dto.LineItemResponse:
+    properties:
+      discount:
+        type: string
+      hs_code:
+        type: string
+      id:
+        type: string
+      price:
+        type: string
+      product_id:
+        type: string
+      quantity:
+        type: integer
+      sku:
+        type: string
+      title:
+        type: string
+      variant_id:
+        type: string
+    type: object
+  mi-tech_internal_dto.OrderCreateRequest:
+    properties:
+      customer_address1:
+        type: string
+      customer_address2:
+        type: string
+      customer_city:
+        type: string
+      customer_country:
+        type: string
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      customer_state:
+        type: string
+      customer_zip:
+        type: string
+      financial_status:
+        description: 'default: "paid"'
+        type: string
+      fulfillment_status:
+        description: 'default: "fulfilled"'
+        type: string
+      line_items:
+        items:
+          $ref: '#/definitions/mi-tech_internal_dto.LineItemCreateRequest'
+        type: array
+      terminal_code:
+        description: '"POS1" (defaults if empty)'
+        type: string
+      total_discount:
+        type: number
+      total_price:
+        type: number
+    type: object
+  mi-tech_internal_dto.OrderResponse:
+    properties:
+      cancel_reason:
+        type: string
+      cancelled_at:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      customer_address1:
+        type: string
+      customer_address2:
+        type: string
+      customer_city:
+        type: string
+      customer_country:
+        type: string
+      customer_email:
+        type: string
+      customer_first_name:
+        type: string
+      customer_last_name:
+        type: string
+      customer_name:
+        type: string
+      customer_phone:
+        type: string
+      customer_state:
+        type: string
+      customer_zip:
+        type: string
+      delivery_status:
+        type: string
+      feedback_sent_at:
+        type: string
+      feedback_status_id:
+        type: integer
+      financial_status:
+        type: string
+      fulfillment_status:
+        type: string
+      id:
+        type: string
+      line_items:
+        items:
+          $ref: '#/definitions/mi-tech_internal_dto.LineItemResponse'
+        type: array
+      order_number:
+        type: string
+      shipping_company:
+        type: string
+      source_id:
+        type: string
+      status:
+        type: string
+      subtotal_price:
+        type: string
+      total_price:
+        type: string
+      total_tax:
+        type: string
+      tracking_number:
+        type: string
+      tracking_url:
+        type: string
+      updated_at:
+        type: string
+    type: object
   mi-tech_internal_dto.OrderUpdateRequest:
     properties:
       customer_address1:
@@ -1369,32 +1513,6 @@ paths:
       summary: Sync Social Data
       tags:
       - social
-  /metrics/dashboard:
-    get:
-      description: Retrieve real-time metrics including revenue, GST breakdown, and
-        order counts.
-      parameters:
-      - description: Start date
-        in: query
-        name: start_date
-        type: string
-      - description: End date
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Get dashboard metrics
-      tags:
-      - dashboard
   /orders:
     get:
       consumes:
@@ -1450,6 +1568,38 @@ paths:
             additionalProperties: true
             type: object
       summary: List orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new POS order directly in the system. Triggers inventory
+        deduction and external synchronization.
+      parameters:
+      - description: Order Details
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/mi-tech_internal_dto.OrderCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/mi-tech_internal_dto.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Bearer: []
+      summary: Create a manual/POS order
       tags:
       - orders
     put:
@@ -1526,6 +1676,38 @@ paths:
       summary: Get order details
       tags:
       - orders
+  /orders/feedback/comment:
+    put:
+      consumes:
+      - application/json
+      description: Add or update an internal admin comment on a customer feedback
+      parameters:
+      - description: Feedback ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: Admin comment
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update feedback admin comment
+      tags:
+      - feedback
   /orders/invoice:
     get:
       description: Generate and download a GST invoice PDF for an order

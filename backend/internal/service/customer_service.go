@@ -49,8 +49,8 @@ type CustomerFilter struct {
 	FirstNameEmpty bool
 	LastNameEmpty  bool
 	EmailEmpty     bool
-	Page      int
-	PageSize  int
+	Page           int
+	PageSize       int
 }
 
 func NewCustomerService(repo *repository.CustomerRepository, orderRepo repository.OrderRepository, shopifyClient *shopify.Client) *CustomerService {
@@ -61,12 +61,10 @@ func NewCustomerService(repo *repository.CustomerRepository, orderRepo repositor
 	}
 }
 
-
-
 // ImportFromCSV parses a Shopify customer export CSV and syncs it to the database.
 func (s *CustomerService) ImportFromCSV(ctx context.Context, r io.Reader, sourceID string) error {
 	reader := csv.NewReader(r)
-	
+
 	// Read header
 	header, err := reader.Read()
 	if err != nil {
@@ -85,10 +83,14 @@ func (s *CustomerService) ImportFromCSV(ctx context.Context, r io.Reader, source
 			return fmt.Errorf("missing required column: %s", req)
 		}
 	}
-	
+
 	hasPhone := false
-	if _, ok := headerMap["Phone"]; ok { hasPhone = true }
-	if _, ok := headerMap["Default Address Phone"]; ok { hasPhone = true }
+	if _, ok := headerMap["Phone"]; ok {
+		hasPhone = true
+	}
+	if _, ok := headerMap["Default Address Phone"]; ok {
+		hasPhone = true
+	}
 	if !hasPhone {
 		return fmt.Errorf("missing phone column (Phone or Default Address Phone)")
 	}
@@ -133,9 +135,9 @@ func (s *CustomerService) ImportFromCSV(ctx context.Context, r io.Reader, source
 		if !ok {
 			customer = &entity.Customer{
 				PhoneNumber: phone,
-				TotalSpent:   0,
-				TotalOrders:  0,
-				SourceID:     sourceID,
+				TotalSpent:  0,
+				TotalOrders: 0,
+				SourceID:    sourceID,
 				CreatedAt:   now,
 				UpdatedAt:   now,
 			}
@@ -193,7 +195,7 @@ func (s *CustomerService) updateMetadata(c *entity.Customer, record []string, he
 	setIfNotEmpty(&c.City, "Default Address City")
 	setIfNotEmpty(&c.ZipCode, "Default Address Zip")
 	setIfNotEmpty(&c.Country, "Default Address Country Code")
-	
+
 	// State/Province
 	if idx, ok := headerMap["Default Address Province Code"]; ok && idx < len(record) {
 		val := strings.TrimSpace(record[idx])
@@ -314,7 +316,10 @@ func (s *CustomerService) UpdateFromOrdersBatch(ctx context.Context, orders []en
 	}
 
 	// 3. Fetch absolute totals from orders table for all phones in batch
-	var statsMap map[string]struct{ Count int; Sum float64 }
+	var statsMap map[string]struct {
+		Count int
+		Sum   float64
+	}
 	if s.orderRepo != nil {
 		statsMap, err = s.orderRepo.GetCustomersStats(phones)
 		if err != nil {
@@ -361,8 +366,12 @@ func (s *CustomerService) UpsertFromWebhook(ctx context.Context, cust *entity.Cu
 	if err == nil && existing != nil {
 		safeMerge(cust, existing)
 		cust.CreatedAt = existing.CreatedAt
-		if cust.TotalOrders == 0 && existing.TotalOrders > 0 { cust.TotalOrders = existing.TotalOrders }
-		if cust.TotalSpent == 0 && existing.TotalSpent > 0 { cust.TotalSpent = existing.TotalSpent }
+		if cust.TotalOrders == 0 && existing.TotalOrders > 0 {
+			cust.TotalOrders = existing.TotalOrders
+		}
+		if cust.TotalSpent == 0 && existing.TotalSpent > 0 {
+			cust.TotalSpent = existing.TotalSpent
+		}
 	} else {
 		if cust.CreatedAt.IsZero() {
 			cust.CreatedAt = time.Now()
@@ -377,36 +386,82 @@ func (s *CustomerService) UpsertFromWebhook(ctx context.Context, cust *entity.Cu
 }
 
 func safeMerge(newCust, oldCust *entity.Customer) {
-	if newCust.FirstName == nil { newCust.FirstName = oldCust.FirstName }
-	if newCust.LastName == nil { newCust.LastName = oldCust.LastName }
-	if newCust.Email == nil { newCust.Email = oldCust.Email }
-	if newCust.Address1 == nil { newCust.Address1 = oldCust.Address1 }
-	if newCust.Address2 == nil { newCust.Address2 = oldCust.Address2 }
-	if newCust.City == nil { newCust.City = oldCust.City }
-	if newCust.State == nil { newCust.State = oldCust.State }
-	if newCust.Country == nil { newCust.Country = oldCust.Country }
-	if newCust.ZipCode == nil { newCust.ZipCode = oldCust.ZipCode }
+	if newCust.FirstName == nil {
+		newCust.FirstName = oldCust.FirstName
+	}
+	if newCust.LastName == nil {
+		newCust.LastName = oldCust.LastName
+	}
+	if newCust.Email == nil {
+		newCust.Email = oldCust.Email
+	}
+	if newCust.Address1 == nil {
+		newCust.Address1 = oldCust.Address1
+	}
+	if newCust.Address2 == nil {
+		newCust.Address2 = oldCust.Address2
+	}
+	if newCust.City == nil {
+		newCust.City = oldCust.City
+	}
+	if newCust.State == nil {
+		newCust.State = oldCust.State
+	}
+	if newCust.Country == nil {
+		newCust.Country = oldCust.Country
+	}
+	if newCust.ZipCode == nil {
+		newCust.ZipCode = oldCust.ZipCode
+	}
 }
 
 func (s *CustomerService) ListCustomers(ctx context.Context, f CustomerFilter) ([]entity.Customer, int64, error) {
-	if f.Page < 1 { f.Page = 1 }
-	if f.PageSize < 1 { f.PageSize = 20 }
+	if f.Page < 1 {
+		f.Page = 1
+	}
+	if f.PageSize < 1 {
+		f.PageSize = 20
+	}
 	offset := (f.Page - 1) * f.PageSize
 
 	if f.Search != "" {
 		parsed := s.parseSearchQuery(f.Search)
-		if parsed.MinSpent > 0 { f.MinSpent = parsed.MinSpent }
-		if parsed.MaxSpent > 0 { f.MaxSpent = parsed.MaxSpent }
-		if parsed.MinOrders > 0 { f.MinOrders = parsed.MinOrders }
-		if parsed.City != "" { f.City = parsed.City }
-		if parsed.State != "" { f.State = parsed.State }
-		if parsed.SourceID != "" { f.SourceID = parsed.SourceID }
-		if parsed.FirstName != "" { f.FirstName = parsed.FirstName }
-		if parsed.LastName != "" { f.LastName = parsed.LastName }
-		if parsed.Email != "" { f.Email = parsed.Email }
-		if parsed.FirstNameEmpty { f.FirstNameEmpty = true }
-		if parsed.LastNameEmpty { f.LastNameEmpty = true }
-		if parsed.EmailEmpty { f.EmailEmpty = true }
+		if parsed.MinSpent > 0 {
+			f.MinSpent = parsed.MinSpent
+		}
+		if parsed.MaxSpent > 0 {
+			f.MaxSpent = parsed.MaxSpent
+		}
+		if parsed.MinOrders > 0 {
+			f.MinOrders = parsed.MinOrders
+		}
+		if parsed.City != "" {
+			f.City = parsed.City
+		}
+		if parsed.State != "" {
+			f.State = parsed.State
+		}
+		if parsed.SourceID != "" {
+			f.SourceID = parsed.SourceID
+		}
+		if parsed.FirstName != "" {
+			f.FirstName = parsed.FirstName
+		}
+		if parsed.LastName != "" {
+			f.LastName = parsed.LastName
+		}
+		if parsed.Email != "" {
+			f.Email = parsed.Email
+		}
+		if parsed.FirstNameEmpty {
+			f.FirstNameEmpty = true
+		}
+		if parsed.LastNameEmpty {
+			f.LastNameEmpty = true
+		}
+		if parsed.EmailEmpty {
+			f.EmailEmpty = true
+		}
 		f.Search = parsed.Search
 	}
 
@@ -477,12 +532,18 @@ func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
 		field := strings.ToLower(m[1])
 		val := strings.Trim(m[2], `"'`)
 		switch field {
-		case "city": f.City = val
-		case "state": f.State = val
-		case "first_name": f.FirstName = val
-		case "last_name": f.LastName = val
-		case "email": f.Email = val
-		case "source": f.SourceID = val
+		case "city":
+			f.City = val
+		case "state":
+			f.State = val
+		case "first_name":
+			f.FirstName = val
+		case "last_name":
+			f.LastName = val
+		case "email":
+			f.Email = val
+		case "source":
+			f.SourceID = val
 		}
 		search = strings.Replace(search, m[0], "", 1)
 	}
@@ -537,8 +598,14 @@ func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Custo
 					Address2: entity.DerefStr(cust.Address2),
 					City:     entity.DerefStr(cust.City),
 					Province: entity.DerefStr(cust.State),
-					Country:  func() string { c := entity.DerefStr(cust.Country); if c == "" { return "India" }; return c }(),
-					Zip:      entity.DerefStr(cust.ZipCode),
+					Country: func() string {
+						c := entity.DerefStr(cust.Country)
+						if c == "" {
+							return "India"
+						}
+						return c
+					}(),
+					Zip: entity.DerefStr(cust.ZipCode),
 				},
 			},
 		}
@@ -597,7 +664,7 @@ func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Custo
 	if cust.ZipCode != nil {
 		existing.ZipCode = cust.ZipCode
 	}
-	
+
 	existing.UpdatedAt = time.Now()
 
 	// 3. Update locally first
@@ -642,9 +709,15 @@ func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Custo
 							Address2: entity.DerefStr(existing.Address2),
 							City:     entity.DerefStr(existing.City),
 							Province: entity.DerefStr(existing.State),
-							Country:  func() string { c := entity.DerefStr(existing.Country); if c == "" { return "India" }; return c }(),
-							Zip:      entity.DerefStr(existing.ZipCode),
-							Default:  true,
+							Country: func() string {
+								c := entity.DerefStr(existing.Country)
+								if c == "" {
+									return "India"
+								}
+								return c
+							}(),
+							Zip:     entity.DerefStr(existing.ZipCode),
+							Default: true,
 						},
 					}
 				}
@@ -662,9 +735,15 @@ func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Custo
 						Address2: entity.DerefStr(existing.Address2),
 						City:     entity.DerefStr(existing.City),
 						Province: entity.DerefStr(existing.State),
-						Country:  func() string { c := entity.DerefStr(existing.Country); if c == "" { return "India" }; return c }(),
-						Zip:      entity.DerefStr(existing.ZipCode),
-						Default:  true,
+						Country: func() string {
+							c := entity.DerefStr(existing.Country)
+							if c == "" {
+								return "India"
+							}
+							return c
+						}(),
+						Zip:     entity.DerefStr(existing.ZipCode),
+						Default: true,
 					},
 				}
 			}

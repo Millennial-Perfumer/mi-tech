@@ -2,6 +2,7 @@ package repository
 
 import (
 	"testing"
+	"time"
 
 	"mi-tech/internal/entity"
 	"mi-tech/internal/testutil"
@@ -34,17 +35,30 @@ func (s *LineItemRepositoryTestSuite) TearDownSuite() {
 
 func (s *LineItemRepositoryTestSuite) SetupTest() {
 	s.db.Exec("TRUNCATE TABLE order_line_items CASCADE")
+	s.db.Exec("TRUNCATE TABLE orders CASCADE")
 }
 
 func (s *LineItemRepositoryTestSuite) TestUpsertAndGet() {
 	orderID := int64(1001)
+
+	// Create dummy order first to satisfy foreign key constraint
+	err := s.db.Create(&entity.Order{
+		ID:          orderID,
+		SourceID:    "shopify",
+		OrderNumber: "ORD-1001",
+		TotalPrice:  130.0,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
 	items := []entity.LineItem{
 		{ID: "item_1", Title: entity.StrPtr("Product 1"), Quantity: 2, Price: 50.0},
 		{ID: "item_2", Title: entity.StrPtr("Product 2"), Quantity: 1, Price: 30.0},
 	}
 
 	// 1. UpsertBatch
-	err := s.repo.UpsertBatch(s.db, orderID, items)
+	err = s.repo.UpsertBatch(s.db, orderID, items)
 	assert.NoError(s.T(), err)
 
 	// 2. GetByOrderID
@@ -65,9 +79,22 @@ func (s *LineItemRepositoryTestSuite) TestUpsertAndGet() {
 
 func (s *LineItemRepositoryTestSuite) TestDeleteByOrderID() {
 	orderID := int64(2002)
-	s.repo.UpsertBatch(s.db, orderID, []entity.LineItem{{ID: "del_1", Title: entity.StrPtr("T1")}})
 
-	err := s.repo.DeleteByOrderID(s.db, orderID)
+	// Create dummy order first to satisfy foreign key constraint
+	err := s.db.Create(&entity.Order{
+		ID:          orderID,
+		SourceID:    "shopify",
+		OrderNumber: "ORD-2002",
+		TotalPrice:  0.0,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	err = s.repo.UpsertBatch(s.db, orderID, []entity.LineItem{{ID: "del_1", Title: entity.StrPtr("T1")}})
+	assert.NoError(s.T(), err)
+
+	err = s.repo.DeleteByOrderID(s.db, orderID)
 	assert.NoError(s.T(), err)
 
 	fetched, _ := s.repo.GetByOrderID(orderID)

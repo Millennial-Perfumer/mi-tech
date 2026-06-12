@@ -32,11 +32,19 @@ func (r *gormInventoryRepository) ListItems(search string) ([]entity.InventoryIt
 	return items, err
 }
 
-
 func (r *gormInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {
 	var item entity.InventoryItem
 	err := r.db.Preload("Mappings").First(&item, id).Error
 	return item, err
+}
+
+func (r *gormInventoryRepository) GetItemsByIDs(ids []int) ([]entity.InventoryItem, error) {
+	var items []entity.InventoryItem
+	if len(ids) == 0 {
+		return items, nil
+	}
+	err := r.db.Preload("Mappings").Where("id IN ?", ids).Find(&items).Error
+	return items, err
 }
 
 func (r *gormInventoryRepository) CreateItem(item *entity.InventoryItem) error {
@@ -68,7 +76,7 @@ func (r *gormInventoryRepository) GetMaxMISKU() (string, error) {
 		Order("mi_sku DESC").
 		Limit(1).
 		Pluck("mi_sku", &sku).Error
-		
+
 	if err == gorm.ErrRecordNotFound {
 		return "", nil
 	}
@@ -80,7 +88,6 @@ func (r *gormInventoryRepository) ListMappings() ([]entity.InventoryMapping, err
 	err := r.db.Find(&mappings).Error
 	return mappings, err
 }
-
 
 func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
@@ -102,9 +109,6 @@ func (r *gormInventoryRepository) CreateMapping(mapping *entity.InventoryMapping
 func (r *gormInventoryRepository) DeleteMapping(id int) error {
 	return r.db.Delete(&entity.InventoryMapping{}, id).Error
 }
-
-
-
 
 func (r *gormInventoryRepository) DeleteAll() error {
 	return r.db.Transaction(func(tx *gorm.DB) error {

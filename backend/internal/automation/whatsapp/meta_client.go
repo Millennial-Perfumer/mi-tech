@@ -331,7 +331,7 @@ func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTempla
 func (c *MetaClient) GetAllRemoteTemplates() ([]RemoteTemplate, error) {
 	wabaID := c.settings.GetWhatsAppWABAID()
 	var allTemplates []RemoteTemplate
-	
+
 	urlStr := fmt.Sprintf("https://graph.facebook.com/%s/%s/message_templates?limit=100", c.apiVersion, wabaID)
 
 	for urlStr != "" {
@@ -361,13 +361,13 @@ func (c *MetaClient) GetAllRemoteTemplates() ([]RemoteTemplate, error) {
 				Previous string `json:"previous"`
 			} `json:"paging"`
 		}
-		
+
 		if err := json.Unmarshal(respBody, &result); err != nil {
 			return nil, err
 		}
 
 		allTemplates = append(allTemplates, result.Data...)
-		
+
 		urlStr = result.Paging.Next
 	}
 

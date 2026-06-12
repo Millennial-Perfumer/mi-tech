@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
+	"mi-tech/internal/automation/whatsapp"
 	"mi-tech/internal/config"
 	"mi-tech/internal/dto"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/service"
-	"mi-tech/internal/automation/whatsapp"
 )
 
 // OrderHandler is a thin HTTP adapter for order operations.
@@ -64,10 +64,11 @@ func (h *OrderHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	source := r.URL.Query().Get("source")
 	finStatus := r.URL.Query().Get("financial_status")
 	fulStatus := r.URL.Query().Get("fulfillment_status")
+	status := r.URL.Query().Get("status")
 	sortBy := r.URL.Query().Get("sort_by")
 	sortOrder := r.URL.Query().Get("sort_order")
 
-	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, sortBy, sortOrder)
+	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, status, sortBy, sortOrder)
 	if err != nil {
 		http.Error(w, "Failed to retrieve orders", http.StatusInternalServerError)
 		return
@@ -504,4 +505,54 @@ func (h *OrderHandler) UpdateFeedbackAdminComment(w http.ResponseWriter, r *http
 		"success": true,
 		"message": "Admin comment updated successfully",
 	})
+}
+
+// CreateOrder handles POST /api/orders.
+// @Summary Create a manual/POS order
+// @Description Create a new POS order directly in the system. Triggers inventory deduction and external synchronization.
+// @Tags orders
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param order body dto.OrderCreateRequest true "Order Details"
+// @Success 201 {object} dto.OrderResponse
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /orders [post]
+func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req dto.OrderCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Basic validation
+	if len(req.LineItems) == 0 {
+		http.Error(w, "At least one line item is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.CustomerName) == "" {
+		http.Error(w, "Customer name is required", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(req.CustomerPhone) == "" {
+		http.Error(w, "Customer phone number is required", http.StatusBadRequest)
+		return
+	}
+
+	orderResponse, err := h.orderService.CreateManualOrder(r.Context(), req)
+	if err != nil {
+		log.Printf("Error creating manual order: %v", err)
+		http.Error(w, "Failed to create order: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(orderResponse)
 }

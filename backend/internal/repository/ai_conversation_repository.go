@@ -63,7 +63,7 @@ func (r *gormAIConversationRepository) AddMessage(conversationID int64, role, co
 		Content:        content,
 		Metadata:       metadata,
 	}
-	
+
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(msg).Error; err != nil {
 			return err
@@ -71,7 +71,7 @@ func (r *gormAIConversationRepository) AddMessage(conversationID int64, role, co
 		// Update conversation timestamp
 		return tx.Model(&entity.AIConversation{}).Where("id = ?", conversationID).Update("updated_at", time.Now()).Error
 	})
-	
+
 	return err
 }
 

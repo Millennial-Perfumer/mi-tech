@@ -103,7 +103,6 @@ func (s *InventoryService) DeleteMapping(ctx context.Context, id int) error {
 	return s.repo.DeleteMapping(id)
 }
 
-
 // SyncShopifyProducts fetches all Shopify variants and stages them for sync.
 func (s *InventoryService) SyncShopifyProducts(ctx context.Context) ([]entity.InventoryItem, error) {
 	shopifyProducts, err := s.shopifyClient.FetchProducts()
@@ -178,12 +177,21 @@ func (s *InventoryService) SyncShopifyProducts(ctx context.Context) ([]entity.In
 				slog.Info("[DEBUG] No location match, showing global stock", "total", availableStock)
 			}
 
+			// Parse Shopify price
+			var priceVal float64
+			if v.Node.Price != "" {
+				if parsedPrice, err := strconv.ParseFloat(v.Node.Price, 64); err == nil {
+					priceVal = parsedPrice
+				}
+			}
+
 			// Use a helper to ensure a fresh pointer for each variant
 			item := entity.InventoryItem{
 				Title:         fmt.Sprintf("%s - %s", sp.Title, v.Node.Title),
 				Description:   stringPtr(finalDesc),
 				Specification: stringPtr(productSpec),
 				CurrentStock:  availableStock,
+				Price:         priceVal,
 				Mappings: []entity.InventoryMapping{
 					{
 						Platform:          "shopify",
@@ -197,6 +205,83 @@ func (s *InventoryService) SyncShopifyProducts(ctx context.Context) ([]entity.In
 	}
 
 	return results, nil
+}
+
+// PriceSyncStats represents results of variant price updates.
+type PriceSyncStats struct {
+	TotalProcessed int `json:"total_processed"`
+	UpdatedCount   int `json:"updated_count"`
+	SkippedCount   int `json:"skipped_count"`
+	NotFoundCount  int `json:"not_found_count"`
+}
+
+// SyncShopifyPrices fetches live Shopify variants and backfills database inventory prices by SKU match.
+func (s *InventoryService) SyncShopifyPrices(ctx context.Context) (PriceSyncStats, error) {
+	stats := PriceSyncStats{}
+
+	shopifyProducts, err := s.shopifyClient.FetchProducts()
+	if err != nil {
+		return stats, fmt.Errorf("failed to fetch products from shopify: %w", err)
+	}
+
+	for _, sp := range shopifyProducts {
+		for _, v := range sp.Variants.Edges {
+			stats.TotalProcessed++
+			sku := v.Node.SKU
+			priceStr := v.Node.Price
+
+			if sku == "" {
+				slog.Warn("Skipping Shopify variant with empty SKU in price sync", "variant_id", v.Node.ID, "title", v.Node.Title)
+				stats.SkippedCount++
+				continue
+			}
+
+			priceVal, err := strconv.ParseFloat(priceStr, 64)
+			if err != nil {
+				slog.Error("Failed to parse price in price sync", "sku", sku, "price", priceStr, "error", err)
+				stats.SkippedCount++
+				continue
+			}
+
+			// 1. Match via inventory_mappings
+			item, err := s.repo.GetItemByPlatformSKU("shopify", sku)
+			if err == nil {
+				item.Price = priceVal
+				if err := s.repo.UpdateItem(&item); err != nil {
+					slog.Error("Failed to update item price via mapping in price sync", "sku", sku, "error", err)
+				} else {
+					slog.Info("Successfully updated price via mapping in price sync", "sku", sku, "price", priceVal)
+					stats.UpdatedCount++
+				}
+				continue
+			}
+
+			// 2. Fallback: match via direct mi_sku
+			items, err := s.repo.ListItems(sku)
+			if err == nil && len(items) > 0 {
+				var directMatched bool
+				for _, item := range items {
+					if strings.EqualFold(item.MISKU, sku) {
+						item.Price = priceVal
+						if err := s.repo.UpdateItem(&item); err == nil {
+							slog.Info("Successfully updated price via direct SKU match in price sync", "sku", sku, "price", priceVal)
+							stats.UpdatedCount++
+							directMatched = true
+							break
+						}
+					}
+				}
+				if directMatched {
+					continue
+				}
+			}
+
+			slog.Warn("No mapping or direct SKU match found for Shopify variant in price sync", "sku", sku)
+			stats.NotFoundCount++
+		}
+	}
+
+	return stats, nil
 }
 
 func stringPtr(s string) *string {
@@ -291,6 +376,13 @@ func (s *InventoryService) BulkImport(ctx context.Context, items []entity.Invent
 				items[i].MISKU = fmt.Sprintf("mi-%02d", startNum)
 			}
 		}
+
+		// Also create a 'pos' mapping for each item using its MISKU
+		items[i].Mappings = append(items[i].Mappings, entity.InventoryMapping{
+			Platform:    "pos",
+			ExternalSKU: items[i].MISKU,
+		})
+
 		toCreate = append(toCreate, items[i])
 	}
 

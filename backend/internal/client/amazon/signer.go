@@ -21,13 +21,13 @@ func SignV4(req *http.Request, body []byte, accessKey, secretKey, region, servic
 	dateStamp := t.Format("20060102")
 
 	req.Header.Set("X-Amz-Date", amzDate)
-	
+
 	// Canonical Headers
 	headers := map[string]string{
 		"host":       req.URL.Host,
 		"x-amz-date": amzDate,
 	}
-	
+
 	// Add other headers that should be signed
 	var sortedHeaders []string
 	for k := range headers {
@@ -114,6 +114,6 @@ func SignRequest(req *http.Request, accessKey, secretKey, region, service string
 		}
 		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	
+
 	return SignV4(req, body, accessKey, secretKey, region, service, time.Now())
 }

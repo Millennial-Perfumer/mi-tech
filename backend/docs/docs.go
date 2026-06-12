@@ -1646,46 +1646,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/metrics/dashboard": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve real-time metrics including revenue, GST breakdown, and order counts.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "dashboard"
-                ],
-                "summary": "Get dashboard metrics",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Start date",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "End date",
-                        "name": "end_date",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/orders": {
             "get": {
                 "description": "Get a paginated list of orders with filters",
@@ -1815,6 +1775,55 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new POS order directly in the system. Triggers inventory deduction and external synchronization.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Create a manual/POS order",
+                "parameters": [
+                    {
+                        "description": "Order Details",
+                        "name": "order",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/mi-tech_internal_dto.OrderCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/mi-tech_internal_dto.OrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
         },
         "/orders/delivered": {
@@ -1874,6 +1883,56 @@ const docTemplate = `{
                         "name": "id",
                         "in": "query",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/feedback/comment": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Add or update an internal admin comment on a customer feedback",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "feedback"
+                ],
+                "summary": "Update feedback admin comment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Feedback ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Admin comment",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 ],
                 "responses": {
@@ -2890,6 +2949,221 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_dto.LineItemCreateRequest": {
+            "type": "object",
+            "properties": {
+                "discount": {
+                    "description": "item-level discount amount",
+                    "type": "number"
+                },
+                "mi_sku": {
+                    "description": "e.g. \"mi-01\"",
+                    "type": "string"
+                },
+                "price": {
+                    "description": "unit price",
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_dto.LineItemResponse": {
+            "type": "object",
+            "properties": {
+                "discount": {
+                    "type": "string"
+                },
+                "hs_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "sku": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_dto.OrderCreateRequest": {
+            "type": "object",
+            "properties": {
+                "customer_address1": {
+                    "type": "string"
+                },
+                "customer_address2": {
+                    "type": "string"
+                },
+                "customer_city": {
+                    "type": "string"
+                },
+                "customer_country": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "customer_phone": {
+                    "type": "string"
+                },
+                "customer_state": {
+                    "type": "string"
+                },
+                "customer_zip": {
+                    "type": "string"
+                },
+                "financial_status": {
+                    "description": "default: \"paid\"",
+                    "type": "string"
+                },
+                "fulfillment_status": {
+                    "description": "default: \"fulfilled\"",
+                    "type": "string"
+                },
+                "line_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_dto.LineItemCreateRequest"
+                    }
+                },
+                "terminal_code": {
+                    "description": "\"POS1\" (defaults if empty)",
+                    "type": "string"
+                },
+                "total_discount": {
+                    "type": "number"
+                },
+                "total_price": {
+                    "type": "number"
+                }
+            }
+        },
+        "mi-tech_internal_dto.OrderResponse": {
+            "type": "object",
+            "properties": {
+                "cancel_reason": {
+                    "type": "string"
+                },
+                "cancelled_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "customer_address1": {
+                    "type": "string"
+                },
+                "customer_address2": {
+                    "type": "string"
+                },
+                "customer_city": {
+                    "type": "string"
+                },
+                "customer_country": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_first_name": {
+                    "type": "string"
+                },
+                "customer_last_name": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "customer_phone": {
+                    "type": "string"
+                },
+                "customer_state": {
+                    "type": "string"
+                },
+                "customer_zip": {
+                    "type": "string"
+                },
+                "delivery_status": {
+                    "type": "string"
+                },
+                "feedback_sent_at": {
+                    "type": "string"
+                },
+                "feedback_status_id": {
+                    "type": "integer"
+                },
+                "financial_status": {
+                    "type": "string"
+                },
+                "fulfillment_status": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "line_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_dto.LineItemResponse"
+                    }
+                },
+                "order_number": {
+                    "type": "string"
+                },
+                "shipping_company": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subtotal_price": {
+                    "type": "string"
+                },
+                "total_price": {
+                    "type": "string"
+                },
+                "total_tax": {
+                    "type": "string"
+                },
+                "tracking_number": {
+                    "type": "string"
+                },
+                "tracking_url": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

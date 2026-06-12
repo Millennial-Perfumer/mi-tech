@@ -157,7 +157,7 @@ func (c *Client) CreateReport(reportType string, startTime, endTime *time.Time) 
 	u := fmt.Sprintf("%s/reports/2021-06-30/reports", c.endpoint)
 
 	payload := map[string]interface{}{
-		"reportType":      reportType,
+		"reportType":     reportType,
 		"marketplaceIds": []string{c.settings.GetAmazonMarketplaceID()},
 	}
 	if startTime != nil {
@@ -268,8 +268,8 @@ func (c *Client) UpdateInventory(sku string, quantity int) error {
 		"productType": "PRODUCT",
 		"patches": []map[string]interface{}{
 			{
-				"op":    "replace",
-				"path":  "/attributes/fulfillment_availability",
+				"op":   "replace",
+				"path": "/attributes/fulfillment_availability",
 				"value": []map[string]interface{}{
 					{
 						"fulfillment_channel_code": "DEFAULT",

@@ -49,10 +49,10 @@ type AIDailyRevenue struct {
 }
 
 type AIProductRank struct {
-	SKU      string  `json:"sku"`
-	Name     string  `json:"name"`
-	QtySold  int     `json:"qty_sold"`
-	Revenue  float64 `json:"revenue"`
+	SKU     string  `json:"sku"`
+	Name    string  `json:"name"`
+	QtySold int     `json:"qty_sold"`
+	Revenue float64 `json:"revenue"`
 }
 
 type AIProductStats struct {
@@ -79,20 +79,20 @@ type AITopCustomer struct {
 }
 
 type AIInventoryStatus struct {
-	SKU          string `json:"sku"`
-	Name         string `json:"name"`
-	Stock        int    `json:"stock"`
+	SKU           string `json:"sku"`
+	Name          string `json:"name"`
+	Stock         int    `json:"stock"`
 	Specification string `json:"specification"`
-	Status       string `json:"status"` // "In Stock", "Low Stock", "Out of Stock"
+	Status        string `json:"status"` // "In Stock", "Low Stock", "Out of Stock"
 }
 
 type AIBusinessSnapshot struct {
-	MTDRevenue      float64 `json:"mtd_revenue"`
-	MTDOrders       int     `json:"mtd_orders"`
-	TodayRevenue    float64 `json:"today_revenue"`
-	TodayOrders     int     `json:"today_orders"`
-	LowStockCount   int     `json:"low_stock_count"`
-	PendingOrders   int     `json:"pending_orders"`
+	MTDRevenue    float64 `json:"mtd_revenue"`
+	MTDOrders     int     `json:"mtd_orders"`
+	TodayRevenue  float64 `json:"today_revenue"`
+	TodayOrders   int     `json:"today_orders"`
+	LowStockCount int     `json:"low_stock_count"`
+	PendingOrders int     `json:"pending_orders"`
 }
 
 type AIMemory struct {

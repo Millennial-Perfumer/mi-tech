@@ -59,6 +59,14 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 	if filter.FulfillmentStatus != "" {
 		query = query.Where("fulfillment_status = ?", filter.FulfillmentStatus)
 	}
+	if filter.Status != "" {
+		statusLower := strings.ToLower(filter.Status)
+		if statusLower == "cancelled" || statusLower == "canceled" {
+			query = query.Where("LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')")
+		} else {
+			query = query.Where("LOWER(status) = ?", statusLower)
+		}
+	}
 
 	// Count total matching
 	var totalCount int64
@@ -162,7 +170,7 @@ func (r *gormOrderRepository) mergePII(existing *entity.Order, incoming *entity.
 
 func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Order, oldItems []entity.LineItem) ([]int, error) {
 	var affectedIDs []int
-	
+
 	// Index by SKU: delta = New - Old
 	skuDeltas := make(map[string]int)
 	var skus []string
@@ -247,6 +255,29 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 	return affectedIDs, nil
 }
 
+func (r *gormOrderRepository) recalculateOrderTotals(order *entity.Order) {
+	var calculatedTotal float64
+	var calculatedSubtotal float64
+	var calculatedTax float64
+	for _, item := range order.LineItems {
+		qty := float64(item.Quantity)
+		lineGross := (item.Price * qty) - item.Discount
+		lineNet := lineGross - item.OrderDiscount
+		if lineNet < 0 {
+			lineNet = 0
+		}
+		lineTaxable := lineNet / 1.18
+		lineTax := lineNet - lineTaxable
+
+		calculatedTotal += lineNet
+		calculatedSubtotal += lineTaxable
+		calculatedTax += lineTax
+	}
+	order.TotalPrice = calculatedTotal
+	order.SubtotalPrice = &calculatedSubtotal
+	order.TotalTax = &calculatedTax
+}
+
 func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 	var affectedIDs []int
 	if order.CustomerPhone != nil {
@@ -264,7 +295,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 		if err == nil {
 			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
 			r.mergePII(&existing, &order)
-			
+
 			// Preserve delivered_at if already set
 			if existing.DeliveredAt != nil {
 				order.DeliveredAt = existing.DeliveredAt
@@ -292,13 +323,28 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 					log.Printf("Repository: Order %s auto-linked to customer %s to restore phone.", order.OrderNumber, cust.PhoneNumber)
 
 					// Also restore other fields if possible
-					if r.isWeak(order.CustomerFirstName) { order.CustomerFirstName = cust.FirstName }
-					if r.isWeak(order.CustomerLastName) { order.CustomerLastName = cust.LastName }
-					if r.isWeak(order.CustomerEmail) { order.CustomerEmail = cust.Email }
-					if r.isWeak(order.CustomerCity) { order.CustomerCity = cust.City }
-					if r.isWeak(order.CustomerState) { order.CustomerState = cust.State }
+					if r.isWeak(order.CustomerFirstName) {
+						order.CustomerFirstName = cust.FirstName
+					}
+					if r.isWeak(order.CustomerLastName) {
+						order.CustomerLastName = cust.LastName
+					}
+					if r.isWeak(order.CustomerEmail) {
+						order.CustomerEmail = cust.Email
+					}
+					if r.isWeak(order.CustomerCity) {
+						order.CustomerCity = cust.City
+					}
+					if r.isWeak(order.CustomerState) {
+						order.CustomerState = cust.State
+					}
 				}
 			}
+		}
+
+		// 1.8 Recalculate totals from line items to prevent discrepancies / doubling
+		if order.SourceID == "shopify" && len(order.LineItems) > 0 {
+			r.recalculateOrderTotals(&order)
 		}
 
 		// 2. Upsert the order
@@ -403,7 +449,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			if existing, found := existingMap[key]; found {
 				orders[i].ID = existing.ID // Crucial to link line items correctly
 				r.mergePII(&existing, &orders[i])
-				
+
 				// Preserve delivered_at if already set
 				if existing.DeliveredAt != nil {
 					orders[i].DeliveredAt = existing.DeliveredAt
@@ -430,7 +476,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				orderIDs = append(orderIDs, o.ID)
 			}
 		}
-		
+
 		oldLinesByOrder := make(map[int64][]entity.LineItem)
 		if len(orderIDs) > 0 {
 			var allOldLineItems []entity.LineItem
@@ -444,6 +490,13 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			// Clean old line items to handle removals correctly (Batch Sync)
 			if err := tx.Where("order_id IN ?", orderIDs).Delete(&entity.LineItem{}).Error; err != nil {
 				return fmt.Errorf("failed to clean old line items: %w", err)
+			}
+		}
+
+		// 1.8 Recalculate totals from line items to prevent discrepancies / doubling
+		for i := range orders {
+			if orders[i].SourceID == "shopify" && len(orders[i].LineItems) > 0 {
+				r.recalculateOrderTotals(&orders[i])
 			}
 		}
 
@@ -697,9 +750,15 @@ func (r *gormOrderRepository) GetCustomerStats(phone string) (totalOrders int, t
 	return
 }
 
-func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]struct{ Count int; Sum float64 }, error) {
+func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]struct {
+	Count int
+	Sum   float64
+}, error) {
 	if len(phones) == 0 {
-		return make(map[string]struct{ Count int; Sum float64 }), nil
+		return make(map[string]struct {
+			Count int
+			Sum   float64
+		}), nil
 	}
 
 	type result struct {
@@ -717,7 +776,10 @@ func (r *gormOrderRepository) GetCustomersStats(phones []string) (map[string]str
 		return nil, err
 	}
 
-	statsMap := make(map[string]struct{ Count int; Sum float64 })
+	statsMap := make(map[string]struct {
+		Count int
+		Sum   float64
+	})
 	for _, res := range results {
 		statsMap[res.Phone] = struct {
 			Count int
@@ -761,7 +823,7 @@ func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.O
 	var orders []entity.Order
 	// Logic: Delivered but feedback is still 'pending' (status_id = 1 or NULL) and delivered_at <= delayMinutes ago
 	threshold := time.Now().Add(time.Duration(-delayMinutes) * time.Minute)
-	
+
 	// Use TRIM(LOWER()) to be resilient against trailing spaces found in DB ('delivered ')
 	err := r.db.Where("TRIM(LOWER(delivery_status)) = ? AND (feedback_status_id = ? OR feedback_status_id IS NULL) AND delivered_at <= ?", "delivered", 1, threshold).
 		Order("delivered_at DESC").
@@ -810,4 +872,23 @@ func (r *gormOrderRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, err
 
 func (r *gormOrderRepository) UpdateFeedbackAdminComment(id int, comment string) error {
 	return r.db.Model(&entity.CustomerFeedback{}).Where("id = ?", id).Update("admin_comment", comment).Error
+}
+
+func (r *gormOrderRepository) GetNextPOSSequence(terminalCode string) (string, error) {
+	var result struct {
+		Code string
+		Seq  int
+	}
+	err := r.db.Raw(`
+		UPDATE pos_terminals SET next_sequence = next_sequence + 1
+		WHERE code = ? AND is_active = true
+		RETURNING code, next_sequence - 1 AS seq
+	`, terminalCode).Scan(&result).Error
+	if err != nil {
+		return "", fmt.Errorf("POS terminal '%s' not found or inactive: %w", terminalCode, err)
+	}
+	if result.Code == "" {
+		return "", fmt.Errorf("POS terminal '%s' not found or inactive", terminalCode)
+	}
+	return fmt.Sprintf("%s-%03d", result.Code, result.Seq), nil
 }

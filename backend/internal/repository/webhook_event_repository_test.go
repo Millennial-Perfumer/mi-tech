@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"mi-tech/internal/entity"
 	"mi-tech/internal/testutil"
@@ -34,11 +36,16 @@ func (s *WebhookEventRepositoryTestSuite) TearDownSuite() {
 
 func (s *WebhookEventRepositoryTestSuite) SetupTest() {
 	s.db.Exec("TRUNCATE TABLE webhook_events CASCADE")
+	s.db.Exec("TRUNCATE TABLE orders CASCADE")
 }
 
 func (s *WebhookEventRepositoryTestSuite) TestSaveAndCheckProcessed() {
 	deliveryID := "del_123"
+	payload := json.RawMessage(`{}`)
 	event := &entity.WebhookEvent{
+		SourceID:          "shopify",
+		ExternalID:        "ext_123",
+		Payload:           &payload,
 		WebhookDeliveryID: deliveryID,
 		Topic:             "orders/create",
 	}
@@ -57,18 +64,35 @@ func (s *WebhookEventRepositoryTestSuite) TestSaveAndCheckProcessed() {
 }
 
 func (s *WebhookEventRepositoryTestSuite) TestLinkToOrder() {
+	// First insert dummy order to satisfy foreign key constraint
+	order := &entity.Order{
+		ID:          12345,
+		SourceID:    "shopify",
+		OrderNumber: "1001",
+		TotalPrice:  100.0,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	err := s.db.Create(order).Error
+	assert.NoError(s.T(), err)
+
 	deliveryID := "del_link"
+	payload := json.RawMessage(`{}`)
 	s.repo.Save(&entity.WebhookEvent{
+		SourceID:          "shopify",
+		ExternalID:        "ext_link",
+		Payload:           &payload,
 		WebhookDeliveryID: deliveryID,
 		Topic:             "orders/update",
 	})
 
-	err := s.repo.LinkToOrder(deliveryID, 12345)
+	err = s.repo.LinkToOrder(deliveryID, 12345)
 	assert.NoError(s.T(), err)
 
 	var event entity.WebhookEvent
 	s.db.Where("webhook_delivery_id = ?", deliveryID).First(&event)
-	assert.Equal(s.T(), int64(12345), event.OrderID)
+	assert.NotNil(s.T(), event.OrderID)
+	assert.Equal(s.T(), int64(12345), *event.OrderID)
 	assert.True(s.T(), event.Processed)
 }
 
