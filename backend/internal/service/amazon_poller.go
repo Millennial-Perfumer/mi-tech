@@ -116,10 +116,30 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		for _, item := range items {
 			qty := int(item["QuantityOrdered"].(float64))
 			sku := item["SellerSKU"].(string)
+
+			price := 0.0
+			if itemPrice, ok := item["ItemPrice"].(map[string]interface{}); ok {
+				amountStr := fmt.Sprintf("%v", itemPrice["Amount"])
+				price, _ = strconv.ParseFloat(amountStr, 64)
+			}
+
+			discount := 0.0
+			if promoDiscount, ok := item["PromotionDiscount"].(map[string]interface{}); ok {
+				amountStr := fmt.Sprintf("%v", promoDiscount["Amount"])
+				discount, _ = strconv.ParseFloat(amountStr, 64)
+			}
+
+			unitPrice := price
+			if qty > 0 {
+				unitPrice = price / float64(qty)
+			}
+
 			lineItems = append(lineItems, entity.LineItem{
 				ID:       item["OrderItemId"].(string),
 				SKU:      &sku,
 				Quantity: qty,
+				Price:    unitPrice,
+				Discount: discount,
 			})
 		}
 
