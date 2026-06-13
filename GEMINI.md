@@ -18,7 +18,13 @@ Use the root `Makefile` for the main local workflow:
 Follow the language defaults already in the repo: Go should stay `gofmt`-formatted with package names in lowercase and tests in `*_test.go`. In React/TypeScript, keep components and screens in `PascalCase` files such as `Customers.tsx`; utility modules and APIs may use lowercase names like `api.ts`. Use 2-space indentation in frontend code and tabs/default Go formatting in backend code. ESLint is configured in both frontends; run it before opening a PR.
 
 ## Testing Guidelines
-Backend tests use Go’s `testing` package with `stretchr/testify`. Prefer colocated tests next to the package they cover, and use descriptive names such as `TestWebhookService_ProcessesPaidOrder`. There is no established frontend test suite yet, so changes there should at minimum pass `npm run build` and `npm run lint`.
+Backend tests use Go’s `testing` package with `stretchr/testify`. 
+
+> [!IMPORTANT]
+> **Strict Test Directory Rule:** All backend test files (ending in `_test.go`) MUST reside only within a nested `test/` subdirectory inside the package directory they are covering (e.g., `internal/shared/middleware/test/middleware_test.go`). They must use a separate `package test` declaration and import the parent package. Under no circumstances should test files be placed in the parent package's root directory.
+
+There is no established frontend test suite yet, so changes there should at minimum pass `npm run build` and `npm run lint`.
+
 
 ## Documentation Maintenance
 This repository follows a strict **Doc-as-Code** mandate to ensure accuracy and reduce knowledge debt.
