@@ -36,9 +36,9 @@ jobs:
 
       - name: Check Formatting
         run: |
-          if [ "$(gofmt -l backend/internal backend/cmd | wc -l)" -gt 0 ]; then
+          if [ "$(gofmt -l backend/internal backend/cmd backend/test | wc -l)" -gt 0 ]; then
             echo "The following files are not gofmt formatted:"
-            gofmt -l backend/internal backend/cmd
+            gofmt -l backend/internal backend/cmd backend/test
             exit 1
           fi
 
@@ -51,7 +51,7 @@ jobs:
       - name: Run Tests
         env:
           TEST_DB_DSN: postgres://postgres:password@localhost:5432/mi-tech-test?sslmode=disable
-        run: cd backend && go test -v ./...
+        run: cd backend && go test -p 1 -v ./...
 
   frontend-check:
     name: Frontend Check
