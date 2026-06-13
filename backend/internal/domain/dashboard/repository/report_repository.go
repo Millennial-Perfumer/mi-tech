@@ -128,7 +128,7 @@ func (r *gormMetricsRepository) GetTopProducts(startDate, endDate string, source
 			li.sku,
 			li.title,
 			SUM(li.quantity) as quantity,
-			SUM(li.price * li.quantity - li.discount) as revenue
+			SUM(li.price * li.quantity - li.discount - COALESCE(li.order_discount, 0)) as revenue
 		FROM order_line_items li
 		JOIN orders o ON li.order_id = o.id
 		WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
@@ -269,8 +269,8 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 				li.order_id,
 				COALESCE(li.hs_code, '33029019') as hs_code,
 				li.quantity,
-				(li.price * li.quantity - li.discount) as line_val,
-				SUM(li.price * li.quantity - li.discount) OVER (PARTITION BY li.order_id) as line_sum,
+				(li.price * li.quantity - li.discount - COALESCE(li.order_discount, 0)) as line_val,
+				SUM(li.price * li.quantity - li.discount - COALESCE(li.order_discount, 0)) OVER (PARTITION BY li.order_id) as line_sum,
 				o.total_price,
 				ROUND(o.total_price / 1.18, 2) as order_taxable,
 				(o.total_price - ROUND(o.total_price / 1.18, 2)) as order_tax,
