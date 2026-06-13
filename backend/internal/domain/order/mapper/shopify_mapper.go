@@ -1,0 +1,522 @@
+package mapper
+
+import (
+	"encoding/json"
+	"strconv"
+	"strings"
+	"time"
+
+	"mi-tech/internal/domain/order/dto"
+	"mi-tech/internal/domain/order/entity"
+	"mi-tech/internal/shared/extclient/shopify"
+	"mi-tech/internal/shared/util"
+)
+
+// GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.
+func GraphQLOrderToEntity(so shopify.GraphQLOrderNode) entity.Order {
+	var custName, custEmail, custPhone, custCity, custState, custCountry, addr1, addr2, zip string
+
+	custEmail = so.Email
+	var custExternalID string
+	if so.Customer != nil {
+		custName = strings.TrimSpace(so.Customer.DisplayName)
+		if custName == "" {
+			custName = strings.TrimSpace(so.Customer.FirstName + " " + so.Customer.LastName)
+		}
+		custExternalID = so.Customer.ID
+		if custPhone == "" {
+			custPhone = so.Customer.Phone
+		}
+	}
+
+	if so.ShippingAddress != nil {
+		if custName == "" {
+			custName = strings.TrimSpace(so.ShippingAddress.Name)
+		}
+		custPhone = so.ShippingAddress.Phone
+		custCity = so.ShippingAddress.City
+		custState = so.ShippingAddress.Province
+		custCountry = so.ShippingAddress.Country
+	} else if so.BillingAddress != nil {
+		if custName == "" {
+			custName = strings.TrimSpace(so.BillingAddress.Name)
+		}
+		custPhone = so.BillingAddress.Phone
+		custCity = so.BillingAddress.City
+		custState = so.BillingAddress.Province
+		custCountry = so.BillingAddress.Country
+	}
+
+	if custName == "" {
+		custName = "Valued Customer"
+	}
+
+	// Determine status
+	status := "unfulfilled"
+	deliveryStatus := "pending"
+
+	if so.CancelledAt != "" {
+		status = "CANCELLED"
+		deliveryStatus = ""
+	} else if so.DisplayFulfillmentStatus == "FULFILLED" {
+		status = "fulfilled"
+	} else if so.DisplayFinancialStatus == "PAID" {
+		status = "paid"
+	}
+
+	financialStatus := strings.ToLower(so.DisplayFinancialStatus)
+	fulfillmentStatus := strings.ToLower(so.DisplayFulfillmentStatus)
+	trackingNumber := ""
+	shippingCompany := ""
+	trackingUrl := ""
+
+	if len(so.Fulfillments) > 0 {
+		// Iterate to find the best active fulfillment (ignore cancelled ones if possible)
+		var bestFulfillment *shopify.GraphQLFulfillment
+		for i := len(so.Fulfillments) - 1; i >= 0; i-- {
+			f := so.Fulfillments[i]
+			if strings.ToLower(f.Status) != "cancelled" {
+				bestFulfillment = &so.Fulfillments[i]
+				break
+			}
+		}
+
+		// Fallback to the last one if all are cancelled
+		if bestFulfillment == nil {
+			bestFulfillment = &so.Fulfillments[len(so.Fulfillments)-1]
+		}
+
+		f := bestFulfillment
+
+		// Prioritize: 1. Latest event status, 2. Display status, 3. Raw status
+		if len(f.Events.Edges) > 0 {
+			lastEvent := f.Events.Edges[len(f.Events.Edges)-1].Node
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(lastEvent.Status, "_", " "))
+		} else if f.DisplayStatus != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
+		} else if f.Status != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
+		}
+
+		if len(f.TrackingInfo) > 0 {
+			trackingNumber = f.TrackingInfo[0].Number
+			shippingCompany = f.TrackingInfo[0].Company
+			trackingUrl = f.TrackingInfo[0].Url
+		}
+
+		// If no carrier events exist but we possess a tracking number, assume Confirmed
+		if (deliveryStatus == "fulfilled" || deliveryStatus == "success") && trackingNumber != "" {
+			deliveryStatus = "confirmed"
+		}
+	}
+
+	// Map sourceName to internal source_id
+	sourceID := "shopify"
+	sourceName := strings.ToLower(so.SourceName)
+	if strings.Contains(sourceName, "amazon") {
+		sourceID = "amazon"
+	} else if strings.Contains(sourceName, "pos") {
+		sourceID = "pos"
+	}
+
+	idStr := strings.TrimPrefix(so.ID, "gid://shopify/Order/")
+
+	createdAt := parseTime(so.ProcessedAt)
+	if createdAt.IsZero() {
+		createdAt = parseTime(so.CreatedAt)
+	}
+	updatedAt := parseTime(so.UpdatedAt)
+
+	totalPrice := parseFloat(so.CurrentTotalPriceSet.ShopMoney.Amount)
+	totalDiscount := parseFloat(so.CurrentTotalDiscountsSet.ShopMoney.Amount)
+	taxableValue := totalPrice / 1.18
+	totalTax := totalPrice - taxableValue
+
+	inr := "INR"
+	return entity.Order{
+		ExternalOrderID:    idStr,
+		SourceID:           sourceID,
+		OrderNumber:        so.Name,
+		TotalPrice:         totalPrice,
+		TotalDiscount:      totalDiscount,
+		SubtotalPrice:      &taxableValue,
+		TotalTax:           &totalTax,
+		Currency:           &inr,
+		CreatedAt:          createdAt,
+		UpdatedAt:          updatedAt,
+		FinancialStatus:    strPtr(financialStatus),
+		FulfillmentStatus:  strPtr(fulfillmentStatus),
+		DeliveryStatus:     strPtr(deliveryStatus),
+		TrackingNumber:     strPtr(trackingNumber),
+		ShippingCompany:    strPtr(shippingCompany),
+		TrackingUrl:        strPtr(trackingUrl),
+		Status:             strPtr(status),
+		CancelledAt:        parseTimePtr(&so.CancelledAt),
+		CancelReason:       strPtr(so.CancelReason),
+		CustomerName:       strPtr(custName),
+		CustomerEmail:      strPtr(custEmail),
+		CustomerZip:        strPtr(zip),
+		CustomerExternalID: strPtr(custExternalID),
+		CustomerPhone:      strPtr(util.NormalizePhone(custPhone)),
+		CustomerCity:       strPtr(custCity),
+		CustomerState:      strPtr(custState),
+		CustomerCountry:    strPtr(custCountry),
+		CustomerAddress1:   strPtr(addr1),
+		CustomerAddress2:   strPtr(addr2),
+	}
+}
+
+// GraphQLLineItemsToEntities converts GraphQL line items into DB entities.
+func GraphQLLineItemsToEntities(orderID int64, items shopify.GraphQLLineItemWrap) []entity.LineItem {
+	var result []entity.LineItem
+	defaultHSN := "33029019"
+	for _, edge := range items.Edges {
+		li := edge.Node
+		hsCode := ""
+		if li.Variant != nil {
+			hsCode = li.Variant.InventoryItem.HarmonizedSystemCode
+		}
+
+		itemID := strings.TrimPrefix(li.ID, "gid://shopify/LineItem/")
+		qty := li.Quantity
+		if li.CurrentQuantity != nil {
+			qty = *li.CurrentQuantity
+		}
+
+		if li.CurrentQuantity != nil && *li.CurrentQuantity <= 0 {
+			continue
+		}
+
+		itemDiscount := parseFloat(li.TotalDiscountSet.ShopMoney.Amount)
+		orderDiscount := 0.0
+		for _, allocation := range li.DiscountAllocations {
+			orderDiscount += parseFloat(allocation.AllocatedAmount.Amount)
+		}
+
+		result = append(result, entity.LineItem{
+			ID:            itemID,
+			OrderID:       orderID,
+			Title:         strPtr(li.Title),
+			SKU:           strPtr(li.SKU),
+			HSCode:        strPtrOr(hsCode, defaultHSN),
+			Quantity:      qty,
+			Price:         parseFloat(li.OriginalUnitPriceSet.ShopMoney.Amount),
+			Discount:      itemDiscount,
+			OrderDiscount: orderDiscount,
+		})
+	}
+	return result
+}
+
+// WebhookOrderToEntity converts a Shopify REST webhook payload into a DB entity.
+func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawMessage) entity.Order {
+	customerName := ""
+	firstName, lastName := "", ""
+
+	if payload.Customer != nil {
+		firstName = payload.Customer.FirstName
+		lastName = payload.Customer.LastName
+	}
+
+	if payload.BillingAddress != nil && payload.BillingAddress.Name != "" {
+		customerName = payload.BillingAddress.Name
+		if firstName == "" {
+			firstName = payload.BillingAddress.FirstName
+		}
+		if lastName == "" {
+			lastName = payload.BillingAddress.LastName
+		}
+	} else if payload.ShippingAddress != nil && payload.ShippingAddress.Name != "" {
+		customerName = payload.ShippingAddress.Name
+		if firstName == "" {
+			firstName = payload.ShippingAddress.FirstName
+		}
+		if lastName == "" {
+			lastName = payload.ShippingAddress.LastName
+		}
+	}
+
+	if customerName == "" && (firstName != "" || lastName != "") {
+		customerName = firstName + " " + lastName
+	}
+
+	city, state, country, addr1, addr2, zip := "", "", "", "", "", ""
+	addr := payload.BillingAddress
+	if addr == nil {
+		addr = payload.ShippingAddress
+	}
+	if addr != nil {
+		city = addr.City
+		state = addr.Province
+		country = addr.Country
+		addr1 = addr.Address1
+		addr2 = addr.Address2
+		zip = addr.Zip
+	}
+
+	phone := ""
+	if payload.BillingAddress != nil && payload.BillingAddress.Phone != "" {
+		phone = payload.BillingAddress.Phone
+	} else if payload.ShippingAddress != nil && payload.ShippingAddress.Phone != "" {
+		phone = payload.ShippingAddress.Phone
+	} else if payload.Customer != nil {
+		phone = payload.Customer.Phone
+	}
+
+	email := payload.Email
+	if email == "" && payload.Customer != nil {
+		email = payload.Customer.Email
+	}
+
+	// Map source_name to source_id
+	sourceID := "shopify"
+	sourceName := strings.ToLower(payload.SourceName)
+	if strings.Contains(sourceName, "amazon") {
+		sourceID = "amazon"
+	} else if strings.Contains(sourceName, "pos") {
+		sourceID = "pos"
+	}
+
+	totalPrice := parseFloat(payload.TotalPrice)
+	taxableValue := totalPrice / 1.18
+	totalTax := totalPrice - taxableValue
+
+	idStr := strconv.FormatInt(payload.ID, 10)
+	defaultHSN := "33029019"
+
+	financialStatus := strings.ToLower(payload.FinancialStatus)
+	fulfillmentStatus := strings.ToLower(payload.FulfillmentStatus)
+	deliveryStatus := "pending"
+	trackingNumber := ""
+	shippingCompany := ""
+	trackingUrl := ""
+
+	if len(payload.Fulfillments) > 0 {
+		var bestFulfillment *dto.ShopifyFulfillment
+		for i := len(payload.Fulfillments) - 1; i >= 0; i-- {
+			f := payload.Fulfillments[i]
+			if strings.ToLower(f.Status) != "cancelled" {
+				bestFulfillment = &payload.Fulfillments[i]
+				break
+			}
+		}
+
+		if bestFulfillment == nil {
+			bestFulfillment = &payload.Fulfillments[len(payload.Fulfillments)-1]
+		}
+
+		f := bestFulfillment
+
+		// Determine delivery status from shipment_status, display_status, or status
+		if f.ShipmentStatus != nil && *f.ShipmentStatus != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(*f.ShipmentStatus, "_", " "))
+		} else if f.DisplayStatus != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.DisplayStatus, "_", " "))
+		} else if f.Status != "" {
+			deliveryStatus = strings.ToLower(strings.ReplaceAll(f.Status, "_", " "))
+		}
+
+		trackingNumber = f.TrackingNumber
+		shippingCompany = f.TrackingCompany
+		trackingUrl = f.TrackingUrl
+
+		if (deliveryStatus == "fulfilled" || deliveryStatus == "success") && trackingNumber != "" {
+			deliveryStatus = "confirmed"
+		}
+	}
+
+	orderNumber := payload.Name
+	if orderNumber == "" {
+		orderNumber = strconv.FormatInt(payload.OrderNumber, 10)
+	}
+
+	order := entity.Order{
+		ExternalOrderID:   idStr,
+		SourceID:          sourceID,
+		OrderNumber:       orderNumber,
+		TotalPrice:        totalPrice,
+		TotalDiscount:     parseFloat(payload.TotalDiscounts),
+		SubtotalPrice:     &taxableValue,
+		TotalTax:          &totalTax,
+		Currency:          strPtr(payload.Currency),
+		FinancialStatus:   strPtr(financialStatus),
+		FulfillmentStatus: strPtr(fulfillmentStatus),
+		DeliveryStatus:    strPtr(deliveryStatus),
+		TrackingNumber:    strPtr(trackingNumber),
+		ShippingCompany:   strPtr(shippingCompany),
+		TrackingUrl:       strPtr(trackingUrl),
+		Status:            strPtr(fulfillmentStatus),
+		CustomerName:      strPtr(customerName),
+		CustomerFirstName: strPtr(firstName),
+		CustomerLastName:  strPtr(lastName),
+		CustomerEmail:     strPtr(email),
+		CustomerZip:       strPtr(zip),
+		CustomerPhone:     strPtr(util.NormalizePhone(phone)),
+		CustomerCity:      strPtr(city),
+		CustomerState:     strPtr(state),
+		CustomerCountry:   strPtr(country),
+		CustomerAddress1:  strPtr(addr1),
+		CustomerAddress2:  strPtr(addr2),
+		CreatedAt:         parseTime(payload.CreatedAt),
+		UpdatedAt:         parseTime(payload.UpdatedAt),
+		RawPayload:        rawPayload,
+	}
+
+	if payload.CancelledAt != nil {
+		order.CancelledAt = parseTimePtr(payload.CancelledAt)
+		order.CancelReason = strPtr(payload.CancelReason)
+		order.Status = strPtr("CANCELLED")
+	}
+
+	for _, li := range payload.LineItems {
+		price := li.Price
+		if price == "" {
+			price = "0.00"
+		}
+		orderDiscount := 0.0
+		for _, allocation := range li.DiscountAllocations {
+			orderDiscount += parseFloat(allocation.Amount)
+		}
+		totalDiscount := parseFloat(li.TotalDiscount)
+		itemDiscount := totalDiscount - orderDiscount
+		if itemDiscount < 0 {
+			itemDiscount = 0
+		}
+
+		qty := li.Quantity
+		if li.CurrentQuantity != nil {
+			qty = *li.CurrentQuantity
+		}
+
+		if li.CurrentQuantity != nil && *li.CurrentQuantity <= 0 {
+			continue
+		}
+
+		order.LineItems = append(order.LineItems, entity.LineItem{
+			ID:            strconv.FormatInt(li.ID, 10),
+			OrderID:       0, // Will be linked in repository
+			ProductID:     strPtr(strconv.FormatInt(li.ProductID, 10)),
+			VariantID:     strPtr(strconv.FormatInt(li.VariantID, 10)),
+			Title:         strPtr(li.Title),
+			SKU:           strPtr(li.SKU),
+			HSCode:        &defaultHSN,
+			Quantity:      qty,
+			Price:         parseFloat(price),
+			Discount:      itemDiscount,
+			OrderDiscount: orderDiscount,
+		})
+	}
+
+	return order
+}
+
+// WebhookCustomerToEntity converts a Shopify REST customer webhook payload into a DB entity.
+func WebhookCustomerToEntity(payload dto.ShopifyWebhookCustomer, rawPayload *json.RawMessage) entity.Customer {
+	city, state, country, addr1, addr2, zip := "", "", "", "", "", ""
+
+	addr := payload.DefaultAddress
+	if addr == nil && len(payload.Addresses) > 0 {
+		addr = &payload.Addresses[0]
+	}
+
+	if addr != nil {
+		city = addr.City
+		state = addr.Province
+		country = addr.Country
+		addr1 = addr.Address1
+		addr2 = addr.Address2
+		zip = addr.Zip
+	}
+
+	// Normalize phone from payload or address
+	phone := payload.Phone
+	if phone == "" && addr != nil {
+		phone = addr.Phone
+	}
+
+	spent := parseFloat(payload.TotalSpent)
+
+	return entity.Customer{
+		PhoneNumber: util.NormalizePhone(phone),
+		FirstName:   strPtr(payload.FirstName),
+		LastName:    strPtr(payload.LastName),
+		Email:       strPtr(payload.Email),
+		Address1:    strPtr(addr1),
+		Address2:    strPtr(addr2),
+		City:        strPtr(city),
+		State:       strPtr(state),
+		Country:     strPtr(country),
+		ZipCode:     strPtr(zip),
+		TotalOrders: payload.OrdersCount,
+		TotalSpent:  spent,
+		CreatedAt:   parseTime(payload.CreatedAt),
+		UpdatedAt:   parseTime(payload.UpdatedAt),
+	}
+}
+
+// --- Helpers ---
+
+// strPtr returns a pointer to the string, or nil if empty.
+func strPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// strPtrOr returns a pointer to the string, or a pointer to the fallback if empty.
+func strPtrOr(s string, fallback string) *string {
+	if s == "" {
+		return &fallback
+	}
+	return &s
+}
+
+func parseFloat(s string) float64 {
+	v, _ := strconv.ParseFloat(s, 64)
+	return v
+}
+
+func parseTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t
+	}
+	t, err = time.Parse("2006-01-02T15:04:05.000Z", s)
+	if err == nil {
+		return t
+	}
+	return time.Time{}
+}
+
+func parseTimePtr(s *string) *time.Time {
+	if s == nil || *s == "" {
+		return nil
+	}
+	t := parseTime(*s)
+	if t.IsZero() {
+		return nil
+	}
+	return &t
+}
+func CustomerToShopifyRest(c entity.Customer) shopify.ShopifyRestCustomer {
+	return shopify.ShopifyRestCustomer{
+		FirstName: util.DerefStr(c.FirstName),
+		LastName:  util.DerefStr(c.LastName),
+		Email:     util.DerefStr(c.Email),
+		Phone:     c.PhoneNumber,
+		Addresses: []shopify.ShopifyRestAddress{
+			{
+				Address1: util.DerefStr(c.Address1),
+				Address2: util.DerefStr(c.Address2),
+				City:     util.DerefStr(c.City),
+				Province: util.DerefStr(c.State),
+				Country:  util.DerefStr(c.Country),
+				Zip:      util.DerefStr(c.ZipCode),
+			},
+		},
+	}
+}

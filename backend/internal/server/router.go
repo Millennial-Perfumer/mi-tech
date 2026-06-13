@@ -5,9 +5,23 @@ import (
 	"log"
 	"net/http"
 
-	"mi-tech/internal/automation/whatsapp"
-	"mi-tech/internal/handler"
-	"mi-tech/internal/service"
+	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
+	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
+	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
+	feedbackHandlerPkg "mi-tech/internal/domain/feedback/handler"
+	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
+	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
+	orderHandlerPkg "mi-tech/internal/domain/order/handler"
+	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
+	productionHandlerPkg "mi-tech/internal/domain/production/handler"
+	supportHandlerPkg "mi-tech/internal/domain/support/handler"
+	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
+	userHandlerPkg "mi-tech/internal/domain/user/handler"
+	userServicePkg "mi-tech/internal/domain/user/service"
+	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
+	configHandlerPkg "mi-tech/internal/shared/config/handler"
+	"mi-tech/internal/shared/middleware"
+	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 
 	_ "mi-tech/docs"
 
@@ -18,40 +32,41 @@ import (
 // RegisterRoutes sets up all API routes in one place.
 func RegisterRoutes(
 	mux *http.ServeMux,
-	orderHandler *handler.OrderHandler,
-	syncHandler *handler.SyncHandler,
-	metricsHandler *handler.MetricsHandler,
-	reportHandler *handler.ReportHandler,
-	webhookHandler *handler.WebhookHandler,
-	automationHandler *whatsapp.AutomationHandler,
-	settingsHandler *handler.SettingsHandler,
-	configsHandler *handler.ConfigsHandler,
-	redirectHandler *handler.RedirectHandler,
-	authHandler *handler.AuthHandler,
-	customerHandler *handler.CustomerHandler,
-	userHandler *handler.UserHandler,
-	marketingHandler *handler.MarketingHandler,
-	marketingWebhookHandler *handler.MarketingWebhookHandler,
-	systemHandler *handler.SystemHandler,
-	smmHandler *handler.SMMHandler,
-	plannerHandler *handler.PlannerHandler,
-	feedbackHandler *handler.FeedbackHandler,
-	inventoryHandler *handler.InventoryHandler,
-	oilHandler *handler.OilInventoryHandler,
-	supplierHandler *handler.SupplierHandler,
-	poHandler *handler.PurchaseOrderHandler,
-	mfgHandler *handler.ManufacturingHandler,
-	aiHandler *handler.AIHandler,
-	authService *service.AuthService,
+	orderHandler *orderHandlerPkg.OrderHandler,
+	syncHandler *syncHandlerPkg.SyncHandler,
+	metricsHandler *dashboardHandlerPkg.MetricsHandler,
+	reportHandler *dashboardHandlerPkg.ReportHandler,
+	webhookHandler *webhookHandlerPkg.WebhookHandler,
+	automationHandler *communicationHandlerPkg.AutomationHandler,
+	settingsHandler *configHandlerPkg.SettingsHandler,
+	configsHandler *configHandlerPkg.ConfigsHandler,
+	redirectHandler *orderHandlerPkg.RedirectHandler,
+	authHandler *userHandlerPkg.AuthHandler,
+	customerHandler *orderHandlerPkg.CustomerHandler,
+	userHandler *userHandlerPkg.UserHandler,
+	marketingHandler *marketingHandlerPkg.MarketingHandler,
+	marketingWebhookHandler *marketingHandlerPkg.MarketingWebhookHandler,
+	systemHandler *systemHandlerPkg.SystemHandler,
+	smmHandler *marketingHandlerPkg.SMMHandler,
+	plannerHandler *plannerHandlerPkg.PlannerHandler,
+	ticketHandler *supportHandlerPkg.TicketHandler,
+	feedbackHandler *feedbackHandlerPkg.FeedbackHandler,
+	inventoryHandler *inventoryHandlerPkg.InventoryHandler,
+	oilHandler *productionHandlerPkg.OilInventoryHandler,
+	supplierHandler *productionHandlerPkg.SupplierHandler,
+	poHandler *productionHandlerPkg.PurchaseOrderHandler,
+	mfgHandler *productionHandlerPkg.ManufacturingHandler,
+	aiHandler *aiHandlerPkg.AIHandler,
+	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
-	cors := CORSMiddleware
-	auth := AuthMiddleware(authService)
-	metrics := MetricsMiddleware
+	cors := middleware.CORSMiddleware
+	auth := middleware.AuthMiddleware(authService)
+	metrics := middleware.MetricsMiddleware
 
 	// Helper to wrap handlers with both CORS, Auth, and RequireRole("admin")
 	adminProtected := func(h http.HandlerFunc) http.HandlerFunc {
-		return cors(auth(RequireRole("admin")(h)).ServeHTTP)
+		return cors(auth(middleware.RequireRole("admin")(h)).ServeHTTP)
 	}
 
 	// Helper to wrap handlers with both CORS and Auth (for read/admin)
@@ -129,8 +144,8 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
 	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
 	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))
-	mux.HandleFunc("/api/orders/feedback", protected(orderHandler.GetFeedback))
-	mux.HandleFunc("/api/orders/feedback/comment", protected(orderHandler.UpdateFeedbackAdminComment))
+	mux.HandleFunc("/api/orders/feedback", protected(feedbackHandler.GetFeedback))
+	mux.HandleFunc("/api/orders/feedback/comment", protected(feedbackHandler.UpdateFeedbackAdminComment))
 	mux.HandleFunc("/api/orders/invoice", protected(orderHandler.GenerateInvoice))
 	mux.HandleFunc("/api/sources", protected(orderHandler.GetSources))
 
@@ -305,6 +320,10 @@ func RegisterRoutes(
 		}
 	}))
 	mux.HandleFunc("/api/planner/analytics", protected(plannerHandler.GetAnalytics))
+
+	// --- Support Ticket Routes ---
+	mux.HandleFunc("/api/support/tickets", protected(ticketHandler.HandleTickets))
+	mux.HandleFunc("/api/support/tickets/", protected(ticketHandler.UpdateTicketStatus))
 
 	mux.HandleFunc("/api/inventory", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

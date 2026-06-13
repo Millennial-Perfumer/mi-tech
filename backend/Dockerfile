@@ -31,8 +31,8 @@ RUN apk --no-cache add ca-certificates tzdata
 COPY --from=builder /app/main .
 
 # Copy migration and documentation files ensuring they exist for runtime bootstrap
-COPY --from=builder /app/internal/database/migrations ./internal/database/migrations
-COPY --from=builder /app/internal/fonts ./internal/fonts
+COPY --from=builder /app/internal/shared/database/migrations ./internal/shared/database/migrations
+COPY --from=builder /app/assets/fonts ./assets/fonts
 COPY --from=builder /app/docs ./docs
 
 

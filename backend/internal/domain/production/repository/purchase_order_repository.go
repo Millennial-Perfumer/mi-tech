@@ -1,0 +1,48 @@
+package repository
+
+import (
+	"mi-tech/internal/domain/production/entity"
+
+	"gorm.io/gorm"
+)
+
+// PurchaseOrderRepository defines all data access for raw material purchases.
+type PurchaseOrderRepository interface {
+	List() ([]entity.PurchaseOrder, error)
+	GetByID(id int) (*entity.PurchaseOrder, error)
+	Create(po *entity.PurchaseOrder) error
+	Update(po *entity.PurchaseOrder) error
+	Delete(id int) error
+}
+
+type pgPurchaseOrderRepository struct {
+	db *gorm.DB
+}
+
+func NewPurchaseOrderRepository(db *gorm.DB) PurchaseOrderRepository {
+	return &pgPurchaseOrderRepository{db: db}
+}
+
+func (r *pgPurchaseOrderRepository) List() ([]entity.PurchaseOrder, error) {
+	var pos []entity.PurchaseOrder
+	err := r.db.Preload("OilInventory").Preload("Supplier").Order("purchase_date desc").Find(&pos).Error
+	return pos, err
+}
+
+func (r *pgPurchaseOrderRepository) GetByID(id int) (*entity.PurchaseOrder, error) {
+	var po entity.PurchaseOrder
+	err := r.db.First(&po, id).Error
+	return &po, err
+}
+
+func (r *pgPurchaseOrderRepository) Create(po *entity.PurchaseOrder) error {
+	return r.db.Create(po).Error
+}
+
+func (r *pgPurchaseOrderRepository) Update(po *entity.PurchaseOrder) error {
+	return r.db.Save(po).Error
+}
+
+func (r *pgPurchaseOrderRepository) Delete(id int) error {
+	return r.db.Delete(&entity.PurchaseOrder{}, id).Error
+}
