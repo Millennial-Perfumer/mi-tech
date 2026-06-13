@@ -135,7 +135,7 @@ func SignV4(req *http.Request, body []byte, accessKey, secretKey, region, servic
 	// Normalize path
 	canonicalReqPath := path.Clean(reqPath)
 	if strings.HasSuffix(reqPath, "/") && canonicalReqPath != "/" {
-	    canonicalReqPath += "/"
+		canonicalReqPath += "/"
 	}
 	canonicalPath := uriEscapePath(canonicalReqPath)
 
@@ -158,9 +158,13 @@ func SignV4(req *http.Request, body []byte, accessKey, secretKey, region, servic
 
 			// We handle cases where '=' is in the key or missing completely
 			uk, err := url.QueryUnescape(k)
-			if err == nil { k = uk }
+			if err == nil {
+				k = uk
+			}
 			uv, err := url.QueryUnescape(v)
-			if err == nil { v = uv }
+			if err == nil {
+				v = uv
+			}
 
 			parsed = append(parsed, kv{uriEscape(k), uriEscape(v)})
 		}

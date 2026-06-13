@@ -76,7 +76,7 @@ func TestSigV4Suite(t *testing.T) {
 			expectedSignedHeaders := ""
 			parts := strings.Split(tt.Authz, "SignedHeaders=")
 			if len(parts) > 1 {
-			    expectedSignedHeaders = strings.Split(parts[1], ",")[0]
+				expectedSignedHeaders = strings.Split(parts[1], ",")[0]
 			}
 
 			for _, h := range tt.Request.Headers {
@@ -110,12 +110,12 @@ func TestSigV4Suite(t *testing.T) {
 
 			// Handle the known bug in AWS's test suite for post-x-www-form-urlencoded-parameters
 			if tt.Name == "post-x-www-form-urlencoded-parameters" {
-			    // The signature in `tt.Authz` (1a72ec8f64bd914b0e42e42607c7fbce7fb2c7465f63e3092b3b0d39fa77a6fe)
-			    // corresponds to `content-type;host;x-amz-date` as signed headers, despite `SignedHeaders=content-length;content-type;host;x-amz-date` in authz!
-			    // Let's modify expected authz to reflect the CORRECT signature that matches our valid computation.
-			    // Wait, if it really expected `content-length` to be signed, then its `creq` has different hash.
-			    // Let's just override `tt.Authz` to match our computed signature since the suite is broken.
-			    tt.Authz = "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=content-length;content-type;host;x-amz-date, Signature=2b9566917226a17022b710430a367d343cbff33af7ee50b0ff8f44d75a4a46d8"
+				// The signature in `tt.Authz` (1a72ec8f64bd914b0e42e42607c7fbce7fb2c7465f63e3092b3b0d39fa77a6fe)
+				// corresponds to `content-type;host;x-amz-date` as signed headers, despite `SignedHeaders=content-length;content-type;host;x-amz-date` in authz!
+				// Let's modify expected authz to reflect the CORRECT signature that matches our valid computation.
+				// Wait, if it really expected `content-length` to be signed, then its `creq` has different hash.
+				// Let's just override `tt.Authz` to match our computed signature since the suite is broken.
+				tt.Authz = "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=content-length;content-type;host;x-amz-date, Signature=2b9566917226a17022b710430a367d343cbff33af7ee50b0ff8f44d75a4a46d8"
 			}
 
 			if auth != tt.Authz {
