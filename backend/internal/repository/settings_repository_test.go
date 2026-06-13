@@ -3,7 +3,7 @@ package repository
 import (
 	"testing"
 
-	"mi-tech/internal/testutil"
+	"mi-tech/internal/domain/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

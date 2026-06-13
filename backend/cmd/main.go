@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"mi-tech/internal/server"
-	"mi-tech/internal/telemetry"
+	"mi-tech/internal/domain/shared/telemetry"
 )
 
 func main() {

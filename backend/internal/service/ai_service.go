@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mi-tech/internal/client/llm"
-	"mi-tech/internal/config"
+	"mi-tech/internal/domain/shared/config"
 	"mi-tech/internal/entity"
 	"mi-tech/internal/repository"
 )

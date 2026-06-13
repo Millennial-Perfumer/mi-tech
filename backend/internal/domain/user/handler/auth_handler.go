@@ -1,0 +1,71 @@
+package handler
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"mi-tech/internal/domain/user/dto"
+	"mi-tech/internal/domain/user/service"
+)
+
+type AuthHandler struct {
+	authService *service.AuthService
+}
+
+func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
+}
+
+// Login handles POST /api/auth/login.
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req dto.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	token, requires2FA, err := h.authService.Login(req.Username, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(dto.LoginResponse{
+		Token:       token,
+		Requires2FA: requires2FA,
+	})
+}
+
+// VerifyOTP handles POST /api/auth/verify-otp.
+func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
+	var req dto.VerifyOTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	token, err := h.authService.VerifyOTP(req.Username, req.OTP)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(dto.LoginResponse{Token: token})
+}
+
+// VerifyAuth handles GET /api/auth/verify for Nginx auth_request.
+func (h *AuthHandler) VerifyAuth(w http.ResponseWriter, r *http.Request) {
+	username, _ := r.Context().Value("username").(string)
+	role, _ := r.Context().Value("userRole").(string)
+
+	if username == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("X-WEBAUTH-USER", username)
+	w.Header().Set("X-WEBAUTH-ROLE", role)
+	w.WriteHeader(http.StatusOK)
+}

@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"mi-tech/internal/entity"
+	orderEntity "mi-tech/internal/domain/order/entity"
+	util "mi-tech/internal/domain/shared/util"
 	"mi-tech/internal/repository"
 
 	"github.com/stretchr/testify/assert"
@@ -32,13 +33,13 @@ func TestInvoiceService_GeneratePDF(t *testing.T) {
 	}
 	service := NewInvoiceService(mockRepo)
 
-	order := entity.Order{
+	order := orderEntity.Order{
 		OrderNumber:  "1001",
 		CreatedAt:    time.Now(),
-		CustomerName: entity.StrPtr("John Doe"),
+		CustomerName: util.StrPtr("John Doe"),
 	}
-	items := []entity.LineItem{
-		{ID: "L1", Title: entity.StrPtr("Product 1"), Quantity: 1, Price: 100.0},
+	items := []orderEntity.LineItem{
+		{ID: "L1", Title: util.StrPtr("Product 1"), Quantity: 1, Price: 100.0},
 	}
 
 	var buf bytes.Buffer

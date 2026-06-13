@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"mi-tech/internal/handler"
-	"mi-tech/internal/repository"
-	"mi-tech/internal/service"
-	"mi-tech/internal/testutil"
+	orderHandlerPkg "mi-tech/internal/domain/order/handler"
+	orderRepoPkg "mi-tech/internal/domain/order/repository"
+	orderServicePkg "mi-tech/internal/domain/order/service"
+	"mi-tech/internal/domain/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -21,12 +21,12 @@ func TestEndToEnd_LoginAndListOrders(t *testing.T) {
 	}
 	defer testutil.CleanupTestDB(db)
 
-	orderRepo := repository.NewOrderRepository(db)
-	lineItemRepo := repository.NewLineItemRepository(db)
-	customerRepo := repository.NewCustomerRepository(db)
-	customerService := service.NewCustomerService(customerRepo, orderRepo, nil)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, nil, nil)
-	orderHandler := handler.NewOrderHandler(orderService, nil, nil)
+	orderRepo := orderRepoPkg.NewOrderRepository(db)
+	lineItemRepo := orderRepoPkg.NewLineItemRepository(db)
+	customerRepo := orderRepoPkg.NewCustomerRepository(db)
+	customerService := orderServicePkg.NewCustomerService(customerRepo, orderRepo, nil)
+	orderService := orderServicePkg.NewOrderService(orderRepo, lineItemRepo, customerService, nil, nil)
+	orderHandler := orderHandlerPkg.NewOrderHandler(orderService, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/orders", orderHandler.GetOrders)

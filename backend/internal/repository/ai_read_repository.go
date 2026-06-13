@@ -1,6 +1,7 @@
 package repository
 
 import (
+	orderEntity "mi-tech/internal/domain/order/entity"
 	"mi-tech/internal/entity"
 
 	"gorm.io/gorm"
@@ -201,7 +202,7 @@ func (r *gormAIReadRepository) GetCustomerSegmentation() (entity.AICustomerSegme
 	var result entity.AICustomerSegments
 
 	var total int64
-	r.db.Model(&entity.Customer{}).Count(&total)
+	r.db.Model(&orderEntity.Customer{}).Count(&total)
 	result.TotalCustomers = int(total)
 
 	r.db.Raw("SELECT COUNT(*) FROM customers WHERE created_at >= NOW() - INTERVAL '30 days'").Scan(&result.NewCustomers)

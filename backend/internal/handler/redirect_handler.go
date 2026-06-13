@@ -1,16 +1,16 @@
 package handler
 
 import (
-	"mi-tech/internal/repository"
+	orderRepoPkg "mi-tech/internal/domain/order/repository"
 	"net/http"
 	"strings"
 )
 
 type RedirectHandler struct {
-	orderRepo repository.OrderRepository
+	orderRepo orderRepoPkg.OrderRepository
 }
 
-func NewRedirectHandler(orderRepo repository.OrderRepository) *RedirectHandler {
+func NewRedirectHandler(orderRepo orderRepoPkg.OrderRepository) *RedirectHandler {
 	return &RedirectHandler{orderRepo: orderRepo}
 }
 

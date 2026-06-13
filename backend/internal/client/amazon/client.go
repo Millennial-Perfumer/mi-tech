@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mi-tech/internal/config"
+	"mi-tech/internal/domain/shared/config"
 	"net/http"
 	"net/url"
 	"time"

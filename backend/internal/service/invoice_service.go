@@ -9,7 +9,7 @@ import (
 
 	"github.com/jung-kurt/gofpdf"
 
-	"mi-tech/internal/entity"
+	"mi-tech/internal/domain/order/entity"
 	"mi-tech/internal/repository"
 )
 

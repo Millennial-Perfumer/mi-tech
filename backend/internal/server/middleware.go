@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"mi-tech/internal/service"
-	"mi-tech/internal/telemetry"
+	userServicePkg "mi-tech/internal/domain/user/service"
+	"mi-tech/internal/domain/shared/telemetry"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -73,7 +73,7 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Handler {
+func AuthMiddleware(authService *userServicePkg.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path

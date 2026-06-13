@@ -11,14 +11,20 @@ import (
 	"testing"
 	"time"
 
-	"mi-tech/internal/automation/whatsapp"
+	communicationEntity "mi-tech/internal/domain/communication/entity"
+	communicationRepoPkg "mi-tech/internal/domain/communication/repository"
+	communicationServicePkg "mi-tech/internal/domain/communication/service"
 	"mi-tech/internal/client/shopify"
-	"mi-tech/internal/config"
-	"mi-tech/internal/dto"
-	"mi-tech/internal/handler"
+	"mi-tech/internal/domain/shared/config"
+	orderRepoPkg "mi-tech/internal/domain/order/repository"
+	orderDto "mi-tech/internal/domain/order/dto"
+	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
+	webhookRepoPkg "mi-tech/internal/domain/webhook/repository"
+	webhookServicePkg "mi-tech/internal/domain/webhook/service"
 	"mi-tech/internal/repository"
+	orderServicePkg "mi-tech/internal/domain/order/service"
 	"mi-tech/internal/service"
-	"mi-tech/internal/testutil"
+	"mi-tech/internal/domain/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -60,36 +66,36 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	defer func() { http.DefaultClient.Transport = originalTransport }()
 
 	// 1. Setup repos
-	orderRepo := repository.NewOrderRepository(db)
-	lineItemRepo := repository.NewLineItemRepository(db)
-	customerRepo := repository.NewCustomerRepository(db)
-	webhookEventRepo := repository.NewWebhookEventRepository(db)
-	webhookStatusRepo := repository.NewWebhookStatusRepository(db)
+	orderRepo := orderRepoPkg.NewOrderRepository(db)
+	lineItemRepo := orderRepoPkg.NewLineItemRepository(db)
+	customerRepo := orderRepoPkg.NewCustomerRepository(db)
+	webhookEventRepo := webhookRepoPkg.NewWebhookEventRepository(db)
+	webhookStatusRepo := webhookRepoPkg.NewWebhookStatusRepository(db)
 	configsRepo := repository.NewConfigsRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
-	templatesRepo := whatsapp.NewTemplatesRepository(sqlDB)
-	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
+	templatesRepo := communicationRepoPkg.NewTemplatesRepository(sqlDB)
+	messagesRepo := communicationRepoPkg.NewMessagesRepository(sqlDB)
 
 	// 2. Setup services
 	settingsProvider := config.NewSettingsProvider(configsRepo)
-	customerService := service.NewCustomerService(customerRepo, orderRepo, nil)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, nil, nil)
+	customerService := orderServicePkg.NewCustomerService(customerRepo, orderRepo, nil)
+	orderService := orderServicePkg.NewOrderService(orderRepo, lineItemRepo, customerService, nil, nil)
 	invoiceService := service.NewInvoiceService(settingsRepo)
 
-	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo, nil)
-	mappingService := whatsapp.NewWebhookMappingService(templatesRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
+	messagesService := communicationServicePkg.NewMessagesService(messagesRepo, settingsProvider, customerRepo, nil)
+	mappingService := communicationServicePkg.NewWebhookMappingService(templatesRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
 
 	shopifyClient := shopify.NewClient(settingsProvider)
-	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
+	webhookService := webhookServicePkg.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 
-	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, settingsProvider)
+	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider)
 
 	// Pre-cleanup: Delete existing triggers for orders/create to avoid conflicts
 	db.Exec("DELETE FROM automation_triggers WHERE webhook_topic = 'orders/create'")
 
 	// 2. Seed a template and a trigger for orders/create
 	templateName := fmt.Sprintf("order_conf_%d", rand.Intn(1000))
-	templateID, err := templatesRepo.SaveTemplate(whatsapp.AutomationTemplate{
+	templateID, err := templatesRepo.SaveTemplate(communicationEntity.AutomationTemplate{
 		StoreID:      config.StoreIDShopify,
 		TemplateName: templateName,
 		Body:         "Hello {{1}}, your order {{2}} is confirmed!",
@@ -99,7 +105,7 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = templatesRepo.SaveTrigger(whatsapp.Trigger{
+	err = templatesRepo.SaveTrigger(communicationEntity.Trigger{
 		StoreID:      config.StoreIDShopify,
 		WebhookTopic: "orders/create",
 		TemplateID:   templateID,
@@ -114,20 +120,20 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	extIDStr := fmt.Sprintf("%d", orderID)
 	deliveryID := fmt.Sprintf("del_%d", time.Now().UnixNano())
 
-	payload := dto.ShopifyWebhookOrder{
+	payload := orderDto.ShopifyWebhookOrder{
 		ID:          orderID,
 		OrderNumber: orderID,
 		Name:        fmt.Sprintf("#%d", orderID),
 		TotalPrice:  "150.00",
 		Currency:    "INR",
 		CreatedAt:   time.Now().Format(time.RFC3339),
-		Customer: &dto.ShopifyCustomer{
+		Customer: &orderDto.ShopifyCustomer{
 			ID:        orderID + 10,
 			FirstName: "John",
 			LastName:  "Doe",
 			Phone:     "+919876543210",
 		},
-		LineItems: []dto.ShopifyLineItem{
+		LineItems: []orderDto.ShopifyLineItem{
 			{ID: orderID + 20, Title: "Perfume", Quantity: 1, Price: "150.00"},
 		},
 	}

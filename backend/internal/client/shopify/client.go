@@ -11,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"mi-tech/internal/config"
-	"mi-tech/internal/dto"
+	"mi-tech/internal/domain/shared/config"
 )
 
 type Client struct {
@@ -33,7 +32,7 @@ func NewClient(settings *config.SettingsProvider) *Client {
 var baselineDate = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // FetchOrders fetches orders from Shopify using the GraphQL Admin API, extracting specific location vectors.
-func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderNode, error) {
+func (c *Client) FetchOrders(since time.Time, to time.Time) ([]GraphQLOrderNode, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -41,7 +40,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 		return nil, fmt.Errorf("shopify credentials are not configured in DB")
 	}
 
-	var allOrders []dto.GraphQLOrderNode
+	var allOrders []GraphQLOrderNode
 	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
 
 	// Build the search query dynamically.
@@ -205,7 +204,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 			return nil, fmt.Errorf("shopify graphql api error: %s - %s", resp.Status, string(body))
 		}
 
-		var result dto.GraphQLOrderResponse
+		var result GraphQLOrderResponse
 		if err := json.Unmarshal(body, &result); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal graphql response: %w", err)
 		}
@@ -236,7 +235,7 @@ func (c *Client) FetchOrders(since time.Time, to time.Time) ([]dto.GraphQLOrderN
 }
 
 // FetchOrderByID fetches a single order from Shopify using GraphQL.
-func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
+func (c *Client) FetchOrderByID(id string) (*GraphQLOrderNode, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -358,7 +357,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 
 	var result struct {
 		Data struct {
-			Order *dto.GraphQLOrderNode `json:"order"`
+			Order *GraphQLOrderNode `json:"order"`
 		} `json:"data"`
 		Errors []interface{} `json:"errors"`
 	}
@@ -374,7 +373,7 @@ func (c *Client) FetchOrderByID(id string) (*dto.GraphQLOrderNode, error) {
 }
 
 // CreateCustomer creates a customer in Shopify using the REST API.
-func (c *Client) CreateCustomer(customer dto.ShopifyRestCustomer) (*dto.ShopifyRestCustomer, error) {
+func (c *Client) CreateCustomer(customer ShopifyRestCustomer) (*ShopifyRestCustomer, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 	apiVersion := c.settings.GetShopifyAPIVersion()
@@ -384,7 +383,7 @@ func (c *Client) CreateCustomer(customer dto.ShopifyRestCustomer) (*dto.ShopifyR
 	}
 
 	apiURL := fmt.Sprintf("https://%s/admin/api/%s/customers.json", shopifyURL, apiVersion)
-	wrapper := dto.ShopifyCustomerWrapper{Customer: customer}
+	wrapper := ShopifyCustomerWrapper{Customer: customer}
 	payload, _ := json.Marshal(wrapper)
 
 	req, _ := http.NewRequest("POST", apiURL, strings.NewReader(string(payload)))
@@ -402,7 +401,7 @@ func (c *Client) CreateCustomer(customer dto.ShopifyRestCustomer) (*dto.ShopifyR
 		return nil, fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
 	}
 
-	var result dto.ShopifyCustomerWrapper
+	var result ShopifyCustomerWrapper
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
@@ -411,7 +410,7 @@ func (c *Client) CreateCustomer(customer dto.ShopifyRestCustomer) (*dto.ShopifyR
 }
 
 // UpdateCustomer updates an existing customer in Shopify using the REST API.
-func (c *Client) UpdateCustomer(id int64, customer dto.ShopifyRestCustomer) (*dto.ShopifyRestCustomer, error) {
+func (c *Client) UpdateCustomer(id int64, customer ShopifyRestCustomer) (*ShopifyRestCustomer, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 	apiVersion := c.settings.GetShopifyAPIVersion()
@@ -421,7 +420,7 @@ func (c *Client) UpdateCustomer(id int64, customer dto.ShopifyRestCustomer) (*dt
 	}
 
 	apiURL := fmt.Sprintf("https://%s/admin/api/%s/customers/%d.json", shopifyURL, apiVersion, id)
-	wrapper := dto.ShopifyCustomerWrapper{Customer: customer}
+	wrapper := ShopifyCustomerWrapper{Customer: customer}
 	payload, _ := json.Marshal(wrapper)
 
 	req, _ := http.NewRequest("PUT", apiURL, strings.NewReader(string(payload)))
@@ -439,7 +438,7 @@ func (c *Client) UpdateCustomer(id int64, customer dto.ShopifyRestCustomer) (*dt
 		return nil, fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
 	}
 
-	var result dto.ShopifyCustomerWrapper
+	var result ShopifyCustomerWrapper
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
@@ -448,7 +447,7 @@ func (c *Client) UpdateCustomer(id int64, customer dto.ShopifyRestCustomer) (*dt
 }
 
 // GetCustomer fetches a single customer from Shopify using the REST API.
-func (c *Client) GetCustomer(id int64) (*dto.ShopifyRestCustomer, error) {
+func (c *Client) GetCustomer(id int64) (*ShopifyRestCustomer, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 	apiVersion := c.settings.GetShopifyAPIVersion()
@@ -472,7 +471,7 @@ func (c *Client) GetCustomer(id int64) (*dto.ShopifyRestCustomer, error) {
 		return nil, fmt.Errorf("shopify error (%d): %s", resp.StatusCode, string(body))
 	}
 
-	var result dto.ShopifyCustomerWrapper
+	var result ShopifyCustomerWrapper
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, err
 	}
@@ -557,7 +556,7 @@ func (c *Client) UpdateOrder(externalID string, updateData map[string]interface{
 }
 
 // FetchProducts fetches products and their variants from Shopify using GraphQL.
-func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
+func (c *Client) FetchProducts() ([]GraphQLProductNode, error) {
 	shopifyURL := c.settings.GetShopifyStoreURL()
 	accessToken := c.settings.GetShopifyAccessToken()
 
@@ -565,7 +564,7 @@ func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
 		return nil, fmt.Errorf("shopify credentials are not configured in DB")
 	}
 
-	var allProducts []dto.GraphQLProductNode
+	var allProducts []GraphQLProductNode
 	apiURL := fmt.Sprintf("https://%s/admin/api/%s/graphql.json", shopifyURL, c.settings.GetShopifyAPIVersion())
 
 	queryTemplate := `
@@ -654,7 +653,7 @@ func (c *Client) FetchProducts() ([]dto.GraphQLProductNode, error) {
 
 		log.Printf("[DEBUG] Shopify Response Body: %s", string(body))
 
-		var result dto.GraphQLProductResponse
+		var result GraphQLProductResponse
 		if err := json.Unmarshal(body, &result); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal graphql response: %w", err)
 		}
@@ -741,7 +740,7 @@ func (c *Client) DiscoverPrimaryLocationID(ctx context.Context) (string, error) 
 		return "", fmt.Errorf("shopify graphql error (%d): %s", resp.StatusCode, string(body))
 	}
 
-	var result dto.GraphQLLocationResponse
+	var result GraphQLLocationResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return "", err
 	}

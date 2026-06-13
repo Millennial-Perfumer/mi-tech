@@ -3,13 +3,46 @@ package server
 import (
 	"context"
 	"log"
-	"mi-tech/internal/automation/whatsapp"
 	"mi-tech/internal/client/amazon"
 	"mi-tech/internal/client/shopify"
-	"mi-tech/internal/config"
-	"mi-tech/internal/database"
+	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
+	communicationRepoPkg "mi-tech/internal/domain/communication/repository"
+	communicationServicePkg "mi-tech/internal/domain/communication/service"
+	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
+	dashboardRepoPkg "mi-tech/internal/domain/dashboard/repository"
+	dashboardServicePkg "mi-tech/internal/domain/dashboard/service"
+	feedbackHandlerPkg "mi-tech/internal/domain/feedback/handler"
+	feedbackRepoPkg "mi-tech/internal/domain/feedback/repository"
+	feedbackServicePkg "mi-tech/internal/domain/feedback/service"
+	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
+	inventoryRepoPkg "mi-tech/internal/domain/inventory/repository"
+	inventoryServicePkg "mi-tech/internal/domain/inventory/service"
+	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
+	marketingRepoPkg "mi-tech/internal/domain/marketing/repository"
+	marketingServicePkg "mi-tech/internal/domain/marketing/service"
+	productionHandlerPkg "mi-tech/internal/domain/production/handler"
+	productionRepoPkg "mi-tech/internal/domain/production/repository"
+	productionServicePkg "mi-tech/internal/domain/production/service"
+	orderHandlerPkg "mi-tech/internal/domain/order/handler"
+	orderRepoPkg "mi-tech/internal/domain/order/repository"
+	orderServicePkg "mi-tech/internal/domain/order/service"
+	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
+	webhookRepoPkg "mi-tech/internal/domain/webhook/repository"
+	webhookServicePkg "mi-tech/internal/domain/webhook/service"
+	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
+	plannerRepoPkg "mi-tech/internal/domain/planner/repository"
+	plannerServicePkg "mi-tech/internal/domain/planner/service"
+	userHandlerPkg "mi-tech/internal/domain/user/handler"
+	userRepoPkg "mi-tech/internal/domain/user/repository"
+	userServicePkg "mi-tech/internal/domain/user/service"
+	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
+	syncServicePkg "mi-tech/internal/domain/sync/service"
+	supportHandlerPkg "mi-tech/internal/domain/support/handler"
+	supportRepoPkg "mi-tech/internal/domain/support/repository"
+	supportServicePkg "mi-tech/internal/domain/support/service"
+	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/domain/shared/database"
 	"mi-tech/internal/handler"
-	"mi-tech/internal/marketing"
 	"mi-tech/internal/repository"
 	"mi-tech/internal/service"
 	"net/http"
@@ -23,8 +56,8 @@ type Server struct {
 	port              string
 	mux               *http.ServeMux
 	db                *gorm.DB
-	amzPoller         *service.AmazonOrderPoller
-	feedbackScheduler *whatsapp.FeedbackScheduler
+	amzPoller         *syncServicePkg.AmazonOrderPoller
+	feedbackScheduler *feedbackServicePkg.FeedbackScheduler
 }
 
 func New() (*Server, error) {
@@ -45,24 +78,27 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	}
 
 	// Repositories
-	orderRepo := repository.NewOrderRepository(db)
-	lineItemRepo := repository.NewLineItemRepository(db)
-	reportRepo := repository.NewReportRepository(db)
-	metricsRepo := repository.NewMetricsRepository(db)
-	webhookEventRepo := repository.NewWebhookEventRepository(db)
-	webhookStatusRepo := repository.NewWebhookStatusRepository(db)
-	whatsappRepo := whatsapp.NewTemplatesRepository(sqlDB)
-	messagesRepo := whatsapp.NewMessagesRepository(sqlDB)
+	orderRepo := orderRepoPkg.NewOrderRepository(db)
+	lineItemRepo := orderRepoPkg.NewLineItemRepository(db)
+	reportRepo := dashboardRepoPkg.NewReportRepository(db)
+	metricsRepo := dashboardRepoPkg.NewMetricsRepository(db)
+	webhookEventRepo := webhookRepoPkg.NewWebhookEventRepository(db)
+	webhookStatusRepo := webhookRepoPkg.NewWebhookStatusRepository(db)
+	whatsappRepo := communicationRepoPkg.NewTemplatesRepository(sqlDB)
+	messagesRepo := communicationRepoPkg.NewMessagesRepository(sqlDB)
 	configsRepo := repository.NewConfigsRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
-	customerRepo := repository.NewCustomerRepository(db)
-	socialRepo := repository.NewSocialRepository(db)
-	plannerRepo := repository.NewPlannerRepository(db)
-	inventoryRepo := repository.NewInventoryRepository(db)
-	oilRepo := repository.NewOilInventoryRepository(db)
-	supplierRepo := repository.NewSupplierRepository(db)
-	poRepo := repository.NewPurchaseOrderRepository(db)
-	mfgRepo := repository.NewManufacturingRepository(db)
+	customerRepo := orderRepoPkg.NewCustomerRepository(db)
+	socialRepo := marketingRepoPkg.NewSocialRepository(db)
+	plannerRepo := plannerRepoPkg.NewPlannerRepository(db)
+	inventoryRepo := inventoryRepoPkg.NewInventoryRepository(db)
+	oilRepo := productionRepoPkg.NewOilInventoryRepository(db)
+	supplierRepo := productionRepoPkg.NewSupplierRepository(db)
+	poRepo := productionRepoPkg.NewPurchaseOrderRepository(db)
+	mfgRepo := productionRepoPkg.NewManufacturingRepository(db)
+	feedbackRepo := feedbackRepoPkg.NewFeedbackRepository(db)
+	userRepo := userRepoPkg.NewUserRepository(db)
+	ticketRepo := supportRepoPkg.NewTicketRepository(db)
 	aiReadRepo := repository.NewAIReadRepository(db)
 	aiConvRepo := repository.NewAIConversationRepository(db)
 	aiMemRepo := repository.NewAIMemoryRepository(db)
@@ -75,60 +111,63 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	amazonClient := amazon.NewClient(settingsProvider)
 
 	// Orchestrators
-	syncOrchestrator := service.NewSyncOrchestrator(inventoryRepo, shopifyClient, amazonClient, settingsProvider)
+	syncOrchestrator := syncServicePkg.NewSyncOrchestrator(inventoryRepo, shopifyClient, amazonClient, settingsProvider)
 
 	// Services
-	userService := service.NewUserService(db)
-	metricsService := service.NewMetricsService(metricsRepo)
-	reportService := service.NewReportService(reportRepo)
-	customerService := service.NewCustomerService(customerRepo, orderRepo, shopifyClient)
+	userService := userServicePkg.NewUserService(userRepo)
+	metricsService := dashboardServicePkg.NewMetricsService(metricsRepo)
+	reportService := dashboardServicePkg.NewReportService(reportRepo)
+	customerService := orderServicePkg.NewCustomerService(customerRepo, orderRepo, shopifyClient)
 	invoiceService := service.NewInvoiceService(settingsRepo)
-	orderService := service.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient, syncOrchestrator)
-	syncService := service.NewSyncService(shopifyClient, orderRepo, customerService, syncOrchestrator)
-	webhookService := service.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
-	amazonOrderPoller := service.NewAmazonOrderPoller(amazonClient, orderRepo, inventoryRepo, syncOrchestrator)
-	plannerService := service.NewPlannerService(plannerRepo)
-	inventoryService := service.NewInventoryService(inventoryRepo, shopifyClient, syncOrchestrator, settingsProvider, amazonOrderPoller)
-	oilService := service.NewOilInventoryService(oilRepo)
-	supplierService := service.NewSupplierService(supplierRepo)
-	poService := service.NewPurchaseOrderService(poRepo, oilRepo)
-	mfgService := service.NewManufacturingService(db, mfgRepo, oilRepo, syncOrchestrator)
-	whatsappService := whatsapp.NewTemplatesService(whatsappRepo, settingsProvider)
-	notifService := whatsapp.NewNotificationService(settingsProvider)
-	agentService := whatsapp.NewAgentService(settingsProvider, plannerService, messagesRepo, whatsapp.NewMetaClient(settingsProvider), notifService)
-	messagesService := whatsapp.NewMessagesService(messagesRepo, settingsProvider, customerRepo, agentService)
-	authService := service.NewAuthService(db, settingsProvider, messagesService)
-	metaMarketingClient := marketing.NewMetaMarketingClient(settingsProvider)
-	socialService := service.NewSocialService(socialRepo, metaMarketingClient)
+	orderService := orderServicePkg.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient, syncOrchestrator)
+	feedbackService := feedbackServicePkg.NewFeedbackService(feedbackRepo, orderService)
+	syncService := syncServicePkg.NewSyncService(shopifyClient, orderRepo, customerService, syncOrchestrator)
+	webhookService := webhookServicePkg.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
+	amazonOrderPoller := syncServicePkg.NewAmazonOrderPoller(amazonClient, orderRepo, inventoryRepo, syncOrchestrator)
+	plannerService := plannerServicePkg.NewPlannerService(plannerRepo)
+	ticketService := supportServicePkg.NewTicketService(ticketRepo)
+	inventoryService := inventoryServicePkg.NewInventoryService(inventoryRepo, shopifyClient, syncOrchestrator, settingsProvider, amazonOrderPoller)
+	oilService := productionServicePkg.NewOilInventoryService(oilRepo)
+	supplierService := productionServicePkg.NewSupplierService(supplierRepo)
+	poService := productionServicePkg.NewPurchaseOrderService(poRepo, oilRepo)
+	mfgService := productionServicePkg.NewManufacturingService(db, mfgRepo, oilRepo, syncOrchestrator)
+	whatsappService := communicationServicePkg.NewTemplatesService(whatsappRepo, settingsProvider)
+	notifService := communicationServicePkg.NewNotificationService(settingsProvider)
+	agentService := communicationServicePkg.NewNewAgentService(settingsProvider, plannerService, ticketService, messagesRepo, communicationServicePkg.NewMetaClient(settingsProvider), notifService)
+	messagesService := communicationServicePkg.NewMessagesService(messagesRepo, settingsProvider, customerRepo, agentService)
+	authService := userServicePkg.NewAuthService(userRepo, settingsProvider, messagesService)
+	metaMarketingClient := marketingServicePkg.NewMetaMarketingClient(settingsProvider)
+	socialService := marketingServicePkg.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := service.NewSystemService("../docs")
 	aiService := service.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
-	marketingHandler := handler.NewMarketingHandler(metaMarketingClient)
-	marketingWebhookHandler := handler.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
+	marketingHandler := marketingHandlerPkg.NewMarketingHandler(metaMarketingClient)
+	marketingWebhookHandler := marketingHandlerPkg.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := handler.NewSystemHandler(systemService)
-	smmHandler := handler.NewSMMHandler(socialService)
-	mappingService := whatsapp.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
+	smmHandler := marketingHandlerPkg.NewSMMHandler(socialService)
+	mappingService := communicationServicePkg.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
 
 	// Handlers
-	orderHandler := handler.NewOrderHandler(orderService, invoiceService, mappingService)
-	syncHandler := handler.NewSyncHandler(syncService)
-	metricsHandler := handler.NewMetricsHandler(metricsService)
-	reportHandler := handler.NewReportHandler(reportService)
-	webhookHandler := handler.NewWebhookHandler(webhookService, mappingService, settingsProvider)
-	automationHandler := whatsapp.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider, agentService)
+	orderHandler := orderHandlerPkg.NewOrderHandler(orderService, invoiceService, mappingService)
+	syncHandler := syncHandlerPkg.NewSyncHandler(syncService)
+	metricsHandler := dashboardHandlerPkg.NewMetricsHandler(metricsService)
+	reportHandler := dashboardHandlerPkg.NewReportHandler(reportService)
+	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider)
+	automationHandler := communicationHandlerPkg.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider, agentService)
 	settingsHandler := handler.NewSettingsHandler(settingsRepo)
 	configsHandler := handler.NewConfigsHandler(configsRepo, db)
 	redirectHandler := handler.NewRedirectHandler(orderRepo)
-	authHandler := handler.NewAuthHandler(authService)
-	customerHandler := handler.NewCustomerHandler(customerService)
-	feedbackHandler := handler.NewFeedbackHandler(orderService, settingsProvider, mappingService, whatsappRepo)
+	authHandler := userHandlerPkg.NewAuthHandler(authService)
+	customerHandler := orderHandlerPkg.NewCustomerHandler(customerService)
+	feedbackHandler := feedbackHandlerPkg.NewFeedbackHandler(feedbackService, settingsProvider, mappingService, whatsappRepo)
 
-	userHandler := handler.NewUserHandler(userService)
-	plannerHandler := handler.NewPlannerHandler(plannerService, agentService)
-	inventoryHandler := handler.NewInventoryHandler(inventoryService)
-	oilHandler := handler.NewOilInventoryHandler(oilService)
-	supplierHandler := handler.NewSupplierHandler(supplierService)
-	poHandler := handler.NewPurchaseOrderHandler(poService)
-	mfgHandler := handler.NewManufacturingHandler(mfgService)
+	userHandler := userHandlerPkg.NewUserHandler(userService)
+	plannerHandler := plannerHandlerPkg.NewPlannerHandler(plannerService, agentService)
+	ticketHandler := supportHandlerPkg.NewTicketHandler(ticketService)
+	inventoryHandler := inventoryHandlerPkg.NewInventoryHandler(inventoryService)
+	oilHandler := productionHandlerPkg.NewOilInventoryHandler(oilService)
+	supplierHandler := productionHandlerPkg.NewSupplierHandler(supplierService)
+	poHandler := productionHandlerPkg.NewPurchaseOrderHandler(poService)
+	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
 	aiHandler := handler.NewAIHandler(aiService)
 
 	RegisterRoutes(
@@ -150,6 +189,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		systemHandler,
 		smmHandler,
 		plannerHandler,
+		ticketHandler,
 		feedbackHandler,
 		inventoryHandler,
 		oilHandler,
@@ -160,7 +200,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		authService,
 	)
 
-	feedbackScheduler := whatsapp.NewFeedbackScheduler(settingsProvider, orderService, mappingService, whatsappRepo)
+	feedbackScheduler := feedbackServicePkg.NewFeedbackScheduler(settingsProvider, feedbackService, mappingService, whatsappRepo)
 
 	return &Server{
 		port:              cfg.Port,

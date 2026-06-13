@@ -7,37 +7,22 @@ interface TicketsProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
-interface Column {
+interface Ticket {
   id: number;
-  name: string;
-  order: number;
-}
-
-interface Task {
-  id: number;
+  ticket_id: string;
   title: string;
   description: string;
-  status: string;
+  status: string; // open, in-progress, resolved, closed
   priority: string;
-  column_id: number;
-  order: number;
-  ticket_id?: string;
   created_at: string;
   updated_at: string;
 }
 
-interface Board {
-  id: number;
-  name: string;
-  columns: Column[];
-}
-
 export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
   const { success, error } = useToast();
-  const [board, setBoard] = useState<Board | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('New Issue');
+  const [activeTab, setActiveTab] = useState<string>('open');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,21 +36,10 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // 1. Find the Support Tickets board
-      const boardRes = await fetchWithAuth(`${API_BASE}/api/planner/boards`);
-      const boardData = await boardRes.json();
-      
-      if (boardData.success) {
-        const supportBoard = boardData.boards.find((b: Board) => b.name === 'Support Tickets');
-        if (supportBoard) {
-          setBoard(supportBoard);
-          // 2. Fetch tasks for this board
-          const tasksRes = await fetchWithAuth(`${API_BASE}/api/planner/tasks?board_id=${supportBoard.id}`);
-          const tasksData = await tasksRes.json();
-          if (tasksData.success) {
-            setTasks(tasksData.tasks);
-          }
-        }
+      const resp = await fetchWithAuth(`${API_BASE}/api/support/tickets`);
+      const data = await resp.json();
+      if (data.success) {
+        setTickets(data.tickets);
       }
     } catch (err) {
       error('Failed to load tickets');
@@ -75,20 +49,14 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
   };
 
   const handleCreateTicket = async () => {
-    if (!newTicket.title.trim() || !board) return;
+    if (!newTicket.title.trim()) return;
     
     setIsSaving(true);
     try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/planner/tasks`, {
+      const resp = await fetchWithAuth(`${API_BASE}/api/support/tickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          board_id: board.id,
-          column_id: board.columns.find(c => c.name === 'New Issue')?.id || board.columns[0].id,
-          title: newTicket.title,
-          description: newTicket.description,
-          priority: newTicket.priority
-        })
+        body: JSON.stringify(newTicket)
       });
       
       const data = await resp.json();
@@ -105,23 +73,42 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
     }
   };
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter(t => {
-      // Find the column name for this task
-      const col = board?.columns.find(c => c.id === t.column_id);
-      const colName = col?.name || 'Unknown';
-      
-      const tabMatch = colName === activeTab;
+  const handleUpdateStatus = async (id: number, status: string) => {
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/support/tickets/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        success(`Ticket moved to ${status}`);
+        loadData();
+      }
+    } catch (err) {
+      error('Failed to update ticket status');
+    }
+  };
+
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(t => {
+      const tabMatch = t.status === activeTab;
       const searchMatch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (t.ticket_id && t.ticket_id.toLowerCase().includes(searchQuery.toLowerCase()));
+                          t.ticket_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          t.description.toLowerCase().includes(searchQuery.toLowerCase());
       
       return tabMatch && searchMatch;
     }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [tasks, activeTab, board, searchQuery]);
+  }, [tickets, activeTab, searchQuery]);
 
-  const tabs = board?.columns.sort((a, b) => a.order - b.order) || [];
+  const tabs = [
+    { name: 'open', label: 'Open' },
+    { name: 'in-progress', label: 'In Progress' },
+    { name: 'resolved', label: 'Resolved' },
+    { name: 'closed', label: 'Closed' }
+  ];
 
-  if (isLoading && !board) {
+  if (isLoading && tickets.length === 0) {
     return <div className="loading-shimmer" style={{height: '400px', borderRadius: '24px'}}></div>;
   }
 
@@ -130,13 +117,13 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
       <div className="tickets-header-tabs">
         {tabs.map(tab => (
           <button 
-            key={tab.id}
+            key={tab.name}
             className={`ticket-tab ${activeTab === tab.name ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.name)}
           >
-            {tab.name}
+            {tab.label}
             <span className="count-badge">
-              {tasks.filter(t => t.column_id === tab.id).length}
+              {tickets.filter(t => t.status === tab.name).length}
             </span>
           </button>
         ))}
@@ -148,7 +135,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           <input 
             type="text" 
             ref={searchInputRef}
-            placeholder="Search by ID or customer issue..." 
+            placeholder="Search by Ticket ID or customer issue..." 
             aria-label="Search tickets"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -184,17 +171,17 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
       </div>
 
       <div className="tickets-list">
-        {filteredTasks.length === 0 ? (
+        {filteredTickets.length === 0 ? (
           <div className="empty-state-card">
             <div className="empty-icon">✓</div>
             <h3>All caught up!</h3>
             <p>No tickets found in {activeTab}.</p>
           </div>
         ) : (
-          filteredTasks.map(ticket => (
+          filteredTickets.map(ticket => (
             <div key={ticket.id} className="ticket-row-premium">
               <div className="ticket-id-section">
-                <span className="ticket-number">{ticket.ticket_id || `#ID-${ticket.id}`}</span>
+                <span className="ticket-number">{ticket.ticket_id}</span>
                 <span className={`priority-pill priority-${ticket.priority.toLowerCase()}`}>
                   {ticket.priority}
                 </span>
@@ -217,7 +204,24 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
               </div>
 
               <div className="ticket-actions">
-                <button className="btn-minimal">Manage</button>
+                {ticket.status === 'open' && (
+                  <>
+                    <button className="btn-minimal" onClick={() => handleUpdateStatus(ticket.id, 'in-progress')}>Start</button>
+                    <button className="btn-minimal" onClick={() => handleUpdateStatus(ticket.id, 'resolved')}>Resolve</button>
+                  </>
+                )}
+                {ticket.status === 'in-progress' && (
+                  <button className="btn-minimal" onClick={() => handleUpdateStatus(ticket.id, 'resolved')}>Resolve</button>
+                )}
+                {ticket.status === 'resolved' && (
+                  <>
+                    <button className="btn-minimal" onClick={() => handleUpdateStatus(ticket.id, 'open')}>Reopen</button>
+                    <button className="btn-minimal" onClick={() => handleUpdateStatus(ticket.id, 'closed')}>Close</button>
+                  </>
+                )}
+                {ticket.status === 'closed' && (
+                  <button className="btn-minimal" onClick={() => handleUpdateStatus(ticket.id, 'open')}>Reopen</button>
+                )}
               </div>
             </div>
           ))
@@ -329,8 +333,8 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
         .count-badge {
           background: var(--bg-hover);
           padding: 2px 8px;
-          borderRadius: 10px;
-          fontSize: 0.75rem;
+          border-radius: 10px;
+          font-size: 0.75rem;
           color: var(--text-tertiary);
         }
         .ticket-tab.active .count-badge {
@@ -396,7 +400,7 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           border-radius: 16px;
           padding: 1.25rem;
           display: grid;
-          grid-template-columns: 140px 1fr 180px 100px;
+          grid-template-columns: 140px 1fr 180px 140px;
           align-items: center;
           gap: 1.5rem;
           margin-bottom: 0.75rem;
@@ -447,10 +451,15 @@ export const Tickets: React.FC<TicketsProps> = ({ fetchWithAuth }) => {
           color: var(--text-tertiary);
           font-weight: 500;
         }
+        .ticket-actions {
+          display: flex;
+          gap: 0.5rem;
+          justify-content: flex-end;
+        }
         .btn-minimal {
           background: var(--bg-hover);
           border: none;
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 0.75rem;
           border-radius: 8px;
           font-weight: 600;
           font-size: 0.85rem;
