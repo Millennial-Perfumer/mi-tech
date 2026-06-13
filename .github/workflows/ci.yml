@@ -51,7 +51,7 @@ jobs:
       - name: Run Tests
         env:
           TEST_DB_DSN: postgres://postgres:password@localhost:5432/mi-tech-test?sslmode=disable
-        run: cd backend && go test -v ./...
+        run: cd backend && go test -p 1 -v ./...
 
   frontend-check:
     name: Frontend Check
