@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
-	"mi-tech/internal/shared/extclient/shopify"
 	orderEntity "mi-tech/internal/domain/order/entity"
 	orderMapper "mi-tech/internal/domain/order/mapper"
 	orderRepoPkg "mi-tech/internal/domain/order/repository"
 	orderServicePkg "mi-tech/internal/domain/order/service"
+	"mi-tech/internal/shared/extclient/shopify"
 )
 
 // SyncService orchestrates fetching orders from Shopify and persisting them.

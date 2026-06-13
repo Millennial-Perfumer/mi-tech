@@ -1,8 +1,8 @@
 package repository
 
 import (
-	orderEntity "mi-tech/internal/domain/order/entity"
 	"mi-tech/internal/domain/ai/entity"
+	orderEntity "mi-tech/internal/domain/order/entity"
 
 	"gorm.io/gorm"
 )

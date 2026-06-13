@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"mi-tech/internal/shared/testutil"
 	"mi-tech/internal/domain/user/repository"
 	"mi-tech/internal/domain/user/service"
+	"mi-tech/internal/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"

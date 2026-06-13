@@ -10,9 +10,9 @@ import (
 
 	communicationRepoPkg "mi-tech/internal/domain/communication/repository"
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
+	orderEntity "mi-tech/internal/domain/order/entity"
 	"mi-tech/internal/shared/config"
 	"mi-tech/internal/shared/util"
-	orderEntity "mi-tech/internal/domain/order/entity"
 )
 
 // FeedbackScheduler coordinates scanning and triggering automatic feedback requests.
@@ -35,7 +35,7 @@ func NewFeedbackScheduler(
 ) *FeedbackScheduler {
 	return &FeedbackScheduler{
 		settingsProvider: settingsProvider,
-		feedbackService:   feedbackService,
+		feedbackService:  feedbackService,
 		mappingService:   mappingService,
 		templatesRepo:    templatesRepo,
 	}

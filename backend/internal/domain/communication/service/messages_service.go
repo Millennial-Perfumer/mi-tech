@@ -7,8 +7,8 @@ import (
 	"log"
 	"mi-tech/internal/domain/communication/entity"
 	repository "mi-tech/internal/domain/communication/repository"
-	"mi-tech/internal/shared/config"
 	customerRepoPkg "mi-tech/internal/domain/order/repository"
+	"mi-tech/internal/shared/config"
 	"os"
 	"path/filepath"
 	"strings"
@@ -394,4 +394,3 @@ func (s *MessagesService) GetMetaClient() *MetaClient {
 func (s *MessagesService) GetRepo() repository.MessagesRepository {
 	return s.repo
 }
-

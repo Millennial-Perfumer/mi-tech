@@ -598,4 +598,3 @@ func (s *TemplatesService) DeleteEvent(id int) error {
 func (s *TemplatesService) GetRepo() repository.TemplatesRepository {
 	return s.repo
 }
-

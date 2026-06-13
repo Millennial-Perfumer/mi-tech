@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mi-tech/internal/shared/extclient/llm"
 	"mi-tech/internal/domain/ai/entity"
 	"mi-tech/internal/domain/ai/repository"
 	"mi-tech/internal/shared/config"
+	"mi-tech/internal/shared/extclient/llm"
 )
 
 type AIService struct {

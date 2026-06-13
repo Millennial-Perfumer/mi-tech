@@ -7,9 +7,9 @@ import (
 	"io"
 	"time"
 
-	"mi-tech/internal/shared/config"
 	"mi-tech/internal/domain/user/entity"
 	"mi-tech/internal/domain/user/repository"
+	"mi-tech/internal/shared/config"
 
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"

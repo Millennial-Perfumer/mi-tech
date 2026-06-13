@@ -3,10 +3,10 @@ package test
 import (
 	"testing"
 
-	"mi-tech/internal/shared/extclient/shopify"
-	"mi-tech/internal/shared/config"
-	"mi-tech/internal/domain/sync/service"
 	orderMocks "mi-tech/internal/domain/order/test"
+	"mi-tech/internal/domain/sync/service"
+	"mi-tech/internal/shared/config"
+	"mi-tech/internal/shared/extclient/shopify"
 
 	"github.com/stretchr/testify/assert"
 )

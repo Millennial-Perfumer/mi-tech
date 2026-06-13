@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"mi-tech/internal/shared/testutil"
 	"mi-tech/internal/domain/user/dto"
+	"mi-tech/internal/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -150,7 +150,6 @@ func (s *PlannerService) CreateTask(req dto.CreateTaskRequest) (dto.PlannerTaskR
 		Metadata:    req.Metadata,
 	}
 
-
 	if err := s.repo.CreateTask(task); err != nil {
 		return dto.PlannerTaskResponse{}, err
 	}

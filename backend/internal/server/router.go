@@ -5,25 +5,23 @@ import (
 	"log"
 	"net/http"
 
+	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
+	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
 	feedbackHandlerPkg "mi-tech/internal/domain/feedback/handler"
 	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
-	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
-	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
-	userHandlerPkg "mi-tech/internal/domain/user/handler"
-	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
-	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
+	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
+	userHandlerPkg "mi-tech/internal/domain/user/handler"
 	userServicePkg "mi-tech/internal/domain/user/service"
+	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
-	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 	"mi-tech/internal/shared/middleware"
-
-
+	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 
 	_ "mi-tech/docs"
 

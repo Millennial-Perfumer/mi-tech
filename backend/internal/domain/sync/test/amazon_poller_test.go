@@ -3,11 +3,11 @@ package test
 import (
 	"testing"
 
-	orderEntity "mi-tech/internal/domain/order/entity"
-	util "mi-tech/internal/shared/util"
 	inventoryMocks "mi-tech/internal/domain/inventory/test"
+	orderEntity "mi-tech/internal/domain/order/entity"
 	orderMocks "mi-tech/internal/domain/order/test"
 	"mi-tech/internal/domain/sync/service"
+	util "mi-tech/internal/shared/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

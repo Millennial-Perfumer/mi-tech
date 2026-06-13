@@ -6,8 +6,8 @@ import (
 
 	"mi-tech/internal/domain/feedback/entity"
 	"mi-tech/internal/domain/feedback/repository"
-	"mi-tech/internal/shared/testutil"
 	orderEntity "mi-tech/internal/domain/order/entity"
+	"mi-tech/internal/shared/testutil"
 	"mi-tech/internal/shared/util"
 
 	"github.com/stretchr/testify/assert"
@@ -44,14 +44,14 @@ func (s *FeedbackRepositoryTestSuite) SetupTest() {
 func (s *FeedbackRepositoryTestSuite) TestFeedbackOperations() {
 	// 1. Create a dummy order so we can link feedback to it
 	order := orderEntity.Order{
-		SourceID:          "shopify",
-		ExternalOrderID:   "ext-123",
-		OrderNumber:       "1001",
-		TotalPrice:        100.0,
-		CustomerName:      util.StrPtr("John Doe"),
-		CustomerPhone:     util.StrPtr("+1234567890"),
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		SourceID:        "shopify",
+		ExternalOrderID: "ext-123",
+		OrderNumber:     "1001",
+		TotalPrice:      100.0,
+		CustomerName:    util.StrPtr("John Doe"),
+		CustomerPhone:   util.StrPtr("+1234567890"),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 	err := s.db.Create(&order).Error
 	assert.NoError(s.T(), err)

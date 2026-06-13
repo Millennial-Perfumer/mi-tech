@@ -63,6 +63,10 @@ func (h *TicketHandler) UpdateTicketStatus(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
+	if idVal > uint64(^uint(0)) {
+		http.Error(w, "ID out of bounds", http.StatusBadRequest)
+		return
+	}
 
 	var req dto.UpdateTicketStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
