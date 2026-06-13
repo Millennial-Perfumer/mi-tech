@@ -16,3 +16,8 @@
 **Vulnerability:** The `MarketingWebhookHandler.handleNotification` endpoint did not verify the `X-Hub-Signature-256` header, allowing unauthenticated attackers to spoof requests.
 **Learning:** For endpoints handling payloads from external systems, validation must happen implicitly via signature verification before any business logic executes. Missing these checks leaves the endpoints wide open.
 **Prevention:** Implement HMAC verification for all external webhooks. Specifically, utilize `io.LimitReader` (for DoS protection), restore the body via `io.NopCloser(bytes.NewBuffer(body))`, and enforce strict string comparison logic using `hmac.Equal` to defend against timing attacks.
+
+## 2026-06-13 - [Open Redirect in Tracking System]
+**Vulnerability:** The tracking link redirect handler blindly redirected users to whatever `trackingURL` was stored in the database without any domain validation.
+**Learning:** Even internal data sources (like a database) can contain unvalidated or poisoned URLs. Blindly redirecting to a stored URL acts as an Open Redirect. However, implementing a strict single-domain allowlist can break legitimate multi-provider integrations (e.g. tracking links for various couriers like Delhivery, Shiprocket).
+**Prevention:** Always parse the destination URL and validate its hostname against a broad, yet strict allowlist of trusted root domains (including their subdomains) corresponding to the business's actual integrated partners to prevent attackers from redirecting to arbitrary malicious domains.

@@ -3,8 +3,43 @@ package handler
 import (
 	"mi-tech/internal/repository"
 	"net/http"
+	"net/url"
 	"strings"
 )
+
+// allowedTrackingDomains contains a list of allowed root domains for courier tracking links
+// to prevent Open Redirect vulnerabilities while supporting major providers.
+var allowedTrackingDomains = map[string]bool{
+	"tracking.com":     true,
+	"delhivery.com":    true,
+	"shiprocket.in":    true,
+	"bluedart.com":     true,
+	"dhl.com":          true,
+	"fedex.com":        true,
+	"ups.com":          true,
+	"usps.com":         true,
+	"amazon.in":        true,
+	"amazon.com":       true,
+	"ecomexpress.in":   true,
+	"xpressbees.com":   true,
+	"indiapost.gov.in": true,
+}
+
+// isAllowedDomain checks if the parsed hostname matches an allowed domain or its subdomains.
+func isAllowedDomain(hostname string) bool {
+	hostname = strings.ToLower(hostname)
+	if allowedTrackingDomains[hostname] {
+		return true
+	}
+
+	// Check for subdomains (e.g., track.delhivery.com)
+	for domain := range allowedTrackingDomains {
+		if strings.HasSuffix(hostname, "."+domain) {
+			return true
+		}
+	}
+	return false
+}
 
 type RedirectHandler struct {
 	orderRepo repository.OrderRepository
@@ -49,6 +84,13 @@ func (h *RedirectHandler) RedirectTracking(w http.ResponseWriter, r *http.Reques
 	// Double check protocol
 	if !strings.HasPrefix(trackingURL, "http") {
 		trackingURL = "https://" + trackingURL
+	}
+
+	// Validate tracking URL domain to prevent Open Redirect
+	parsedURL, err := url.Parse(trackingURL)
+	if err != nil || !isAllowedDomain(parsedURL.Hostname()) {
+		http.Redirect(w, r, "https://millennialperfumer.com", http.StatusTemporaryRedirect)
+		return
 	}
 
 	http.Redirect(w, r, trackingURL, http.StatusTemporaryRedirect)
