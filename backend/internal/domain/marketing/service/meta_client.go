@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"net/http"
 	"net/url"
 	"strings"

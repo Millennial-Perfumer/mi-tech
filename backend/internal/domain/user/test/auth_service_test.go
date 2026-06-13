@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"mi-tech/internal/domain/shared/testutil"
+	"mi-tech/internal/shared/testutil"
 	"mi-tech/internal/domain/user/repository"
 	"mi-tech/internal/domain/user/service"
 

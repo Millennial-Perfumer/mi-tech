@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/shared/extclient/shopify"
 	"mi-tech/internal/domain/order/dto"
 	"mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/util"
 )
 
 // GraphQLOrderToEntity converts a Shopify GraphQL order node into a DB entity.

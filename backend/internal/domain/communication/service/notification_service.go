@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"strings"
 
 	"github.com/go-resty/resty/v2"

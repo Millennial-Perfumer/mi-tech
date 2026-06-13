@@ -6,7 +6,7 @@ import (
 
 	"mi-tech/internal/domain/production/entity"
 	"mi-tech/internal/domain/production/repository"
-	"mi-tech/internal/domain/shared/testutil"
+	"mi-tech/internal/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

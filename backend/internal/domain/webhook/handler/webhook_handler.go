@@ -14,8 +14,8 @@ import (
 
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
 	orderDto "mi-tech/internal/domain/order/dto"
-	"mi-tech/internal/domain/shared/config"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/config"
+	"mi-tech/internal/shared/util"
 	webhookEntity "mi-tech/internal/domain/webhook/entity"
 	webhookService "mi-tech/internal/domain/webhook/service"
 )

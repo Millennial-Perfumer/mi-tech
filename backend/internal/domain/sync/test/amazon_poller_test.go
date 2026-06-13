@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	orderEntity "mi-tech/internal/domain/order/entity"
-	util "mi-tech/internal/domain/shared/util"
+	util "mi-tech/internal/shared/util"
+	inventoryMocks "mi-tech/internal/domain/inventory/test"
 	orderMocks "mi-tech/internal/domain/order/test"
-	mocks "mi-tech/internal/service/mocks"
 	"mi-tech/internal/domain/sync/service"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ import (
 
 func TestAmazonOrderPoller_MapStatus(t *testing.T) {
 	mockOrderRepo := new(orderMocks.MockOrderRepository)
-	mockInvRepo := new(mocks.MockInventoryRepository)
+	mockInvRepo := new(inventoryMocks.MockInventoryRepository)
 
 	poller := service.NewAmazonOrderPoller(nil, mockOrderRepo, mockInvRepo, nil)
 	_ = poller

@@ -7,7 +7,7 @@ import (
 	"log"
 	"mi-tech/internal/domain/communication/entity"
 	repository "mi-tech/internal/domain/communication/repository"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	customerRepoPkg "mi-tech/internal/domain/order/repository"
 	"os"
 	"path/filepath"

@@ -7,7 +7,7 @@ import (
 	"io"
 	"log"
 	"mi-tech/internal/domain/communication/entity"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"

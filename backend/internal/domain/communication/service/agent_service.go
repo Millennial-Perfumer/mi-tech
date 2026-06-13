@@ -9,7 +9,7 @@ import (
 	plannerServicePkg "mi-tech/internal/domain/planner/service"
 	supportDto "mi-tech/internal/domain/support/dto"
 	supportServicePkg "mi-tech/internal/domain/support/service"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"strings"
 	"time"
 

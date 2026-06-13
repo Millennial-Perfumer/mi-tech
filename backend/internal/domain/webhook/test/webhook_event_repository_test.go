@@ -6,7 +6,7 @@ import (
 	"time"
 
 	orderEntity "mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/shared/testutil"
+	"mi-tech/internal/shared/testutil"
 	webhookEntity "mi-tech/internal/domain/webhook/entity"
 	"mi-tech/internal/domain/webhook/repository"
 

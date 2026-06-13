@@ -8,7 +8,7 @@ import (
 	"mi-tech/internal/domain/order/entity"
 	"mi-tech/internal/domain/order/repository"
 	"mi-tech/internal/domain/order/service"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

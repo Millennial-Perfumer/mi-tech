@@ -6,9 +6,9 @@ import (
 
 	"mi-tech/internal/domain/feedback/entity"
 	"mi-tech/internal/domain/feedback/repository"
-	"mi-tech/internal/domain/shared/testutil"
+	"mi-tech/internal/shared/testutil"
 	orderEntity "mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

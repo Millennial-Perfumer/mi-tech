@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"log"
-	"mi-tech/internal/client/amazon"
-	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/shared/extclient/amazon"
+	"mi-tech/internal/shared/extclient/shopify"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
 	communicationRepoPkg "mi-tech/internal/domain/communication/repository"
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
@@ -29,6 +29,9 @@ import (
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	webhookRepoPkg "mi-tech/internal/domain/webhook/repository"
 	webhookServicePkg "mi-tech/internal/domain/webhook/service"
+	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
+	aiRepoPkg "mi-tech/internal/domain/ai/repository"
+	aiServicePkg "mi-tech/internal/domain/ai/service"
 	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
 	plannerRepoPkg "mi-tech/internal/domain/planner/repository"
 	plannerServicePkg "mi-tech/internal/domain/planner/service"
@@ -40,11 +43,12 @@ import (
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
 	supportRepoPkg "mi-tech/internal/domain/support/repository"
 	supportServicePkg "mi-tech/internal/domain/support/service"
-	"mi-tech/internal/domain/shared/config"
-	"mi-tech/internal/domain/shared/database"
-	"mi-tech/internal/handler"
-	"mi-tech/internal/repository"
-	"mi-tech/internal/service"
+	"mi-tech/internal/shared/config"
+	configHandlerPkg "mi-tech/internal/shared/config/handler"
+	configRepoPkg "mi-tech/internal/shared/config/repository"
+	"mi-tech/internal/shared/database"
+	systemServicePkg "mi-tech/internal/shared/system/service"
+	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 	"net/http"
 	"time"
 
@@ -86,8 +90,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	webhookStatusRepo := webhookRepoPkg.NewWebhookStatusRepository(db)
 	whatsappRepo := communicationRepoPkg.NewTemplatesRepository(sqlDB)
 	messagesRepo := communicationRepoPkg.NewMessagesRepository(sqlDB)
-	configsRepo := repository.NewConfigsRepository(db)
-	settingsRepo := repository.NewSettingsRepository(db)
+	configsRepo := configRepoPkg.NewConfigsRepository(db)
+	settingsRepo := configRepoPkg.NewSettingsRepository(db)
 	customerRepo := orderRepoPkg.NewCustomerRepository(db)
 	socialRepo := marketingRepoPkg.NewSocialRepository(db)
 	plannerRepo := plannerRepoPkg.NewPlannerRepository(db)
@@ -99,9 +103,9 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	feedbackRepo := feedbackRepoPkg.NewFeedbackRepository(db)
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ticketRepo := supportRepoPkg.NewTicketRepository(db)
-	aiReadRepo := repository.NewAIReadRepository(db)
-	aiConvRepo := repository.NewAIConversationRepository(db)
-	aiMemRepo := repository.NewAIMemoryRepository(db)
+	aiReadRepo := aiRepoPkg.NewAIReadRepository(db)
+	aiConvRepo := aiRepoPkg.NewAIConversationRepository(db)
+	aiMemRepo := aiRepoPkg.NewAIMemoryRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -118,7 +122,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	metricsService := dashboardServicePkg.NewMetricsService(metricsRepo)
 	reportService := dashboardServicePkg.NewReportService(reportRepo)
 	customerService := orderServicePkg.NewCustomerService(customerRepo, orderRepo, shopifyClient)
-	invoiceService := service.NewInvoiceService(settingsRepo)
+	invoiceService := orderServicePkg.NewInvoiceService(settingsRepo)
 	orderService := orderServicePkg.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient, syncOrchestrator)
 	feedbackService := feedbackServicePkg.NewFeedbackService(feedbackRepo, orderService)
 	syncService := syncServicePkg.NewSyncService(shopifyClient, orderRepo, customerService, syncOrchestrator)
@@ -138,11 +142,11 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	authService := userServicePkg.NewAuthService(userRepo, settingsProvider, messagesService)
 	metaMarketingClient := marketingServicePkg.NewMetaMarketingClient(settingsProvider)
 	socialService := marketingServicePkg.NewSocialService(socialRepo, metaMarketingClient)
-	systemService := service.NewSystemService("../docs")
-	aiService := service.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
+	systemService := systemServicePkg.NewSystemService("../docs")
+	aiService := aiServicePkg.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
 	marketingHandler := marketingHandlerPkg.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := marketingHandlerPkg.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
-	systemHandler := handler.NewSystemHandler(systemService)
+	systemHandler := systemHandlerPkg.NewSystemHandler(systemService)
 	smmHandler := marketingHandlerPkg.NewSMMHandler(socialService)
 	mappingService := communicationServicePkg.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
 
@@ -153,9 +157,9 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	reportHandler := dashboardHandlerPkg.NewReportHandler(reportService)
 	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider)
 	automationHandler := communicationHandlerPkg.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider, agentService)
-	settingsHandler := handler.NewSettingsHandler(settingsRepo)
-	configsHandler := handler.NewConfigsHandler(configsRepo, db)
-	redirectHandler := handler.NewRedirectHandler(orderRepo)
+	settingsHandler := configHandlerPkg.NewSettingsHandler(settingsRepo)
+	configsHandler := configHandlerPkg.NewConfigsHandler(configsRepo, db)
+	redirectHandler := orderHandlerPkg.NewRedirectHandler(orderRepo)
 	authHandler := userHandlerPkg.NewAuthHandler(authService)
 	customerHandler := orderHandlerPkg.NewCustomerHandler(customerService)
 	feedbackHandler := feedbackHandlerPkg.NewFeedbackHandler(feedbackService, settingsProvider, mappingService, whatsappRepo)
@@ -168,7 +172,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	supplierHandler := productionHandlerPkg.NewSupplierHandler(supplierService)
 	poHandler := productionHandlerPkg.NewPurchaseOrderHandler(poService)
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
-	aiHandler := handler.NewAIHandler(aiService)
+	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
 
 	RegisterRoutes(
 		mux,

@@ -9,7 +9,7 @@ import (
 	"io"
 	"log"
 	"mi-tech/internal/domain/marketing/service"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"net/http"
 	"os"
 	"strings"

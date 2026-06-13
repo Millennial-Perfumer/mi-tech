@@ -7,12 +7,12 @@ import (
 	"log"
 	"strconv"
 
-	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/shared/extclient/shopify"
 	orderDto "mi-tech/internal/domain/order/dto"
 	orderEntity "mi-tech/internal/domain/order/entity"
 	orderMapper "mi-tech/internal/domain/order/mapper"
 	orderService "mi-tech/internal/domain/order/service"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/util"
 	webhookEntity "mi-tech/internal/domain/webhook/entity"
 	"mi-tech/internal/domain/webhook/repository"
 )

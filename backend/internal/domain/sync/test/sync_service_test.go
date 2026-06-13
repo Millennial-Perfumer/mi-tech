@@ -3,8 +3,8 @@ package test
 import (
 	"testing"
 
-	"mi-tech/internal/client/shopify"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/extclient/shopify"
+	"mi-tech/internal/shared/config"
 	"mi-tech/internal/domain/sync/service"
 	orderMocks "mi-tech/internal/domain/order/test"
 

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/shared/extclient/shopify"
 	orderEntity "mi-tech/internal/domain/order/entity"
 	orderMapper "mi-tech/internal/domain/order/mapper"
 	orderRepoPkg "mi-tech/internal/domain/order/repository"

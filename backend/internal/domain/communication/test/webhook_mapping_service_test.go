@@ -5,8 +5,8 @@ import (
 
 	"mi-tech/internal/domain/communication/service"
 	"mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/shared/util"
-	miTechService "mi-tech/internal/service"
+	orderServicePkg "mi-tech/internal/domain/order/service"
+	"mi-tech/internal/shared/util"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +20,7 @@ func TestResolveVariable(t *testing.T) {
 	}
 
 	// Use constructor to inject the invoiceService dependency
-	mappingService := service.NewWebhookMappingService(nil, nil, &miTechService.InvoiceService{}, nil, nil, nil, nil)
+	mappingService := service.NewWebhookMappingService(nil, nil, &orderServicePkg.InvoiceService{}, nil, nil, nil, nil)
 
 	// 1. Test basic fields
 	assert.Equal(t, "Alice", mappingService.ResolveVariable("customer_name", order, nil))
@@ -35,7 +35,7 @@ func TestResolveVariable(t *testing.T) {
 	// Calculate totals: Gross=100, Taxable=84.75, Tax=15.25, Grand=100
 	// Wait, we need to get invoiceService from mappingService or instantiate it directly.
 	// Since we can just call CalculateInvoiceTotals on a separate instance of InvoiceService:
-	invoiceService := &miTechService.InvoiceService{}
+	invoiceService := &orderServicePkg.InvoiceService{}
 	totals := invoiceService.CalculateInvoiceTotals(order.LineItems)
 
 	// Test with nil totals (lazy load)

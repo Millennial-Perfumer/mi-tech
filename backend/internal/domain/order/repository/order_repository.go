@@ -9,7 +9,7 @@ import (
 
 	inventoryEntity "mi-tech/internal/domain/inventory/entity"
 	"mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/util"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

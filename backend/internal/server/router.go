@@ -11,6 +11,7 @@ import (
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
+	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
 	userHandlerPkg "mi-tech/internal/domain/user/handler"
@@ -18,7 +19,8 @@ import (
 	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
 	userServicePkg "mi-tech/internal/domain/user/service"
-	"mi-tech/internal/handler"
+	configHandlerPkg "mi-tech/internal/shared/config/handler"
+	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 
 
 	_ "mi-tech/docs"
@@ -36,15 +38,15 @@ func RegisterRoutes(
 	reportHandler *dashboardHandlerPkg.ReportHandler,
 	webhookHandler *webhookHandlerPkg.WebhookHandler,
 	automationHandler *communicationHandlerPkg.AutomationHandler,
-	settingsHandler *handler.SettingsHandler,
-	configsHandler *handler.ConfigsHandler,
-	redirectHandler *handler.RedirectHandler,
+	settingsHandler *configHandlerPkg.SettingsHandler,
+	configsHandler *configHandlerPkg.ConfigsHandler,
+	redirectHandler *orderHandlerPkg.RedirectHandler,
 	authHandler *userHandlerPkg.AuthHandler,
 	customerHandler *orderHandlerPkg.CustomerHandler,
 	userHandler *userHandlerPkg.UserHandler,
 	marketingHandler *marketingHandlerPkg.MarketingHandler,
 	marketingWebhookHandler *marketingHandlerPkg.MarketingWebhookHandler,
-	systemHandler *handler.SystemHandler,
+	systemHandler *systemHandlerPkg.SystemHandler,
 	smmHandler *marketingHandlerPkg.SMMHandler,
 	plannerHandler *plannerHandlerPkg.PlannerHandler,
 	ticketHandler *supportHandlerPkg.TicketHandler,
@@ -54,7 +56,7 @@ func RegisterRoutes(
 	supplierHandler *productionHandlerPkg.SupplierHandler,
 	poHandler *productionHandlerPkg.PurchaseOrderHandler,
 	mfgHandler *productionHandlerPkg.ManufacturingHandler,
-	aiHandler *handler.AIHandler,
+	aiHandler *aiHandlerPkg.AIHandler,
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")

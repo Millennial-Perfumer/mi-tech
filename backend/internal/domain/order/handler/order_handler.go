@@ -12,20 +12,19 @@ import (
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
 	"mi-tech/internal/domain/order/dto"
 	"mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/order/service"
-	"mi-tech/internal/domain/shared/config"
-	legacyService "mi-tech/internal/service"
+	orderServicePkg "mi-tech/internal/domain/order/service"
+	"mi-tech/internal/shared/config"
 )
 
 // OrderHandler is a thin HTTP adapter for order operations.
 type OrderHandler struct {
-	orderService   *service.OrderService
-	invoiceService *legacyService.InvoiceService
+	orderService   *orderServicePkg.OrderService
+	invoiceService *orderServicePkg.InvoiceService
 	mappingService *communicationServicePkg.WebhookMappingService
 }
 
 // NewOrderHandler creates a new OrderHandler.
-func NewOrderHandler(orderService *service.OrderService, invoiceService *legacyService.InvoiceService, mappingService *communicationServicePkg.WebhookMappingService) *OrderHandler {
+func NewOrderHandler(orderService *orderServicePkg.OrderService, invoiceService *orderServicePkg.InvoiceService, mappingService *communicationServicePkg.WebhookMappingService) *OrderHandler {
 	return &OrderHandler{
 		orderService:   orderService,
 		invoiceService: invoiceService,

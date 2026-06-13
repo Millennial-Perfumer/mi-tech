@@ -11,7 +11,7 @@ import (
 
 	"mi-tech/internal/domain/marketing/handler"
 	"mi-tech/internal/domain/marketing/service"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 
 	"github.com/stretchr/testify/assert"
 )

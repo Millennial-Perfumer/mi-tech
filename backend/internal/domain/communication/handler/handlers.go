@@ -11,7 +11,7 @@ import (
 	"mi-tech/internal/domain/communication/dto"
 	"mi-tech/internal/domain/communication/entity"
 	"mi-tech/internal/domain/communication/service"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	orderServicePkg "mi-tech/internal/domain/order/service"
 	"net/http"
 	"path/filepath"

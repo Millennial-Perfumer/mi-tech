@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	userServicePkg "mi-tech/internal/domain/user/service"
-	"mi-tech/internal/domain/shared/telemetry"
+	"mi-tech/internal/shared/telemetry"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"

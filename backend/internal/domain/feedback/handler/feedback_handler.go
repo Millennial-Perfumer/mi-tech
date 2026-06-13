@@ -15,7 +15,7 @@ import (
 	"mi-tech/internal/domain/feedback/dto"
 	"mi-tech/internal/domain/feedback/entity"
 	feedbackService "mi-tech/internal/domain/feedback/service"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 )
 
 type FeedbackHandler struct {

@@ -7,12 +7,12 @@ import (
 	"log"
 	commEntity "mi-tech/internal/domain/communication/entity"
 	repositoryPkg "mi-tech/internal/domain/communication/repository"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	orderRepoPkg "mi-tech/internal/domain/order/repository"
+	configRepoPkg "mi-tech/internal/shared/config/repository"
 	"mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/shared/util"
-	"mi-tech/internal/repository"
-	"mi-tech/internal/service"
+	"mi-tech/internal/shared/util"
+	orderServicePkg "mi-tech/internal/domain/order/service"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -38,14 +38,14 @@ func SanitizePhoneNumber(phone string) string {
 type WebhookMappingService struct {
 	templatesRepo    repositoryPkg.TemplatesRepository
 	messagesService  *MessagesService
-	invoiceService   *service.InvoiceService
-	settingsRepo     *repository.SettingsRepository
+	invoiceService   *orderServicePkg.InvoiceService
+	settingsRepo     configRepoPkg.SettingsRepository
 	lineItemRepo     orderRepoPkg.LineItemRepository
 	settingsProvider *config.SettingsProvider
 	orderRepo        orderRepoPkg.OrderRepository
 }
 
-func NewWebhookMappingService(tRepo repositoryPkg.TemplatesRepository, mService *MessagesService, iService *service.InvoiceService, sRepo *repository.SettingsRepository, liRepo orderRepoPkg.LineItemRepository, sProvider *config.SettingsProvider, oRepo orderRepoPkg.OrderRepository) *WebhookMappingService {
+func NewWebhookMappingService(tRepo repositoryPkg.TemplatesRepository, mService *MessagesService, iService *orderServicePkg.InvoiceService, sRepo configRepoPkg.SettingsRepository, liRepo orderRepoPkg.LineItemRepository, sProvider *config.SettingsProvider, oRepo orderRepoPkg.OrderRepository) *WebhookMappingService {
 	return &WebhookMappingService{
 		templatesRepo:    tRepo,
 		messagesService:  mService,
@@ -120,7 +120,7 @@ func (s *WebhookMappingService) ExecuteManualSend(storeID string, templateID int
 	return s.executeWithTemplate(storeID, template, order, "manual")
 }
 
-func (s *WebhookMappingService) ResolveVariable(field string, order entity.Order, totals *service.InvoiceTotals) string {
+func (s *WebhookMappingService) ResolveVariable(field string, order entity.Order, totals *orderServicePkg.InvoiceTotals) string {
 	// If the field is a pricing variable, ensure we have line items and use the centralized calculation logic
 	switch field {
 	case "order_total", "order_grand_total", "order_subtotal", "order_discount", "order_tax":
@@ -206,7 +206,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *co
 
 	// Performance: Pre-calculate invoice totals once per template execution to avoid
 	// O(N) iteration overhead for every pricing variable placeholder.
-	var totals *service.InvoiceTotals
+	var totals *orderServicePkg.InvoiceTotals
 	if len(order.LineItems) > 0 {
 		t := s.invoiceService.CalculateInvoiceTotals(order.LineItems)
 		totals = &t

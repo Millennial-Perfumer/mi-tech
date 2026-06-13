@@ -10,8 +10,8 @@ import (
 
 	communicationRepoPkg "mi-tech/internal/domain/communication/repository"
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
-	"mi-tech/internal/domain/shared/config"
-	"mi-tech/internal/domain/shared/util"
+	"mi-tech/internal/shared/config"
+	"mi-tech/internal/shared/util"
 	orderEntity "mi-tech/internal/domain/order/entity"
 )
 

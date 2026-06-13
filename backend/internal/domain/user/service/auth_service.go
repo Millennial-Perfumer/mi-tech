@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"mi-tech/internal/domain/user/entity"
 	"mi-tech/internal/domain/user/repository"
 

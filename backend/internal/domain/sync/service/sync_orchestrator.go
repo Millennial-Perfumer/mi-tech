@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"log"
-	"mi-tech/internal/client/amazon"
-	"mi-tech/internal/client/shopify"
+	"mi-tech/internal/shared/extclient/amazon"
+	"mi-tech/internal/shared/extclient/shopify"
 	inventoryEntity "mi-tech/internal/domain/inventory/entity"
 	inventoryRepo "mi-tech/internal/domain/inventory/repository"
-	"mi-tech/internal/domain/shared/config"
+	"mi-tech/internal/shared/config"
 	"os"
 
 	"gorm.io/gorm"
