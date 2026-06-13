@@ -58,15 +58,13 @@ func (h *TicketHandler) UpdateTicketStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	idStr := parts[3]
-	idVal, err := strconv.ParseUint(idStr, 10, 64)
+	idVal, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-	if idVal > uint64(^uint(0)) {
-		http.Error(w, "ID out of bounds", http.StatusBadRequest)
-		return
-	}
+	id32 := uint32(idVal)
+	id := uint(id32)
 
 	var req dto.UpdateTicketStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -74,7 +72,7 @@ func (h *TicketHandler) UpdateTicketStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ticket, err := h.service.UpdateTicketStatus(uint(idVal), req.Status)
+	ticket, err := h.service.UpdateTicketStatus(id, req.Status)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
