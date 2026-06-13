@@ -21,6 +21,8 @@ import (
 	userServicePkg "mi-tech/internal/domain/user/service"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
+	"mi-tech/internal/shared/middleware"
+
 
 
 	_ "mi-tech/docs"
@@ -60,13 +62,13 @@ func RegisterRoutes(
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
-	cors := CORSMiddleware
-	auth := AuthMiddleware(authService)
-	metrics := MetricsMiddleware
+	cors := middleware.CORSMiddleware
+	auth := middleware.AuthMiddleware(authService)
+	metrics := middleware.MetricsMiddleware
 
 	// Helper to wrap handlers with both CORS, Auth, and RequireRole("admin")
 	adminProtected := func(h http.HandlerFunc) http.HandlerFunc {
-		return cors(auth(RequireRole("admin")(h)).ServeHTTP)
+		return cors(auth(middleware.RequireRole("admin")(h)).ServeHTTP)
 	}
 
 	// Helper to wrap handlers with both CORS and Auth (for read/admin)

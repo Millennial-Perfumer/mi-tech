@@ -1,4 +1,4 @@
-package server
+package middleware
 
 import (
 	"context"
@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	userServicePkg "mi-tech/internal/domain/user/service"
 	"mi-tech/internal/shared/telemetry"
-	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/prometheus/client_golang/prometheus"

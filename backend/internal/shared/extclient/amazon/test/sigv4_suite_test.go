@@ -1,4 +1,4 @@
-package amazon
+package test
 
 import (
 	"encoding/json"
@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"mi-tech/internal/shared/extclient/amazon"
 )
 
 type TestSuite struct {
@@ -101,7 +103,7 @@ func TestSigV4Suite(t *testing.T) {
 				body = []byte(tt.Request.Body)
 			}
 
-			err = SignV4(req, body, suite.Config.AccessKeyID, suite.Config.SecretAccessKey, suite.Config.Region, suite.Config.Service, signTime)
+			err = amazon.SignV4(req, body, suite.Config.AccessKeyID, suite.Config.SecretAccessKey, suite.Config.Region, suite.Config.Service, signTime)
 			if err != nil {
 				t.Fatalf("SignV4 failed: %v", err)
 			}

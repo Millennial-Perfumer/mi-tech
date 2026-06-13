@@ -1,10 +1,12 @@
-package server
+package test
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"mi-tech/internal/shared/middleware"
 )
 
 func TestCORSMiddleware(t *testing.T) {
@@ -58,7 +60,7 @@ func TestCORSMiddleware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			handler := middleware.CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
 

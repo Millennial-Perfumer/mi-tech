@@ -1,7 +1,9 @@
-package testutil
+package test
 
 import (
 	"testing"
+
+	"mi-tech/internal/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -13,12 +15,12 @@ func TestSetupTestDB(t *testing.T) {
 		t.Skip("Skipping DB test in short mode")
 	}
 
-	db, err := SetupTestDB()
+	db, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Logf("Failed to setup test DB: %v (this is expected if postgres is not running)", err)
 		return
 	}
-	defer CleanupTestDB(db)
+	defer testutil.CleanupTestDB(db)
 
 	assert.NotNil(t, db)
 
