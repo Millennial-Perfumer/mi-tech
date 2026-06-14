@@ -35,3 +35,6 @@
 ## 2026-06-12 - [ESLint 9 Flat Config Bug in Vite React TS]
 **Learning:** Across frontend projects, trying to extend `reactHooks.configs.flat.recommended` with ESLint 9 Flat Config causes a `TypeError: Cannot read properties of undefined (reading 'recommended')` because `reactHooks.configs` does not natively have a `flat` property yet in some versions.
 **Action:** When updating ESLint configs for frontend projects, instead of relying on the broken `flat` property on `eslint-plugin-react-hooks`, manually configure the `plugins: { 'react-hooks': reactHooks }` and spread the rules `...reactHooks.configs.recommended.rules` inside the flat config object.
+## 2026-06-14 - [Batching Meta Template Status Sync]
+**Learning:** Sequential template synchronization within `SyncStatus` looping over templates to trigger `GetRemoteTemplateByName` causes an N+1 API call issue.
+**Action:** Always batch lookups using a single API call like `GetAllRemoteTemplates` and then perform synchronization processing in bulk to eliminate N+1 API calls.
