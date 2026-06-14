@@ -112,7 +112,7 @@ func (s *ReportService) GetHSNSummary(startDate, endDate string) ([]dto.HSNSumma
 
 // GetDocumentsIssued returns the documents issued report.
 func (s *ReportService) GetDocumentsIssued(startDate, endDate string) ([]dto.DocumentIssuedRow, error) {
-	minOrder, maxOrder, total, cancelled, err := s.reportRepo.GetDocumentsIssued(startDate, endDate)
+	minOrder, maxOrder, total, cancelled, err := s.reportRepo.GetShopifyDocumentsIssued(startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -122,10 +122,10 @@ func (s *ReportService) GetDocumentsIssued(startDate, endDate string) ([]dto.Doc
 		fromS := ""
 		toS := ""
 		if minOrder != nil {
-			fromS = fmt.Sprintf("INV-%d", *minOrder)
+			fromS = fmt.Sprintf("SY-%d", *minOrder)
 		}
 		if maxOrder != nil {
-			toS = fmt.Sprintf("INV-%d", *maxOrder)
+			toS = fmt.Sprintf("SY-%d", *maxOrder)
 		}
 		rows = append(rows, dto.DocumentIssuedRow{
 			DocumentType: "Tax Invoice",
@@ -136,6 +136,27 @@ func (s *ReportService) GetDocumentsIssued(startDate, endDate string) ([]dto.Doc
 			NetIssued:    total - cancelled,
 		})
 	}
+
+	amzMin, amzMax, amzTotal, amzCancelled, err := s.reportRepo.GetAmazonDocumentsIssued(startDate, endDate)
+	if err == nil && amzTotal > 0 {
+		fromS := "N/A"
+		toS := "N/A"
+		if amzMin != nil {
+			fromS = fmt.Sprintf("AMZ-%d", *amzMin)
+		}
+		if amzMax != nil {
+			toS = fmt.Sprintf("AMZ-%d", *amzMax)
+		}
+		rows = append(rows, dto.DocumentIssuedRow{
+			DocumentType: "Tax Invoice (Amazon)",
+			FromSerial:   fromS,
+			ToSerial:     toS,
+			TotalIssued:  amzTotal,
+			Cancelled:    amzCancelled,
+			NetIssued:    amzTotal - amzCancelled,
+		})
+	}
+
 	return rows, nil
 }
 

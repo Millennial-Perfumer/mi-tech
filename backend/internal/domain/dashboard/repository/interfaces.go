@@ -49,5 +49,6 @@ type ReportRepository interface {
 	GetGSTSummary(startDate, endDate string) (GSTSummaryResult, error)
 	GetStateSummary(startDate, endDate string) (results []StateSummaryResult, err error)
 	GetHSNSummary(startDate, endDate string) (results []HSNSummaryResult, err error)
-	GetDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
+	GetShopifyDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
+	GetAmazonDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
 }

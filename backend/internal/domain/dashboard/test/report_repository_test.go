@@ -163,6 +163,60 @@ func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
 	assert.True(s.T(), found)
 }
 
+func (s *MetricsReportRepositoryTestSuite) TestGetDocumentsIssued() {
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
+
+	// Create a shopify order (should be included)
+	inv1 := "SY-2853"
+	err := s.db.Create(&orderEntity.Order{
+		SourceID:        "shopify",
+		ExternalOrderID: "sh1",
+		OrderNumber:     "INV-2853",
+		InvoiceNumber:   &inv1,
+		TotalPrice:      100.0,
+		CreatedAt:       time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	// Create another shopify order (should be included)
+	inv2 := "SY-2855"
+	err = s.db.Create(&orderEntity.Order{
+		SourceID:        "shopify",
+		ExternalOrderID: "sh2",
+		OrderNumber:     "INV-2855",
+		InvoiceNumber:   &inv2,
+		TotalPrice:      150.0,
+		CreatedAt:       time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	// Create an amazon order (should be EXCLUDED)
+	inv3 := "AMZ-1"
+	err = s.db.Create(&orderEntity.Order{
+		SourceID:        "amazon",
+		ExternalOrderID: "am1",
+		OrderNumber:     "406-2823602-6234752",
+		InvoiceNumber:   &inv3,
+		TotalPrice:      200.0,
+		CreatedAt:       time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	minVal, maxVal, total, cancelled, err := s.reportRepo.GetShopifyDocumentsIssued("", now)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), int64(2853), *minVal)
+	assert.Equal(s.T(), int64(2855), *maxVal)
+	assert.Equal(s.T(), 2, total) // Only Shopify orders counted
+	assert.Equal(s.T(), 0, cancelled)
+
+	amzMinVal, amzMaxVal, amzTotal, amzCancelled, err := s.reportRepo.GetAmazonDocumentsIssued("", now)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), int64(1), *amzMinVal)
+	assert.Equal(s.T(), int64(1), *amzMaxVal)
+	assert.Equal(s.T(), 1, amzTotal)
+	assert.Equal(s.T(), 0, amzCancelled)
+}
+
 func TestMetricsReportRepositorySuite(t *testing.T) {
 	suite.Run(t, new(MetricsReportRepositoryTestSuite))
 }

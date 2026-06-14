@@ -12,6 +12,7 @@ type Order struct {
 	ExternalOrderID    string           `gorm:"column:external_order_id"`
 	StoreID            *string          `gorm:"column:store_id"`
 	OrderNumber        string           `gorm:"column:order_number"`
+	InvoiceNumber      *string          `gorm:"column:invoice_number"`
 	TotalPrice         float64          `gorm:"column:total_price"`
 	SubtotalPrice      *float64         `gorm:"column:subtotal_price"`
 	TotalTax           *float64         `gorm:"column:total_tax"`

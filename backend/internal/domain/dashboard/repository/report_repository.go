@@ -317,17 +317,45 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 	return results, nil
 }
 
-func (r *gormReportRepository) GetDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+func (r *gormReportRepository) GetShopifyDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
 		SELECT 
-			MIN(NULLIF(regexp_replace(order_number, '[^0-9]', '', 'g'), '')::bigint) as min_val,
-			MAX(NULLIF(regexp_replace(order_number, '[^0-9]', '', 'g'), '')::bigint) as max_val,
+			MIN(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '')::bigint) as min_val,
+			MAX(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '')::bigint) as max_val,
 			COUNT(id) as total,
 			COUNT(id) FILTER (WHERE LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')) as cancelled
 		FROM orders
-		WHERE created_at >= ? AND created_at <= ?
+		WHERE created_at >= ? AND created_at <= ? AND source_id = 'shopify'
+	`
+
+	var minV, maxV sql.NullInt64
+	row := r.db.Raw(query, start, end).Row()
+	err = row.Scan(&minV, &maxV, &total, &cancelled)
+	if err != nil {
+		return
+	}
+	if minV.Valid {
+		minOrder = &minV.Int64
+	}
+	if maxV.Valid {
+		maxOrder = &maxV.Int64
+	}
+	return
+}
+
+func (r *gormReportRepository) GetAmazonDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+	start, end := parseDateRange(startDate, endDate)
+
+	query := `
+		SELECT 
+			MIN(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '')::bigint) as min_val,
+			MAX(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '')::bigint) as max_val,
+			COUNT(id) as total,
+			COUNT(id) FILTER (WHERE LOWER(status) IN ('cancelled', 'canceled') OR LOWER(fulfillment_status) IN ('cancelled', 'canceled')) as cancelled
+		FROM orders
+		WHERE created_at >= ? AND created_at <= ? AND source_id = 'amazon'
 	`
 
 	var minV, maxV sql.NullInt64
