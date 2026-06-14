@@ -194,7 +194,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
+		log.Printf("WhatsApp Webhook Raw Payload received (length: %d)", len(body))
 
 		var payload struct {
 			Entry []struct {
@@ -254,7 +254,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 				for _, status := range change.Value.Statuses {
 					err := h.messagesService.HandleStatusUpdate(status.ID, status.Status)
 					if err != nil {
-						log.Printf("Error updating message status for %s: %v", status.ID, err)
+						log.Printf("Error updating message status: %v", err)
 					}
 				}
 
@@ -350,7 +350,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 					}
 					err := h.messagesService.HandleIncomingMessage(msg.From, contactName, msg.ID, text, msg.Type, valBytes)
 					if err != nil {
-						log.Printf("Error handling incoming message from %s: %v", msg.From, err)
+						log.Printf("Error handling incoming message: %v", err)
 					}
 				}
 			}

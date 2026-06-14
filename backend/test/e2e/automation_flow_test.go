@@ -2,6 +2,9 @@ package e2e
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -139,10 +142,18 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	}
 	body, _ := json.Marshal(payload)
 
+	// Set up the secret and generate HMAC
+	db.Exec("INSERT INTO app_configs (key, value) VALUES ('shopify_webhook_secret', 'test_secret') ON CONFLICT (key) DO UPDATE SET value = 'test_secret'")
+
+	hash := hmac.New(sha256.New, []byte("test_secret"))
+	hash.Write(body)
+	expectedHmac := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
 	// 4. Call Webhook Handler
 	req := httptest.NewRequest("POST", "/api/webhooks/shopify", bytes.NewBuffer(body))
 	req.Header.Set("X-Shopify-Topic", "orders/create")
 	req.Header.Set("X-Shopify-Webhook-Id", deliveryID)
+	req.Header.Set("X-Shopify-Hmac-Sha256", expectedHmac)
 
 	w := httptest.NewRecorder()
 	webhookHandler.ShopifyWebhookHandler(w, req)
