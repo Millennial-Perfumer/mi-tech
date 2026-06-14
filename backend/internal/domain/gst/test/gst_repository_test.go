@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"mi-tech/internal/domain/dashboard/repository"
+	"mi-tech/internal/domain/gst/repository"
 	orderEntity "mi-tech/internal/domain/order/entity"
 	"mi-tech/internal/shared/testutil"
 	util "mi-tech/internal/shared/util"
@@ -14,72 +14,32 @@ import (
 	"gorm.io/gorm"
 )
 
-type MetricsReportRepositoryTestSuite struct {
+type GSTRepositoryTestSuite struct {
 	suite.Suite
-	db          *gorm.DB
-	metricsRepo repository.MetricsRepository
-	reportRepo  repository.ReportRepository
+	db         *gorm.DB
+	reportRepo repository.GSTRepository
 }
 
-func (s *MetricsReportRepositoryTestSuite) SetupSuite() {
+func (s *GSTRepositoryTestSuite) SetupSuite() {
 	db, err := testutil.SetupTestDB()
 	if err != nil {
-		s.T().Skip("Skipping Metrics/Report tests: database not available")
+		s.T().Skip("Skipping GST reports tests: database not available")
 	}
 	s.db = db
-	s.metricsRepo = repository.NewMetricsRepository(db)
-	s.reportRepo = repository.NewReportRepository(db)
+	s.reportRepo = repository.NewGSTRepository(db)
 }
 
-func (s *MetricsReportRepositoryTestSuite) TearDownSuite() {
+func (s *GSTRepositoryTestSuite) TearDownSuite() {
 	if s.db != nil {
 		testutil.CleanupTestDB(s.db)
 	}
 }
 
-func (s *MetricsReportRepositoryTestSuite) SetupTest() {
+func (s *GSTRepositoryTestSuite) SetupTest() {
 	s.db.Exec("TRUNCATE TABLE orders CASCADE")
 }
 
-func (s *MetricsReportRepositoryTestSuite) TestGetDashboardMetrics() {
-	// Seed orders
-	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
-	tn := "Tamil Nadu"
-	ka := "Karnataka"
-
-	err := s.db.Create(&orderEntity.Order{
-		SourceID: "shopify", ExternalOrderID: "m1", TotalPrice: 118.0, CustomerState: &tn, CreatedAt: time.Now(),
-	}).Error
-	assert.NoError(s.T(), err)
-
-	err = s.db.Create(&orderEntity.Order{
-		SourceID: "shopify", ExternalOrderID: "m2", TotalPrice: 118.0, CustomerState: &ka, CreatedAt: time.Now(),
-	}).Error
-	assert.NoError(s.T(), err)
-
-	err = s.db.Create(&orderEntity.Order{
-		SourceID: "shopify", ExternalOrderID: "m3", TotalPrice: 100.0, Status: util.StrPtr("CANCELLED"), CreatedAt: time.Now(),
-	}).Error
-	assert.NoError(s.T(), err)
-
-	metrics, err := s.metricsRepo.GetDashboardMetrics("", now, []string{})
-	assert.NoError(s.T(), err)
-
-	// Total revenue should exclude cancelled: 118 + 118 = 236
-	assert.Equal(s.T(), 236.0, metrics.TotalRevenue)
-	assert.Equal(s.T(), 3, metrics.TotalInvoices)
-	assert.Equal(s.T(), 1, metrics.CancelledOrders)
-	assert.Equal(s.T(), 0, metrics.FulfilledOrders)
-	assert.Equal(s.T(), 2, metrics.UnfulfilledOrders)
-
-	// TN order (118): Tax is 18. CGST = 9, SGST = 9
-	// KA order (118): Tax is 18. IGST = 18
-	assert.Equal(s.T(), 9.0, metrics.CGSTCollected)
-	assert.Equal(s.T(), 9.0, metrics.SGSTCollected)
-	assert.Equal(s.T(), 18.0, metrics.IGSTCollected)
-}
-
-func (s *MetricsReportRepositoryTestSuite) TestGetGSTSummary() {
+func (s *GSTRepositoryTestSuite) TestGetGSTSummary() {
 	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
 	err := s.db.Create(&orderEntity.Order{
@@ -99,7 +59,7 @@ func (s *MetricsReportRepositoryTestSuite) TestGetGSTSummary() {
 	assert.Equal(s.T(), 0.0, res.IGST)
 }
 
-func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
+func (s *GSTRepositoryTestSuite) TestGetStateSummary() {
 	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
 	ka := "Karnataka"
@@ -122,7 +82,7 @@ func (s *MetricsReportRepositoryTestSuite) TestGetStateSummary() {
 	}
 }
 
-func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
+func (s *GSTRepositoryTestSuite) TestGetHSNSummary() {
 	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 	tn := "Tamil Nadu"
 
@@ -163,7 +123,7 @@ func (s *MetricsReportRepositoryTestSuite) TestGetHSNSummary() {
 	assert.True(s.T(), found)
 }
 
-func (s *MetricsReportRepositoryTestSuite) TestGetDocumentsIssued() {
+func (s *GSTRepositoryTestSuite) TestGetDocumentsIssued() {
 	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
 
 	// Create a shopify order (should be included)
@@ -217,6 +177,103 @@ func (s *MetricsReportRepositoryTestSuite) TestGetDocumentsIssued() {
 	assert.Equal(s.T(), 0, amzCancelled)
 }
 
-func TestMetricsReportRepositorySuite(t *testing.T) {
-	suite.Run(t, new(MetricsReportRepositoryTestSuite))
+func (s *GSTRepositoryTestSuite) TestGetGSTR1B2CS() {
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
+	tn := "Tamil Nadu"
+	ka := "Karnataka"
+
+	// TN Order (Intrastate)
+	err := s.db.Create(&orderEntity.Order{
+		SourceID:        "shopify",
+		ExternalOrderID: "b2cs_sh1",
+		TotalPrice:      118.0, // Taxable: 100, GST: 18
+		CustomerState:   &tn,
+		CreatedAt:       time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	// KA Order (Interstate)
+	err = s.db.Create(&orderEntity.Order{
+		SourceID:        "amazon",
+		ExternalOrderID: "b2cs_amz1",
+		TotalPrice:      236.0, // Taxable: 200, GST: 36
+		CustomerState:   &ka,
+		CreatedAt:       time.Now(),
+	}).Error
+	assert.NoError(s.T(), err)
+
+	rows, err := s.reportRepo.GetGSTR1B2CS("", now)
+	assert.NoError(s.T(), err)
+	assert.Len(s.T(), rows, 2)
+
+	var foundTN, foundKA bool
+	for _, row := range rows {
+		if row.POS == "33" {
+			foundTN = true
+			assert.Equal(s.T(), "INTRA", row.SplyTy)
+			assert.Equal(s.T(), 18.0, row.Rt)
+			assert.Equal(s.T(), 100.0, row.TxVal)
+			assert.Equal(s.T(), 9.0, row.Camt)
+			assert.Equal(s.T(), 9.0, row.Samt)
+			assert.Equal(s.T(), 0.0, row.Iamt)
+			assert.Equal(s.T(), "OE", row.Typ) // Shopify = OE
+		} else if row.POS == "29" {
+			foundKA = true
+			assert.Equal(s.T(), "INTER", row.SplyTy)
+			assert.Equal(s.T(), 18.0, row.Rt)
+			assert.Equal(s.T(), 200.0, row.TxVal)
+			assert.Equal(s.T(), 0.0, row.Camt)
+			assert.Equal(s.T(), 0.0, row.Samt)
+			assert.Equal(s.T(), 36.0, row.Iamt)
+			assert.Equal(s.T(), "E", row.Typ) // Amazon = E
+		}
+	}
+	assert.True(s.T(), foundTN)
+	assert.True(s.T(), foundKA)
+}
+
+func (s *GSTRepositoryTestSuite) TestGetGSTR1HSN() {
+	now := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
+	tn := "Tamil Nadu"
+
+	order := orderEntity.Order{
+		SourceID:        "shopify",
+		ExternalOrderID: "hsn_sh1",
+		TotalPrice:      118.0,
+		CustomerState:   &tn,
+		CreatedAt:       time.Now(),
+	}
+	err := s.db.Create(&order).Error
+	assert.NoError(s.T(), err)
+
+	err = s.db.Create(&orderEntity.LineItem{
+		OrderID:  order.ID,
+		HSCode:   util.StrPtr("330290"),
+		Price:    100.0,
+		Quantity: 1,
+		Discount: 0,
+	}).Error
+	assert.NoError(s.T(), err)
+
+	rows, err := s.reportRepo.GetGSTR1HSN("", now)
+	assert.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), rows)
+
+	var found bool
+	for _, r := range rows {
+		if r.HsnSc == "330290" {
+			found = true
+			assert.Equal(s.T(), 1.0, r.Qty)
+			assert.Equal(s.T(), 100.0, r.TxVal)
+			assert.Equal(s.T(), 9.0, r.Camt)
+			assert.Equal(s.T(), 9.0, r.Samt)
+			assert.Equal(s.T(), 0.0, r.Iamt)
+			assert.Equal(s.T(), "PCS", r.Uqc)
+		}
+	}
+	assert.True(s.T(), found)
+}
+
+func TestGSTRepositorySuite(t *testing.T) {
+	suite.Run(t, new(GSTRepositoryTestSuite))
 }

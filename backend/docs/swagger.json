@@ -8,241 +8,6 @@
     },
     "basePath": "/api",
     "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "Authenticate a user and return a JWT token. If 2FA is enabled, it returns requires_2fa=true.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Login to the application",
-                "parameters": [
-                    {
-                        "description": "Login credentials",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.LoginResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/verify": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Internal endpoint for Nginx to validate the Bearer token and retrieve user metadata.",
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Validate JWT Session",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/verify-otp": {
-            "post": {
-                "description": "Complete the login process by verifying the 6-digit OTP.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Verify 2FA OTP",
-                "parameters": [
-                    {
-                        "description": "OTP Verification",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.VerifyOTPRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.LoginResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "unauthorized",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/automation/whatsapp/chat": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve all messages for a specific conversation.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "Get chat history",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Conv ID",
-                        "name": "conversation_id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/internal_automation_whatsapp.ChatMessage"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/automation/whatsapp/conversations": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve all active customer chat conversations.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "List chat threads",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/internal_automation_whatsapp.Conversation"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/automation/whatsapp/conversations/mode": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Switch between 'auto' (bot) and 'human' (agent) mode for a chat thread.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "Toggle chat mode",
-                "parameters": [
-                    {
-                        "description": "Mode data",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
-        "/automation/whatsapp/feedback": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve a list of all customer ratings and messages",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "feedback"
-                ],
-                "summary": "List customer feedback",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/automation/whatsapp/messages": {
             "get": {
                 "security": [
@@ -302,43 +67,6 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/automation/whatsapp/messages/order": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve all automation messages sent for a specific order.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "List messages for an order",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "order_id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/internal_automation_whatsapp.AutomationMessage"
-                            }
                         }
                     }
                 }
@@ -424,46 +152,6 @@
                 }
             }
         },
-        "/automation/whatsapp/send-bulk": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Dispatch a template message to multiple customers simultaneously.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "Send bulk marketing",
-                "parameters": [
-                    {
-                        "description": "Bulk send request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/automation/whatsapp/send-manual": {
             "post": {
                 "security": [
@@ -504,42 +192,6 @@
                 }
             }
         },
-        "/automation/whatsapp/send-message": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Send a non-template, free-text message to a customer (Human-to-Human).",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "Send free-text",
-                "parameters": [
-                    {
-                        "description": "Message data",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
         "/automation/whatsapp/templates": {
             "get": {
                 "security": [
@@ -575,7 +227,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_automation_whatsapp.AutomationTemplate"
+                                "$ref": "#/definitions/mi-tech_internal_domain_communication_entity.AutomationTemplate"
                             }
                         }
                     }
@@ -605,7 +257,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_automation_whatsapp.AutomationTemplate"
+                            "$ref": "#/definitions/mi-tech_internal_domain_communication_entity.AutomationTemplate"
                         }
                     }
                 ],
@@ -639,7 +291,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_automation_whatsapp.CreateTemplateRequest"
+                            "$ref": "#/definitions/mi-tech_internal_domain_communication_dto.CreateTemplateRequest"
                         }
                     }
                 ],
@@ -706,28 +358,6 @@
                 }
             }
         },
-        "/automation/whatsapp/templates/sync-all": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Wipe and re-import all templates from the linked Meta WABA.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "automation"
-                ],
-                "summary": "Full template import",
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
         "/automation/whatsapp/templates/upload": {
             "post": {
                 "security": [
@@ -789,7 +419,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_automation_whatsapp.Trigger"
+                                "$ref": "#/definitions/mi-tech_internal_domain_communication_entity.Trigger"
                             }
                         }
                     }
@@ -893,110 +523,6 @@
                 }
             }
         },
-        "/configs": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve a list of all API keys and secrets. Sensitive values are masked (********).",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "configurations"
-                ],
-                "summary": "List API configurations",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Update a specific configuration key (e.g. meta_api_token). Required 'admin' role.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "configurations"
-                ],
-                "summary": "Update API configuration",
-                "parameters": [
-                    {
-                        "description": "Config key-value",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/configs/reveal": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve unmasked values of API keys by re-authenticating with the user's password.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "configurations"
-                ],
-                "summary": "Reveal unmasked configurations",
-                "parameters": [
-                    {
-                        "description": "User password",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/customers": {
             "get": {
                 "security": [
@@ -1090,7 +616,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_entity.Customer"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_entity.Customer"
                         }
                     }
                 ],
@@ -1098,7 +624,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_entity.Customer"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_entity.Customer"
                         }
                     }
                 }
@@ -1280,7 +806,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_entity.Customer"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_entity.Customer"
                         }
                     }
                 ],
@@ -1288,7 +814,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_entity.Customer"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_entity.Customer"
                         }
                     }
                 }
@@ -1508,7 +1034,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_marketing.AssetHealth"
+                            "$ref": "#/definitions/mi-tech_internal_domain_marketing_service.AssetHealth"
                         }
                     }
                 }
@@ -1755,7 +1281,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_dto.OrderUpdateRequest"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_dto.OrderUpdateRequest"
                         }
                     }
                 ],
@@ -1793,7 +1319,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_dto.OrderCreateRequest"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_dto.OrderCreateRequest"
                         }
                     }
                 ],
@@ -1801,7 +1327,7 @@
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_dto.OrderResponse"
+                            "$ref": "#/definitions/mi-tech_internal_domain_order_dto.OrderResponse"
                         }
                     },
                     "400": {
@@ -1889,56 +1415,6 @@
                 }
             }
         },
-        "/orders/feedback/comment": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Add or update an internal admin comment on a customer feedback",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "feedback"
-                ],
-                "summary": "Update feedback admin comment",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Feedback ID",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "description": "Admin comment",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/orders/invoice": {
             "get": {
                 "description": "Generate and download a GST invoice PDF for an order",
@@ -1995,7 +1471,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UpdateStatusRequest"
+                            "$ref": "#/definitions/internal_domain_order_handler.UpdateStatusRequest"
                         }
                     }
                 ],
@@ -2063,7 +1539,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.UpdateStatusRequest"
+                            "$ref": "#/definitions/internal_domain_order_handler.UpdateStatusRequest"
                         }
                     }
                 ],
@@ -2113,6 +1589,51 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/reports/gstr1-json": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Compiles and downloads GSTR-1 offline utility-compliant JSON containing Table 7 (B2CS), Table 12 (HSN), and Table 13 (Documents).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "reports"
+                ],
+                "summary": "Export GSTR-1 JSON",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "GSTIN override",
+                        "name": "gstin",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.GSTR1Payload"
                         }
                     }
                 }
@@ -2198,72 +1719,6 @@
                 }
             }
         },
-        "/settings": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Update a specific setting key. Required 'admin' role.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "settings"
-                ],
-                "summary": "Update application setting",
-                "parameters": [
-                    {
-                        "description": "Setting key-value",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/settings/date-range": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve the start and end dates used for filtering dashboard and report data.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "settings"
-                ],
-                "summary": "Get global date range",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/shopify/reset": {
             "post": {
                 "description": "Wipe local orders and re-sync everything from Shopify",
@@ -2324,7 +1779,7 @@
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/internal_handler.SyncRequest"
+                            "$ref": "#/definitions/internal_domain_sync_handler.SyncRequest"
                         }
                     }
                 ],
@@ -2360,7 +1815,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/mi-tech_internal_service.Document"
+                                "$ref": "#/definitions/mi-tech_internal_shared_system_service.Document"
                             }
                         }
                     }
@@ -2432,185 +1887,61 @@
                     }
                 }
             }
-        },
-        "/users": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Retrieve a list of all users. Required 'admin' role.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "List users",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Register a new user with a specified role. Required 'admin' role.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Create user",
-                "parameters": [
-                    {
-                        "description": "User data",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_handler.CreateUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/webhook/status": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Check the status of the last received webhook and its processing state.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "webhooks"
-                ],
-                "summary": "Webhook Health Status",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/webhooks/shopify": {
-            "post": {
-                "description": "Secure endpoint for Shopify to push real-time order, fulfillment, and customer updates.",
-                "consumes": [
-                    "application/json"
-                ],
-                "tags": [
-                    "webhooks"
-                ],
-                "summary": "Shopify Webhook Ingestion",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Webhook Topic (e.g., orders/create)",
-                        "name": "X-Shopify-Topic",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "HMAC Signature",
-                        "name": "X-Shopify-Hmac-Sha256",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
-        "internal_automation_whatsapp.AutomationMessage": {
+        "internal_domain_order_handler.UpdateStatusRequest": {
             "type": "object",
             "properties": {
-                "customer_name": {
-                    "type": "string"
-                },
-                "delivered_at": {
-                    "type": "string"
-                },
-                "error_message": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "message_id": {
-                    "type": "string"
-                },
-                "order_id": {
-                    "type": "integer"
-                },
-                "order_number": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "read_at": {
-                    "type": "string"
-                },
-                "sent_at": {
-                    "type": "string"
-                },
                 "status": {
-                    "type": "string"
-                },
-                "store_id": {
-                    "type": "string"
-                },
-                "template_id": {
-                    "type": "integer"
-                },
-                "template_name": {
                     "type": "string"
                 }
             }
         },
-        "internal_automation_whatsapp.AutomationTemplate": {
+        "internal_domain_sync_handler.SyncRequest": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_domain_communication_dto.CreateTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "buttons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_communication_entity.TemplateButton"
+                    }
+                },
+                "category": {
+                    "type": "string"
+                },
+                "examples": {
+                    "type": "string"
+                },
+                "footer": {
+                    "type": "string"
+                },
+                "header": {
+                    "$ref": "#/definitions/mi-tech_internal_domain_communication_entity.TemplateHeader"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_domain_communication_entity.AutomationTemplate": {
             "type": "object",
             "properties": {
                 "body": {
@@ -2676,118 +2007,7 @@
                 }
             }
         },
-        "internal_automation_whatsapp.ChatMessage": {
-            "type": "object",
-            "properties": {
-                "conversation_id": {
-                    "type": "integer"
-                },
-                "direction": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_issue": {
-                    "type": "boolean"
-                },
-                "message_id": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "priority": {
-                    "type": "string"
-                },
-                "sender_role": {
-                    "type": "string"
-                },
-                "sent_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_automation_whatsapp.Conversation": {
-            "type": "object",
-            "properties": {
-                "active_task_id": {
-                    "type": "integer"
-                },
-                "contact_name": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "last_message": {
-                    "type": "string"
-                },
-                "last_message_at": {
-                    "type": "string"
-                },
-                "mode": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_automation_whatsapp.CreateTemplateRequest": {
-            "type": "object",
-            "properties": {
-                "body": {
-                    "type": "string"
-                },
-                "buttons": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_automation_whatsapp.TemplateButton"
-                    }
-                },
-                "category": {
-                    "type": "string"
-                },
-                "examples": {
-                    "type": "string"
-                },
-                "footer": {
-                    "type": "string"
-                },
-                "header": {
-                    "$ref": "#/definitions/internal_automation_whatsapp.TemplateHeader"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_automation_whatsapp.TemplateButton": {
+        "mi-tech_internal_domain_communication_entity.TemplateButton": {
             "type": "object",
             "properties": {
                 "flowID": {
@@ -2821,7 +2041,7 @@
                 }
             }
         },
-        "internal_automation_whatsapp.TemplateHeader": {
+        "mi-tech_internal_domain_communication_entity.TemplateHeader": {
             "type": "object",
             "properties": {
                 "location": {
@@ -2845,7 +2065,7 @@
                 }
             }
         },
-        "internal_automation_whatsapp.Trigger": {
+        "mi-tech_internal_domain_communication_entity.Trigger": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2880,73 +2100,183 @@
                 }
             }
         },
-        "internal_handler.CreateUserRequest": {
+        "mi-tech_internal_domain_dashboard_dto.B2CSRow": {
             "type": "object",
             "properties": {
-                "password": {
+                "camt": {
+                    "type": "number"
+                },
+                "iamt": {
+                    "type": "number"
+                },
+                "pos": {
                     "type": "string"
                 },
-                "role": {
+                "rt": {
+                    "type": "number"
+                },
+                "samt": {
+                    "type": "number"
+                },
+                "sply_ty": {
                     "type": "string"
                 },
-                "username": {
+                "txval": {
+                    "type": "number"
+                },
+                "typ": {
+                    "description": "\"OE\" (Other than E-commerce) or \"E\"",
                     "type": "string"
                 }
             }
         },
-        "internal_handler.LoginRequest": {
+        "mi-tech_internal_domain_dashboard_dto.DocCategory": {
             "type": "object",
             "properties": {
-                "password": {
+                "doc_num": {
+                    "type": "integer"
+                },
+                "docs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.DocRange"
+                    }
+                }
+            }
+        },
+        "mi-tech_internal_domain_dashboard_dto.DocIssueWrapper": {
+            "type": "object",
+            "properties": {
+                "doc_det": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.DocCategory"
+                    }
+                }
+            }
+        },
+        "mi-tech_internal_domain_dashboard_dto.DocRange": {
+            "type": "object",
+            "properties": {
+                "cancel": {
+                    "type": "integer"
+                },
+                "from": {
                     "type": "string"
                 },
-                "username": {
+                "net_issue": {
+                    "type": "integer"
+                },
+                "num": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "totnum": {
+                    "type": "integer"
+                }
+            }
+        },
+        "mi-tech_internal_domain_dashboard_dto.GSTR1Payload": {
+            "type": "object",
+            "properties": {
+                "b2cs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.B2CSRow"
+                    }
+                },
+                "cur_gt": {
+                    "type": "number"
+                },
+                "doc_issue": {
+                    "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.DocIssueWrapper"
+                },
+                "fp": {
+                    "type": "string"
+                },
+                "gstin": {
+                    "type": "string"
+                },
+                "gt": {
+                    "type": "number"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "hsn": {
+                    "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.HSNWrapper"
+                },
+                "version": {
                     "type": "string"
                 }
             }
         },
-        "internal_handler.LoginResponse": {
+        "mi-tech_internal_domain_dashboard_dto.HSNRow": {
             "type": "object",
             "properties": {
-                "requires_2fa": {
+                "camt": {
+                    "type": "number"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "hsn_sc": {
+                    "type": "string"
+                },
+                "iamt": {
+                    "type": "number"
+                },
+                "num": {
+                    "type": "integer"
+                },
+                "qty": {
+                    "type": "number"
+                },
+                "samt": {
+                    "type": "number"
+                },
+                "txval": {
+                    "type": "number"
+                },
+                "uqc": {
+                    "type": "string"
+                },
+                "val": {
+                    "type": "number"
+                }
+            }
+        },
+        "mi-tech_internal_domain_dashboard_dto.HSNWrapper": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.HSNRow"
+                    }
+                }
+            }
+        },
+        "mi-tech_internal_domain_marketing_service.AssetHealth": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "instagram_authorized": {
                     "type": "boolean"
                 },
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handler.SyncRequest": {
-            "type": "object",
-            "properties": {
-                "end_date": {
-                    "type": "string"
+                "instagram_linked": {
+                    "type": "boolean"
                 },
-                "start_date": {
-                    "type": "string"
+                "page_authorized": {
+                    "type": "boolean"
                 }
             }
         },
-        "internal_handler.UpdateStatusRequest": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handler.VerifyOTPRequest": {
-            "type": "object",
-            "properties": {
-                "otp": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "mi-tech_internal_dto.LineItemCreateRequest": {
+        "mi-tech_internal_domain_order_dto.LineItemCreateRequest": {
             "type": "object",
             "properties": {
                 "discount": {
@@ -2969,7 +2299,7 @@
                 }
             }
         },
-        "mi-tech_internal_dto.LineItemResponse": {
+        "mi-tech_internal_domain_order_dto.LineItemResponse": {
             "type": "object",
             "properties": {
                 "discount": {
@@ -3001,7 +2331,7 @@
                 }
             }
         },
-        "mi-tech_internal_dto.OrderCreateRequest": {
+        "mi-tech_internal_domain_order_dto.OrderCreateRequest": {
             "type": "object",
             "properties": {
                 "customer_address1": {
@@ -3042,7 +2372,7 @@
                 "line_items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mi-tech_internal_dto.LineItemCreateRequest"
+                        "$ref": "#/definitions/mi-tech_internal_domain_order_dto.LineItemCreateRequest"
                     }
                 },
                 "terminal_code": {
@@ -3057,7 +2387,7 @@
                 }
             }
         },
-        "mi-tech_internal_dto.OrderResponse": {
+        "mi-tech_internal_domain_order_dto.OrderResponse": {
             "type": "object",
             "properties": {
                 "cancel_reason": {
@@ -3126,7 +2456,7 @@
                 "line_items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mi-tech_internal_dto.LineItemResponse"
+                        "$ref": "#/definitions/mi-tech_internal_domain_order_dto.LineItemResponse"
                     }
                 },
                 "order_number": {
@@ -3161,7 +2491,7 @@
                 }
             }
         },
-        "mi-tech_internal_dto.OrderUpdateRequest": {
+        "mi-tech_internal_domain_order_dto.OrderUpdateRequest": {
             "type": "object",
             "properties": {
                 "customer_address1": {
@@ -3196,7 +2526,7 @@
                 }
             }
         },
-        "mi-tech_internal_entity.Customer": {
+        "mi-tech_internal_domain_order_entity.Customer": {
             "type": "object",
             "properties": {
                 "address1": {
@@ -3252,24 +2582,7 @@
                 }
             }
         },
-        "mi-tech_internal_marketing.AssetHealth": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "instagram_authorized": {
-                    "type": "boolean"
-                },
-                "instagram_linked": {
-                    "type": "boolean"
-                },
-                "page_authorized": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "mi-tech_internal_service.Document": {
+        "mi-tech_internal_shared_system_service.Document": {
             "type": "object",
             "properties": {
                 "slug": {

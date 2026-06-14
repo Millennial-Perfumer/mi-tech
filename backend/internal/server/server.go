@@ -15,6 +15,9 @@ import (
 	feedbackHandlerPkg "mi-tech/internal/domain/feedback/handler"
 	feedbackRepoPkg "mi-tech/internal/domain/feedback/repository"
 	feedbackServicePkg "mi-tech/internal/domain/feedback/service"
+	gstHandlerPkg "mi-tech/internal/domain/gst/handler"
+	gstRepoPkg "mi-tech/internal/domain/gst/repository"
+	gstServicePkg "mi-tech/internal/domain/gst/service"
 	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
 	inventoryRepoPkg "mi-tech/internal/domain/inventory/repository"
 	inventoryServicePkg "mi-tech/internal/domain/inventory/service"
@@ -84,7 +87,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	// Repositories
 	orderRepo := orderRepoPkg.NewOrderRepository(db)
 	lineItemRepo := orderRepoPkg.NewLineItemRepository(db)
-	reportRepo := dashboardRepoPkg.NewReportRepository(db)
+	reportRepo := gstRepoPkg.NewGSTRepository(db)
 	metricsRepo := dashboardRepoPkg.NewMetricsRepository(db)
 	webhookEventRepo := webhookRepoPkg.NewWebhookEventRepository(db)
 	webhookStatusRepo := webhookRepoPkg.NewWebhookStatusRepository(db)
@@ -120,7 +123,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	// Services
 	userService := userServicePkg.NewUserService(userRepo)
 	metricsService := dashboardServicePkg.NewMetricsService(metricsRepo)
-	reportService := dashboardServicePkg.NewReportService(reportRepo)
+	reportService := gstServicePkg.NewGSTService(reportRepo)
 	customerService := orderServicePkg.NewCustomerService(customerRepo, orderRepo, shopifyClient)
 	invoiceService := orderServicePkg.NewInvoiceService(settingsRepo)
 	orderService := orderServicePkg.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient, syncOrchestrator)
@@ -154,7 +157,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	orderHandler := orderHandlerPkg.NewOrderHandler(orderService, invoiceService, mappingService)
 	syncHandler := syncHandlerPkg.NewSyncHandler(syncService)
 	metricsHandler := dashboardHandlerPkg.NewMetricsHandler(metricsService)
-	reportHandler := dashboardHandlerPkg.NewReportHandler(reportService)
+	reportHandler := gstHandlerPkg.NewGSTHandler(reportService)
 	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider)
 	automationHandler := communicationHandlerPkg.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider, agentService)
 	settingsHandler := configHandlerPkg.NewSettingsHandler(settingsRepo)

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
-import { GSTReports } from './GSTReports';
+import { GSTReports } from './gst/GSTReports';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
 import fullLogoDark from './assets/full_logo_dark_theme.png';
@@ -1982,6 +1982,7 @@ function App() {
               endDate={endDate} 
               fetchWithAuth={fetchWithAuth} 
               refreshTrigger={refreshTrigger}
+              businessGstin={appConfigs?.business_gstin}
             />
           )}
 

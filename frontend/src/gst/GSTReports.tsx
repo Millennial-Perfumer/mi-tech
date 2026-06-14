@@ -1,4 +1,4 @@
-import { API_BASE } from './api';
+import { API_BASE } from '../api';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 interface GSTSummary {
@@ -58,11 +58,12 @@ interface GSTReportsProps {
   endDate: string;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   refreshTrigger?: number;
+  businessGstin?: string;
 }
 
 
-export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth, refreshTrigger }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents'>('summary');
+export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth, refreshTrigger, businessGstin }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents' | 'gstr1'>('summary');
   const [summary, setSummary] = useState<GSTSummary | null>(null);
   const [stateData, setStateData] = useState<StateReport[] | null>(null);
   const [hsnData, setHsnData] = useState<HSNReport[] | null>(null);
@@ -70,6 +71,59 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
   const [opSummary, setOpSummary] = useState<OperationalSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [gstin, setGstin] = useState(businessGstin || '33AUSPR1909H1ZC');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (endDate) {
+      const parts = endDate.split('-');
+      if (parts.length >= 2) {
+        return `${parts[0]}-${parts[1]}`;
+      }
+    }
+    const today = new Date();
+    const mm = today.getMonth() + 1;
+    return `${today.getFullYear()}-${mm < 10 ? '0' + mm : mm}`;
+  });
+
+  useEffect(() => {
+    if (endDate) {
+      const parts = endDate.split('-');
+      if (parts.length >= 2) {
+        setSelectedMonth(`${parts[0]}-${parts[1]}`);
+      }
+    }
+  }, [endDate]);
+
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const date = new Date();
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    for (let i = 0; i < 24; i++) {
+      const year = date.getFullYear();
+      const monthNum = date.getMonth() + 1; // 1-indexed
+      const monthStr = monthNum < 10 ? `0${monthNum}` : `${monthNum}`;
+      const value = `${year}-${monthStr}`;
+      const label = `${monthNames[date.getMonth()]} ${year} (${monthStr}${year})`;
+      options.push({ value, label });
+      
+      // Move to previous month
+      date.setMonth(date.getMonth() - 1);
+    }
+    return options;
+  }, []);
+
+
+  useEffect(() => {
+    if (businessGstin) {
+      setGstin(businessGstin);
+    }
+  }, [businessGstin]);
 
   // Sorting State
   const [sortField, setSortField] = useState<string>('');
@@ -243,6 +297,58 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     document.body.removeChild(link);
   };
 
+  const handleExportGSTR1JSON = async () => {
+    if (!gstin.trim()) {
+      alert('Please enter a valid GSTIN.');
+      return;
+    }
+    
+    setIsExporting(true);
+    try {
+      const [yearStr, monthStr] = selectedMonth.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+
+      const startObj = new Date(year, month - 1, 1, 0, 0, 0, 0).toISOString();
+      const endObj = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
+
+      const response = await fetchWithAuth(
+        `${API_BASE}/api/reports/gstr1-json?start_date=${startObj}&end_date=${endObj}&gstin=${gstin.trim()}`
+      );
+
+      if (!response.ok) {
+        const errMsg = await response.text();
+        throw new Error(errMsg || `HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const disposition = response.headers.get('content-disposition');
+      let filename = `GSTR1_${gstin.trim()}.json`;
+      if (disposition && disposition.indexOf('attachment') !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) { 
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Failed to export GSTR-1 JSON:', err);
+      alert(`Failed to export GSTR-1 JSON: ${err.message || err}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading Reports...</div>;
 
   return (
@@ -263,11 +369,12 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
           { id: 'summary', label: 'Dashboard' },
           { id: 'state', label: 'B2C State-wise' },
           { id: 'hsn', label: 'HSN Summary' },
-          { id: 'documents', label: 'Documents Issued' }
+          { id: 'documents', label: 'Documents Issued' },
+          { id: 'gstr1', label: 'GSTR-1 Export' }
         ].map((tab) => (
           <button 
             key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as 'summary' | 'state' | 'hsn' | 'documents')}
+            onClick={() => setActiveSubTab(tab.id as 'summary' | 'state' | 'hsn' | 'documents' | 'gstr1')}
             style={{ 
               background: 'none', border: 'none', padding: '0.5rem 1.25rem', cursor: 'pointer',
               borderBottom: activeSubTab === tab.id ? '2px solid var(--accent-color)' : 'none',
@@ -280,12 +387,14 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
             {tab.label}
           </button>
         ))}
-        {isRefreshing && (
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-color)', fontSize: '0.8rem', fontWeight: 600 }}>
-            <div className="dot-flashing"></div>
-            Updating...
-          </div>
-        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem', paddingLeft: '1rem' }}>
+          {isRefreshing && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-color)', fontSize: '0.8rem', fontWeight: 600, marginRight: '0.5rem' }}>
+              <div className="dot-flashing"></div>
+              Updating...
+            </div>
+          )}
+        </div>
       </div>
 
       {activeSubTab === 'summary' && (
@@ -474,6 +583,222 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
             </table>
           </div>
         </section>
+      )}
+
+      {activeSubTab === 'gstr1' && (
+        <div className="tab-content-fade" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginTop: '1rem' }}>
+          {/* Left Column: Generation Controls */}
+          <div className="glass-card-premium" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', minHeight: '380px', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div style={{
+                  background: 'var(--card-gradient-1)',
+                  borderRadius: '12px',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>GSTR-1 JSON Compiler</h3>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 1.5rem 0' }}>
+                Compile and download the official GSTR-1 offline utility schema. You can upload this directly on the GST portal to auto-fill sales data.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filing GSTIN</span>
+                  <span style={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    background: 'var(--bg-input)',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '6px',
+                    letterSpacing: '0.05em'
+                  }}>
+                    {gstin || 'Not Configured'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Select Return Filing Month</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      color: 'var(--text-primary)',
+                      fontWeight: 600,
+                      padding: '0.6rem 0.75rem',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      width: '100%',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    {monthOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value} style={{ background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExportGSTR1JSON}
+              disabled={isExporting}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                border: 'none',
+                color: 'white',
+                borderRadius: '12px',
+                padding: '1rem',
+                fontSize: '1rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.3)';
+              }}
+            >
+              {isExporting ? (
+                <>
+                  <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ animation: 'spin 1s linear infinite' }}>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25"></circle>
+                    <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" fill="currentColor"></path>
+                  </svg>
+                  Compiling Data...
+                </>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Generate GSTR-1 JSON
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Right Column: Compiled Sections Summary */}
+          <div className="glass-card-premium" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '380px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ color: 'var(--accent-color)' }}>✓</span> Included GSTR-1 Sections
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{
+                  color: 'var(--accent-color)',
+                  background: 'var(--accent-subtle)',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  flexShrink: 0
+                }}>7</div>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.25rem 0' }}>B2CS (B2C Small) Sales</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.4' }}>
+                    Aggregates all state-wise retail sales made to unregistered buyers. These are divided by rate and place of supply.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{
+                  color: 'var(--accent-color)',
+                  background: 'var(--accent-subtle)',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  flexShrink: 0
+                }}>12</div>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.25rem 0' }}>HSN Summary of Outward Supplies</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.4' }}>
+                    Lists quantities, taxable values, and tax bifurcation group-by-product HSN / SAC code.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{
+                  color: 'var(--accent-color)',
+                  background: 'var(--accent-subtle)',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  flexShrink: 0
+                }}>13</div>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.25rem 0' }}>Documents Issued</h4>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.4' }}>
+                    Declares sequential ranges of serial numbers issued for tax invoices and credit notes, specifying count and cancellations.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: 'auto',
+              padding: '1rem',
+              background: 'var(--bg-hover)',
+              borderRadius: '8px',
+              borderLeft: '4px solid var(--accent-color)',
+              fontSize: '0.8rem',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.4'
+            }}>
+              <strong>Filing Instruction:</strong> Login to the <a href="https://www.gst.gov.in" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-color)', textDecoration: 'underline' }}>GST Portal</a>, navigate to <strong>Returns Dashboard &gt; GSTR-1 &gt; Prepare Offline</strong>, and upload this generated JSON file.
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
