@@ -1419,26 +1419,28 @@ function App() {
                       Create Order
                     </button>
                   )}
-                  <button 
-                    className="btn-secondary" 
-                    onClick={handleSyncAmazon} 
-                    disabled={isSyncing}
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem', 
-                      padding: '0.5rem 1rem', 
-                      fontSize: '0.85rem',
-                      height: '42px',
-                      borderRadius: '10px'
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="23 4 23 10 17 10"></polyline>
-                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                    </svg>
-                    {isSyncing && syncMode === 'amazon' ? 'Polling Amazon...' : 'Sync Amazon'}
-                  </button>
+                  {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+                    <button 
+                      className="btn-secondary" 
+                      onClick={handleSyncAmazon} 
+                      disabled={isSyncing}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.85rem',
+                        height: '42px',
+                        borderRadius: '10px'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                      </svg>
+                      {isSyncing && syncMode === 'amazon' ? 'Polling Amazon...' : 'Sync Amazon'}
+                    </button>
+                  )}
                   {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
                     <button 
                       className="btn-primary" 
