@@ -178,6 +178,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 	}
 
 	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // Limit to 1MB
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("Error reading WhatsApp webhook body: %v", err)
@@ -193,7 +194,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		log.Printf("WhatsApp Webhook Raw Payload: %s", string(body))
+		log.Printf("WhatsApp Webhook Raw Payload received (length: %d)", len(body))
 
 		var payload struct {
 			Entry []struct {
@@ -253,7 +254,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 				for _, status := range change.Value.Statuses {
 					err := h.messagesService.HandleStatusUpdate(status.ID, status.Status)
 					if err != nil {
-						log.Printf("Error updating message status for %s: %v", status.ID, err)
+						log.Printf("Error updating message status: %v", err)
 					}
 				}
 
@@ -349,7 +350,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 					}
 					err := h.messagesService.HandleIncomingMessage(msg.From, contactName, msg.ID, text, msg.Type, valBytes)
 					if err != nil {
-						log.Printf("Error handling incoming message from %s: %v", msg.From, err)
+						log.Printf("Error handling incoming message: %v", err)
 					}
 				}
 			}
@@ -399,6 +400,12 @@ func (h *AutomationHandler) TelegramWebhook(w http.ResponseWriter, r *http.Reque
 
 func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature string) bool {
 	if signature == "" {
+		return false
+	}
+
+	secret := h.settings.GetWhatsAppAppSecret()
+	if secret == "" {
+		log.Printf("WhatsApp Webhook Error: No whatsapp_app_secret configured (fail-closed)")
 		return false
 	}
 
