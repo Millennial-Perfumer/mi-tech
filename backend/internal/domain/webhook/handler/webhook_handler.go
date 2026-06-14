@@ -38,6 +38,7 @@ func NewWebhookHandler(webhookService *webhookService.WebhookService, mappingSer
 
 // ShopifyWebhookHandler handles POST /api/webhooks/shopify.
 func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // Limit to 1MB
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Webhook Error: Failed to read body: %v", err)
@@ -242,8 +243,8 @@ func (h *WebhookHandler) GetWebhookStatus(w http.ResponseWriter, r *http.Request
 func (h *WebhookHandler) verifyWebhook(r *http.Request, body []byte) bool {
 	secret := h.settings.GetShopifyWebhookSecret()
 	if secret == "" {
-		log.Printf("Webhook Warning: No shopify_webhook_secret configured. Skipping validation.")
-		return true
+		log.Printf("Webhook Error: No shopify_webhook_secret configured (fail-closed).")
+		return false
 	}
 
 	hmacHeader := r.Header.Get("X-Shopify-Hmac-Sha256")

@@ -178,6 +178,7 @@ func (h *AutomationHandler) WhatsAppWebhook(w http.ResponseWriter, r *http.Reque
 	}
 
 	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // Limit to 1MB
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("Error reading WhatsApp webhook body: %v", err)
@@ -399,6 +400,12 @@ func (h *AutomationHandler) TelegramWebhook(w http.ResponseWriter, r *http.Reque
 
 func (h *AutomationHandler) validateWhatsAppSignature(body []byte, signature string) bool {
 	if signature == "" {
+		return false
+	}
+
+	secret := h.settings.GetWhatsAppAppSecret()
+	if secret == "" {
+		log.Printf("WhatsApp Webhook Error: No whatsapp_app_secret configured (fail-closed)")
 		return false
 	}
 

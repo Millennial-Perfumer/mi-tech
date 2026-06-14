@@ -22,3 +22,10 @@
 **Learning:** Even internal data sources (like a database) can contain unvalidated or poisoned URLs. Blindly redirecting to a stored URL acts as an Open Redirect. However, implementing a strict single-domain allowlist can break legitimate multi-provider integrations (e.g. tracking links for various couriers like Delhivery, Shiprocket).
 **Prevention:** Always parse the destination URL and validate its hostname against a broad, yet strict allowlist of trusted root domains (including their subdomains) corresponding to the business's actual integrated partners to prevent attackers from redirecting to arbitrary malicious domains.
 
+
+## 2024-06-14 - [DoS & Fail-Open Vulnerabilities in Webhooks]
+**Vulnerability:**
+1. Missing request body size limits in `ShopifyWebhookHandler` and `WhatsAppWebhook` (DoS vulnerability via large payloads).
+2. Fail-open behavior in `verifyWebhook` and `validateWhatsAppSignature` where missing secrets bypassed validation checks and returned true/valid.
+**Learning:** Handlers processing external webhooks MUST employ `io.LimitReader` before invoking `io.ReadAll` to constrain unbounded inputs, and MUST explicitly default to a "fail-closed" state whenever required credentials or configurations are missing, to ensure security bounds are not inadvertently dropped.
+**Prevention:** Always bound external request reads using `io.LimitReader` (e.g., 1MB) and ensure cryptographic signature verifications explicitly return `false` or trigger an error path if the corresponding secret is unconfigured or empty.
