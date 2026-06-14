@@ -321,7 +321,7 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 			if err := tx.Where("external_id = ?", *order.CustomerExternalID).First(&cust).Error; err == nil {
 				if cust.PhoneNumber != "" {
 					order.CustomerPhone = &cust.PhoneNumber
-					log.Printf("Repository: Order %s auto-linked to customer %s to restore phone.", order.OrderNumber, cust.PhoneNumber)
+					log.Printf("Repository: Order auto-linked to customer to restore phone.")
 
 					// Also restore other fields if possible
 					if r.isWeak(order.CustomerFirstName) {

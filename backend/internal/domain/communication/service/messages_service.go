@@ -279,7 +279,7 @@ func (s *MessagesService) HandleIncomingMessage(phoneNumber, contactName, messag
 		go func() {
 			_, err := s.SendFreeTextMessage(phoneNumber, replyText, "system")
 			if err != nil {
-				log.Printf("Failed to send support redirect to %s: %v", phoneNumber, err)
+				log.Printf("Failed to send support redirect: %v", err)
 			}
 		}()
 	}
@@ -322,6 +322,10 @@ func (s *MessagesService) StoreMedia(mediaID string, data []byte, contentType st
 		ext = ".pdf"
 	} else if strings.Contains(ct, "application/msword") || strings.Contains(ct, "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
 		ext = ".docx"
+	}
+
+	if strings.Contains(mediaID, "/") || strings.Contains(mediaID, "\\") || strings.Contains(mediaID, "..") {
+		return "", fmt.Errorf("invalid media ID format")
 	}
 
 	filename := mediaID + ext

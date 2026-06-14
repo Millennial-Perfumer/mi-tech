@@ -1,4 +1,4 @@
-package test
+package amazon
 
 import (
 	"bytes"
@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"mi-tech/internal/shared/extclient/amazon"
 )
 
 func TestSignV4(t *testing.T) {
@@ -58,7 +56,7 @@ func TestSignV4(t *testing.T) {
 				Header: make(http.Header),
 			}
 
-			err = amazon.SignV4(req, tt.body, "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "us-east-1", "service", signTime)
+			err = SignV4(req, tt.body, "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "us-east-1", "service", signTime)
 			if err != nil {
 				t.Fatalf("SignV4 failed: %v", err)
 			}
@@ -91,7 +89,7 @@ func TestSignRequest(t *testing.T) {
 		Body:   io.NopCloser(bytes.NewBufferString(bodyContent)),
 	}
 
-	err := amazon.SignRequest(req, "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "us-east-1", "service")
+	err := SignRequest(req, "AKIDEXAMPLE", "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "us-east-1", "service")
 	if err != nil {
 		t.Fatalf("SignRequest failed: %v", err)
 	}
