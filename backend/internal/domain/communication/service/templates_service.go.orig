@@ -224,13 +224,11 @@ func (s *TemplatesService) SyncStatus(storeID string) error {
 		return nil
 	}
 
-	// Optimization: Batch fetch all remote templates to avoid N+1 API calls.
 	remoteTemplates, err := s.metaClient.GetAllRemoteTemplates()
 	if err != nil {
 		return fmt.Errorf("failed to fetch templates from Meta: %w", err)
 	}
 
-	// Map remote statuses for O(1) lookups.
 	remoteStatusMap := make(map[string]string)
 	for _, rt := range remoteTemplates {
 		remoteStatusMap[rt.Name] = rt.Status
