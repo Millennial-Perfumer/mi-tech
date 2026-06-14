@@ -271,6 +271,8 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 				li.quantity,
 				(li.price * li.quantity - li.discount - COALESCE(li.order_discount, 0)) as line_val,
 				SUM(li.price * li.quantity - li.discount - COALESCE(li.order_discount, 0)) OVER (PARTITION BY li.order_id) as line_sum,
+				SUM(li.quantity) OVER (PARTITION BY li.order_id) as qty_sum,
+				COUNT(li.id) OVER (PARTITION BY li.order_id) as item_count,
 				o.total_price,
 				ROUND(o.total_price / 1.18, 2) as order_taxable,
 				(o.total_price - ROUND(o.total_price / 1.18, 2)) as order_tax,
@@ -278,17 +280,32 @@ func (r *gormReportRepository) GetHSNSummary(startDate, endDate string) ([]HSNSu
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
 			WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
+		),
+		CalculatedShares AS (
+			SELECT
+				order_id,
+				hs_code,
+				quantity,
+				total_price,
+				order_taxable,
+				order_tax,
+				state,
+				CASE 
+					WHEN line_sum > 0 THEN (line_val / line_sum)
+					WHEN qty_sum > 0 THEN (quantity::numeric / qty_sum)
+					ELSE (1.0::numeric / item_count)
+				END as share
+			FROM LineItemShares
 		)
 		SELECT 
 			hs_code as hsn_code,
 			COUNT(DISTINCT order_id) as product_count,
 			SUM(quantity) as qty_sold,
-			ROUND(SUM((line_val / line_sum) * order_taxable), 2) as taxable_value,
-			ROUND(SUM((line_val / line_sum) * order_tax), 2) as total_gst,
-			ROUND(SUM((line_val / line_sum) * total_price), 2) as revenue,
+			ROUND(SUM(share * order_taxable), 2) as taxable_value,
+			ROUND(SUM(share * order_tax), 2) as total_gst,
+			ROUND(SUM(share * total_price), 2) as revenue,
 			state
-		FROM LineItemShares
-		WHERE line_sum > 0
+		FROM CalculatedShares
 		GROUP BY hs_code, state
 		ORDER BY revenue DESC
 	`
