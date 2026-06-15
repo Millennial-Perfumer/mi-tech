@@ -20,6 +20,7 @@ import (
 	userHandlerPkg "mi-tech/internal/domain/user/handler"
 	userServicePkg "mi-tech/internal/domain/user/service"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
+	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
@@ -58,6 +59,7 @@ func RegisterRoutes(
 	poHandler *productionHandlerPkg.PurchaseOrderHandler,
 	mfgHandler *productionHandlerPkg.ManufacturingHandler,
 	aiHandler *aiHandlerPkg.AIHandler,
+	b2bHandler *b2bHandlerPkg.B2BHandler,
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -427,8 +429,15 @@ func RegisterRoutes(
 			}
 		case http.MethodDelete:
 			aiHandler.DeleteConversation(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+
+	// --- B2B Billing & Customers Routes ---
+	mux.HandleFunc("/api/b2b/customers", protected(b2bHandler.HandleCustomers))
+	mux.HandleFunc("/api/b2b/invoices", protected(b2bHandler.HandleInvoices))
+	mux.HandleFunc("/api/b2b/invoices/detail", protected(b2bHandler.GetInvoiceByID))
+	mux.HandleFunc("/api/b2b/invoices/issue", protected(b2bHandler.IssueInvoice))
+	mux.HandleFunc("/api/b2b/invoices/cancel", protected(b2bHandler.CancelInvoice))
+	mux.HandleFunc("/api/b2b/invoices/payment", protected(b2bHandler.UpdatePayment))
+	mux.HandleFunc("/api/b2b/payment-terms", protected(b2bHandler.HandlePaymentTerms))
 }

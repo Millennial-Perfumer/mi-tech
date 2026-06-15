@@ -44,6 +44,9 @@ import (
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	webhookRepoPkg "mi-tech/internal/domain/webhook/repository"
 	webhookServicePkg "mi-tech/internal/domain/webhook/service"
+	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
+	b2bRepoPkg "mi-tech/internal/domain/b2b/repository"
+	b2bServicePkg "mi-tech/internal/domain/b2b/service"
 	"mi-tech/internal/shared/config"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	configRepoPkg "mi-tech/internal/shared/config/repository"
@@ -109,6 +112,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	aiReadRepo := aiRepoPkg.NewAIReadRepository(db)
 	aiConvRepo := aiRepoPkg.NewAIConversationRepository(db)
 	aiMemRepo := aiRepoPkg.NewAIMemoryRepository(db)
+	b2bRepo := b2bRepoPkg.NewB2BRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -147,6 +151,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	socialService := marketingServicePkg.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := systemServicePkg.NewSystemService("../docs")
 	aiService := aiServicePkg.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
+	b2bService := b2bServicePkg.NewB2BService(b2bRepo, settingsProvider, db)
 	marketingHandler := marketingHandlerPkg.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := marketingHandlerPkg.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := systemHandlerPkg.NewSystemHandler(systemService)
@@ -176,6 +181,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	poHandler := productionHandlerPkg.NewPurchaseOrderHandler(poService)
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
 	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
+	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
 
 	RegisterRoutes(
 		mux,
@@ -204,6 +210,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		poHandler,
 		mfgHandler,
 		aiHandler,
+		b2bHandler,
 		authService,
 	)
 

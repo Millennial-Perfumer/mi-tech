@@ -4,6 +4,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
 import { GSTReports } from './gst/GSTReports';
+import { B2BBills } from './B2BBills';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
 import fullLogoDark from './assets/full_logo_dark_theme.png';
@@ -828,6 +829,10 @@ function App() {
              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             <span>GST Reports</span>
           </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'b2b' ? 'active' : ''}`} onClick={() => setActiveTab('b2b')} title={isSidebarCollapsed ? "B2B Billing" : ""} style={{ animationDelay: '210ms' }}>
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+            <span>B2B Billing</span>
+          </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} title={isSidebarCollapsed ? "Inventory" : ""} style={{ animationDelay: '225ms' }}>
              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             <span>Inventory</span>
@@ -1020,14 +1025,14 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'b2b' ? 'B2B Billing' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'b2b' ? "Generate GST-compliant B2B invoices and manage customer registries." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && activeTab !== 'b2b' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1985,6 +1990,13 @@ function App() {
               businessGstin={appConfigs?.business_gstin}
             />
           )}
+ 
+           {activeTab === 'b2b' && (
+             <B2BBills 
+               fetchWithAuth={fetchWithAuth} 
+               userRole={userRole}
+             />
+           )}
 
           {activeTab === 'automation' && (
             <WhatsAppAutomation 

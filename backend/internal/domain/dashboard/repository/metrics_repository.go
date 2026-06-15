@@ -24,27 +24,27 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND o.source_id IN ?"
+		sourceFilter = " AND t.source_id IN ?"
 		args = append(args, sourceIDs)
 	}
 
 	query := `
 		SELECT 
-			COALESCE(SUM(o.total_price) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as total_revenue,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (o.total_price - ROUND(o.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as cgst,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (o.total_price - ROUND(o.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as sgst,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (o.total_price - ROUND(o.total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst,
-			COUNT(o.id) as total_orders,
-			COUNT(o.id) FILTER (WHERE LOWER(o.status) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled')) as cancelled_orders,
-			COUNT(o.id) FILTER (WHERE LOWER(o.fulfillment_status) = 'fulfilled') as fulfilled_orders,
-			COUNT(o.id) FILTER (WHERE LOWER(COALESCE(o.fulfillment_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as unfulfilled_orders,
-			COALESCE(SUM(o.total_discount), 0) as total_discount,
-			COUNT(o.id) FILTER (WHERE LOWER(o.financial_status) = 'paid') as paid_orders,
-			COUNT(o.id) FILTER (WHERE LOWER(o.financial_status) = 'pending') as pending_orders,
-			COUNT(o.id) FILTER (WHERE LOWER(o.financial_status) = 'partially_paid') as partial_orders
-		FROM orders o
-		LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
-		WHERE o.created_at >= ? AND o.created_at <= ?` + sourceFilter
+			COALESCE(SUM(t.total_price), 0) as total_revenue,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as cgst,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as sgst,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) ELSE 0 END), 0) as igst,
+			COUNT(t.transaction_id) as total_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) IN ('cancelled', 'canceled')) as cancelled_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) = 'fulfilled') as fulfilled_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(COALESCE(t.order_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled'))) as unfulfilled_orders,
+			COALESCE(SUM(t.total_discount), 0) as total_discount,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) = 'paid') as paid_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('pending', 'unpaid')) as pending_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('partially_paid', 'partial')) as partial_orders
+		FROM unified_revenue_transactions t
+		LEFT JOIN gst_state_codes s ON LOWER(TRIM(t.state)) = ANY(s.aliases)
+		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter
 
 	type metricsResult struct {
 		TotalRevenue      float64
@@ -73,10 +73,10 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 		SELECT 
 			source_id,
 			COALESCE(SUM(total_price), 0) as revenue,
-			COUNT(id) as orders,
+			COUNT(transaction_id) as orders,
 			COALESCE(AVG(total_price), 0) as aov
-		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
+		FROM unified_revenue_transactions t
+		WHERE tx_date >= ? AND tx_date <= ?` + sourceFilter + `
 		GROUP BY source_id
 		ORDER BY revenue DESC`
 
@@ -118,20 +118,47 @@ func (r *gormMetricsRepository) GetTopProducts(startDate, endDate string, source
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND o.source_id IN ?"
+		sourceFilter = " AND t.source_id IN ?"
 		args = append(args, sourceIDs)
 	}
 
 	query := `
 		SELECT 
-			li.sku,
-			li.title,
-			SUM(li.quantity) as quantity,
-			SUM(li.price * li.quantity - li.discount - COALESCE(li.order_discount, 0)) as revenue
-		FROM order_line_items li
-		JOIN orders o ON li.order_id = o.id
-		WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
-		GROUP BY li.sku, li.title
+			t.sku,
+			t.title,
+			SUM(t.quantity) as quantity,
+			SUM(t.price * t.quantity - t.discount - t.order_discount) as revenue
+		FROM (
+			SELECT 
+				li.sku,
+				li.title,
+				li.quantity::numeric as quantity,
+				li.price,
+				li.discount,
+				COALESCE(li.order_discount, 0) as order_discount,
+				o.created_at as tx_date,
+				o.source_id
+			FROM order_line_items li
+			JOIN orders o ON li.order_id = o.id
+			WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled'))
+
+			UNION ALL
+
+			SELECT 
+				bi.sku,
+				bi.item_details as title,
+				bi.quantity as quantity,
+				bi.rate as price,
+				0.00 as discount,
+				0.00 as order_discount,
+				inv.created_at as tx_date,
+				'B2B' as source_id
+			FROM b2b_invoice_items bi
+			JOIN b2b_invoices inv ON bi.invoice_id = inv.id
+			WHERE inv.status = 'ISSUED'
+		) t
+		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter + `
+		GROUP BY t.sku, t.title
 		ORDER BY quantity DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -146,17 +173,17 @@ func (r *gormMetricsRepository) GetRevenueTrend(startDate, endDate string, sourc
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND source_id IN ?"
+		sourceFilter = " AND t.source_id IN ?"
 		args = append(args, sourceIDs)
 	}
 
 	query := `
 		SELECT 
-			TO_CHAR(created_at, 'YYYY-MM-DD') as date,
-			SUM(total_price) as revenue,
-			COUNT(id) as orders
-		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
+			TO_CHAR(t.tx_date, 'YYYY-MM-DD') as date,
+			SUM(t.total_price) as revenue,
+			COUNT(t.transaction_id) as orders
+		FROM unified_revenue_transactions t
+		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter + `
 		GROUP BY date
 		ORDER BY date ASC`
 
@@ -170,17 +197,17 @@ func (r *gormMetricsRepository) GetGeoDistribution(startDate, endDate string, so
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND source_id IN ?"
+		sourceFilter = " AND t.source_id IN ?"
 		args = append(args, sourceIDs)
 	}
 
 	query := `
 		SELECT 
-			INITCAP(COALESCE(customer_state, 'Unknown')) as state,
-			COUNT(id) as orders,
-			SUM(total_price) as revenue
-		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
+			INITCAP(COALESCE(t.state, 'Unknown')) as state,
+			COUNT(t.transaction_id) as orders,
+			SUM(t.total_price) as revenue
+		FROM unified_revenue_transactions t
+		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter + `
 		GROUP BY state
 		ORDER BY orders DESC
 		LIMIT ?`
