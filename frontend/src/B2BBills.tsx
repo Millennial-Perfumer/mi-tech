@@ -247,6 +247,9 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 	const [paymentAmount, setPaymentAmount] = useState(0);
 	const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
 
+	// Next invoice number preview (shown in create/edit form header)
+	const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string>('');
+
 	// Creator / Editor Form State
 	const [formInvoice, setFormInvoice] = useState<B2BInvoice>({
 		invoice_date: new Date().toISOString().split('T')[0],
@@ -318,6 +321,19 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 			}
 		} catch (err) {
 			console.error('Failed to load customers:', err);
+		}
+	};
+
+	const fetchNextInvoiceNumber = async (date?: string) => {
+		try {
+			const d = date || new Date().toISOString().split('T')[0];
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/invoices/next-number?date=${d}`);
+			if (res.ok) {
+				const data = await res.json();
+				setNextInvoiceNumber(data.next_invoice_number || '');
+			}
+		} catch (err) {
+			console.error('Failed to fetch next invoice number:', err);
 		}
 	};
 
@@ -1106,8 +1122,9 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 							{userRole === 'admin' && (
 								<button
 									onClick={() => {
+										const today = new Date().toISOString().split('T')[0];
 										setFormInvoice({
-											invoice_date: new Date().toISOString().split('T')[0],
+											invoice_date: today,
 											customer_gstin: '',
 											customer_name: '',
 											customer_state: '',
@@ -1132,8 +1149,9 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 											paid_amount: 0,
 											balance_amount: 0,
 											customer_notes: DEFAULT_CUSTOMER_NOTES,
-											items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+											items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019', gst_rate: 18 }]
 										});
+										fetchNextInvoiceNumber(today);
 										setViewMode('create');
 									}}
 									className="b2b-btn b2b-btn-primary"
@@ -1380,7 +1398,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 										<line x1="16" y1="17" x2="8" y2="17" />
 										<polyline points="10 9 9 9 8 9" />
 									</svg>
-									{viewMode === 'create' ? 'Create B2B Bill' : 'Edit B2B Bill'}
+									{viewMode === 'create' ? 'Create B2B Invoice' : 'Edit B2B Invoice'}
 								</h3>
 								<p className="form-header-subtitle">Fill in the details below to generate a GST-compliant invoice.</p>
 							</div>
@@ -1472,6 +1490,8 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 													computedDueDate = date.toISOString().split('T')[0];
 												}
 											}
+											// Refresh the next invoice number preview when the date changes
+											if (viewMode === 'create') fetchNextInvoiceNumber(newDate);
 											setFormInvoice({
 												...formInvoice,
 												invoice_date: newDate,
@@ -1493,14 +1513,34 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 							<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
 								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-									<label className="form-label">Order Number</label>
-									<input
-										type="text"
-										className="b2b-input"
-										placeholder="e.g. PO-9982"
-										value={formInvoice.order_number || ''}
-										onChange={(e) => setFormInvoice({ ...formInvoice, order_number: e.target.value })}
-									/>
+									<label className="form-label">Invoice Number</label>
+									<div style={{
+										display: 'flex',
+										alignItems: 'center',
+										gap: '10px',
+										height: '46px',
+										padding: '0 14px',
+										borderRadius: '10px',
+										border: '1.5px solid rgba(99,102,241,0.35)',
+										background: 'linear-gradient(135deg, rgba(99,102,241,0.07), rgba(139,92,246,0.07))',
+										boxShadow: '0 0 0 0 transparent',
+										boxSizing: 'border-box',
+									}}>
+										<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.8)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+											<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+											<path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+										</svg>
+										{viewMode === 'create' ? (
+											<span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.95rem', color: nextInvoiceNumber ? 'rgb(99,102,241)' : 'var(--text-tertiary)', letterSpacing: '0.5px' }}>
+												{nextInvoiceNumber || 'Auto-generated on issue…'}
+											</span>
+										) : (
+											<span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.95rem', color: formInvoice.invoice_number ? 'rgb(16,185,129)' : 'var(--text-tertiary)', letterSpacing: '0.5px' }}>
+												{formInvoice.invoice_number || 'DRAFT — assigned on issue'}
+											</span>
+										)}
+										<span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>read-only</span>
+									</div>
 								</div>
 								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 									<label className="form-label">Salesperson</label>
@@ -1693,7 +1733,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 							<button
 								onClick={() => {
-									const newItems = [...formInvoice.items, { item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }];
+									const newItems = [...formInvoice.items, { item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019', gst_rate: 18 }];
 									setFormInvoice({ ...formInvoice, items: newItems });
 								}}
 								className="add-row-btn"

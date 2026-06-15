@@ -156,6 +156,22 @@ func (h *B2BHandler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(inv)
 }
 
+func (h *B2BHandler) GetNextInvoiceNumber(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	date := r.URL.Query().Get("date")
+	nextNum, err := h.srv.GetNextInvoiceNumber(date)
+	if err != nil {
+		log.Printf("B2BHandler.GetNextInvoiceNumber error: %v", err)
+		http.Error(w, "Failed to compute next invoice number", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"next_invoice_number": nextNum})
+}
+
 func (h *B2BHandler) IssueInvoice(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {

@@ -20,6 +20,27 @@ func (s *B2BService) GetInvoiceByID(id int64) (entity.B2BInvoice, error) {
 	return s.repo.GetInvoiceByID(id)
 }
 
+// GetNextInvoiceNumber returns what the next invoice number would be for the given date's fiscal year.
+// This is a preview — the actual atomic assignment happens inside IssueInvoice.
+func (s *B2BService) GetNextInvoiceNumber(invoiceDate string) (string, error) {
+	var t time.Time
+	var err error
+	if invoiceDate != "" {
+		t, err = time.Parse("2006-01-02", invoiceDate)
+		if err != nil {
+			t = time.Now()
+		}
+	} else {
+		t = time.Now()
+	}
+	fy := helper.GetFinancialYear(t)
+	seq, err := s.repo.GetNextSequenceForFY(fy)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("PT/%s/%03d", fy, seq), nil
+}
+
 func (s *B2BService) CreateInvoice(inv *entity.B2BInvoice) error {
 	inv.Status = "DRAFT"
 	inv.PaymentStatus = "UNPAID"

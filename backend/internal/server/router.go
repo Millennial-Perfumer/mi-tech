@@ -436,6 +436,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/b2b/customers", protected(b2bHandler.HandleCustomers))
 	mux.HandleFunc("/api/b2b/invoices", protected(b2bHandler.HandleInvoices))
 	mux.HandleFunc("/api/b2b/invoices/detail", protected(b2bHandler.GetInvoiceByID))
+	mux.HandleFunc("/api/b2b/invoices/next-number", protected(b2bHandler.GetNextInvoiceNumber))
 	mux.HandleFunc("/api/b2b/invoices/issue", protected(b2bHandler.IssueInvoice))
 	mux.HandleFunc("/api/b2b/invoices/cancel", protected(b2bHandler.CancelInvoice))
 	mux.HandleFunc("/api/b2b/invoices/payment", protected(b2bHandler.UpdatePayment))

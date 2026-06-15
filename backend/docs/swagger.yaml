@@ -141,7 +141,7 @@ definitions:
       webhook_topic:
         type: string
     type: object
-  mi-tech_internal_domain_dashboard_dto.B2CSRow:
+  mi-tech_internal_domain_gst_dto.B2CSRow:
     properties:
       camt:
         type: number
@@ -161,23 +161,23 @@ definitions:
         description: '"OE" (Other than E-commerce) or "E"'
         type: string
     type: object
-  mi-tech_internal_domain_dashboard_dto.DocCategory:
+  mi-tech_internal_domain_gst_dto.DocCategory:
     properties:
       doc_num:
         type: integer
       docs:
         items:
-          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.DocRange'
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.DocRange'
         type: array
     type: object
-  mi-tech_internal_domain_dashboard_dto.DocIssueWrapper:
+  mi-tech_internal_domain_gst_dto.DocIssueWrapper:
     properties:
       doc_det:
         items:
-          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.DocCategory'
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.DocCategory'
         type: array
     type: object
-  mi-tech_internal_domain_dashboard_dto.DocRange:
+  mi-tech_internal_domain_gst_dto.DocRange:
     properties:
       cancel:
         type: integer
@@ -192,16 +192,16 @@ definitions:
       totnum:
         type: integer
     type: object
-  mi-tech_internal_domain_dashboard_dto.GSTR1Payload:
+  mi-tech_internal_domain_gst_dto.GSTR1Payload:
     properties:
       b2cs:
         items:
-          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.B2CSRow'
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.B2CSRow'
         type: array
       cur_gt:
         type: number
       doc_issue:
-        $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.DocIssueWrapper'
+        $ref: '#/definitions/mi-tech_internal_domain_gst_dto.DocIssueWrapper'
       fp:
         type: string
       gstin:
@@ -211,11 +211,11 @@ definitions:
       hash:
         type: string
       hsn:
-        $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.HSNWrapper'
+        $ref: '#/definitions/mi-tech_internal_domain_gst_dto.HSNWrapper'
       version:
         type: string
     type: object
-  mi-tech_internal_domain_dashboard_dto.HSNRow:
+  mi-tech_internal_domain_gst_dto.HSNRow:
     properties:
       camt:
         type: number
@@ -238,11 +238,11 @@ definitions:
       val:
         type: number
     type: object
-  mi-tech_internal_domain_dashboard_dto.HSNWrapper:
+  mi-tech_internal_domain_gst_dto.HSNWrapper:
     properties:
       data:
         items:
-          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.HSNRow'
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.HSNRow'
         type: array
     type: object
   mi-tech_internal_domain_marketing_service.AssetHealth:
@@ -1507,7 +1507,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.GSTR1Payload'
+            $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1Payload'
       security:
       - Bearer: []
       summary: Export GSTR-1 JSON

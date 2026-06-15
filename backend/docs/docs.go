@@ -1640,7 +1640,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.GSTR1Payload"
+                            "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1Payload"
                         }
                     }
                 }
@@ -2107,7 +2107,7 @@ const docTemplate = `{
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.B2CSRow": {
+        "mi-tech_internal_domain_gst_dto.B2CSRow": {
             "type": "object",
             "properties": {
                 "camt": {
@@ -2137,7 +2137,7 @@ const docTemplate = `{
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.DocCategory": {
+        "mi-tech_internal_domain_gst_dto.DocCategory": {
             "type": "object",
             "properties": {
                 "doc_num": {
@@ -2146,23 +2146,23 @@ const docTemplate = `{
                 "docs": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.DocRange"
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.DocRange"
                     }
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.DocIssueWrapper": {
+        "mi-tech_internal_domain_gst_dto.DocIssueWrapper": {
             "type": "object",
             "properties": {
                 "doc_det": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.DocCategory"
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.DocCategory"
                     }
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.DocRange": {
+        "mi-tech_internal_domain_gst_dto.DocRange": {
             "type": "object",
             "properties": {
                 "cancel": {
@@ -2185,20 +2185,20 @@ const docTemplate = `{
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.GSTR1Payload": {
+        "mi-tech_internal_domain_gst_dto.GSTR1Payload": {
             "type": "object",
             "properties": {
                 "b2cs": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.B2CSRow"
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.B2CSRow"
                     }
                 },
                 "cur_gt": {
                     "type": "number"
                 },
                 "doc_issue": {
-                    "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.DocIssueWrapper"
+                    "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.DocIssueWrapper"
                 },
                 "fp": {
                     "type": "string"
@@ -2213,14 +2213,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "hsn": {
-                    "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.HSNWrapper"
+                    "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.HSNWrapper"
                 },
                 "version": {
                     "type": "string"
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.HSNRow": {
+        "mi-tech_internal_domain_gst_dto.HSNRow": {
             "type": "object",
             "properties": {
                 "camt": {
@@ -2255,13 +2255,13 @@ const docTemplate = `{
                 }
             }
         },
-        "mi-tech_internal_domain_dashboard_dto.HSNWrapper": {
+        "mi-tech_internal_domain_gst_dto.HSNWrapper": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mi-tech_internal_domain_dashboard_dto.HSNRow"
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.HSNRow"
                     }
                 }
             }
