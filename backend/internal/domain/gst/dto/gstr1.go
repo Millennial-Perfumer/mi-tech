@@ -2,15 +2,15 @@ package dto
 
 // GSTR1Payload represents the root GSTR-1 offline utility JSON schema.
 type GSTR1Payload struct {
-	GSTIN    string           `json:"gstin"`
-	FP       string           `json:"fp"`
-	GT       float64          `json:"gt"`
-	CurGT    float64          `json:"cur_gt"`
-	Version  string           `json:"version"`
-	Hash     string           `json:"hash"`
-	B2CS     []B2CSRow        `json:"b2cs,omitempty"`
-	HSN      HSNWrapper       `json:"hsn,omitempty"`
-	DocIssue DocIssueWrapper  `json:"doc_issue,omitempty"`
+	GSTIN    string          `json:"gstin"`
+	FP       string          `json:"fp"`
+	GT       float64         `json:"gt"`
+	CurGT    float64         `json:"cur_gt"`
+	Version  string          `json:"version"`
+	Hash     string          `json:"hash"`
+	B2CS     []B2CSRow       `json:"b2cs,omitempty"`
+	HSN      HSNWrapper      `json:"hsn,omitempty"`
+	DocIssue DocIssueWrapper `json:"doc_issue,omitempty"`
 }
 
 // B2CSRow represents the consolidated B2C Small row in GSTR-1.

@@ -56,4 +56,3 @@ type GeoDistributionRow struct {
 	Orders  int     `json:"orders"`
 	Revenue float64 `json:"revenue"`
 }
-

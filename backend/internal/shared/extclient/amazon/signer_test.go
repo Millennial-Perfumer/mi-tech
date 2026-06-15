@@ -15,32 +15,32 @@ func TestSignV4(t *testing.T) {
 	signTime := time.Date(2015, 8, 30, 12, 36, 0, 0, time.UTC)
 
 	tests := []struct {
-		name           string
-		method         string
-		urlStr         string
-		body           []byte
-		exactExpected  string
+		name          string
+		method        string
+		urlStr        string
+		body          []byte
+		exactExpected string
 	}{
 		{
-			name:           "GET request no body",
-			method:         "GET",
-			urlStr:         "https://example.amazonaws.com/",
-			body:           nil,
-			exactExpected:  "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31",
+			name:          "GET request no body",
+			method:        "GET",
+			urlStr:        "https://example.amazonaws.com/",
+			body:          nil,
+			exactExpected: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31",
 		},
 		{
-			name:           "POST request with body",
-			method:         "POST",
-			urlStr:         "https://example.amazonaws.com/",
-			body:           []byte(`{"test":"body"}`),
-			exactExpected:  "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=72fe8531a9f9918483947f9bd1faca8bef05861e1e786dbc265ef25b6f2e3833",
+			name:          "POST request with body",
+			method:        "POST",
+			urlStr:        "https://example.amazonaws.com/",
+			body:          []byte(`{"test":"body"}`),
+			exactExpected: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=72fe8531a9f9918483947f9bd1faca8bef05861e1e786dbc265ef25b6f2e3833",
 		},
 		{
-			name:           "GET request with query params",
-			method:         "GET",
-			urlStr:         "https://example.amazonaws.com/?Param1=Value1&Param2=Value2",
-			body:           nil,
-			exactExpected:  "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=9db2b1c2412a767b643ad7e026212de27519a82f49c72c339b93a865b9e4f3a5",
+			name:          "GET request with query params",
+			method:        "GET",
+			urlStr:        "https://example.amazonaws.com/?Param1=Value1&Param2=Value2",
+			body:          nil,
+			exactExpected: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=9db2b1c2412a767b643ad7e026212de27519a82f49c72c339b93a865b9e4f3a5",
 		},
 	}
 
