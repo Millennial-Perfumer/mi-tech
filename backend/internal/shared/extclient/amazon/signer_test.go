@@ -2,10 +2,11 @@ package amazon
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
+
 	"testing"
 	"time"
 )
@@ -18,28 +19,28 @@ func TestSignV4(t *testing.T) {
 		method         string
 		urlStr         string
 		body           []byte
-		expectedPrefix string
+		exactExpected  string
 	}{
 		{
 			name:           "GET request no body",
 			method:         "GET",
 			urlStr:         "https://example.amazonaws.com/",
 			body:           nil,
-			expectedPrefix: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=",
+			exactExpected:  "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31",
 		},
 		{
 			name:           "POST request with body",
 			method:         "POST",
 			urlStr:         "https://example.amazonaws.com/",
 			body:           []byte(`{"test":"body"}`),
-			expectedPrefix: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=",
+			exactExpected:  "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=72fe8531a9f9918483947f9bd1faca8bef05861e1e786dbc265ef25b6f2e3833",
 		},
 		{
 			name:           "GET request with query params",
 			method:         "GET",
 			urlStr:         "https://example.amazonaws.com/?Param1=Value1&Param2=Value2",
 			body:           nil,
-			expectedPrefix: "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=",
+			exactExpected:  "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, SignedHeaders=host;x-amz-date, Signature=9db2b1c2412a767b643ad7e026212de27519a82f49c72c339b93a865b9e4f3a5",
 		},
 	}
 
@@ -66,8 +67,8 @@ func TestSignV4(t *testing.T) {
 				t.Error("Expected Authorization header")
 			}
 
-			if !strings.HasPrefix(auth, tt.expectedPrefix) {
-				t.Errorf("Unexpected Authorization prefix: got %s, want prefix %s", auth, tt.expectedPrefix)
+			if auth != tt.exactExpected {
+				t.Errorf("\nExpected: %s\nGot:      %s", tt.exactExpected, auth)
 			}
 
 			amzDate := req.Header.Get("X-Amz-Date")
@@ -106,5 +107,86 @@ func TestSignRequest(t *testing.T) {
 	auth := req.Header.Get("Authorization")
 	if auth == "" {
 		t.Error("Expected Authorization header")
+	}
+}
+
+type errorReader struct{}
+
+func (e errorReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("simulated read error")
+}
+
+func TestSignV4_CoverageEdges(t *testing.T) {
+	signTime := time.Date(2015, 8, 30, 12, 36, 0, 0, time.UTC)
+
+	t.Run("Empty path becomes slash", func(t *testing.T) {
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Host: "example.amazonaws.com", Path: ""},
+			Header: make(http.Header),
+		}
+		err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "service", signTime)
+		if err != nil {
+			t.Fatalf("SignV4 failed: %v", err)
+		}
+	})
+
+	t.Run("req.Host fallback", func(t *testing.T) {
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Path: "/"},
+			Host:   "example.amazonaws.com",
+			Header: make(http.Header),
+		}
+		err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "service", signTime)
+		if err != nil {
+			t.Fatalf("SignV4 failed: %v", err)
+		}
+		if req.Header.Get("Host") != "example.amazonaws.com" {
+			t.Errorf("Expected Host header to be set from req.Host")
+		}
+	})
+
+	t.Run("Skip authorization header", func(t *testing.T) {
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Host: "example.amazonaws.com", Path: "/"},
+			Header: make(http.Header),
+		}
+		req.Header.Set("Authorization", "Some-Old-Auth")
+		err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "service", signTime)
+		if err != nil {
+			t.Fatalf("SignV4 failed: %v", err)
+		}
+		// Authorization should be overwritten by SignV4
+		if req.Header.Get("Authorization") == "Some-Old-Auth" {
+			t.Errorf("Expected Authorization header to be overwritten")
+		}
+	})
+
+	t.Run("uriEscapePath escaping", func(t *testing.T) {
+		req := &http.Request{
+			Method: "GET",
+			URL:    &url.URL{Host: "example.amazonaws.com", Path: "/a b c/!"},
+			Header: make(http.Header),
+		}
+		err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "service", signTime)
+		if err != nil {
+			t.Fatalf("SignV4 failed: %v", err)
+		}
+	})
+}
+
+func TestSignRequest_ReadError(t *testing.T) {
+	parsedURL, _ := url.Parse("https://example.amazonaws.com/")
+	req := &http.Request{
+		Method: "POST",
+		URL:    parsedURL,
+		Header: make(http.Header),
+		Body:   io.NopCloser(errorReader{}),
+	}
+	err := SignRequest(req, "AKID", "SECRET", "us-east-1", "service")
+	if err == nil {
+		t.Error("Expected error from reading body")
 	}
 }
