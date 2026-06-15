@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
 	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm"
 )
 
 var (
