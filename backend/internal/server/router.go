@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
+	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
 	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
 	feedbackHandlerPkg "mi-tech/internal/domain/feedback/handler"
@@ -20,7 +21,6 @@ import (
 	userHandlerPkg "mi-tech/internal/domain/user/handler"
 	userServicePkg "mi-tech/internal/domain/user/service"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
-	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
