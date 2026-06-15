@@ -7,15 +7,17 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mi-tech/internal/domain/order/entity"
-	"mi-tech/internal/domain/order/repository"
-	"mi-tech/internal/shared/extclient/shopify"
-	"mi-tech/internal/shared/util"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"mi-tech/internal/domain/order/entity"
+	"mi-tech/internal/domain/order/repository"
+	"mi-tech/internal/shared/extclient/shopify"
+	"mi-tech/internal/shared/util"
+
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -799,13 +801,49 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 }
 
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
-	return nil
+
+	// 1. Convert to []uint to fetch customers
+	var uintIDs []uint
+	for _, id := range ids {
+		uintIDs = append(uintIDs, uint(id))
+	}
+
+	// 2. Fetch existing customers in one batch
+	customers, err := s.repo.GetByIDs(ctx, uintIDs)
+	if err != nil {
+		return fmt.Errorf("failed to fetch customers for bulk delete: %w", err)
+	}
+
+	// 3. Delete from Shopify concurrently using errgroup with limit 5
+	if s.shopifyClient != nil {
+		eg := new(errgroup.Group)
+		eg.SetLimit(5)
+
+		for i := range customers {
+			cust := customers[i]
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if extID > 0 {
+					eg.Go(func() error {
+						err := s.shopifyClient.DeleteCustomer(extID)
+						if err != nil {
+							log.Printf("BulkDelete: Failed to sync customer deletion to Shopify for extID %d: %v", extID, err)
+						}
+						// Return nil to not fail-fast other deletions
+						return nil
+					})
+				}
+			}
+		}
+
+		_ = eg.Wait()
+	}
+
+	// 4. Batch delete from local database
+	return s.repo.BulkDelete(ctx, ids)
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {
