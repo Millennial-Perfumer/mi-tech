@@ -2,19 +2,21 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
-	"mi-tech/internal/domain/dashboard/service"
+	_ "mi-tech/internal/domain/gst/dto"
+	"mi-tech/internal/domain/gst/service"
 )
 
-// ReportHandler is a thin HTTP adapter for GST report endpoints.
-type ReportHandler struct {
-	reportService *service.ReportService
+// GSTHandler is a thin HTTP adapter for GST report endpoints.
+type GSTHandler struct {
+	gstService *service.GSTService
 }
 
-// NewReportHandler creates a new ReportHandler.
-func NewReportHandler(reportService *service.ReportService) *ReportHandler {
-	return &ReportHandler{reportService: reportService}
+// NewGSTHandler creates a new GSTHandler.
+func NewGSTHandler(gstService *service.GSTService) *GSTHandler {
+	return &GSTHandler{gstService: gstService}
 }
 
 // GetGSTSummary handles GET /api/reports/summary.
@@ -28,11 +30,11 @@ func NewReportHandler(reportService *service.ReportService) *ReportHandler {
 // @Param end_date query string false "End date"
 // @Success 200 {object} map[string]interface{}
 // @Router /reports/gst [get]
-func (h *ReportHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
+func (h *GSTHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
-	summary, err := h.reportService.GetGSTSummary(startDate, endDate)
+	summary, err := h.gstService.GetGSTSummary(startDate, endDate)
 	if err != nil {
 		http.Error(w, "Failed to fetch summary: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -53,11 +55,11 @@ func (h *ReportHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 // @Param end_date query string false "End date"
 // @Success 200 {object} map[string]interface{}
 // @Router /reports/state [get]
-func (h *ReportHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) {
+func (h *GSTHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
-	data, err := h.reportService.GetStateSummary(startDate, endDate)
+	data, err := h.gstService.GetStateSummary(startDate, endDate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -78,11 +80,11 @@ func (h *ReportHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) 
 // @Param end_date query string false "End date"
 // @Success 200 {object} map[string]interface{}
 // @Router /reports/hsn [get]
-func (h *ReportHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
+func (h *GSTHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
-	data, err := h.reportService.GetHSNSummary(startDate, endDate)
+	data, err := h.gstService.GetHSNSummary(startDate, endDate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -93,11 +95,11 @@ func (h *ReportHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetDocumentsIssued handles GET /api/reports/documents-issued.
-func (h *ReportHandler) GetDocumentsIssued(w http.ResponseWriter, r *http.Request) {
+func (h *GSTHandler) GetDocumentsIssued(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 
-	data, err := h.reportService.GetDocumentsIssued(startDate, endDate)
+	data, err := h.gstService.GetDocumentsIssued(startDate, endDate)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -105,4 +107,34 @@ func (h *ReportHandler) GetDocumentsIssued(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": data})
+}
+
+// GetGSTR1JSON handles GET /api/reports/gstr1-json.
+// @Summary Export GSTR-1 JSON
+// @Description Compiles and downloads GSTR-1 offline utility-compliant JSON containing Table 7 (B2CS), Table 12 (HSN), and Table 13 (Documents).
+// @Tags reports
+// @Security Bearer
+// @Produce json
+// @Param start_date query string false "Start date"
+// @Param end_date query string false "End date"
+// @Param gstin query string false "GSTIN override"
+// @Success 200 {object} dto.GSTR1Payload
+// @Router /reports/gstr1-json [get]
+func (h *GSTHandler) GetGSTR1JSON(w http.ResponseWriter, r *http.Request) {
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+	gstin := r.URL.Query().Get("gstin")
+	if gstin == "" {
+		gstin = "33AUSPR1909H1ZC" // Default fallback
+	}
+
+	payload, err := h.gstService.GetGSTR1JSON(startDate, endDate, gstin)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=GSTR1_%s_%s.json", gstin, payload.FP))
+	json.NewEncoder(w).Encode(payload)
 }

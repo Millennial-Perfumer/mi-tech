@@ -9,6 +9,7 @@ import (
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
 	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
 	feedbackHandlerPkg "mi-tech/internal/domain/feedback/handler"
+	gstHandlerPkg "mi-tech/internal/domain/gst/handler"
 	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
@@ -35,7 +36,7 @@ func RegisterRoutes(
 	orderHandler *orderHandlerPkg.OrderHandler,
 	syncHandler *syncHandlerPkg.SyncHandler,
 	metricsHandler *dashboardHandlerPkg.MetricsHandler,
-	reportHandler *dashboardHandlerPkg.ReportHandler,
+	reportHandler *gstHandlerPkg.GSTHandler,
 	webhookHandler *webhookHandlerPkg.WebhookHandler,
 	automationHandler *communicationHandlerPkg.AutomationHandler,
 	settingsHandler *configHandlerPkg.SettingsHandler,
@@ -190,6 +191,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/reports/state-wise", protected(reportHandler.GetStateSummary))
 	mux.HandleFunc("/api/reports/hsn-wise", protected(reportHandler.GetHSNSummary))
 	mux.HandleFunc("/api/reports/documents-issued", protected(reportHandler.GetDocumentsIssued))
+	mux.HandleFunc("/api/reports/gstr1-json", protected(reportHandler.GetGSTR1JSON))
 
 	// --- Webhook Routes ---
 	mux.HandleFunc("/api/webhooks/shopify", webhookHandler.ShopifyWebhookHandler)

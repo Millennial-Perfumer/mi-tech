@@ -1,37 +1,39 @@
 basePath: /api
 definitions:
-  internal_automation_whatsapp.AutomationMessage:
+  internal_domain_order_handler.UpdateStatusRequest:
     properties:
-      customer_name:
-        type: string
-      delivered_at:
-        type: string
-      error_message:
-        type: string
-      id:
-        type: integer
-      message_id:
-        type: string
-      order_id:
-        type: integer
-      order_number:
-        type: string
-      phone_number:
-        type: string
-      read_at:
-        type: string
-      sent_at:
-        type: string
       status:
         type: string
-      store_id:
+    type: object
+  internal_domain_sync_handler.SyncRequest:
+    properties:
+      end_date:
         type: string
-      template_id:
-        type: integer
-      template_name:
+      start_date:
         type: string
     type: object
-  internal_automation_whatsapp.AutomationTemplate:
+  mi-tech_internal_domain_communication_dto.CreateTemplateRequest:
+    properties:
+      body:
+        type: string
+      buttons:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_communication_entity.TemplateButton'
+        type: array
+      category:
+        type: string
+      examples:
+        type: string
+      footer:
+        type: string
+      header:
+        $ref: '#/definitions/mi-tech_internal_domain_communication_entity.TemplateHeader'
+      language:
+        type: string
+      name:
+        type: string
+    type: object
+  mi-tech_internal_domain_communication_entity.AutomationTemplate:
     properties:
       body:
         type: string
@@ -75,80 +77,7 @@ definitions:
           type: integer
         type: array
     type: object
-  internal_automation_whatsapp.ChatMessage:
-    properties:
-      conversation_id:
-        type: integer
-      direction:
-        type: string
-      id:
-        type: integer
-      is_issue:
-        type: boolean
-      message_id:
-        type: string
-      metadata:
-        items:
-          type: integer
-        type: array
-      priority:
-        type: string
-      sender_role:
-        type: string
-      sent_at:
-        type: string
-      status:
-        type: string
-      text:
-        type: string
-      type:
-        type: string
-    type: object
-  internal_automation_whatsapp.Conversation:
-    properties:
-      active_task_id:
-        type: integer
-      contact_name:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      last_message:
-        type: string
-      last_message_at:
-        type: string
-      mode:
-        type: string
-      phone_number:
-        type: string
-      priority:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  internal_automation_whatsapp.CreateTemplateRequest:
-    properties:
-      body:
-        type: string
-      buttons:
-        items:
-          $ref: '#/definitions/internal_automation_whatsapp.TemplateButton'
-        type: array
-      category:
-        type: string
-      examples:
-        type: string
-      footer:
-        type: string
-      header:
-        $ref: '#/definitions/internal_automation_whatsapp.TemplateHeader'
-      language:
-        type: string
-      name:
-        type: string
-    type: object
-  internal_automation_whatsapp.TemplateButton:
+  mi-tech_internal_domain_communication_entity.TemplateButton:
     properties:
       flowID:
         description: Frontend camelCase
@@ -172,7 +101,7 @@ definitions:
       url:
         type: string
     type: object
-  internal_automation_whatsapp.TemplateHeader:
+  mi-tech_internal_domain_communication_entity.TemplateHeader:
     properties:
       location:
         items:
@@ -188,7 +117,7 @@ definitions:
         description: text, image, video, document, location, none
         type: string
     type: object
-  internal_automation_whatsapp.Trigger:
+  mi-tech_internal_domain_communication_entity.Trigger:
     properties:
       created_at:
         type: string
@@ -212,49 +141,122 @@ definitions:
       webhook_topic:
         type: string
     type: object
-  internal_handler.CreateUserRequest:
+  mi-tech_internal_domain_dashboard_dto.B2CSRow:
     properties:
-      password:
+      camt:
+        type: number
+      iamt:
+        type: number
+      pos:
         type: string
-      role:
+      rt:
+        type: number
+      samt:
+        type: number
+      sply_ty:
         type: string
-      username:
+      txval:
+        type: number
+      typ:
+        description: '"OE" (Other than E-commerce) or "E"'
         type: string
     type: object
-  internal_handler.LoginRequest:
+  mi-tech_internal_domain_dashboard_dto.DocCategory:
     properties:
-      password:
+      doc_num:
+        type: integer
+      docs:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.DocRange'
+        type: array
+    type: object
+  mi-tech_internal_domain_dashboard_dto.DocIssueWrapper:
+    properties:
+      doc_det:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.DocCategory'
+        type: array
+    type: object
+  mi-tech_internal_domain_dashboard_dto.DocRange:
+    properties:
+      cancel:
+        type: integer
+      from:
         type: string
-      username:
+      net_issue:
+        type: integer
+      num:
+        type: integer
+      to:
+        type: string
+      totnum:
+        type: integer
+    type: object
+  mi-tech_internal_domain_dashboard_dto.GSTR1Payload:
+    properties:
+      b2cs:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.B2CSRow'
+        type: array
+      cur_gt:
+        type: number
+      doc_issue:
+        $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.DocIssueWrapper'
+      fp:
+        type: string
+      gstin:
+        type: string
+      gt:
+        type: number
+      hash:
+        type: string
+      hsn:
+        $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.HSNWrapper'
+      version:
         type: string
     type: object
-  internal_handler.LoginResponse:
+  mi-tech_internal_domain_dashboard_dto.HSNRow:
     properties:
-      requires_2fa:
+      camt:
+        type: number
+      desc:
+        type: string
+      hsn_sc:
+        type: string
+      iamt:
+        type: number
+      num:
+        type: integer
+      qty:
+        type: number
+      samt:
+        type: number
+      txval:
+        type: number
+      uqc:
+        type: string
+      val:
+        type: number
+    type: object
+  mi-tech_internal_domain_dashboard_dto.HSNWrapper:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.HSNRow'
+        type: array
+    type: object
+  mi-tech_internal_domain_marketing_service.AssetHealth:
+    properties:
+      error:
+        type: string
+      instagram_authorized:
         type: boolean
-      token:
-        type: string
+      instagram_linked:
+        type: boolean
+      page_authorized:
+        type: boolean
     type: object
-  internal_handler.SyncRequest:
-    properties:
-      end_date:
-        type: string
-      start_date:
-        type: string
-    type: object
-  internal_handler.UpdateStatusRequest:
-    properties:
-      status:
-        type: string
-    type: object
-  internal_handler.VerifyOTPRequest:
-    properties:
-      otp:
-        type: string
-      username:
-        type: string
-    type: object
-  mi-tech_internal_dto.LineItemCreateRequest:
+  mi-tech_internal_domain_order_dto.LineItemCreateRequest:
     properties:
       discount:
         description: item-level discount amount
@@ -270,7 +272,7 @@ definitions:
       title:
         type: string
     type: object
-  mi-tech_internal_dto.LineItemResponse:
+  mi-tech_internal_domain_order_dto.LineItemResponse:
     properties:
       discount:
         type: string
@@ -291,7 +293,7 @@ definitions:
       variant_id:
         type: string
     type: object
-  mi-tech_internal_dto.OrderCreateRequest:
+  mi-tech_internal_domain_order_dto.OrderCreateRequest:
     properties:
       customer_address1:
         type: string
@@ -319,7 +321,7 @@ definitions:
         type: string
       line_items:
         items:
-          $ref: '#/definitions/mi-tech_internal_dto.LineItemCreateRequest'
+          $ref: '#/definitions/mi-tech_internal_domain_order_dto.LineItemCreateRequest'
         type: array
       terminal_code:
         description: '"POS1" (defaults if empty)'
@@ -329,7 +331,7 @@ definitions:
       total_price:
         type: number
     type: object
-  mi-tech_internal_dto.OrderResponse:
+  mi-tech_internal_domain_order_dto.OrderResponse:
     properties:
       cancel_reason:
         type: string
@@ -375,7 +377,7 @@ definitions:
         type: string
       line_items:
         items:
-          $ref: '#/definitions/mi-tech_internal_dto.LineItemResponse'
+          $ref: '#/definitions/mi-tech_internal_domain_order_dto.LineItemResponse'
         type: array
       order_number:
         type: string
@@ -398,7 +400,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  mi-tech_internal_dto.OrderUpdateRequest:
+  mi-tech_internal_domain_order_dto.OrderUpdateRequest:
     properties:
       customer_address1:
         type: string
@@ -421,7 +423,7 @@ definitions:
       customer_zip:
         type: string
     type: object
-  mi-tech_internal_entity.Customer:
+  mi-tech_internal_domain_order_entity.Customer:
     properties:
       address1:
         type: string
@@ -458,18 +460,7 @@ definitions:
       zip_code:
         type: string
     type: object
-  mi-tech_internal_marketing.AssetHealth:
-    properties:
-      error:
-        type: string
-      instagram_authorized:
-        type: boolean
-      instagram_linked:
-        type: boolean
-      page_authorized:
-        type: boolean
-    type: object
-  mi-tech_internal_service.Document:
+  mi-tech_internal_shared_system_service.Document:
     properties:
       slug:
         type: string
@@ -482,156 +473,6 @@ info:
   title: Mi-Tech API
   version: "1.0"
 paths:
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate a user and return a JWT token. If 2FA is enabled,
-        it returns requires_2fa=true.
-      parameters:
-      - description: Login credentials
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.LoginRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_handler.LoginResponse'
-        "401":
-          description: unauthorized
-          schema:
-            type: string
-      summary: Login to the application
-      tags:
-      - auth
-  /auth/verify:
-    get:
-      description: Internal endpoint for Nginx to validate the Bearer token and retrieve
-        user metadata.
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "401":
-          description: unauthorized
-          schema:
-            type: string
-      security:
-      - Bearer: []
-      summary: Validate JWT Session
-      tags:
-      - auth
-  /auth/verify-otp:
-    post:
-      consumes:
-      - application/json
-      description: Complete the login process by verifying the 6-digit OTP.
-      parameters:
-      - description: OTP Verification
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.VerifyOTPRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_handler.LoginResponse'
-        "401":
-          description: unauthorized
-          schema:
-            type: string
-      summary: Verify 2FA OTP
-      tags:
-      - auth
-  /automation/whatsapp/chat:
-    get:
-      description: Retrieve all messages for a specific conversation.
-      parameters:
-      - description: Conv ID
-        in: query
-        name: conversation_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_automation_whatsapp.ChatMessage'
-            type: array
-      security:
-      - Bearer: []
-      summary: Get chat history
-      tags:
-      - automation
-  /automation/whatsapp/conversations:
-    get:
-      description: Retrieve all active customer chat conversations.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_automation_whatsapp.Conversation'
-            type: array
-      security:
-      - Bearer: []
-      summary: List chat threads
-      tags:
-      - automation
-  /automation/whatsapp/conversations/mode:
-    put:
-      consumes:
-      - application/json
-      description: Switch between 'auto' (bot) and 'human' (agent) mode for a chat
-        thread.
-      parameters:
-      - description: Mode data
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - Bearer: []
-      summary: Toggle chat mode
-      tags:
-      - automation
-  /automation/whatsapp/feedback:
-    get:
-      description: Retrieve a list of all customer ratings and messages
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: List customer feedback
-      tags:
-      - feedback
   /automation/whatsapp/messages:
     get:
       description: Retrieve a paginated list of all sent and received WhatsApp messages.
@@ -671,29 +512,6 @@ paths:
       security:
       - Bearer: []
       summary: List message logs
-      tags:
-      - automation
-  /automation/whatsapp/messages/order:
-    get:
-      description: Retrieve all automation messages sent for a specific order.
-      parameters:
-      - description: Order ID
-        in: query
-        name: order_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_automation_whatsapp.AutomationMessage'
-            type: array
-      security:
-      - Bearer: []
-      summary: List messages for an order
       tags:
       - automation
   /automation/whatsapp/metrics:
@@ -747,31 +565,6 @@ paths:
       summary: Sync Meta insights
       tags:
       - automation
-  /automation/whatsapp/send-bulk:
-    post:
-      consumes:
-      - application/json
-      description: Dispatch a template message to multiple customers simultaneously.
-      parameters:
-      - description: Bulk send request
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Send bulk marketing
-      tags:
-      - automation
   /automation/whatsapp/send-manual:
     post:
       consumes:
@@ -795,28 +588,6 @@ paths:
       security:
       - Bearer: []
       summary: Send manual template
-      tags:
-      - automation
-  /automation/whatsapp/send-message:
-    post:
-      consumes:
-      - application/json
-      description: Send a non-template, free-text message to a customer (Human-to-Human).
-      parameters:
-      - description: Message data
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - Bearer: []
-      summary: Send free-text
       tags:
       - automation
   /automation/whatsapp/templates:
@@ -854,7 +625,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_automation_whatsapp.AutomationTemplate'
+              $ref: '#/definitions/mi-tech_internal_domain_communication_entity.AutomationTemplate'
             type: array
       security:
       - Bearer: []
@@ -871,7 +642,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_automation_whatsapp.CreateTemplateRequest'
+          $ref: '#/definitions/mi-tech_internal_domain_communication_dto.CreateTemplateRequest'
       produces:
       - application/json
       responses:
@@ -895,7 +666,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_automation_whatsapp.AutomationTemplate'
+          $ref: '#/definitions/mi-tech_internal_domain_communication_entity.AutomationTemplate'
       produces:
       - application/json
       responses:
@@ -920,19 +691,6 @@ paths:
       security:
       - Bearer: []
       summary: Sync template status
-      tags:
-      - automation
-  /automation/whatsapp/templates/sync-all:
-    post:
-      description: Wipe and re-import all templates from the linked Meta WABA.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - Bearer: []
-      summary: Full template import
       tags:
       - automation
   /automation/whatsapp/templates/upload:
@@ -970,7 +728,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/internal_automation_whatsapp.Trigger'
+              $ref: '#/definitions/mi-tech_internal_domain_communication_entity.Trigger'
             type: array
       security:
       - Bearer: []
@@ -1039,74 +797,6 @@ paths:
       summary: WhatsApp Webhook
       tags:
       - automation
-  /configs:
-    get:
-      description: Retrieve a list of all API keys and secrets. Sensitive values are
-        masked (********).
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: List API configurations
-      tags:
-      - configurations
-    put:
-      consumes:
-      - application/json
-      description: Update a specific configuration key (e.g. meta_api_token). Required
-        'admin' role.
-      parameters:
-      - description: Config key-value
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Update API configuration
-      tags:
-      - configurations
-  /configs/reveal:
-    post:
-      consumes:
-      - application/json
-      description: Retrieve unmasked values of API keys by re-authenticating with
-        the user's password.
-      parameters:
-      - description: User password
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Reveal unmasked configurations
-      tags:
-      - configurations
   /customers:
     delete:
       description: Wipe the entire customers table. Required 'admin' role.
@@ -1176,14 +866,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/mi-tech_internal_entity.Customer'
+          $ref: '#/definitions/mi-tech_internal_domain_order_entity.Customer'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/mi-tech_internal_entity.Customer'
+            $ref: '#/definitions/mi-tech_internal_domain_order_entity.Customer'
       security:
       - Bearer: []
       summary: Create customer
@@ -1221,14 +911,14 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/mi-tech_internal_entity.Customer'
+          $ref: '#/definitions/mi-tech_internal_domain_order_entity.Customer'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/mi-tech_internal_entity.Customer'
+            $ref: '#/definitions/mi-tech_internal_domain_order_entity.Customer'
       security:
       - Bearer: []
       summary: Update customer
@@ -1427,7 +1117,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/mi-tech_internal_marketing.AssetHealth'
+            $ref: '#/definitions/mi-tech_internal_domain_marketing_service.AssetHealth'
       security:
       - Bearer: []
       summary: SMM Health Check
@@ -1581,14 +1271,14 @@ paths:
         name: order
         required: true
         schema:
-          $ref: '#/definitions/mi-tech_internal_dto.OrderCreateRequest'
+          $ref: '#/definitions/mi-tech_internal_domain_order_dto.OrderCreateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/mi-tech_internal_dto.OrderResponse'
+            $ref: '#/definitions/mi-tech_internal_domain_order_dto.OrderResponse'
         "400":
           description: Bad Request
           schema:
@@ -1617,7 +1307,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/mi-tech_internal_dto.OrderUpdateRequest'
+          $ref: '#/definitions/mi-tech_internal_domain_order_dto.OrderUpdateRequest'
       produces:
       - application/json
       responses:
@@ -1676,38 +1366,6 @@ paths:
       summary: Get order details
       tags:
       - orders
-  /orders/feedback/comment:
-    put:
-      consumes:
-      - application/json
-      description: Add or update an internal admin comment on a customer feedback
-      parameters:
-      - description: Feedback ID
-        in: query
-        name: id
-        required: true
-        type: integer
-      - description: Admin comment
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties:
-            type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Update feedback admin comment
-      tags:
-      - feedback
   /orders/invoice:
     get:
       description: Generate and download a GST invoice PDF for an order
@@ -1743,7 +1401,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.UpdateStatusRequest'
+          $ref: '#/definitions/internal_domain_order_handler.UpdateStatusRequest'
       produces:
       - application/json
       responses:
@@ -1788,7 +1446,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handler.UpdateStatusRequest'
+          $ref: '#/definitions/internal_domain_order_handler.UpdateStatusRequest'
       produces:
       - application/json
       responses:
@@ -1824,6 +1482,35 @@ paths:
       security:
       - Bearer: []
       summary: GST Summary Report
+      tags:
+      - reports
+  /reports/gstr1-json:
+    get:
+      description: Compiles and downloads GSTR-1 offline utility-compliant JSON containing
+        Table 7 (B2CS), Table 12 (HSN), and Table 13 (Documents).
+      parameters:
+      - description: Start date
+        in: query
+        name: start_date
+        type: string
+      - description: End date
+        in: query
+        name: end_date
+        type: string
+      - description: GSTIN override
+        in: query
+        name: gstin
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mi-tech_internal_domain_dashboard_dto.GSTR1Payload'
+      security:
+      - Bearer: []
+      summary: Export GSTR-1 JSON
       tags:
       - reports
   /reports/hsn:
@@ -1876,48 +1563,6 @@ paths:
       summary: State-wise Summary Report
       tags:
       - reports
-  /settings:
-    put:
-      consumes:
-      - application/json
-      description: Update a specific setting key. Required 'admin' role.
-      parameters:
-      - description: Setting key-value
-        in: body
-        name: body
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Update application setting
-      tags:
-      - settings
-  /settings/date-range:
-    get:
-      description: Retrieve the start and end dates used for filtering dashboard and
-        report data.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Get global date range
-      tags:
-      - settings
   /shopify/reset:
     post:
       consumes:
@@ -1952,7 +1597,7 @@ paths:
         in: body
         name: body
         schema:
-          $ref: '#/definitions/internal_handler.SyncRequest'
+          $ref: '#/definitions/internal_domain_sync_handler.SyncRequest'
       produces:
       - application/json
       responses:
@@ -1977,7 +1622,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/mi-tech_internal_service.Document'
+              $ref: '#/definitions/mi-tech_internal_shared_system_service.Document'
             type: array
       security:
       - Bearer: []
@@ -2027,87 +1672,4 @@ paths:
       summary: Order tracking redirect
       tags:
       - system
-  /users:
-    get:
-      description: Retrieve a list of all users. Required 'admin' role.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: List users
-      tags:
-      - users
-    post:
-      consumes:
-      - application/json
-      description: Register a new user with a specified role. Required 'admin' role.
-      parameters:
-      - description: User data
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/internal_handler.CreateUserRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Create user
-      tags:
-      - users
-  /webhook/status:
-    get:
-      description: Check the status of the last received webhook and its processing
-        state.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - Bearer: []
-      summary: Webhook Health Status
-      tags:
-      - webhooks
-  /webhooks/shopify:
-    post:
-      consumes:
-      - application/json
-      description: Secure endpoint for Shopify to push real-time order, fulfillment,
-        and customer updates.
-      parameters:
-      - description: Webhook Topic (e.g., orders/create)
-        in: header
-        name: X-Shopify-Topic
-        required: true
-        type: string
-      - description: HMAC Signature
-        in: header
-        name: X-Shopify-Hmac-Sha256
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-      summary: Shopify Webhook Ingestion
-      tags:
-      - webhooks
 swagger: "2.0"
