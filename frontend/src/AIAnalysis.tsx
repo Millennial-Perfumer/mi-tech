@@ -386,14 +386,14 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
       {/* Sidebar */}
       <aside className="ai-history-sidebar">
         <div className="sidebar-header">
-          <button className="new-chat-btn" onClick={startNewChat}>
+          <button type="button" className="new-chat-btn" onClick={startNewChat}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
             New Analysis
           </button>
-          <button className="toggle-sidebar-btn" onClick={() => setIsSidebarOpen(false)} title="Collapse Sidebar">
+          <button type="button" className="toggle-sidebar-btn" onClick={() => setIsSidebarOpen(false)} title="Collapse Sidebar" aria-label="Collapse Sidebar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
@@ -413,7 +413,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
                 </svg>
                 <span className="chat-title">{conv.title}</span>
               </div>
-              <button className="delete-conv-btn" onClick={(e) => deleteConversation(conv.id, e)} title="Delete Analysis">
+              <button type="button" className="delete-conv-btn" onClick={(e) => deleteConversation(conv.id, e)} title="Delete Analysis" aria-label="Delete Analysis">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -427,7 +427,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
       {/* Main Chat */}
       <main className="ai-chat-main">
         {!isSidebarOpen && (
-          <button className="open-sidebar-btn" onClick={() => setIsSidebarOpen(true)}>
+          <button type="button" className="open-sidebar-btn" onClick={() => setIsSidebarOpen(true)} aria-label="Open History Sidebar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
@@ -455,7 +455,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
               <p>Analyze your sales, revenue, and inventory with AI.</p>
               <div className="quick-prompts">
                 {quickPrompts.map(prompt => (
-                  <button key={prompt} onClick={() => { setInput(prompt); }}>
+                  <button type="button" key={prompt} onClick={() => { setInput(prompt); }}>
                     {prompt}
                   </button>
                 ))}
@@ -502,7 +502,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
 
         <div className="ai-chat-input-area">
           <div className="ai-input-pill">
-            <button className="input-utility-btn" title="Add context">
+            <button type="button" className="input-utility-btn" title="Add context" aria-label="Add context">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -525,6 +525,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ fetchWithAuth, API_BASE 
 
             <div className="input-actions-right">
               <button 
+                type="button"
                 className={`ai-send-btn ${input.trim() ? 'active' : ''}`}
                 onClick={handleSendMessage}
                 disabled={!input.trim() || isLoading}
