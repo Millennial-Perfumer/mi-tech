@@ -17,7 +17,7 @@ func NewQueryGuard() *QueryGuard {
 	// We use \b for word boundaries to avoid blocking things like "orders" (contains "order").
 	// Removed REPLACE because it's a common SELECT function.
 	// Removed COMMENT because it triggers on SQL comments.
-	pattern := `(?i)\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|EXEC|ATTACH|DETACH|MERGE|UPSERT|RENAME)\b`
+	pattern := `(?i)\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|EXEC|ATTACH|DETACH|MERGE|UPSERT|RENAME|COPY|DO|CALL|EXECUTE)\b`
 	return &QueryGuard{
 		blockedPatterns: regexp.MustCompile(pattern),
 	}
@@ -25,6 +25,23 @@ func NewQueryGuard() *QueryGuard {
 
 // IsSafe checks if the SQL string contains any blocked mutation keywords.
 func (g *QueryGuard) IsSafe(sql string) error {
+	// Stacked query prevention
+	// Remove trailing semicolons and whitespace first
+	cleaned := strings.TrimRight(strings.TrimSpace(sql), "; \t\n\r")
+
+	// A naive check: if there is another semicolon, it might be a stacked query.
+	// To avoid breaking legitimate queries with semicolons in string literals,
+	// we do a simple string literal strip.
+	inString := false
+	for _, c := range cleaned {
+		if c == '\'' {
+			inString = !inString
+		}
+		if c == ';' && !inString {
+			return fmt.Errorf("SECURITY ALERT: stacked queries (;) are not allowed")
+		}
+	}
+
 	// Normalize whitespace
 	normalized := strings.TrimSpace(strings.Join(strings.Fields(sql), " "))
 
