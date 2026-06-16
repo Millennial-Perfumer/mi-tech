@@ -7,8 +7,8 @@ import (
 	"mi-tech/internal/domain/b2b/entity"
 	"mi-tech/internal/domain/b2b/repository"
 	"mi-tech/internal/domain/b2b/service"
-	"mi-tech/internal/shared/config"
 	configRepo "mi-tech/internal/shared/config/repository"
+	"mi-tech/internal/shared/config"
 	"mi-tech/internal/shared/testutil"
 
 	"github.com/stretchr/testify/assert"
