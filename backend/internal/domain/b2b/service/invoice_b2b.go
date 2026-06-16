@@ -45,7 +45,7 @@ func (s *B2BService) CreateInvoice(inv *entity.B2BInvoice) error {
 	inv.Status = "DRAFT"
 	inv.PaymentStatus = "UNPAID"
 	inv.PaidAmount = 0.00
-	
+
 	if err := s.calculateInvoiceTotals(inv); err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (s *B2BService) UpdatePayment(id int64, paidAmount float64, method string) 
 	invoice.PaidAmount = paidAmount
 	invoice.BalanceAmount = invoice.TotalPrice - paidAmount
 	invoice.PaymentMethod = &method
-	
+
 	now := time.Now()
 	invoice.PaymentDate = &now
 
@@ -224,7 +224,7 @@ func (s *B2BService) calculateInvoiceTotals(inv *entity.B2BInvoice) error {
 	// Determine Tax splits
 	var totalTax float64
 	var defaultTaxRate float64 = 18.00 // Default B2B invoice tax rate is 18%
-	
+
 	// Reset tax splits
 	inv.CGSTRate = 0
 	inv.CGSTAmount = 0
