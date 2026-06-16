@@ -38,7 +38,3 @@
 ## 2026-06-14 - [Batching Meta Template Status Sync]
 **Learning:** Sequential template synchronization within `SyncStatus` looping over templates to trigger `GetRemoteTemplateByName` causes an N+1 API call issue.
 **Action:** Always batch lookups using a single API call like `GetAllRemoteTemplates` and then perform synchronization processing in bulk to eliminate N+1 API calls.
-
-## 2024-05-18 - [Resolve N+1 bottlenecks in Bulk Entity Deletion]
-**Learning:** Resolving N+1 bottlenecks in bulk operations when both database lookups/deletions and synchronous external API syncs are involved can be solved efficiently with bounded concurrency via `errgroup`.
-**Action:** When performing bulk deletions (like customers), pre-fetch the necessary details via `GetByIDs`, then parallelize external API deletion calls safely via `errgroup.WithContext(ctx)` with a `SetLimit` value, and finally perform the actual database deletion using a batched repository query (`BulkDelete`).

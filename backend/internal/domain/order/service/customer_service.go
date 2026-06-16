@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -800,37 +799,13 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 }
 
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	uintIDs := make([]uint, len(ids))
-	for i, id := range ids {
-		uintIDs[i] = uint(id)
-	}
-
-	customers, err := s.repo.GetByIDs(ctx, uintIDs)
-	if err != nil {
-		return fmt.Errorf("failed to fetch customers for bulk delete: %w", err)
-	}
-
-	if s.shopifyClient != nil {
-		g, _ := errgroup.WithContext(ctx)
-		g.SetLimit(5)
-		for _, cust := range customers {
-			cust := cust // capture loop variable
-			if cust.ExternalID != nil && *cust.ExternalID != "" {
-				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
-				if extID > 0 {
-					g.Go(func() error {
-						if err := s.shopifyClient.DeleteCustomer(extID); err != nil {
-							log.Printf("Failed to sync customer deletion to Shopify for ID %d: %v", cust.ID, err)
-						}
-						return nil
-					})
-				}
-			}
+	for _, id := range ids {
+		// Use DeleteCustomer to ensure Shopify sync per customer
+		if err := s.DeleteCustomer(ctx, id); err != nil {
+			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
 		}
-		_ = g.Wait()
 	}
-
-	return s.repo.BulkDelete(ctx, ids)
+	return nil
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {
