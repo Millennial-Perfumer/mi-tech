@@ -17,7 +17,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // parseISTAsUTCBoundaries converts a YYYY-MM-DD string (assumed IST) to a UTC time.Time boundary.
@@ -962,22 +965,30 @@ func (h *AutomationHandler) SendBulkMarketing(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	successCount := 0
+	var successCount int32
+	g, _ := errgroup.WithContext(r.Context())
+	g.SetLimit(5)
+
 	for _, cust := range customers {
+		cust := cust // capture loop variable
 		if cust.PhoneNumber == "" {
 			continue
 		}
 
-		err := h.mappingService.ExecuteMarketingSend(cust.SourceID, template, &cust)
-		if err == nil {
-			successCount++
-		}
+		g.Go(func() error {
+			err := h.mappingService.ExecuteMarketingSend(cust.SourceID, template, &cust)
+			if err == nil {
+				atomic.AddInt32(&successCount, 1)
+			}
+			return nil
+		})
 	}
+	g.Wait()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"sent":    successCount,
+		"sent":    atomic.LoadInt32(&successCount),
 		"total":   len(customers),
 	})
 }
