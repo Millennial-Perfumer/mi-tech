@@ -48,7 +48,15 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 	if filter.Source != "" {
-		query = query.Where("source_id = ?", filter.Source)
+		sources := strings.Split(filter.Source, ",")
+		for i, s := range sources {
+			sources[i] = strings.ToLower(s)
+		}
+		if len(sources) > 1 {
+			query = query.Where("LOWER(source_id) IN ?", sources)
+		} else {
+			query = query.Where("LOWER(source_id) = ?", sources[0])
+		}
 	}
 	if filter.FinancialStatus != "" {
 		if strings.ToLower(filter.FinancialStatus) == "unpaid" {

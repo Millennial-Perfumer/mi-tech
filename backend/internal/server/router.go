@@ -439,6 +439,31 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/b2b/invoices/next-number", protected(b2bHandler.GetNextInvoiceNumber))
 	mux.HandleFunc("/api/b2b/invoices/issue", protected(b2bHandler.IssueInvoice))
 	mux.HandleFunc("/api/b2b/invoices/cancel", protected(b2bHandler.CancelInvoice))
+	mux.HandleFunc("/api/b2b/invoices/deduct-inventory", protected(b2bHandler.DeductInventory))
+	mux.HandleFunc("/api/b2b/invoices/revert-inventory", protected(b2bHandler.RevertInventory))
 	mux.HandleFunc("/api/b2b/invoices/payment", protected(b2bHandler.UpdatePayment))
 	mux.HandleFunc("/api/b2b/payment-terms", protected(b2bHandler.HandlePaymentTerms))
+
+	// Credit & Debit Notes, Ledgers, and GST Period Locks
+	mux.HandleFunc("/api/b2b/credit-notes", protected(b2bHandler.HandleCreditNotes))
+	mux.HandleFunc("/api/b2b/credit-notes/issue", protected(b2bHandler.IssueCreditNote))
+	mux.HandleFunc("/api/b2b/credit-notes/cancel", protected(b2bHandler.CancelCreditNote))
+	mux.HandleFunc("/api/b2b/debit-notes", protected(b2bHandler.HandleDebitNotes))
+	mux.HandleFunc("/api/b2b/debit-notes/issue", protected(b2bHandler.IssueDebitNote))
+	mux.HandleFunc("/api/b2b/debit-notes/cancel", protected(b2bHandler.CancelDebitNote))
+	mux.HandleFunc("/api/b2b/customers/ledger", protected(b2bHandler.GetCustomerLedger))
+	mux.HandleFunc("/api/b2b/customers/outstanding", protected(b2bHandler.GetOutstandingAgingReport))
+	mux.HandleFunc("/api/b2b/gst-periods", protected(b2bHandler.HandleGSTPeriods))
+
+	// Proforma Invoice Routes
+	mux.HandleFunc("/api/b2b/proformas", protected(b2bHandler.HandleProformas))
+	mux.HandleFunc("/api/b2b/proformas/detail", protected(b2bHandler.GetProformaByID))
+	mux.HandleFunc("/api/b2b/proformas/next-number", protected(b2bHandler.GetNextProformaNumber))
+	mux.HandleFunc("/api/b2b/proformas/issue", protected(b2bHandler.IssueProforma))
+	mux.HandleFunc("/api/b2b/proformas/accept", protected(b2bHandler.AcceptProforma))
+	mux.HandleFunc("/api/b2b/proformas/reject", protected(b2bHandler.RejectProforma))
+	mux.HandleFunc("/api/b2b/proformas/cancel", protected(b2bHandler.CancelProforma))
+	mux.HandleFunc("/api/b2b/proformas/revision", protected(b2bHandler.CreateRevision))
+	mux.HandleFunc("/api/b2b/proformas/convert", protected(b2bHandler.ConvertToTaxInvoice))
+	mux.HandleFunc("/api/b2b/proformas/check-expiry", protected(b2bHandler.CheckExpiredProformas))
 }

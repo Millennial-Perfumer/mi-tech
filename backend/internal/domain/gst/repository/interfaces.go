@@ -43,6 +43,11 @@ type GSTRepository interface {
 	GetHSNSummary(startDate, endDate string) (results []HSNSummaryResult, err error)
 	GetShopifyDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
 	GetAmazonDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error)
+	GetB2BDocumentsIssued(startDate, endDate string) (minInvoice, maxInvoice *string, total, cancelled int, err error)
+	GetB2BCreditNotesIssued(startDate, endDate string) (minNote, maxNote *string, total, cancelled int, err error)
+	GetB2BDebitNotesIssued(startDate, endDate string) (minNote, maxNote *string, total, cancelled int, err error)
 	GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSRow, error)
 	GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow, error)
+	GetGSTR1B2B(startDate, endDate string) ([]dto.GSTR1B2B, error)
+	GetGSTR1CDNR(startDate, endDate string) ([]dto.GSTR1CDNR, error)
 }

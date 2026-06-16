@@ -24,20 +24,20 @@ func (r *gormGSTRepository) GetGSTSummary(startDate, endDate string) (GSTSummary
 
 	query := `
 		SELECT 
-			COUNT(o.id),
-			COUNT(o.id) FILTER (WHERE LOWER(o.status) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled')),
-			COUNT(o.id) FILTER (WHERE LOWER(o.fulfillment_status) = 'fulfilled'),
-			COUNT(o.id) FILTER (WHERE LOWER(COALESCE(o.fulfillment_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))),
-			COUNT(o.id) FILTER (WHERE LOWER(o.financial_status) = 'paid'),
-			COALESCE(SUM(o.total_price) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as revenue,
-			COALESCE(SUM(ROUND(o.total_price / 1.18, 2)) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as taxable,
-			COALESCE(SUM(o.total_price - ROUND(o.total_price / 1.18, 2)) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as tax,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (o.total_price - ROUND(o.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as cgst,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (o.total_price - ROUND(o.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as sgst,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (o.total_price - ROUND(o.total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst
-		FROM orders o
-		LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
-		WHERE o.created_at >= ? AND o.created_at <= ?
+			COUNT(t.transaction_id),
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled')),
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.fulfillment_status) = 'fulfilled'),
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(COALESCE(t.fulfillment_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))),
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) = 'paid'),
+			COALESCE(SUM(t.total_price) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as revenue,
+			COALESCE(SUM(ROUND(t.total_price / 1.18, 2)) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as taxable,
+			COALESCE(SUM(t.total_price - ROUND(t.total_price / 1.18, 2)) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as tax,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as cgst,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as sgst,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst
+		FROM unified_revenue_transactions t
+		LEFT JOIN gst_state_codes s ON LOWER(TRIM(t.state)) = ANY(s.aliases)
+		WHERE t.tx_date >= ? AND t.tx_date <= ?
 	`
 
 	var result GSTSummaryResult
@@ -60,14 +60,14 @@ func (r *gormGSTRepository) GetStateSummary(startDate, endDate string) ([]StateS
 
 	query := `
 		SELECT 
-			INITCAP(COALESCE(customer_state, 'N/A')) as state,
-			COUNT(id) as orders,
+			INITCAP(COALESCE(state, 'N/A')) as state,
+			COUNT(transaction_id) as orders,
 			COALESCE(SUM(ROUND(total_price / 1.18, 2)), 0) as taxable_value,
 			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as total_gst,
 			COALESCE(SUM(total_price), 0) as revenue
-		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
-		GROUP BY INITCAP(COALESCE(customer_state, 'N/A'))
+		FROM unified_revenue_transactions
+		WHERE tx_date >= ? AND tx_date <= ? AND LOWER(COALESCE(source_id, '')) NOT IN ('b2b') AND NOT (LOWER(COALESCE(order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
+		GROUP BY INITCAP(COALESCE(state, 'N/A'))
 		ORDER BY revenue DESC
 	`
 
@@ -97,7 +97,12 @@ func (r *gormGSTRepository) GetHSNSummary(startDate, endDate string) ([]HSNSumma
 				INITCAP(COALESCE(o.customer_state, 'N/A')) as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
-			WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
+			WHERE o.created_at >= ? AND o.created_at <= ?
+			  AND (
+			    (LOWER(COALESCE(o.source_id, '')) = 'b2b' AND LOWER(COALESCE(o.status, '')) = 'issued')
+			    OR 
+			    (LOWER(COALESCE(o.source_id, '')) != 'b2b' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled')))
+			  )
 		),
 		CalculatedShares AS (
 			SELECT
@@ -202,7 +207,7 @@ func (r *gormGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSR
 			COALESCE(SUM(o.total_price - ROUND(o.total_price / 1.18, 2)), 0) as total_gst
 		FROM orders o
 		LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
-		WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
+		WHERE o.created_at >= ? AND o.created_at <= ? AND COALESCE(o.source_id, '') != 'b2b' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
 		GROUP BY COALESCE(s.code, '33'), (o.source_id = 'amazon')
 	`
 
@@ -271,7 +276,12 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
 			LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
-			WHERE o.created_at >= ? AND o.created_at <= ? AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
+			WHERE o.created_at >= ? AND o.created_at <= ?
+			  AND (
+			    (LOWER(COALESCE(o.source_id, '')) = 'b2b' AND LOWER(COALESCE(o.status, '')) = 'issued')
+			    OR 
+			    (LOWER(COALESCE(o.source_id, '')) != 'b2b' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled')))
+			  )
 		),
 		CalculatedShares AS (
 			SELECT
@@ -340,6 +350,315 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 	}
 
 	return rows, nil
+}
+
+func (r *gormGSTRepository) GetGSTR1B2B(startDate, endDate string) ([]dto.GSTR1B2B, error) {
+	start, end := parseDateRange(startDate, endDate)
+
+	query := `
+		SELECT 
+			i.customer_gstin,
+			i.invoice_number,
+			i.invoice_date,
+			i.total_price,
+			i.customer_state_code,
+			COALESCE(SUM(ii.amount), 0) as taxable_value,
+			COALESCE(SUM(CASE WHEN i.seller_state_code = i.customer_state_code THEN ii.amount * 0.09 ELSE 0 END), 0) as cgst,
+			COALESCE(SUM(CASE WHEN i.seller_state_code = i.customer_state_code THEN ii.amount * 0.09 ELSE 0 END), 0) as sgst,
+			COALESCE(SUM(CASE WHEN i.seller_state_code != i.customer_state_code THEN ii.amount * 0.18 ELSE 0 END), 0) as igst
+		FROM b2b_invoices i
+		JOIN b2b_invoice_items ii ON i.id = ii.invoice_id
+		WHERE i.invoice_date >= ? AND i.invoice_date <= ? AND i.status = 'ISSUED'
+		GROUP BY i.customer_gstin, i.invoice_number, i.invoice_date, i.total_price, i.customer_state_code
+	`
+
+	type b2bQueryResult struct {
+		CustomerGSTIN     string    `gorm:"column:customer_gstin"`
+		InvoiceNumber     string    `gorm:"column:invoice_number"`
+		InvoiceDate       time.Time `gorm:"column:invoice_date"`
+		TotalPrice        float64   `gorm:"column:total_price"`
+		CustomerStateCode string    `gorm:"column:customer_state_code"`
+		TaxableValue      float64   `gorm:"column:taxable_value"`
+		CGST              float64   `gorm:"column:cgst"`
+		SGST              float64   `gorm:"column:sgst"`
+		IGST              float64   `gorm:"column:igst"`
+	}
+
+	var results []b2bQueryResult
+	if err := r.db.Raw(query, start.Format("2006-01-02"), end.Format("2006-01-02")).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	// Group by customer GSTIN
+	b2bMap := make(map[string]*dto.GSTR1B2B)
+	for _, res := range results {
+		gstin := res.CustomerGSTIN
+		if _, exists := b2bMap[gstin]; !exists {
+			b2bMap[gstin] = &dto.GSTR1B2B{
+				Ctin: gstin,
+				Inv:  []dto.GSTR1B2BInv{},
+			}
+		}
+
+		inv := dto.GSTR1B2BInv{
+			Inum:   res.InvoiceNumber,
+			Idt:    res.InvoiceDate.Format("02-01-2006"),
+			Val:    res.TotalPrice,
+			Pos:    res.CustomerStateCode,
+			Rchrg:  "N",
+			InvTyp: "R",
+			Itms: []dto.GSTR1TaxItem{
+				{
+					Num: 1,
+					ItmDet: dto.GSTR1TaxDetails{
+						Rt:    18.0,
+						TxVal: res.TaxableValue,
+						Iamt:  res.IGST,
+						Camt:  res.CGST,
+						Samt:  res.SGST,
+					},
+				},
+			},
+		}
+		b2bMap[gstin].Inv = append(b2bMap[gstin].Inv, inv)
+	}
+
+	var list []dto.GSTR1B2B
+	for _, v := range b2bMap {
+		list = append(list, *v)
+	}
+	return list, nil
+}
+
+func (r *gormGSTRepository) GetGSTR1CDNR(startDate, endDate string) ([]dto.GSTR1CDNR, error) {
+	start, end := parseDateRange(startDate, endDate)
+
+	query := `
+		SELECT 
+			customer_gstin,
+			note_number,
+			note_date,
+			invoice_number,
+			total_price,
+			customer_state_code,
+			note_type,
+			COALESCE(SUM(item_amount), 0) as taxable_value,
+			COALESCE(SUM(cgst), 0) as cgst,
+			COALESCE(SUM(sgst), 0) as sgst,
+			COALESCE(SUM(igst), 0) as igst
+		FROM (
+			SELECT 
+				c.customer_gstin,
+				c.credit_note_number as note_number,
+				c.note_date,
+				c.invoice_number,
+				c.total_price,
+				c.customer_state_code,
+				'C' as note_type,
+				ci.amount as item_amount,
+				CASE WHEN c.seller_state_code = c.customer_state_code THEN ci.amount * 0.09 ELSE 0 END as cgst,
+				CASE WHEN c.seller_state_code = c.customer_state_code THEN ci.amount * 0.09 ELSE 0 END as sgst,
+				CASE WHEN c.seller_state_code != c.customer_state_code THEN ci.amount * 0.18 ELSE 0 END as igst
+			FROM b2b_credit_notes c
+			JOIN b2b_credit_note_items ci ON c.id = ci.credit_note_id
+			WHERE c.note_date >= ? AND c.note_date <= ? AND c.status = 'ISSUED'
+			
+			UNION ALL
+			
+			SELECT 
+				d.customer_gstin,
+				d.debit_note_number as note_number,
+				d.note_date,
+				d.invoice_number,
+				d.total_price,
+				d.customer_state_code,
+				'D' as note_type,
+				di.amount as item_amount,
+				CASE WHEN d.seller_state_code = d.customer_state_code THEN di.amount * 0.09 ELSE 0 END as cgst,
+				CASE WHEN d.seller_state_code = d.customer_state_code THEN di.amount * 0.09 ELSE 0 END as sgst,
+				CASE WHEN d.seller_state_code != d.customer_state_code THEN di.amount * 0.18 ELSE 0 END as igst
+			FROM b2b_debit_notes d
+			JOIN b2b_debit_note_items di ON d.id = di.debit_note_id
+			WHERE d.note_date >= ? AND d.note_date <= ? AND d.status = 'ISSUED'
+		) combined
+		GROUP BY customer_gstin, note_number, note_date, invoice_number, total_price, customer_state_code, note_type
+	`
+
+	type cdnrQueryResult struct {
+		CustomerGSTIN     string    `gorm:"column:customer_gstin"`
+		NoteNumber        string    `gorm:"column:note_number"`
+		NoteDate          time.Time `gorm:"column:note_date"`
+		InvoiceNumber     string    `gorm:"column:invoice_number"`
+		TotalPrice        float64   `gorm:"column:total_price"`
+		CustomerStateCode string    `gorm:"column:customer_state_code"`
+		NoteType          string    `gorm:"column:note_type"`
+		TaxableValue      float64   `gorm:"column:taxable_value"`
+		CGST              float64   `gorm:"column:cgst"`
+		SGST              float64   `gorm:"column:sgst"`
+		IGST              float64   `gorm:"column:igst"`
+	}
+
+	var results []cdnrQueryResult
+	dtStr := start.Format("2006-01-02")
+	dtEndStr := end.Format("2006-01-02")
+	if err := r.db.Raw(query, dtStr, dtEndStr, dtStr, dtEndStr).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	cdnrMap := make(map[string]*dto.GSTR1CDNR)
+	for _, res := range results {
+		gstin := res.CustomerGSTIN
+		if _, exists := cdnrMap[gstin]; !exists {
+			cdnrMap[gstin] = &dto.GSTR1CDNR{
+				Ctin: gsinDeref(gstin),
+				Nt:   []dto.GSTR1CDNRNt{},
+			}
+		}
+
+		nt := dto.GSTR1CDNRNt{
+			Ntty:  res.NoteType,
+			NtNum: res.NoteNumber,
+			NtDt:  res.NoteDate.Format("02-01-2006"),
+			Inum:  res.InvoiceNumber,
+			Idt:   res.NoteDate.Format("02-01-2006"), // fallback same date
+			Val:   res.TotalPrice,
+			Pos:   res.CustomerStateCode,
+			Itms: []dto.GSTR1TaxItem{
+				{
+					Num: 1,
+					ItmDet: dto.GSTR1TaxDetails{
+						Rt:    18.0,
+						TxVal: res.TaxableValue,
+						Iamt:  res.IGST,
+						Camt:  res.CGST,
+						Samt:  res.SGST,
+					},
+				},
+			},
+		}
+		cdnrMap[gstin].Nt = append(cdnrMap[gstin].Nt, nt)
+	}
+
+	var list []dto.GSTR1CDNR
+	for _, v := range cdnrMap {
+		list = append(list, *v)
+	}
+	return list, nil
+}
+
+func gsinDeref(s string) string {
+	return s
+}
+
+func (r *gormGSTRepository) GetB2BDocumentsIssued(startDate, endDate string) (minInvoice, maxInvoice *string, total, cancelled int, err error) {
+	start, end := parseDateRange(startDate, endDate)
+
+	var minSeq, maxSeq sql.NullInt64
+	query := `
+		SELECT 
+			MIN(invoice_sequence) as min_val,
+			MAX(invoice_sequence) as max_val,
+			COUNT(id) as total,
+			COUNT(id) FILTER (WHERE status = 'CANCELLED') as cancelled
+		FROM b2b_invoices
+		WHERE invoice_date >= ? AND invoice_date <= ? AND status IN ('ISSUED', 'CANCELLED')
+	`
+	row := r.db.Raw(query, start, end).Row()
+	err = row.Scan(&minSeq, &maxSeq, &total, &cancelled)
+	if err != nil {
+		return
+	}
+
+	if minSeq.Valid {
+		var minNum string
+		if err := r.db.Table("b2b_invoices").
+			Where("invoice_date >= ? AND invoice_date <= ? AND invoice_sequence = ?", start, end, minSeq.Int64).
+			Pluck("invoice_number", &minNum).Error; err == nil && minNum != "" {
+			minInvoice = &minNum
+		}
+	}
+	if maxSeq.Valid {
+		var maxNum string
+		if err := r.db.Table("b2b_invoices").
+			Where("invoice_date >= ? AND invoice_date <= ? AND invoice_sequence = ?", start, end, maxSeq.Int64).
+			Pluck("invoice_number", &maxNum).Error; err == nil && maxNum != "" {
+			maxInvoice = &maxNum
+		}
+	}
+
+	return
+}
+
+func (r *gormGSTRepository) GetB2BCreditNotesIssued(startDate, endDate string) (minNote, maxNote *string, total, cancelled int, err error) {
+	start, end := parseDateRange(startDate, endDate)
+	var minSeq, maxSeq sql.NullInt64
+	query := `
+		SELECT 
+			MIN(credit_note_sequence) as min_val,
+			MAX(credit_note_sequence) as max_val,
+			COUNT(id) as total,
+			COUNT(id) FILTER (WHERE status = 'CANCELLED') as cancelled
+		FROM b2b_credit_notes
+		WHERE note_date >= ? AND note_date <= ? AND status IN ('ISSUED', 'CANCELLED')
+	`
+	row := r.db.Raw(query, start, end).Row()
+	err = row.Scan(&minSeq, &maxSeq, &total, &cancelled)
+	if err != nil {
+		return
+	}
+	if minSeq.Valid {
+		var minNum string
+		if err := r.db.Table("b2b_credit_notes").
+			Where("note_date >= ? AND note_date <= ? AND credit_note_sequence = ?", start, end, minSeq.Int64).
+			Pluck("credit_note_number", &minNum).Error; err == nil && minNum != "" {
+			minNote = &minNum
+		}
+	}
+	if maxSeq.Valid {
+		var maxNum string
+		if err := r.db.Table("b2b_credit_notes").
+			Where("note_date >= ? AND note_date <= ? AND credit_note_sequence = ?", start, end, maxSeq.Int64).
+			Pluck("credit_note_number", &maxNum).Error; err == nil && maxNum != "" {
+			maxNote = &maxNum
+		}
+	}
+	return
+}
+
+func (r *gormGSTRepository) GetB2BDebitNotesIssued(startDate, endDate string) (minNote, maxNote *string, total, cancelled int, err error) {
+	start, end := parseDateRange(startDate, endDate)
+	var minSeq, maxSeq sql.NullInt64
+	query := `
+		SELECT 
+			MIN(debit_note_sequence) as min_val,
+			MAX(debit_note_sequence) as max_val,
+			COUNT(id) as total,
+			COUNT(id) FILTER (WHERE status = 'CANCELLED') as cancelled
+		FROM b2b_debit_notes
+		WHERE note_date >= ? AND note_date <= ? AND status IN ('ISSUED', 'CANCELLED')
+	`
+	row := r.db.Raw(query, start, end).Row()
+	err = row.Scan(&minSeq, &maxSeq, &total, &cancelled)
+	if err != nil {
+		return
+	}
+	if minSeq.Valid {
+		var minNum string
+		if err := r.db.Table("b2b_debit_notes").
+			Where("note_date >= ? AND note_date <= ? AND debit_note_sequence = ?", start, end, minSeq.Int64).
+			Pluck("debit_note_number", &minNum).Error; err == nil && minNum != "" {
+			minNote = &minNum
+		}
+	}
+	if maxSeq.Valid {
+		var maxNum string
+		if err := r.db.Table("b2b_debit_notes").
+			Where("note_date >= ? AND note_date <= ? AND debit_note_sequence = ?", start, end, maxSeq.Int64).
+			Pluck("debit_note_number", &maxNum).Error; err == nil && maxNum != "" {
+			maxNote = &maxNum
+		}
+	}
+	return
 }
 
 func parseDateRange(startDate, endDate string) (time.Time, time.Time) {

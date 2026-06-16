@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -26,6 +28,7 @@ type B2BInvoice struct {
 	CustomerState     string  `gorm:"column:customer_state" json:"customer_state"`
 	CustomerStateCode string  `gorm:"column:customer_state_code" json:"customer_state_code"`
 	CustomerAddress   string  `gorm:"column:customer_address" json:"customer_address"`
+	CustomerShippingAddress string `gorm:"column:customer_shipping_address" json:"customer_shipping_address"`
 
 	// Seller details snapshot
 	SellerGSTIN     string `gorm:"column:seller_gstin" json:"seller_gstin"`
@@ -65,6 +68,9 @@ type B2BInvoice struct {
 	PaymentMethod *string    `gorm:"column:payment_method" json:"payment_method"`
 
 	CustomerNotes *string   `gorm:"column:customer_notes" json:"customer_notes"`
+	ProformaID    *int64    `gorm:"column:proforma_id" json:"proforma_id"`
+	AdvanceAdjusted float64 `gorm:"column:advance_adjusted" json:"advance_adjusted"`
+	InventoryDeducted bool `gorm:"column:inventory_deducted;default:false" json:"inventory_deducted"`
 	CreatedAt     time.Time `gorm:"column:created_at;default:NOW()" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"column:updated_at;default:NOW()" json:"updated_at"`
 
@@ -91,3 +97,70 @@ type B2BInvoiceItem struct {
 func (B2BInvoiceItem) TableName() string {
 	return "b2b_invoice_items"
 }
+
+// UnmarshalJSON customizes unmarshaling to support flexible date formats
+func (inv *B2BInvoice) UnmarshalJSON(data []byte) error {
+	type Alias B2BInvoice
+	aux := &struct {
+		InvoiceDate string  `json:"invoice_date"`
+		DueDate     *string `json:"due_date"`
+		PaymentDate *string `json:"payment_date"`
+		*Alias
+	}{
+		Alias: (*Alias)(inv),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Parse InvoiceDate
+	if aux.InvoiceDate != "" {
+		t, err := parseFlexDate(aux.InvoiceDate)
+		if err != nil {
+			return err
+		}
+		inv.InvoiceDate = t
+	}
+
+	// Parse DueDate
+	if aux.DueDate != nil && *aux.DueDate != "" {
+		t, err := parseFlexDate(*aux.DueDate)
+		if err != nil {
+			return err
+		}
+		inv.DueDate = &t
+	} else {
+		inv.DueDate = nil
+	}
+
+	// Parse PaymentDate
+	if aux.PaymentDate != nil && *aux.PaymentDate != "" {
+		t, err := parseFlexDate(*aux.PaymentDate)
+		if err != nil {
+			return err
+		}
+		inv.PaymentDate = &t
+	} else {
+		inv.PaymentDate = nil
+	}
+
+	return nil
+}
+
+func parseFlexDate(s string) (time.Time, error) {
+	// Try RFC3339
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	// Try standard ISO date
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t, nil
+	}
+	// Try with millisecond precision sometimes sent by JavaScript (e.g. 2006-01-02T15:04:05.000Z)
+	if t, err := time.Parse("2006-01-02T15:04:05.000Z", s); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("invalid date format: %q", s)
+}
+

@@ -2178,13 +2178,120 @@
                 }
             }
         },
+        "mi-tech_internal_domain_gst_dto.GSTR1B2B": {
+            "type": "object",
+            "properties": {
+                "ctin": {
+                    "type": "string"
+                },
+                "inv": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1B2BInv"
+                    }
+                }
+            }
+        },
+        "mi-tech_internal_domain_gst_dto.GSTR1B2BInv": {
+            "type": "object",
+            "properties": {
+                "etin": {
+                    "type": "string"
+                },
+                "idt": {
+                    "type": "string"
+                },
+                "inum": {
+                    "type": "string"
+                },
+                "inv_typ": {
+                    "description": "\"R\"",
+                    "type": "string"
+                },
+                "itms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1TaxItem"
+                    }
+                },
+                "pos": {
+                    "type": "string"
+                },
+                "rchrg": {
+                    "description": "\"N\"",
+                    "type": "string"
+                },
+                "val": {
+                    "type": "number"
+                }
+            }
+        },
+        "mi-tech_internal_domain_gst_dto.GSTR1CDNR": {
+            "type": "object",
+            "properties": {
+                "ctin": {
+                    "type": "string"
+                },
+                "nt": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1CDNRNt"
+                    }
+                }
+            }
+        },
+        "mi-tech_internal_domain_gst_dto.GSTR1CDNRNt": {
+            "type": "object",
+            "properties": {
+                "idt": {
+                    "type": "string"
+                },
+                "inum": {
+                    "type": "string"
+                },
+                "itms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1TaxItem"
+                    }
+                },
+                "nt_dt": {
+                    "type": "string"
+                },
+                "nt_num": {
+                    "type": "string"
+                },
+                "ntty": {
+                    "description": "\"C\" or \"D\"",
+                    "type": "string"
+                },
+                "pos": {
+                    "type": "string"
+                },
+                "val": {
+                    "type": "number"
+                }
+            }
+        },
         "mi-tech_internal_domain_gst_dto.GSTR1Payload": {
             "type": "object",
             "properties": {
+                "b2b": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1B2B"
+                    }
+                },
                 "b2cs": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.B2CSRow"
+                    }
+                },
+                "cdnr": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1CDNR"
                     }
                 },
                 "cur_gt": {
@@ -2210,6 +2317,37 @@
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "mi-tech_internal_domain_gst_dto.GSTR1TaxDetails": {
+            "type": "object",
+            "properties": {
+                "camt": {
+                    "type": "number"
+                },
+                "iamt": {
+                    "type": "number"
+                },
+                "rt": {
+                    "type": "number"
+                },
+                "samt": {
+                    "type": "number"
+                },
+                "txval": {
+                    "type": "number"
+                }
+            }
+        },
+        "mi-tech_internal_domain_gst_dto.GSTR1TaxItem": {
+            "type": "object",
+            "properties": {
+                "itm_det": {
+                    "$ref": "#/definitions/mi-tech_internal_domain_gst_dto.GSTR1TaxDetails"
+                },
+                "num": {
+                    "type": "integer"
                 }
             }
         },

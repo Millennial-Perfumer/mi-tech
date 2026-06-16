@@ -223,7 +223,7 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
-  const [appSettings, setAppSettings] = useState<Record<string, string>>({});
+  const [, setAppSettings] = useState<Record<string, string>>({});
   const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
 
   // Handle auto-redirection if a module is disabled via config
@@ -1088,7 +1088,8 @@ function App() {
               {[
                 { id: 'shopify', label: 'Shopify', color: '#96bf48' },
                 { id: 'amazon', label: 'Amazon', color: '#ff9900' },
-                { id: 'pos', label: 'POS', color: '#6366f1' }
+                { id: 'pos', label: 'POS', color: '#6366f1' },
+                { id: 'b2b', label: 'B2B', color: '#10b981' }
               ].map(ch => (
                 <button
                   key={ch.id}
@@ -1626,7 +1627,7 @@ function App() {
                       Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
                     </th>
                   )}
-                  {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp">WHATSAPP</th>}
+                  {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp no-print">WHATSAPP</th>}
                   {visibleColumns.includes('gst_invoice') && <th className="col-fixed-invoice">INVOICE</th>}
                   {visibleColumns.includes('feedback_status') && <th className="col-fixed-feedback">FEEDBACK</th>}
                 </tr>
@@ -1674,9 +1675,12 @@ function App() {
                         <td style={{ position: 'relative' }}>
                           <span 
                             className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : (order.financial_status === 'pending' ? 'warning' : 'yellow')}`}
-                            style={{ cursor: isUpdatingPaymentStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 }}
+                            style={{ 
+                              cursor: (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer', 
+                              opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 
+                            }}
                             onClick={(e) => {
-                              if (isUpdatingPaymentStatus) return;
+                              if (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') return;
                               e.stopPropagation();
                               setEditingPaymentStatusId(editingPaymentStatusId === order.id ? null : order.id);
                             }}
@@ -1684,7 +1688,7 @@ function App() {
                             <span className="dot"></span> {isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 'Updating...' : (order.financial_status?.toLowerCase().charAt(0).toUpperCase() + order.financial_status?.toLowerCase().slice(1) || 'Unknown')}
                           </span>
 
-                          {editingPaymentStatusId === order.id && (
+                          {editingPaymentStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
                             <div className="status-popover" onClick={e => e.stopPropagation()}>
                               <div className="status-popover-header">Update Payment</div>
                               <div 
@@ -1713,9 +1717,12 @@ function App() {
                         <td style={{ position: 'relative' }}>
                           <span 
                             className={`badge-pill badge-pill-${order.fulfillment_status?.toLowerCase() === 'fulfilled' ? 'gray' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'danger' : 'yellow')}`}
-                            style={{ cursor: isUpdatingStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 }}
+                            style={{ 
+                              cursor: (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer', 
+                              opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 
+                            }}
                             onClick={(e) => {
-                              if (isUpdatingStatus) return;
+                              if (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') return;
                               e.stopPropagation();
                               setEditingStatusId(editingStatusId === order.id ? null : order.id);
                             }}
@@ -1723,7 +1730,7 @@ function App() {
                              <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.toLowerCase().charAt(0).toUpperCase() + order.fulfillment_status?.toLowerCase().slice(1) || 'Unfulfilled'))}
                           </span>
 
-                          {editingStatusId === order.id && (
+                          {editingStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
                             <div className="status-popover" onClick={e => e.stopPropagation()}>
                               <div className="status-popover-header">Update Status</div>
                               <div 
@@ -1802,7 +1809,7 @@ function App() {
                         </td>
                       )}
                       {visibleColumns.includes('whatsapp') && (
-                        <td className="col-fixed-whatsapp">
+                        <td className="col-fixed-whatsapp no-print">
                           <div className="col-align-center">
                             {order.customer_phone ? (
                               <button 
@@ -1851,13 +1858,17 @@ function App() {
                       {visibleColumns.includes('gst_invoice') && (
                         <td className="col-fixed-invoice">
                           <div className="col-align-center">
-                            <button 
-                              onClick={() => handleDownloadInvoice(order.id, order.order_number)}
-                              className="btn-primary" 
-                              style={{fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none'}}
-                            >
-                              Invoice
-                            </button>
+                            {order.source_id?.toLowerCase() === 'b2b' ? (
+                              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
+                            ) : (
+                              <button 
+                                onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                                className="btn-primary" 
+                                style={{fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none'}}
+                              >
+                                Invoice
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}
@@ -1995,6 +2006,7 @@ function App() {
              <B2BBills 
                fetchWithAuth={fetchWithAuth} 
                userRole={userRole}
+               appConfigs={appConfigs}
              />
            )}
 
@@ -2055,7 +2067,6 @@ function App() {
           {activeTab === 'customers' && (
             <Customers 
               fetchWithAuth={fetchWithAuth} 
-              showClearButton={appSettings?.show_clear_customers_button === 'true'} 
               bulkSuffix={appConfigs?.bulk_template_suffix || '_marketing'}
               userRole={userRole}
             />

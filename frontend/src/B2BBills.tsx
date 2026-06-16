@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { API_BASE } from './api';
+import { useConfirm } from './ConfirmContext';
+import { useToast } from './ToastContext';
 
 const GST_STATE_MAP: Record<string, string> = {
 	"01": "Jammu and Kashmir",
@@ -79,6 +81,7 @@ function parseAddressString(addressStr: string) {
 interface B2BBillsProps {
 	fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 	userRole?: string;
+	appConfigs?: Record<string, string>;
 }
 
 interface B2BItem {
@@ -112,6 +115,7 @@ interface B2BInvoice {
 	customer_state: string;
 	customer_state_code: string;
 	customer_address: string;
+	customer_shipping_address?: string;
 	seller_gstin?: string;
 	seller_name?: string;
 	seller_state?: string;
@@ -132,6 +136,7 @@ interface B2BInvoice {
 	transportation_charge: number;
 	total_price: number;
 	status: string;
+	inventory_deducted?: boolean;
 	payment_status: string;
 	paid_amount: number;
 	balance_amount: number;
@@ -184,10 +189,13 @@ Shipping & Delivery: We aim to deliver orders promptly, but delays due to courie
 
 Intellectual Property: All branding, packaging, and product names are trademarks of Millennial Perfumer™ and may not be reproduced without permission.`;
 
-export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
+export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: B2BBillsProps) {
+	const { confirm: customConfirm } = useConfirm();
+	const { success: toastSuccess, error: toastError } = useToast();
+
 	// Navigation State
-	const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'customers'>('invoices');
-	const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit' | 'preview'>('list');
+	const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'proformas' | 'credit-notes' | 'debit-notes' | 'customers' | 'outstanding' | 'locks'>('invoices');
+	const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit' | 'preview' | 'create-cn' | 'edit-cn' | 'preview-cn' | 'create-dn' | 'edit-dn' | 'preview-dn' | 'list-pf' | 'create-pf' | 'edit-pf' | 'preview-pf'>('list');
 
 	// Inventory products state
 	const [inventoryProducts, setInventoryProducts] = useState<B2BInventoryItem[]>([]);
@@ -197,6 +205,47 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 	const [invoiceSearch, setInvoiceSearch] = useState('');
 	const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('');
 	const [selectedInvoice, setSelectedInvoice] = useState<B2BInvoice | null>(null);
+
+	// Proformas List state
+	const [proformas, setProformas] = useState<any[]>([]);
+	const [proformaSearch, setProformaSearch] = useState('');
+	const [proformaStatusFilter, setProformaStatusFilter] = useState('');
+	const [selectedProforma, setSelectedProforma] = useState<any | null>(null);
+	const [, setNextProformaNumber] = useState<string>('');
+
+	// Creator / Editor Form State for Proforma
+	const [formProforma, setFormProforma] = useState<any>({
+		note_date: new Date().toISOString().split('T')[0],
+		valid_until: '',
+		customer_gstin: '',
+		customer_name: '',
+		customer_state: '',
+		customer_state_code: '',
+		customer_address: '',
+		customer_shipping_address: '',
+		subtotal_price: 0,
+		discount_percent: 0,
+		discount_amount: 0,
+		cgst_rate: 0,
+		cgst_amount: 0,
+		sgst_rate: 0,
+		sgst_amount: 0,
+		igst_rate: 0,
+		igst_amount: 0,
+		total_price: 0,
+		advance_paid: 0,
+		status: 'DRAFT',
+		revision_number: 1,
+		items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+	});
+
+	// Credit & Debit Notes lists & search
+	const [creditNotes, setCreditNotes] = useState<any[]>([]);
+	const [debitNotes, setDebitNotes] = useState<any[]>([]);
+	const [creditSearch, setCreditSearch] = useState('');
+	const [debitSearch, setDebitSearch] = useState('');
+	const [selectedCreditNote, setSelectedCreditNote] = useState<any | null>(null);
+	const [selectedDebitNote, setSelectedDebitNote] = useState<any | null>(null);
 
 	// Customers List state
 	const [customers, setCustomers] = useState<B2BCustomer[]>([]);
@@ -219,6 +268,69 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 	const [showPaymentTermModal, setShowPaymentTermModal] = useState(false);
 	const [newTermName, setNewTermName] = useState('');
 	const [newTermDays, setNewTermDays] = useState(0);
+
+	// Customer Ledger details modal state
+	const [ledgerCustomer, setLedgerCustomer] = useState<B2BCustomer | null>(null);
+	const [ledgerData, setLedgerData] = useState<any | null>(null);
+	const [showLedgerModal, setShowLedgerModal] = useState(false);
+
+	// Outstanding Aging Report state
+	const [outstandingReport, setOutstandingReport] = useState<any[]>([]);
+
+	// GST locks/periods state
+	const [gstPeriods, setGstPeriods] = useState<any[]>([]);
+
+	// Credit & Debit Note Form States
+	const [formCreditNote, setFormCreditNote] = useState<any>({
+		note_date: new Date().toISOString().split('T')[0],
+		customer_gstin: '',
+		customer_name: '',
+		customer_state: '',
+		customer_state_code: '',
+		customer_address: '',
+		subtotal_price: 0,
+		discount_percent: 0,
+		discount_amount: 0,
+		cgst_rate: 0,
+		cgst_amount: 0,
+		sgst_rate: 0,
+		sgst_amount: 0,
+		igst_rate: 0,
+		igst_amount: 0,
+		total_price: 0,
+		status: 'DRAFT',
+		reason: '',
+		invoice_id: undefined,
+		items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+	});
+
+	const [formDebitNote, setFormDebitNote] = useState<any>({
+		note_date: new Date().toISOString().split('T')[0],
+		customer_gstin: '',
+		customer_name: '',
+		customer_state: '',
+		customer_state_code: '',
+		customer_address: '',
+		subtotal_price: 0,
+		discount_percent: 0,
+		discount_amount: 0,
+		cgst_rate: 0,
+		cgst_amount: 0,
+		sgst_rate: 0,
+		sgst_amount: 0,
+		igst_rate: 0,
+		igst_amount: 0,
+		total_price: 0,
+		status: 'DRAFT',
+		reason: '',
+		invoice_id: undefined,
+		items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+	});
+
+	const validateGSTINFormat = (gstin: string) => {
+		const regex = /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/;
+		return regex.test(gstin);
+	};
 
 	useEffect(() => {
 		if (editingCustomer) {
@@ -258,6 +370,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 		customer_state: '',
 		customer_state_code: '',
 		customer_address: '',
+		customer_shipping_address: '',
 		subtotal_price: 0,
 		discount_percent: 0,
 		discount_amount: 0,
@@ -280,12 +393,20 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 		items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
 	});
 
+	const [isEditingBilling, setIsEditingBilling] = useState(false);
+	const [isEditingShipping, setIsEditingShipping] = useState(false);
+
 	// Load Data
 	useEffect(() => {
 		loadInvoices();
+		loadProformas();
 		loadCustomers();
 		loadInventoryProducts();
 		loadPaymentTerms();
+		loadCreditNotes();
+		loadDebitNotes();
+		loadOutstandingReport();
+		loadGSTPeriods();
 	}, []);
 
 	const loadInvoices = async () => {
@@ -298,6 +419,225 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 		} catch (err) {
 			console.error('Failed to load invoices:', err);
 		}
+	};
+
+	const loadProformas = async () => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas`);
+			if (res.ok) {
+				const data = await res.json();
+				setProformas(data || []);
+			}
+		} catch (err) {
+			console.error('Failed to load proformas:', err);
+		}
+	};
+
+	const fetchNextProformaNumber = async (date?: string) => {
+		try {
+			const d = date || new Date().toISOString().split('T')[0];
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/next-number?date=${d}`);
+			if (res.ok) {
+				const data = await res.json();
+				setNextProformaNumber(data.next_proforma_number || '');
+			}
+		} catch (err) {
+			console.error('Failed to fetch next proforma number:', err);
+		}
+	};
+
+	const handleSaveProforma = async (asDraft: boolean) => {
+		if (formProforma.customer_gstin && !validateGSTINFormat(formProforma.customer_gstin)) {
+			alert('Warning: Customer GSTIN format is invalid. Standard format: 22AAAAA1111A1Z1');
+			return;
+		}
+		try {
+			const pf = { ...formProforma } as any;
+			if (pf.note_date) {
+				pf.note_date = new Date(pf.note_date).toISOString();
+			}
+			if (pf.valid_until) {
+				pf.valid_until = new Date(pf.valid_until).toISOString();
+			} else {
+				delete pf.valid_until;
+			}
+			const method = pf.id ? 'PUT' : 'POST';
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas`, {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(pf)
+			});
+			if (res.ok) {
+				const savedPf = await res.json();
+				if (!asDraft) {
+					const issueRes = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/issue?id=${savedPf.id}`, {
+						method: 'POST'
+					});
+					if (!issueRes.ok) {
+						const text = await issueRes.text();
+						alert('Saved as draft, but activation failed: ' + text);
+					}
+				}
+				setViewMode('list');
+				loadProformas();
+			} else {
+				const text = await res.text();
+				alert(text || 'Failed to save proforma');
+			}
+		} catch (err) {
+			console.error(err);
+			alert('Network error saving proforma');
+		}
+	};
+
+	const handleDeleteProforma = async (id: number) => {
+		if (!confirm('Are you sure you want to delete this draft proforma?')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas?id=${id}`, {
+				method: 'DELETE'
+			});
+			if (res.ok) {
+				loadProformas();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleIssueProforma = async (id: number) => {
+		if (!confirm('Are you sure you want to issue this proforma invoice? This locks modifications and generates the sequential number.')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/issue?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadProformas();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleAcceptProforma = async (id: number) => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/accept?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadProformas();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleRejectProforma = async (id: number) => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/reject?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadProformas();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleCancelProforma = async (id: number) => {
+		if (!confirm('Are you sure you want to cancel this proforma?')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/cancel?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadProformas();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleCreateRevision = async (id: number) => {
+		if (!confirm('Are you sure you want to create a new revision of this proforma?')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/revision?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				const newPf = await res.json();
+				alert('Revision draft created successfully.');
+				loadProformas();
+				setFormProforma(newPf);
+				setViewMode('edit-pf');
+				fetchNextProformaNumber(newPf.note_date);
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleConvertToTaxInvoice = async (id: number) => {
+		if (!confirm('Are you sure you want to convert this proforma into a Tax Invoice? This will create a draft tax invoice and mark the proforma as converted.')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/convert?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				alert('Successfully converted to draft Tax Invoice.');
+				loadProformas();
+				loadInvoices();
+				setActiveSubTab('invoices');
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleCheckExpiredProformas = async () => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/check-expiry`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.expired_count > 0) {
+					alert(`Checked and marked ${data.expired_count} proforma(s) as expired.`);
+					loadProformas();
+				} else {
+					alert('No proformas found that have expired.');
+				}
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const getProductStock = (productId?: number) => {
+		if (!productId) return null;
+		const prod = inventoryProducts.find(p => p.id === productId);
+		return prod ? prod.current_stock : null;
 	};
 
 	const loadInventoryProducts = async () => {
@@ -321,6 +661,85 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 			}
 		} catch (err) {
 			console.error('Failed to load customers:', err);
+		}
+	};
+
+	const loadCreditNotes = async () => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes`);
+			if (res.ok) {
+				const data = await res.json();
+				setCreditNotes(data || []);
+			}
+		} catch (err) {
+			console.error('Failed to load credit notes:', err);
+		}
+	};
+
+	const loadDebitNotes = async () => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes`);
+			if (res.ok) {
+				const data = await res.json();
+				setDebitNotes(data || []);
+			}
+		} catch (err) {
+			console.error('Failed to load debit notes:', err);
+		}
+	};
+
+	const loadOutstandingReport = async () => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/customers/outstanding`);
+			if (res.ok) {
+				const data = await res.json();
+				setOutstandingReport(data || []);
+			}
+		} catch (err) {
+			console.error('Failed to load outstanding report:', err);
+		}
+	};
+
+	const loadGSTPeriods = async () => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/gst-periods`);
+			if (res.ok) {
+				const data = await res.json();
+				setGstPeriods(data || []);
+			}
+		} catch (err) {
+			console.error('Failed to load GST periods:', err);
+		}
+	};
+
+	const loadCustomerLedger = async (customerId: number) => {
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/customers/ledger?customer_id=${customerId}`);
+			if (res.ok) {
+				const data = await res.json();
+				setLedgerData(data);
+			}
+		} catch (err) {
+			console.error('Failed to load customer ledger:', err);
+		}
+	};
+
+	const toggleGSTPeriod = async (month: number, year: number, currentStatus: string) => {
+		try {
+			const newStatus = currentStatus === 'LOCKED' ? 'OPEN' : 'LOCKED';
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/gst-periods`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ month, year, status: newStatus })
+			});
+			if (res.ok) {
+				loadGSTPeriods();
+			} else {
+				const text = await res.text();
+				alert(text || 'Failed to toggle lock status');
+			}
+		} catch (err) {
+			console.error(err);
 		}
 	};
 
@@ -422,6 +841,10 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 	// Save customer
 	const handleSaveCustomer = async (cust: B2BCustomer) => {
+		if (cust.gstin && !validateGSTINFormat(cust.gstin)) {
+			alert('Warning: Customer GSTIN format is invalid. Standard format: 22AAAAA1111A1Z1');
+			return;
+		}
 		try {
 			const finalCust = { ...cust };
 
@@ -483,8 +906,32 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 	// Save B2B Invoice (Draft / Active)
 	const handleSaveInvoice = async (asDraft: boolean) => {
+		if (formInvoice.customer_gstin && !validateGSTINFormat(formInvoice.customer_gstin)) {
+			alert('Warning: Customer GSTIN format is invalid. Standard format: 22AAAAA1111A1Z1');
+			return;
+		}
 		try {
-			const inv = { ...formInvoice };
+			const inv = { ...formInvoice } as any;
+			if (inv.invoice_date) {
+				inv.invoice_date = new Date(inv.invoice_date).toISOString();
+			}
+			if (inv.due_date) {
+				inv.due_date = new Date(inv.due_date).toISOString();
+			} else {
+				delete inv.due_date;
+			}
+			if (inv.payment_date) {
+				inv.payment_date = new Date(inv.payment_date).toISOString();
+			} else {
+				delete inv.payment_date;
+			}
+			
+			// Remove other potentially empty fields
+			if (inv.order_number === '') delete inv.order_number;
+			if (inv.terms === '') delete inv.terms;
+			if (inv.salesperson === '') delete inv.salesperson;
+			if (inv.subject === '') delete inv.subject;
+
 			const method = inv.id ? 'PUT' : 'POST';
 
 			// Save Invoice first
@@ -520,57 +967,163 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 		}
 	};
 
-	// Delete Draft Invoice
+	// Delete Invoice
 	const handleDeleteInvoice = async (id: number) => {
-		if (!confirm('Are you sure you want to delete this draft invoice?')) return;
+		const inv = invoices.find(i => i.id === id);
+		const isDraft = inv?.status === 'DRAFT';
+		const confirmMsg = isDraft
+			? 'Are you sure you want to delete this draft invoice?'
+			: `WARNING: Deleting an active or cancelled invoice (${inv?.invoice_number || 'ID: ' + id}) can impact tax reports and calculations. Are you sure you want to permanently delete this invoice?`;
+
+		const confirmDelete = await customConfirm({
+			title: isDraft ? 'Delete Draft Invoice' : 'Delete Active/Cancelled Invoice',
+			message: confirmMsg,
+			confirmLabel: 'Delete',
+			cancelLabel: 'Cancel',
+			variant: 'danger'
+		});
+
+		if (!confirmDelete) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/invoices?id=${id}`, {
 				method: 'DELETE'
 			});
 			if (res.ok) {
+				toastSuccess('Invoice deleted successfully');
 				loadInvoices();
 			} else {
 				const text = await res.text();
-				alert(text);
+				toastError(text || 'Failed to delete invoice');
 			}
 		} catch (err) {
 			console.error(err);
+			toastError('Network error deleting invoice');
 		}
 	};
 
 	// Issue Draft Invoice
 	const handleIssueInvoice = async (id: number) => {
-		if (!confirm('Are you sure you want to activate/issue this invoice? This locks modifications and generates the sequential B2B invoice number.')) return;
+		const confirmIssue = await customConfirm({
+			title: 'Issue / Activate Invoice',
+			message: 'Are you sure you want to activate/issue this invoice? This locks modifications and generates the sequential B2B invoice number.',
+			confirmLabel: 'Issue Invoice',
+			cancelLabel: 'Cancel',
+			variant: 'primary'
+		});
+
+		if (!confirmIssue) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/invoices/issue?id=${id}`, {
 				method: 'POST'
 			});
 			if (res.ok) {
+				toastSuccess('Invoice issued successfully');
 				loadInvoices();
 			} else {
 				const text = await res.text();
-				alert(text);
+				toastError(text || 'Failed to issue invoice');
 			}
 		} catch (err) {
 			console.error(err);
+			toastError('Network error issuing invoice');
 		}
 	};
 
 	// Cancel issued invoice
 	const handleCancelInvoice = async (id: number) => {
-		if (!confirm('Are you sure you want to CANCEL this issued invoice? This removes it from active revenue and tax summaries historically.')) return;
+		const confirmCancel = await customConfirm({
+			title: 'Cancel Issued Invoice',
+			message: 'Are you sure you want to CANCEL this issued invoice? This removes it from active revenue and tax summaries historically.',
+			confirmLabel: 'Cancel Invoice',
+			cancelLabel: 'Keep Active',
+			variant: 'danger'
+		});
+
+		if (!confirmCancel) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/invoices/cancel?id=${id}`, {
 				method: 'POST'
 			});
 			if (res.ok) {
+				toastSuccess('Invoice cancelled successfully');
 				loadInvoices();
 			} else {
 				const text = await res.text();
-				alert(text);
+				toastError(text || 'Failed to cancel invoice');
 			}
 		} catch (err) {
 			console.error(err);
+			toastError('Network error cancelling invoice');
+		}
+	};
+
+	// Deduct inventory for issued invoice
+	const handleDeductInventory = async (id: number) => {
+		const confirmDeduct = await customConfirm({
+			title: 'Deduct Physical Stock',
+			message: 'Are you sure you want to deduct physical stock for this invoice? This will decrease warehouse quantities for all items in this invoice.',
+			confirmLabel: 'Deduct Stock',
+			cancelLabel: 'Cancel',
+			variant: 'primary'
+		});
+
+		if (!confirmDeduct) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/invoices/deduct-inventory?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				toastSuccess('Inventory deducted successfully!');
+				loadInvoices();
+				// Also update the selected invoice preview state if open
+				setSelectedInvoice(prev => {
+					if (prev && prev.id === id) {
+						return { ...prev, inventory_deducted: true };
+					}
+					return prev;
+				});
+			} else {
+				const text = await res.text();
+				toastError(text || 'Failed to deduct inventory');
+			}
+		} catch (err) {
+			console.error(err);
+			toastError('Failed to deduct inventory');
+		}
+	};
+
+	// Revert inventory deduction for issued invoice
+	const handleRevertInventory = async (id: number) => {
+		const confirmRevert = await customConfirm({
+			title: 'Revert Stock Deduction',
+			message: 'Are you sure you want to REVERT the stock deduction for this invoice? This will add back the quantities to the warehouse for all items.',
+			confirmLabel: 'Revert Stock',
+			cancelLabel: 'Cancel',
+			variant: 'danger'
+		});
+
+		if (!confirmRevert) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/invoices/revert-inventory?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				toastSuccess('Stock reverted successfully!');
+				loadInvoices();
+				// Also update the selected invoice preview state if open
+				setSelectedInvoice(prev => {
+					if (prev && prev.id === id) {
+						return { ...prev, inventory_deducted: false };
+					}
+					return prev;
+				});
+			} else {
+				const text = await res.text();
+				toastError(text || 'Failed to revert stock');
+			}
+		} catch (err) {
+			console.error(err);
+			toastError('Failed to revert stock');
 		}
 	};
 
@@ -590,6 +1143,194 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 			if (res.ok) {
 				setShowPaymentModal(false);
 				setPaymentInvoice(null);
+				loadInvoices();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	// Credit Note CRUD Actions
+	const handleSaveCreditNote = async (asDraft: boolean) => {
+		if (formCreditNote.customer_gstin && !validateGSTINFormat(formCreditNote.customer_gstin)) {
+			alert('Warning: Customer GSTIN format is invalid. Standard format: 22AAAAA1111A1Z1');
+			return;
+		}
+		try {
+			const cn = { ...formCreditNote };
+			const method = cn.id ? 'PUT' : 'POST';
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes`, {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					...cn,
+					note_date: new Date(cn.note_date).toISOString()
+				})
+			});
+			if (res.ok) {
+				const savedNote = await res.json();
+				if (!asDraft) {
+					const issueRes = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes/issue?id=${savedNote.id}`, {
+						method: 'POST'
+					});
+					if (!issueRes.ok) {
+						const text = await issueRes.text();
+						alert('Saved as draft, but activation failed: ' + text);
+					}
+				}
+				setViewMode('list');
+				loadCreditNotes();
+				loadInvoices();
+			} else {
+				const text = await res.text();
+				alert(text || 'Failed to save credit note');
+			}
+		} catch (err) {
+			console.error(err);
+			alert('Network error saving credit note');
+		}
+	};
+
+	const handleDeleteCreditNote = async (id: number) => {
+		if (!confirm('Are you sure you want to delete this credit note?')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes?id=${id}`, {
+				method: 'DELETE'
+			});
+			if (res.ok) {
+				loadCreditNotes();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleIssueCreditNote = async (id: number) => {
+		if (!confirm('Are you sure you want to issue this credit note? This will post it and adjust the linked invoice outstanding balance.')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes/issue?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadCreditNotes();
+				loadInvoices();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleCancelCreditNote = async (id: number) => {
+		if (!confirm('Are you sure you want to cancel this credit note? This will restore the outstanding balance of the linked invoice.')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes/cancel?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadCreditNotes();
+				loadInvoices();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	// Debit Note CRUD Actions
+	const handleSaveDebitNote = async (asDraft: boolean) => {
+		if (formDebitNote.customer_gstin && !validateGSTINFormat(formDebitNote.customer_gstin)) {
+			alert('Warning: Customer GSTIN format is invalid. Standard format: 22AAAAA1111A1Z1');
+			return;
+		}
+		try {
+			const dn = { ...formDebitNote };
+			const method = dn.id ? 'PUT' : 'POST';
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes`, {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					...dn,
+					note_date: new Date(dn.note_date).toISOString()
+				})
+			});
+			if (res.ok) {
+				const savedNote = await res.json();
+				if (!asDraft) {
+					const issueRes = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes/issue?id=${savedNote.id}`, {
+						method: 'POST'
+					});
+					if (!issueRes.ok) {
+						const text = await issueRes.text();
+						alert('Saved as draft, but activation failed: ' + text);
+					}
+				}
+				setViewMode('list');
+				loadDebitNotes();
+				loadInvoices();
+			} else {
+				const text = await res.text();
+				alert(text || 'Failed to save debit note');
+			}
+		} catch (err) {
+			console.error(err);
+			alert('Network error saving debit note');
+		}
+	};
+
+	const handleDeleteDebitNote = async (id: number) => {
+		if (!confirm('Are you sure you want to delete this debit note?')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes?id=${id}`, {
+				method: 'DELETE'
+			});
+			if (res.ok) {
+				loadDebitNotes();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleIssueDebitNote = async (id: number) => {
+		if (!confirm('Are you sure you want to issue this debit note? This will post it and adjust the linked invoice outstanding balance.')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes/issue?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadDebitNotes();
+				loadInvoices();
+			} else {
+				const text = await res.text();
+				alert(text);
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	};
+
+	const handleCancelDebitNote = async (id: number) => {
+		if (!confirm('Are you sure you want to cancel this debit note? This will reduce the outstanding balance of the linked invoice.')) return;
+		try {
+			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes/cancel?id=${id}`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				loadDebitNotes();
 				loadInvoices();
 			} else {
 				const text = await res.text();
@@ -668,6 +1409,139 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 		setFormInvoice({ ...updatedInvoice });
 	};
 
+	const recalculateProformaTotals = (updatedPf: any) => {
+		let subtotal = 0;
+		updatedPf.items.forEach((item: any) => {
+			item.amount = (item.quantity || 0) * (item.rate || 0);
+			subtotal += item.amount;
+		});
+		updatedPf.subtotal_price = subtotal;
+
+		if (updatedPf.discount_percent > 0) {
+			updatedPf.discount_amount = (subtotal * updatedPf.discount_percent) / 100;
+		} else {
+			updatedPf.discount_amount = 0;
+		}
+
+		const taxable = subtotal - updatedPf.discount_amount;
+		const discountRatio = subtotal > 0 ? taxable / subtotal : 1;
+
+		updatedPf.cgst_rate = 0;
+		updatedPf.cgst_amount = 0;
+		updatedPf.sgst_rate = 0;
+		updatedPf.sgst_amount = 0;
+		updatedPf.igst_rate = 0;
+		updatedPf.igst_amount = 0;
+
+		const isSameState = updatedPf.customer_state_code === '33';
+
+		updatedPf.items.forEach((item: any) => {
+			const itemSubtotal = (item.quantity || 0) * (item.rate || 0);
+			const itemTaxable = itemSubtotal * discountRatio;
+			const itemGstRate = item.gst_rate !== undefined ? item.gst_rate : 18;
+
+			if (isSameState) {
+				const cgstRate = itemGstRate / 2;
+				const sgstRate = itemGstRate / 2;
+				updatedPf.cgst_amount += (itemTaxable * cgstRate) / 100;
+				updatedPf.sgst_amount += (itemTaxable * sgstRate) / 100;
+				updatedPf.cgst_rate = cgstRate;
+				updatedPf.sgst_rate = sgstRate;
+			} else {
+				const igstRate = itemGstRate;
+				updatedPf.igst_amount += (itemTaxable * igstRate) / 100;
+				updatedPf.igst_rate = igstRate;
+			}
+		});
+
+		const totalTax = updatedPf.cgst_amount + updatedPf.sgst_amount + updatedPf.igst_amount;
+		updatedPf.total_price = taxable + totalTax;
+
+		setFormProforma({ ...updatedPf });
+	};
+
+	const recalculateCreditNoteTotals = (updatedNote: any) => {
+		let subtotal = 0;
+		updatedNote.items.forEach((item: any) => {
+			item.amount = (item.quantity || 0) * (item.rate || 0);
+			subtotal += item.amount;
+		});
+		updatedNote.subtotal_price = subtotal;
+
+		if (updatedNote.discount_percent > 0) {
+			updatedNote.discount_amount = (subtotal * updatedNote.discount_percent) / 100;
+		} else {
+			updatedNote.discount_amount = 0;
+		}
+
+		const taxable = subtotal - updatedNote.discount_amount;
+
+		// Reset tax values
+		updatedNote.cgst_rate = 0;
+		updatedNote.cgst_amount = 0;
+		updatedNote.sgst_rate = 0;
+		updatedNote.sgst_amount = 0;
+		updatedNote.igst_rate = 0;
+		updatedNote.igst_amount = 0;
+
+		const isSameState = updatedNote.customer_state_code === '33';
+		const defaultTaxRate = 18;
+
+		if (isSameState) {
+			updatedNote.cgst_rate = defaultTaxRate / 2;
+			updatedNote.sgst_rate = defaultTaxRate / 2;
+			updatedNote.cgst_amount = (taxable * updatedNote.cgst_rate) / 100;
+			updatedNote.sgst_amount = (taxable * updatedNote.sgst_rate) / 100;
+		} else {
+			updatedNote.igst_rate = defaultTaxRate;
+			updatedNote.igst_amount = (taxable * updatedNote.igst_rate) / 100;
+		}
+
+		updatedNote.total_price = taxable + updatedNote.cgst_amount + updatedNote.sgst_amount + updatedNote.igst_amount;
+		setFormCreditNote({ ...updatedNote });
+	};
+
+	const recalculateDebitNoteTotals = (updatedNote: any) => {
+		let subtotal = 0;
+		updatedNote.items.forEach((item: any) => {
+			item.amount = (item.quantity || 0) * (item.rate || 0);
+			subtotal += item.amount;
+		});
+		updatedNote.subtotal_price = subtotal;
+
+		if (updatedNote.discount_percent > 0) {
+			updatedNote.discount_amount = (subtotal * updatedNote.discount_percent) / 100;
+		} else {
+			updatedNote.discount_amount = 0;
+		}
+
+		const taxable = subtotal - updatedNote.discount_amount;
+
+		// Reset tax values
+		updatedNote.cgst_rate = 0;
+		updatedNote.cgst_amount = 0;
+		updatedNote.sgst_rate = 0;
+		updatedNote.sgst_amount = 0;
+		updatedNote.igst_rate = 0;
+		updatedNote.igst_amount = 0;
+
+		const isSameState = updatedNote.customer_state_code === '33';
+		const defaultTaxRate = 18;
+
+		if (isSameState) {
+			updatedNote.cgst_rate = defaultTaxRate / 2;
+			updatedNote.sgst_rate = defaultTaxRate / 2;
+			updatedNote.cgst_amount = (taxable * updatedNote.cgst_rate) / 100;
+			updatedNote.sgst_amount = (taxable * updatedNote.sgst_rate) / 100;
+		} else {
+			updatedNote.igst_rate = defaultTaxRate;
+			updatedNote.igst_amount = (taxable * updatedNote.igst_rate) / 100;
+		}
+
+		updatedNote.total_price = taxable + updatedNote.cgst_amount + updatedNote.sgst_amount + updatedNote.igst_amount;
+		setFormDebitNote({ ...updatedNote });
+	};
+
 	const triggerPrint = () => {
 		window.print();
 	};
@@ -685,23 +1559,41 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 				{/* Premium Layout Styles */}
 				<style>{`
 				@media print {
-					body * {
-						visibility: hidden;
+					:root, [data-theme="dark"], [data-theme="light"] {
+						--text-primary: #000000 !important;
+						--text-secondary: #333333 !important;
+						--text-tertiary: #555555 !important;
+						--border-color: #dddddd !important;
+						--surface-color: #ffffff !important;
+						--bg-color: #ffffff !important;
+						--accent-color: #0d9488 !important;
 					}
-					.print-invoice-area, .print-invoice-area * {
-						visibility: visible;
+					.sidebar, .page-header, .no-print, button, .theme-toggle, .user-profile-menu {
+						display: none !important;
+					}
+					html, body, #root, .app-container, .main-content, .b2b-billing-container {
+						display: block !important;
+						position: static !important;
+						width: 100% !important;
+						height: auto !important;
+						min-height: auto !important;
+						overflow: visible !important;
+						margin: 0 !important;
+						padding: 0 !important;
+						background: white !important;
+						color: black !important;
 					}
 					.print-invoice-area {
-						position: absolute;
-						left: 0;
-						top: 0;
-						width: 100%;
+						display: block !important;
+						position: relative !important;
+						width: 100% !important;
+						height: auto !important;
 						background: white !important;
 						color: black !important;
 						padding: 40px !important;
-					}
-					.no-print {
-						display: none !important;
+						margin: 0 !important;
+						box-shadow: none !important;
+						border: none !important;
 					}
 				}
 				.b2b-billing-container {
@@ -725,7 +1617,37 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 				}
 				.b2b-input::placeholder {
 					color: var(--text-tertiary) !important;
-					opacity: 0.8;
+				}
+				.b2b-tooltip {
+					position: relative;
+					pointer-events: auto;
+				}
+				.b2b-tooltip::after {
+					content: attr(data-tooltip);
+					position: absolute;
+					bottom: 125%;
+					left: 50%;
+					transform: translateX(-50%) translateY(4px);
+					background: var(--bg-card, #0f172a);
+					color: var(--text-primary, #f8fafc);
+					padding: 6px 10px;
+					border-radius: 6px;
+					font-size: 11px;
+					font-weight: 600;
+					white-space: nowrap;
+					opacity: 0;
+					pointer-events: none;
+					transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+					box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+					border: 1px solid var(--border-color, #334155);
+					z-index: 99999;
+				}
+				.b2b-tooltip:hover::after {
+					opacity: 1;
+					transform: translateX(-50%) translateY(0);
+				}
+				.b2b-tooltip svg {
+					pointer-events: none;
 				}
 				.b2b-btn {
 					padding: 0.65rem 1.2rem;
@@ -1081,9 +2003,14 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 				{/* Sub Tabs */}
 				{viewMode === 'list' && (
-					<div className="sub-tabs-container no-print" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+					<div className="sub-tabs-container no-print" style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
 						<button className={`b2b-subtab-btn ${activeSubTab === 'invoices' ? 'active' : ''}`} onClick={() => setActiveSubTab('invoices')}>Invoices</button>
+						<button className={`b2b-subtab-btn ${activeSubTab === 'proformas' ? 'active' : ''}`} onClick={() => { setActiveSubTab('proformas'); setViewMode('list'); }}>Proforma Invoices</button>
+						<button className={`b2b-subtab-btn ${activeSubTab === 'credit-notes' ? 'active' : ''}`} onClick={() => setActiveSubTab('credit-notes')}>Credit Notes</button>
+						<button className={`b2b-subtab-btn ${activeSubTab === 'debit-notes' ? 'active' : ''}`} onClick={() => setActiveSubTab('debit-notes')}>Debit Notes</button>
 						<button className={`b2b-subtab-btn ${activeSubTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveSubTab('customers')}>B2B Clients</button>
+						<button className={`b2b-subtab-btn ${activeSubTab === 'outstanding' ? 'active' : ''}`} onClick={() => setActiveSubTab('outstanding')}>Outstanding Report</button>
+						<button className={`b2b-subtab-btn ${activeSubTab === 'locks' ? 'active' : ''}`} onClick={() => setActiveSubTab('locks')}>GST Filing Locks</button>
 					</div>
 				)}
 
@@ -1201,6 +2128,11 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 												}}>
 													{inv.status}
 												</span>
+												{inv.inventory_deducted && (
+													<div style={{ fontSize: '10px', color: 'var(--status-active)', fontWeight: 600, marginTop: '4px' }}>
+														✓ Stock Deducted
+													</div>
+												)}
 											</td>
 											<td>
 												<span style={{
@@ -1216,73 +2148,543 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 												<div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>Bal: ₹{inv.balance_amount.toFixed(2)}</div>
 											</td>
 											<td style={{ textAlign: 'right' }}>
-												<div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+												<div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+													{/* View Button */}
 													<button
 														onClick={() => {
 															setSelectedInvoice(inv);
 															setViewMode('preview');
 														}}
-														className="b2b-btn b2b-btn-secondary"
-														style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+														className="b2b-btn b2b-tooltip"
+														data-tooltip="View Invoice"
+														style={{
+															width: '32px',
+															height: '32px',
+															borderRadius: '8px',
+															display: 'inline-flex',
+															alignItems: 'center',
+															justifyContent: 'center',
+															border: '1px solid var(--border-color)',
+															background: 'var(--surface-color)',
+															color: 'var(--text-secondary)',
+															transition: 'all 0.2s',
+															padding: 0
+														}}
+														onMouseEnter={(e) => {
+															e.currentTarget.style.borderColor = 'var(--accent-color)';
+															e.currentTarget.style.color = 'var(--accent-color)';
+															e.currentTarget.style.background = 'var(--accent-subtle)';
+														}}
+														onMouseLeave={(e) => {
+															e.currentTarget.style.borderColor = 'var(--border-color)';
+															e.currentTarget.style.color = 'var(--text-secondary)';
+															e.currentTarget.style.background = 'var(--surface-color)';
+														}}
 													>
-														View
+														<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
 													</button>
 
 													{inv.status === 'DRAFT' && userRole === 'admin' && (
 														<>
+															{/* Edit Button */}
 															<button
 																onClick={() => {
 																	setFormInvoice({ ...inv });
 																	setViewMode('edit');
 																}}
-																className="b2b-btn b2b-btn-secondary"
-																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+																className="b2b-btn b2b-tooltip"
+																data-tooltip="Edit Draft"
+																style={{
+																	width: '32px',
+																	height: '32px',
+																	borderRadius: '8px',
+																	display: 'inline-flex',
+																	alignItems: 'center',
+																	justifyContent: 'center',
+																	border: '1px solid var(--border-color)',
+																	background: 'var(--surface-color)',
+																	color: 'var(--text-secondary)',
+																	transition: 'all 0.2s',
+																	padding: 0
+																}}
+																onMouseEnter={(e) => {
+																	e.currentTarget.style.borderColor = '#eab308'; // Amber
+																	e.currentTarget.style.color = '#eab308';
+																	e.currentTarget.style.background = 'rgba(234, 179, 8, 0.08)';
+																}}
+																onMouseLeave={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--border-color)';
+																	e.currentTarget.style.color = 'var(--text-secondary)';
+																	e.currentTarget.style.background = 'var(--surface-color)';
+																}}
 															>
-																Edit
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
 															</button>
+
+															{/* Issue Button */}
 															<button
 																onClick={() => handleIssueInvoice(inv.id!)}
-																className="b2b-btn b2b-btn-success"
-																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+																className="b2b-btn b2b-tooltip"
+																data-tooltip="Issue / Activate Invoice"
+																style={{
+																	width: '32px',
+																	height: '32px',
+																	borderRadius: '8px',
+																	display: 'inline-flex',
+																	alignItems: 'center',
+																	justifyContent: 'center',
+																	border: '1px solid var(--border-color)',
+																	background: 'var(--surface-color)',
+																	color: 'var(--text-secondary)',
+																	transition: 'all 0.2s',
+																	padding: 0
+																}}
+																onMouseEnter={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--status-active)';
+																	e.currentTarget.style.color = 'var(--status-active)';
+																	e.currentTarget.style.background = 'var(--status-active-bg)';
+																}}
+																onMouseLeave={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--border-color)';
+																	e.currentTarget.style.color = 'var(--text-secondary)';
+																	e.currentTarget.style.background = 'var(--surface-color)';
+																}}
 															>
-																Issue
-															</button>
-															<button
-																onClick={() => handleDeleteInvoice(inv.id!)}
-																className="b2b-btn b2b-btn-danger"
-																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
-															>
-																Delete
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 4 12 14.01 9 11.01"></polyline><rect x="2" y="2" width="20" height="20" rx="4"></rect></svg>
 															</button>
 														</>
 													)}
 
 													{inv.status === 'ISSUED' && userRole === 'admin' && (
 														<>
+															{/* Payment Button */}
 															<button
 																onClick={() => {
 																	setPaymentInvoice(inv);
 																	setPaymentAmount(inv.balance_amount);
 																	setShowPaymentModal(true);
 																}}
-																className="b2b-btn b2b-btn-success"
-																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto', backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+																className="b2b-btn b2b-tooltip"
+																data-tooltip="Record Payment"
+																style={{
+																	width: '32px',
+																	height: '32px',
+																	borderRadius: '8px',
+																	display: 'inline-flex',
+																	alignItems: 'center',
+																	justifyContent: 'center',
+																	border: '1px solid var(--border-color)',
+																	background: 'var(--surface-color)',
+																	color: 'var(--text-secondary)',
+																	transition: 'all 0.2s',
+																	padding: 0
+																}}
+																onMouseEnter={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--status-active)';
+																	e.currentTarget.style.color = 'var(--status-active)';
+																	e.currentTarget.style.background = 'var(--status-active-bg)';
+																}}
+																onMouseLeave={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--border-color)';
+																	e.currentTarget.style.color = 'var(--text-secondary)';
+																	e.currentTarget.style.background = 'var(--surface-color)';
+																}}
 															>
-																Payment
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
 															</button>
+
+															{/* Cancel Button */}
 															<button
 																onClick={() => handleCancelInvoice(inv.id!)}
-																className="b2b-btn b2b-btn-danger"
-																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+																className="b2b-btn b2b-tooltip"
+																data-tooltip="Cancel Invoice"
+																style={{
+																	width: '32px',
+																	height: '32px',
+																	borderRadius: '8px',
+																	display: 'inline-flex',
+																	alignItems: 'center',
+																	justifyContent: 'center',
+																	border: '1px solid var(--border-color)',
+																	background: 'var(--surface-color)',
+																	color: 'var(--text-secondary)',
+																	transition: 'all 0.2s',
+																	padding: 0
+																}}
+																onMouseEnter={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--status-danger)';
+																	e.currentTarget.style.color = 'var(--status-danger)';
+																	e.currentTarget.style.background = 'var(--status-danger-bg)';
+																}}
+																onMouseLeave={(e) => {
+																	e.currentTarget.style.borderColor = 'var(--border-color)';
+																	e.currentTarget.style.color = 'var(--text-secondary)';
+																	e.currentTarget.style.background = 'var(--surface-color)';
+																}}
 															>
-																Cancel
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
 															</button>
+
+															{/* Deduct / Revert Inventory Toggle Button */}
+															{inv.inventory_deducted ? (
+																<button
+																	onClick={() => handleRevertInventory(inv.id!)}
+																	className="b2b-btn b2b-tooltip"
+																	data-tooltip="Revert Stock Deduction"
+																	style={{
+																		width: '32px',
+																		height: '32px',
+																		borderRadius: '8px',
+																		display: 'inline-flex',
+																		alignItems: 'center',
+																		justifyContent: 'center',
+																		border: '1px solid var(--status-active)',
+																		background: 'var(--status-active-bg)',
+																		color: 'var(--status-active)',
+																		transition: 'all 0.2s',
+																		padding: 0
+																	}}
+																	onMouseEnter={(e) => {
+																		e.currentTarget.style.borderColor = 'var(--status-danger)';
+																		e.currentTarget.style.color = 'var(--status-danger)';
+																		e.currentTarget.style.background = 'var(--status-danger-bg)';
+																	}}
+																	onMouseLeave={(e) => {
+																		e.currentTarget.style.borderColor = 'var(--status-active)';
+																		e.currentTarget.style.color = 'var(--status-active)';
+																		e.currentTarget.style.background = 'var(--status-active-bg)';
+																	}}
+																>
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+																</button>
+															) : (
+																<button
+																	onClick={() => handleDeductInventory(inv.id!)}
+																	className="b2b-btn b2b-tooltip"
+																	data-tooltip="Deduct Inventory"
+																	style={{
+																		width: '32px',
+																		height: '32px',
+																		borderRadius: '8px',
+																		display: 'inline-flex',
+																		alignItems: 'center',
+																		justifyContent: 'center',
+																		border: '1px solid var(--border-color)',
+																		background: 'var(--surface-color)',
+																		color: 'var(--text-secondary)',
+																		transition: 'all 0.2s',
+																		padding: 0
+																	}}
+																	onMouseEnter={(e) => {
+																		e.currentTarget.style.borderColor = '#eab308';
+																		e.currentTarget.style.color = '#eab308';
+																		e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)';
+																	}}
+																	onMouseLeave={(e) => {
+																		e.currentTarget.style.borderColor = 'var(--border-color)';
+																		e.currentTarget.style.color = 'var(--text-secondary)';
+																		e.currentTarget.style.background = 'var(--surface-color)';
+																	}}
+																>
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+																</button>
+															)}
 														</>
+													)}
+
+													{/* Delete Button */}
+													{userRole === 'admin' && (
+														<button
+															onClick={() => handleDeleteInvoice(inv.id!)}
+															className="b2b-btn b2b-tooltip"
+															data-tooltip={inv.status === 'DRAFT' ? "Delete Draft" : inv.status === 'CANCELLED' ? "Delete Cancelled Invoice" : "Delete Invoice (Warning: Tax Impact)"}
+															style={{
+																width: '32px',
+																height: '32px',
+																borderRadius: '8px',
+																display: 'inline-flex',
+																alignItems: 'center',
+																justifyContent: 'center',
+																border: '1px solid var(--border-color)',
+																background: 'var(--surface-color)',
+																color: 'var(--text-secondary)',
+																transition: 'all 0.2s',
+																padding: 0
+															}}
+															onMouseEnter={(e) => {
+																e.currentTarget.style.borderColor = 'var(--status-danger)';
+																e.currentTarget.style.color = 'var(--status-danger)';
+																e.currentTarget.style.background = 'var(--status-danger-bg)';
+															}}
+															onMouseLeave={(e) => {
+																e.currentTarget.style.borderColor = 'var(--border-color)';
+																e.currentTarget.style.color = 'var(--text-secondary)';
+																e.currentTarget.style.background = 'var(--surface-color)';
+															}}
+														>
+															<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+														</button>
 													)}
 												</div>
 											</td>
 										</tr>
 									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				)}
+
+
+
+				{/* PROFORMA INVOICES VIEW */}
+				{viewMode === 'list' && activeSubTab === 'proformas' && (
+					<div className="no-print" style={{ animation: 'fadeInScale 0.2s ease-out' }}>
+						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
+							<div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+								<div className="search-wrapper" style={{ width: '260px', flex: 'none' }}>
+									<svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+									</svg>
+									<input
+										type="text"
+										placeholder="Search Proformas..."
+										className="b2b-input search-input"
+										value={proformaSearch}
+										onChange={(e) => setProformaSearch(e.target.value)}
+									/>
+									{proformaSearch && (
+										<button className="clear-search-btn" onClick={() => setProformaSearch('')}>✕</button>
+									)}
+								</div>
+								<select
+									className="b2b-input"
+									style={{ width: '160px', height: '42px' }}
+									value={proformaStatusFilter}
+									onChange={(e) => setProformaStatusFilter(e.target.value)}
+								>
+									<option value="">All Statuses</option>
+									<option value="DRAFT">Draft</option>
+									<option value="SENT">Sent</option>
+									<option value="ACCEPTED">Accepted</option>
+									<option value="CONVERTED_TO_INVOICE">Converted</option>
+									<option value="REJECTED">Rejected</option>
+									<option value="EXPIRED">Expired</option>
+									<option value="CANCELLED">Cancelled</option>
+								</select>
+								<button
+									className="b2b-btn b2b-btn-secondary"
+									onClick={handleCheckExpiredProformas}
+									style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '42px' }}
+								>
+									🕒 Check Expiry
+								</button>
+							</div>
+
+							{userRole === 'admin' && (
+								<button
+									className="b2b-btn b2b-btn-primary"
+									onClick={() => {
+										setFormProforma({
+											note_date: new Date().toISOString().split('T')[0],
+											valid_until: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days valid by default
+											customer_gstin: '',
+											customer_name: '',
+											customer_state: '',
+											customer_state_code: '',
+											customer_address: '',
+											subtotal_price: 0,
+											discount_percent: 0,
+											discount_amount: 0,
+											cgst_rate: 0,
+											cgst_amount: 0,
+											sgst_rate: 0,
+											sgst_amount: 0,
+											igst_rate: 0,
+											igst_amount: 0,
+											total_price: 0,
+											advance_paid: 0,
+											status: 'DRAFT',
+											revision_number: 1,
+											items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+										});
+										setViewMode('create-pf');
+										fetchNextProformaNumber();
+									}}
+									style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+								>
+									+ Create Proforma
+								</button>
+							)}
+						</div>
+
+						<div className="b2b-table-container">
+							<table className="b2b-table">
+								<thead>
+									<tr>
+										<th>Proforma No</th>
+										<th>Date</th>
+										<th>Customer</th>
+										<th style={{ textAlign: 'right' }}>Total (₹)</th>
+										<th style={{ textAlign: 'right' }}>Advance (₹)</th>
+										<th style={{ textAlign: 'center' }}>Rev</th>
+										<th>Valid Until</th>
+										<th>Status</th>
+										<th style={{ textAlign: 'right' }} className="no-print">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{proformas
+										.filter(pf => {
+											const matchesSearch = pf.proforma_number?.toLowerCase().includes(proformaSearch.toLowerCase()) ||
+												pf.customer_name?.toLowerCase().includes(proformaSearch.toLowerCase()) ||
+												pf.customer_gstin?.toLowerCase().includes(proformaSearch.toLowerCase());
+											const matchesStatus = proformaStatusFilter === '' || pf.status === proformaStatusFilter;
+											return matchesSearch && matchesStatus;
+										})
+										.map(pf => (
+											<tr key={pf.id}>
+												<td style={{ fontWeight: '600' }}>
+													{pf.proforma_number || 'DRAFT'}
+												</td>
+												<td>{new Date(pf.note_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+												<td>
+													<div style={{ fontWeight: '500' }}>{pf.customer_name}</div>
+													<div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{pf.customer_gstin}</div>
+												</td>
+												<td style={{ textAlign: 'right', fontWeight: '600' }}>
+													₹{pf.total_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+												</td>
+												<td style={{ textAlign: 'right', color: pf.advance_paid > 0 ? 'var(--success-color)' : 'var(--text-secondary)' }}>
+													₹{pf.advance_paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+												</td>
+												<td style={{ textAlign: 'center' }}>
+													<span style={{ background: 'var(--bg-hover)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem' }}>
+														v{pf.revision_number}
+													</span>
+												</td>
+												<td>
+													{pf.valid_until ? (
+														<span style={{ color: new Date(pf.valid_until) < new Date() && pf.status === 'SENT' ? 'var(--danger-color)' : 'inherit' }}>
+															{new Date(pf.valid_until).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+														</span>
+													) : '—'}
+												</td>
+												<td>
+													<span className={`status-badge ${
+														pf.status === 'ACCEPTED' || pf.status === 'CONVERTED_TO_INVOICE' ? 'status-paid' :
+														pf.status === 'SENT' ? 'status-partial' :
+														pf.status === 'DRAFT' ? 'status-unpaid' : 'status-cancelled'
+													}`} style={{ fontSize: '0.75rem' }}>
+														{pf.status.replace(/_/g, ' ')}
+													</span>
+												</td>
+												<td className="no-print">
+													<div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+														<button
+															className="b2b-btn b2b-btn-secondary"
+															onClick={() => {
+																setSelectedProforma(pf);
+																setViewMode('preview-pf');
+															}}
+															style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+														>
+															View
+														</button>
+
+														{pf.status === 'DRAFT' && userRole === 'admin' && (
+															<>
+																<button
+																	className="b2b-btn b2b-btn-secondary"
+																	onClick={() => {
+																		setFormProforma(pf);
+																		setViewMode('edit-pf');
+																		fetchNextProformaNumber(pf.note_date);
+																	}}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																>
+																	Edit
+																</button>
+																<button
+																	className="b2b-btn b2b-btn-primary"
+																	onClick={() => handleIssueProforma(pf.id)}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																>
+																	Send
+																</button>
+																<button
+																	className="b2b-btn b2b-btn-danger"
+																	onClick={() => handleDeleteProforma(pf.id)}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																>
+																	Delete
+																</button>
+															</>
+														)}
+
+														{pf.status === 'SENT' && userRole === 'admin' && (
+															<>
+																<button
+																	className="b2b-btn b2b-btn-secondary"
+																	onClick={() => handleAcceptProforma(pf.id)}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success-color)', borderColor: 'rgba(16, 185, 129, 0.2)' }}
+																>
+																	Accept
+																</button>
+																<button
+																	className="b2b-btn b2b-btn-secondary"
+																	onClick={() => handleRejectProforma(pf.id)}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+																>
+																	Reject
+																</button>
+																<button
+																	className="b2b-btn b2b-btn-secondary"
+																	onClick={() => handleCreateRevision(pf.id)}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																>
+																	Revise
+																</button>
+																<button
+																	className="b2b-btn b2b-btn-danger"
+																	onClick={() => handleCancelProforma(pf.id)}
+																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																>
+																	Cancel
+																</button>
+															</>
+														)}
+
+														{(pf.status === 'ACCEPTED' || pf.status === 'SENT') && userRole === 'admin' && (
+															<button
+																className="b2b-btn b2b-btn-primary"
+																onClick={() => handleConvertToTaxInvoice(pf.id)}
+																style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto', background: 'var(--success-color)' }}
+															>
+																Convert
+															</button>
+														)}
+
+														{pf.status === 'REJECTED' && userRole === 'admin' && (
+															<button
+																className="b2b-btn b2b-btn-secondary"
+																onClick={() => handleCreateRevision(pf.id)}
+																style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Revise
+															</button>
+														)}
+													</div>
+												</td>
+											</tr>
+										))}
+									{proformas.length === 0 && (
+										<tr>
+											<td colSpan={9} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
+												No proforma invoices found. Click "Create Proforma" to start.
+											</td>
+										</tr>
+									)}
 								</tbody>
 							</table>
 						</div>
@@ -1353,6 +2755,23 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 												<div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
 													<button
 														onClick={() => {
+															setLedgerCustomer(cust);
+															loadCustomerLedger(cust.id!);
+															setShowLedgerModal(true);
+														}}
+														className="b2b-btn b2b-btn-secondary"
+														style={{ padding: '6px', minHeight: 'auto', borderRadius: '8px' }}
+														title="View Ledger Statement"
+													>
+														<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+															<rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+															<line x1="9" y1="9" x2="15" y2="9" />
+															<line x1="9" y1="13" x2="15" y2="13" />
+															<line x1="9" y1="17" x2="15" y2="17" />
+														</svg>
+													</button>
+													<button
+														onClick={() => {
 															setEditingCustomer({ ...cust });
 															setSameAsBilling(!cust.shipping_address || cust.shipping_address === cust.billing_address);
 															setShowCustomerModal(true);
@@ -1381,6 +2800,420 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 									))}
 								</tbody>
 							</table>
+						</div>
+					</div>
+				)}
+
+				{/* CREDIT NOTES VIEW */}
+				{viewMode === 'list' && activeSubTab === 'credit-notes' && (
+					<div className="no-print">
+						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+							<div style={{ display: 'flex', gap: '10px' }}>
+								<div className="search-wrapper" style={{ width: '240px', flex: 'none' }}>
+									<svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+									</svg>
+									<input
+										type="text"
+										placeholder="Search Credit Notes..."
+										className="b2b-input search-input"
+										value={creditSearch}
+										onChange={(e) => setCreditSearch(e.target.value)}
+									/>
+									{creditSearch && (
+										<button className="clear-search-btn" onClick={() => setCreditSearch('')}>✕</button>
+									)}
+								</div>
+							</div>
+							{userRole === 'admin' && (
+								<button
+									onClick={() => {
+										setFormCreditNote({
+											note_date: new Date().toISOString().split('T')[0],
+											customer_gstin: '',
+											customer_name: '',
+											customer_state: '',
+											customer_state_code: '',
+											customer_address: '',
+											subtotal_price: 0,
+											discount_percent: 0,
+											discount_amount: 0,
+											cgst_rate: 0,
+											cgst_amount: 0,
+											sgst_rate: 0,
+											sgst_amount: 0,
+											igst_rate: 0,
+											igst_amount: 0,
+											total_price: 0,
+											status: 'DRAFT',
+											reason: '',
+											invoice_id: undefined,
+											items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+										});
+										setViewMode('create-cn');
+									}}
+									className="b2b-btn b2b-btn-primary"
+								>
+									+ Create Credit Note
+								</button>
+							)}
+						</div>
+
+						<div className="table-responsive" style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+							<table className="b2b-table">
+								<thead>
+									<tr>
+										<th>Note#</th>
+										<th>Linked Invoice</th>
+										<th>Client</th>
+										<th>Date</th>
+										<th>Total Amount</th>
+										<th>Reason</th>
+										<th>Status</th>
+										<th style={{ textAlign: 'right' }}>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{creditNotes.filter(cn => 
+										cn.customer_name.toLowerCase().includes(creditSearch.toLowerCase()) ||
+										(cn.credit_note_number && cn.credit_note_number.toLowerCase().includes(creditSearch.toLowerCase()))
+									).map((cn) => (
+										<tr key={cn.id}>
+											<td>{cn.credit_note_number || <span style={{ opacity: 0.5 }}>Draft</span>}</td>
+											<td>{cn.invoice_number || 'Unlinked'}</td>
+											<td>
+												<strong>{cn.customer_name}</strong>
+												<div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{cn.customer_gstin}</div>
+											</td>
+											<td>{cn.note_date ? cn.note_date.split('T')[0] : ''}</td>
+											<td style={{ fontWeight: 'bold' }}>₹{cn.total_price.toFixed(2)}</td>
+											<td>{cn.reason || <span style={{ opacity: 0.5 }}>N/A</span>}</td>
+											<td>
+												<span style={{
+													padding: '6px 10px',
+													borderRadius: '12px',
+													fontSize: '11px',
+													fontWeight: 600,
+													background: cn.status === 'ISSUED' ? 'var(--status-active-bg)' : cn.status === 'CANCELLED' ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)',
+													color: cn.status === 'ISSUED' ? 'var(--status-active)' : cn.status === 'CANCELLED' ? 'var(--status-danger)' : 'var(--status-warning)'
+												}}>
+													{cn.status}
+												</span>
+											</td>
+											<td style={{ textAlign: 'right' }}>
+												<div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+													<button
+														onClick={() => {
+															setSelectedCreditNote(cn);
+															setViewMode('preview-cn');
+														}}
+														className="b2b-btn b2b-btn-secondary"
+														style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+													>
+														View
+													</button>
+													{cn.status === 'DRAFT' && userRole === 'admin' && (
+														<>
+															<button
+																onClick={() => {
+																	setFormCreditNote({ ...cn, note_date: cn.note_date.split('T')[0] });
+																	setViewMode('edit-cn');
+																}}
+																className="b2b-btn b2b-btn-secondary"
+																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Edit
+															</button>
+															<button
+																onClick={() => handleIssueCreditNote(cn.id)}
+																className="b2b-btn b2b-btn-success"
+																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Issue
+															</button>
+															<button
+																onClick={() => handleDeleteCreditNote(cn.id)}
+																className="b2b-btn b2b-btn-danger"
+																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Delete
+															</button>
+														</>
+													)}
+													{cn.status === 'ISSUED' && userRole === 'admin' && (
+														<button
+															onClick={() => handleCancelCreditNote(cn.id)}
+															className="b2b-btn b2b-btn-danger"
+															style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+														>
+															Cancel
+														</button>
+													)}
+												</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				)}
+
+				{/* DEBIT NOTES VIEW */}
+				{viewMode === 'list' && activeSubTab === 'debit-notes' && (
+					<div className="no-print">
+						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+							<div style={{ display: 'flex', gap: '10px' }}>
+								<div className="search-wrapper" style={{ width: '240px', flex: 'none' }}>
+									<svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+										<circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+									</svg>
+									<input
+										type="text"
+										placeholder="Search Debit Notes..."
+										className="b2b-input search-input"
+										value={debitSearch}
+										onChange={(e) => setDebitSearch(e.target.value)}
+									/>
+									{debitSearch && (
+										<button className="clear-search-btn" onClick={() => setDebitSearch('')}>✕</button>
+									)}
+								</div>
+							</div>
+							{userRole === 'admin' && (
+								<button
+									onClick={() => {
+										setFormDebitNote({
+											note_date: new Date().toISOString().split('T')[0],
+											customer_gstin: '',
+											customer_name: '',
+											customer_state: '',
+											customer_state_code: '',
+											customer_address: '',
+											subtotal_price: 0,
+											discount_percent: 0,
+											discount_amount: 0,
+											cgst_rate: 0,
+											cgst_amount: 0,
+											sgst_rate: 0,
+											sgst_amount: 0,
+											igst_rate: 0,
+											igst_amount: 0,
+											total_price: 0,
+											status: 'DRAFT',
+											reason: '',
+											invoice_id: undefined,
+											items: [{ item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }]
+										});
+										setViewMode('create-dn');
+									}}
+									className="b2b-btn b2b-btn-primary"
+								>
+									+ Create Debit Note
+								</button>
+							)}
+						</div>
+
+						<div className="table-responsive" style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+							<table className="b2b-table">
+								<thead>
+									<tr>
+										<th>Note#</th>
+										<th>Linked Invoice</th>
+										<th>Client</th>
+										<th>Date</th>
+										<th>Total Amount</th>
+										<th>Reason</th>
+										<th>Status</th>
+										<th style={{ textAlign: 'right' }}>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{debitNotes.filter(dn => 
+										dn.customer_name.toLowerCase().includes(debitSearch.toLowerCase()) ||
+										(dn.debit_note_number && dn.debit_note_number.toLowerCase().includes(debitSearch.toLowerCase()))
+									).map((dn) => (
+										<tr key={dn.id}>
+											<td>{dn.debit_note_number || <span style={{ opacity: 0.5 }}>Draft</span>}</td>
+											<td>{dn.invoice_number || 'Unlinked'}</td>
+											<td>
+												<strong>{dn.customer_name}</strong>
+												<div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{dn.customer_gstin}</div>
+											</td>
+											<td>{dn.note_date ? dn.note_date.split('T')[0] : ''}</td>
+											<td style={{ fontWeight: 'bold' }}>₹{dn.total_price.toFixed(2)}</td>
+											<td>{dn.reason || <span style={{ opacity: 0.5 }}>N/A</span>}</td>
+											<td>
+												<span style={{
+													padding: '6px 10px',
+													borderRadius: '12px',
+													fontSize: '11px',
+													fontWeight: 600,
+													background: dn.status === 'ISSUED' ? 'var(--status-active-bg)' : dn.status === 'CANCELLED' ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)',
+													color: dn.status === 'ISSUED' ? 'var(--status-active)' : dn.status === 'CANCELLED' ? 'var(--status-danger)' : 'var(--status-warning)'
+												}}>
+													{dn.status}
+												</span>
+											</td>
+											<td style={{ textAlign: 'right' }}>
+												<div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+													<button
+														onClick={() => {
+															setSelectedDebitNote(dn);
+															setViewMode('preview-dn');
+														}}
+														className="b2b-btn b2b-btn-secondary"
+														style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+													>
+														View
+													</button>
+													{dn.status === 'DRAFT' && userRole === 'admin' && (
+														<>
+															<button
+																onClick={() => {
+																	setFormDebitNote({ ...dn, note_date: dn.note_date.split('T')[0] });
+																	setViewMode('edit-dn');
+																}}
+																className="b2b-btn b2b-btn-secondary"
+																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Edit
+															</button>
+															<button
+																onClick={() => handleIssueDebitNote(dn.id)}
+																className="b2b-btn b2b-btn-success"
+																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Issue
+															</button>
+															<button
+																onClick={() => handleDeleteDebitNote(dn.id)}
+																className="b2b-btn b2b-btn-danger"
+																style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+															>
+																Delete
+															</button>
+														</>
+													)}
+													{dn.status === 'ISSUED' && userRole === 'admin' && (
+														<button
+															onClick={() => handleCancelDebitNote(dn.id)}
+															className="b2b-btn b2b-btn-danger"
+															style={{ padding: '4px 10px', fontSize: '0.8rem', minHeight: 'auto' }}
+														>
+															Cancel
+														</button>
+													)}
+												</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				)}
+
+				{/* OUTSTANDING REPORT VIEW */}
+				{viewMode === 'list' && activeSubTab === 'outstanding' && (
+					<div>
+						<div style={{ marginBottom: '24px', background: 'linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(99,102,241,0.05) 100%)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+							<div>
+								<h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.4rem' }}>Outstanding Overdue Aging</h3>
+								<p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Real-time aging analysis of customer receivables grouped by overdue duration.</p>
+							</div>
+							<div style={{ background: 'var(--surface-color)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'right' }}>
+								<div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Total Receivables</div>
+								<div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-color)', marginTop: '2px' }}>
+									₹{outstandingReport.reduce((acc, curr) => acc + curr.days_0_30 + curr.days_31_60 + curr.days_60_plus, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+								</div>
+							</div>
+						</div>
+
+						<div className="table-responsive" style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+							<table className="b2b-table">
+								<thead>
+									<tr>
+										<th>Client Name</th>
+										<th>GSTIN</th>
+										<th>0 - 30 Days</th>
+										<th>31 - 60 Days</th>
+										<th>61+ Days</th>
+										<th style={{ fontWeight: 'bold' }}>Total Outstanding</th>
+									</tr>
+								</thead>
+								<tbody>
+									{outstandingReport.length === 0 ? (
+										<tr>
+											<td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-tertiary)' }}>No outstanding client balances found.</td>
+										</tr>
+									) : (
+										outstandingReport.map((out) => (
+											<tr key={out.customer_id}>
+												<td><strong>{out.customer_name}</strong></td>
+												<td>{out.gstin}</td>
+												<td style={{ color: out.days_0_30 > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>₹{out.days_0_30.toFixed(2)}</td>
+												<td style={{ color: out.days_31_60 > 0 ? 'var(--status-warning)' : 'var(--text-tertiary)' }}>₹{out.days_31_60.toFixed(2)}</td>
+												<td style={{ color: out.days_60_plus > 0 ? 'var(--status-danger)' : 'var(--text-tertiary)' }}>₹{out.days_60_plus.toFixed(2)}</td>
+												<td style={{ fontWeight: 'bold', color: 'var(--accent-color)' }}>₹{out.total_due.toFixed(2)}</td>
+											</tr>
+										))
+									)}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				)}
+
+				{/* GST PERIOD LOCKS VIEW */}
+				{viewMode === 'list' && activeSubTab === 'locks' && (
+					<div>
+						<div style={{ marginBottom: '24px', background: 'var(--bg-hover)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+							<h4 style={{ margin: 0, fontWeight: 700 }}>GST Return Lock Policy</h4>
+							<p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+								Locking a filing period prevents historical invoice value modifications, additions, and deletions for that month. Payments and credit notes can still be posted against existing bills inside locked periods.
+							</p>
+						</div>
+
+						<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+							{Array.from({ length: 12 }).map((_, idx) => {
+								const d = new Date();
+								d.setMonth(d.getMonth() - idx);
+								const m = d.getMonth() + 1;
+								const y = d.getFullYear();
+								const period = gstPeriods.find(p => p.month === m && p.year === y);
+								const isLocked = period ? period.status === 'LOCKED' : false;
+								const monthName = d.toLocaleString('default', { month: 'long' });
+
+								return (
+									<div key={idx} style={{ 
+										background: 'var(--surface-color)', 
+										border: '1px solid var(--border-color)', 
+										borderRadius: '16px', 
+										padding: '20px', 
+										display: 'flex', 
+										justifyContent: 'space-between', 
+										alignItems: 'center',
+										boxShadow: 'var(--shadow-sm)'
+									}}>
+										<div>
+											<strong style={{ fontSize: '1.05rem' }}>{monthName} {y}</strong>
+											<div style={{ fontSize: '0.8rem', color: isLocked ? 'var(--status-danger)' : 'var(--status-active)', fontWeight: 600, marginTop: '4px' }}>
+												{isLocked ? '🔒 FILING LOCKED' : '🔓 OPEN FOR EDITS'}
+											</div>
+										</div>
+										{userRole === 'admin' && (
+											<button 
+												onClick={() => toggleGSTPeriod(m, y, isLocked ? 'LOCKED' : 'OPEN')}
+												className={`b2b-btn ${isLocked ? 'b2b-btn-secondary' : 'b2b-btn-danger'}`}
+												style={{ padding: '8px 14px', fontSize: '0.8rem' }}
+											>
+												{isLocked ? 'Unlock' : 'Lock Filing'}
+											</button>
+										)}
+									</div>
+								);
+							})}
 						</div>
 					</div>
 				)}
@@ -1427,7 +3260,8 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 													customer_name: selected.legal_name,
 													customer_state: selected.state,
 													customer_state_code: selected.state_code,
-													customer_address: selected.billing_address
+													customer_address: selected.billing_address,
+													customer_shipping_address: selected.shipping_address || selected.billing_address
 												};
 												recalculateTotals(updated);
 											}
@@ -1443,28 +3277,104 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 								{/* Client Quick Details Display */}
 								{formInvoice.customer_gstin ? (
-									<div className="client-info-card">
-										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-											<strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{formInvoice.customer_name}</strong>
+									<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', background: 'var(--bg-input)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+										<div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+											<strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{formInvoice.customer_name}</strong>
 											<span className="client-badge">GST ACTIVE</span>
 										</div>
-										<div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-											<span><strong>GSTIN:</strong></span>
-											<span style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>{formInvoice.customer_gstin}</span>
 
-											<span><strong>State:</strong></span>
-											<span>{formInvoice.customer_state} ({formInvoice.customer_state_code})</span>
+										{/* Billing Address Block */}
+										<div>
+											<div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+												<span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Billing Address</span>
+												<button
+													type="button"
+													onClick={() => setIsEditingBilling(!isEditingBilling)}
+													style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--accent-color)', display: 'flex', alignItems: 'center' }}
+													title="Edit Billing Address"
+												>
+													<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+														<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+														<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+													</svg>
+												</button>
+											</div>
+											{isEditingBilling ? (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+													<textarea
+														className="b2b-input"
+														style={{ fontSize: '0.85rem', minHeight: '60px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+														value={formInvoice.customer_address}
+														onChange={(e) => setFormInvoice({ ...formInvoice, customer_address: e.target.value })}
+													/>
+													<button
+														type="button"
+														onClick={() => setIsEditingBilling(false)}
+														className="b2b-btn b2b-btn-primary"
+														style={{ padding: '2px 8px', fontSize: '0.75rem', height: '22px', width: 'fit-content' }}
+													>
+														Save
+													</button>
+												</div>
+											) : (
+												<div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+													{formInvoice.customer_address || <span style={{ fontStyle: 'italic', color: 'var(--text-tertiary)' }}>No billing address set</span>}
+												</div>
+											)}
+										</div>
 
-											<span><strong>Address:</strong></span>
-											<span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={formInvoice.customer_address}>{formInvoice.customer_address}</span>
+										{/* Shipping Address Block */}
+										<div>
+											<div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+												<span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shipping Address</span>
+												<button
+													type="button"
+													onClick={() => setIsEditingShipping(!isEditingShipping)}
+													style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--accent-color)', display: 'flex', alignItems: 'center' }}
+													title="Edit Shipping Address"
+												>
+													<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+														<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+														<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+													</svg>
+												</button>
+											</div>
+											{isEditingShipping ? (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+													<textarea
+														className="b2b-input"
+														style={{ fontSize: '0.85rem', minHeight: '60px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+														value={formInvoice.customer_shipping_address || ''}
+														onChange={(e) => setFormInvoice({ ...formInvoice, customer_shipping_address: e.target.value })}
+													/>
+													<button
+														type="button"
+														onClick={() => setIsEditingShipping(false)}
+														className="b2b-btn b2b-btn-primary"
+														style={{ padding: '2px 8px', fontSize: '0.75rem', height: '22px', width: 'fit-content' }}
+													>
+														Save
+													</button>
+												</div>
+											) : (
+												<div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+													{formInvoice.customer_shipping_address || <span style={{ fontStyle: 'italic', color: 'var(--text-tertiary)' }}>No shipping address set</span>}
+												</div>
+											)}
+										</div>
+
+										{/* GSTIN / Supply State */}
+										<div style={{ gridColumn: 'span 2', display: 'flex', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+											<div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{formInvoice.customer_gstin}</span></div>
+											<div><strong>State:</strong> <span>{formInvoice.customer_state} ({formInvoice.customer_state_code})</span></div>
 										</div>
 									</div>
 								) : (
-									<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100px', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'var(--bg-hover)', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+									<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100px', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'var(--bg-hover)', color: 'var(--text-tertiary)', fontSize: '0.85rem', width: '100%' }}>
 										<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '8px', opacity: 0.6 }}>
 											<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
 										</svg>
-										No client selected. Please choose a client to load billing details.
+										No client selected. Please choose a client to load details.
 									</div>
 								)}
 							</div>
@@ -1688,6 +3598,11 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 														}}
 														style={{ background: 'var(--surface-color)', height: '42px' }}
 													/>
+													{item.product_id && (
+														<div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px', textAlign: 'center' }}>
+															Stock: <span style={{ fontWeight: 600, color: (getProductStock(item.product_id) || 0) <= 0 ? 'var(--status-danger)' : 'var(--text-secondary)' }}>{getProductStock(item.product_id) ?? 0}</span>
+														</div>
+													)}
 												</td>
 												<td style={{ padding: '12px 16px', minWidth: '130px' }}>
 													<input
@@ -1900,12 +3815,499 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 					</div>
 				)}
 
+				{/* PROFORMA CREATOR & EDITOR VIEW */}
+				{(viewMode === 'create-pf' || viewMode === 'edit-pf') && (
+					<div className="b2b-form-area no-print" style={{ color: 'var(--text-primary)' }}>
+						<div className="form-header-container">
+							<div>
+								<h3 className="form-header-title">
+									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-color)' }}>
+										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+										<polyline points="14 2 14 8 20 8" />
+										<line x1="16" y1="13" x2="8" y2="13" />
+										<line x1="16" y1="17" x2="8" y2="17" />
+										<polyline points="10 9 9 9 8 9" />
+									</svg>
+									{viewMode === 'create-pf' ? 'Create Proforma Invoice' : `Edit Proforma Invoice (Rev ${formProforma.revision_number})`}
+								</h3>
+								<p className="form-header-subtitle">Fill in the commercial and pricing estimates for the client approval stage.</p>
+							</div>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary" style={{ height: '40px' }}>
+								&larr; Back to List
+							</button>
+						</div>
+
+						<div className="b2b-form-section">
+							<div className="b2b-form-section-title">Client Information</div>
+							<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+									<label className="form-label">Select B2B Customer*</label>
+									<select
+										className="b2b-input"
+										value={formProforma.customer_id || ''}
+										onChange={(e) => {
+											const cId = Number(e.target.value);
+											const selected = customers.find(c => c.id === cId);
+											if (selected) {
+												const updated = {
+													...formProforma,
+													customer_id: selected.id,
+													customer_gstin: selected.gstin,
+													customer_name: selected.legal_name,
+													customer_state: selected.state,
+													customer_state_code: selected.state_code,
+													customer_address: selected.billing_address,
+													customer_shipping_address: selected.shipping_address || selected.billing_address
+												};
+												recalculateProformaTotals(updated);
+											}
+										}}
+										style={{ height: '46px' }}
+									>
+										<option value="">-- Choose Customer --</option>
+										{customers.map(c => (
+											<option key={c.id} value={c.id}>{c.legal_name} ({c.gstin})</option>
+										))}
+									</select>
+								</div>
+
+								{formProforma.customer_gstin ? (
+									<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', background: 'var(--bg-input)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+										<div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+											<strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{formProforma.customer_name}</strong>
+											<span className="client-badge">PROSPECTIVE</span>
+										</div>
+
+										{/* Billing Address Block */}
+										<div>
+											<div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+												<span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Billing Address</span>
+												<button
+													type="button"
+													onClick={() => setIsEditingBilling(!isEditingBilling)}
+													style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--accent-color)', display: 'flex', alignItems: 'center' }}
+													title="Edit Billing Address"
+												>
+													<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+														<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+														<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+													</svg>
+												</button>
+											</div>
+											{isEditingBilling ? (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+													<textarea
+														className="b2b-input"
+														style={{ fontSize: '0.85rem', minHeight: '60px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+														value={formProforma.customer_address}
+														onChange={(e) => setFormProforma({ ...formProforma, customer_address: e.target.value })}
+													/>
+													<button
+														type="button"
+														onClick={() => setIsEditingBilling(false)}
+														className="b2b-btn b2b-btn-primary"
+														style={{ padding: '2px 8px', fontSize: '0.75rem', height: '22px', width: 'fit-content' }}
+													>
+														Save
+													</button>
+												</div>
+											) : (
+												<div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+													{formProforma.customer_address || <span style={{ fontStyle: 'italic', color: 'var(--text-tertiary)' }}>No billing address set</span>}
+												</div>
+											)}
+										</div>
+
+										{/* Shipping Address Block */}
+										<div>
+											<div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+												<span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shipping Address</span>
+												<button
+													type="button"
+													onClick={() => setIsEditingShipping(!isEditingShipping)}
+													style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--accent-color)', display: 'flex', alignItems: 'center' }}
+													title="Edit Shipping Address"
+												>
+													<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+														<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+														<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+													</svg>
+												</button>
+											</div>
+											{isEditingShipping ? (
+												<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+													<textarea
+														className="b2b-input"
+														style={{ fontSize: '0.85rem', minHeight: '60px', padding: '6px', width: '100%', boxSizing: 'border-box' }}
+														value={formProforma.customer_shipping_address || ''}
+														onChange={(e) => setFormProforma({ ...formProforma, customer_shipping_address: e.target.value })}
+													/>
+													<button
+														type="button"
+														onClick={() => setIsEditingShipping(false)}
+														className="b2b-btn b2b-btn-primary"
+														style={{ padding: '2px 8px', fontSize: '0.75rem', height: '22px', width: 'fit-content' }}
+													>
+														Save
+													</button>
+												</div>
+											) : (
+												<div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+													{formProforma.customer_shipping_address || <span style={{ fontStyle: 'italic', color: 'var(--text-tertiary)' }}>No shipping address set</span>}
+												</div>
+											)}
+										</div>
+
+										{/* GSTIN / Supply State */}
+										<div style={{ gridColumn: 'span 2', display: 'flex', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+											<div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{formProforma.customer_gstin}</span></div>
+											<div><strong>State:</strong> <span>{formProforma.customer_state} ({formProforma.customer_state_code})</span></div>
+										</div>
+									</div>
+								) : (
+									<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100px', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'var(--bg-hover)', color: 'var(--text-tertiary)', fontSize: '0.85rem', width: '100%' }}>
+										No client selected. Choose a B2B customer to proceed.
+									</div>
+								)}
+							</div>
+						</div>
+
+						<div className="b2b-form-section">
+							<div className="b2b-form-section-title">Validity & Date Details</div>
+							<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+									<label className="form-label">Proforma Date*</label>
+									<input
+										type="date"
+										className="b2b-input"
+										value={formProforma.note_date ? formProforma.note_date.split('T')[0] : ''}
+										onChange={(e) => {
+											const newDate = e.target.value;
+											setFormProforma({
+												...formProforma,
+												note_date: newDate
+											});
+											if (viewMode === 'create-pf' && !formProforma.parent_proforma_id) {
+												fetchNextProformaNumber(newDate);
+											}
+										}}
+										style={{ height: '46px' }}
+									/>
+								</div>
+
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+									<label className="form-label">Valid Until</label>
+									<input
+										type="date"
+										className="b2b-input"
+										value={formProforma.valid_until ? formProforma.valid_until.split('T')[0] : ''}
+										onChange={(e) => {
+											setFormProforma({
+												...formProforma,
+												valid_until: e.target.value
+											});
+										}}
+										style={{ height: '46px' }}
+									/>
+								</div>
+							</div>
+						</div>
+
+						<div className="b2b-form-section">
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+								<div className="b2b-form-section-title" style={{ margin: 0 }}>Item Estimations</div>
+								<button
+									onClick={() => {
+										const items = [...formProforma.items, { item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }];
+										recalculateProformaTotals({ ...formProforma, items });
+									}}
+									className="b2b-btn b2b-btn-secondary"
+									style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+								>
+									+ Add Line Item
+								</button>
+							</div>
+
+							<div className="table-responsive" style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+								<table className="b2b-table">
+									<thead>
+										<tr style={{ background: 'var(--bg-hover)' }}>
+											<th>Product Details / Description*</th>
+											<th style={{ width: '130px' }}>HSN Code</th>
+											<th style={{ width: '100px', textAlign: 'right' }}>Qty</th>
+											<th style={{ width: '140px', textAlign: 'right' }}>Rate (₹)</th>
+											<th style={{ width: '100px', textAlign: 'center' }}>GST %</th>
+											<th style={{ width: '140px', textAlign: 'right' }}>Amount (₹)</th>
+											<th style={{ width: '60px', textAlign: 'center' }}></th>
+										</tr>
+									</thead>
+									<tbody>
+										{formProforma.items.map((item: any, idx: number) => (
+											<tr key={idx}>
+												<td>
+													<div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+														<select
+															className="b2b-input"
+															value={item.product_id || ''}
+															onChange={(e) => {
+																const pId = Number(e.target.value);
+																const prod = inventoryProducts.find(p => p.id === pId);
+																if (prod) {
+																	const newItems = [...formProforma.items];
+																	newItems[idx] = {
+																		...newItems[idx],
+																		product_id: prod.id,
+																		item_details: prod.title,
+																		sku: prod.mi_sku,
+																		hsn_code: prod.hsn_code || '33029019',
+																		rate: prod.price || 0
+																	};
+																	recalculateProformaTotals({ ...formProforma, items: newItems });
+																}
+															}}
+														>
+															<option value="">-- Autoload from Inventory --</option>
+															{inventoryProducts.map(p => (
+																<option key={p.id} value={p.id}>{p.title} ({p.mi_sku})</option>
+															))}
+														</select>
+														<input
+															type="text"
+															className="b2b-input"
+															placeholder="Custom Description"
+															value={item.item_details}
+															onChange={(e) => {
+																const newItems = [...formProforma.items];
+																newItems[idx].item_details = e.target.value;
+																setFormProforma({ ...formProforma, items: newItems });
+															}}
+														/>
+													</div>
+												</td>
+												<td>
+													<input
+														type="text"
+														className="b2b-input"
+														placeholder="HSN"
+														value={item.hsn_code || ''}
+														onChange={(e) => {
+															const newItems = [...formProforma.items];
+															newItems[idx].hsn_code = e.target.value;
+															setFormProforma({ ...formProforma, items: newItems });
+														}}
+													/>
+												</td>
+												<td>
+													<input
+														type="number"
+														className="b2b-input"
+														style={{ textAlign: 'right' }}
+														value={item.quantity}
+														onChange={(e) => {
+															const newItems = [...formProforma.items];
+															newItems[idx].quantity = Number(e.target.value);
+															recalculateProformaTotals({ ...formProforma, items: newItems });
+														}}
+													/>
+													{item.product_id && (
+														<div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px', textAlign: 'center' }}>
+															Stock: <span style={{ fontWeight: 600, color: (getProductStock(item.product_id) || 0) <= 0 ? 'var(--status-danger)' : 'var(--text-secondary)' }}>{getProductStock(item.product_id) ?? 0}</span>
+														</div>
+													)}
+												</td>
+												<td>
+													<input
+														type="number"
+														className="b2b-input"
+														style={{ textAlign: 'right' }}
+														value={item.rate}
+														onChange={(e) => {
+															const newItems = [...formProforma.items];
+															newItems[idx].rate = Number(e.target.value);
+															recalculateProformaTotals({ ...formProforma, items: newItems });
+														}}
+													/>
+												</td>
+												<td>
+													<select
+														className="b2b-input"
+														style={{ textAlign: 'center' }}
+														value={item.gst_rate !== undefined ? item.gst_rate : 18}
+														onChange={(e) => {
+															const newItems = [...formProforma.items];
+															newItems[idx].gst_rate = Number(e.target.value);
+															recalculateProformaTotals({ ...formProforma, items: newItems });
+														}}
+													>
+														<option value="18">18%</option>
+														<option value="12">12%</option>
+														<option value="28">28%</option>
+														<option value="5">5%</option>
+														<option value="0">0%</option>
+													</select>
+												</td>
+												<td style={{ textAlign: 'right', fontWeight: '500', paddingRight: '12px' }}>
+													₹{(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+												</td>
+												<td style={{ textAlign: 'center' }}>
+													<button
+														disabled={formProforma.items.length <= 1}
+														onClick={() => {
+															const newItems = formProforma.items.filter((_: any, i: number) => i !== idx);
+															recalculateProformaTotals({ ...formProforma, items: newItems });
+														}}
+														className="clear-search-btn"
+														style={{ display: 'inline-block', position: 'static', opacity: formProforma.items.length <= 1 ? 0.3 : 1 }}
+													>
+														✕
+													</button>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginTop: '24px' }}>
+							<div>
+								<div className="b2b-form-section">
+									<div className="b2b-form-section-title">Advance Deposit Request</div>
+									<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+										<label className="form-label">Advance Payment Recorded (₹)</label>
+										<input
+											type="number"
+											className="b2b-input"
+											value={formProforma.advance_paid || 0}
+											onChange={(e) => {
+												setFormProforma({
+													...formProforma,
+													advance_paid: Number(e.target.value)
+												});
+											}}
+											style={{ height: '46px' }}
+											placeholder="Enter advance deposit amount received if any"
+										/>
+									</div>
+								</div>
+							</div>
+
+							<div style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
+									<span>Subtotal:</span>
+									<span style={{ fontWeight: '500' }}>₹{formProforma.subtotal_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+								</div>
+
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
+									<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+										<span>Discount Percent:</span>
+										<input
+											type="number"
+											className="b2b-input"
+											style={{ width: '60px', height: '32px', textAlign: 'center', padding: '2px' }}
+											value={formProforma.discount_percent || 0}
+											onChange={(e) => recalculateProformaTotals({ ...formProforma, discount_percent: Number(e.target.value) })}
+										/>
+										<span>%</span>
+									</div>
+									<span style={{ color: 'var(--danger-color)' }}>-₹{formProforma.discount_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+								</div>
+
+								{formProforma.cgst_amount > 0 && (
+									<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+										<span>CGST ({formProforma.cgst_rate}%):</span>
+										<span>₹{formProforma.cgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+									</div>
+								)}
+
+								{formProforma.sgst_amount > 0 && (
+									<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+										<span>SGST ({formProforma.sgst_rate}%):</span>
+										<span>₹{formProforma.sgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+									</div>
+								)}
+
+								{formProforma.igst_amount > 0 && (
+									<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+										<span>IGST ({formProforma.igst_rate}%):</span>
+										<span>₹{formProforma.igst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+									</div>
+								)}
+
+								<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '700', color: 'var(--accent-color)', paddingTop: '10px' }}>
+									<span>Estimated Total:</span>
+									<span>₹{formProforma.total_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+								</div>
+							</div>
+						</div>
+
+						<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary" style={{ width: '120px', height: '46px' }}>
+								Cancel
+							</button>
+							<button
+								onClick={() => handleSaveProforma(true)}
+								className="b2b-btn b2b-btn-secondary"
+								style={{ minWidth: '150px', height: '46px', background: 'var(--bg-hover)' }}
+							>
+								Save as Draft
+							</button>
+							<button
+								onClick={() => handleSaveProforma(false)}
+								className="b2b-btn b2b-btn-primary"
+								style={{ minWidth: '180px', height: '46px', gap: '8px' }}
+							>
+								Save & Issue Proforma
+							</button>
+						</div>
+					</div>
+				)}
+
 				{/* PRINT / PREVIEW LAYOUT VIEW */}
 				{viewMode === 'preview' && selectedInvoice && (
 					<div>
-						<div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+						<div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', alignItems: 'center' }}>
 							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary">&larr; Back to List</button>
-							<button onClick={triggerPrint} className="b2b-btn b2b-btn-primary">Print / Download PDF</button>
+							<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+								{selectedInvoice.status === 'DRAFT' && userRole === 'admin' && (
+									<button
+										onClick={() => {
+											setFormInvoice({ ...selectedInvoice });
+											setViewMode('edit');
+										}}
+										className="b2b-btn b2b-btn-secondary"
+									>
+										Edit Invoice
+									</button>
+								)}
+								{selectedInvoice.status === 'ISSUED' && userRole === 'admin' && (
+									<>
+										{selectedInvoice.inventory_deducted ? (
+											<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+												<span style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--status-active-bg)', color: 'var(--status-active)', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
+													✓ Stock Deducted
+												</span>
+												<button
+													onClick={() => handleRevertInventory(selectedInvoice.id!)}
+													className="b2b-btn"
+													style={{ background: 'var(--status-danger-bg)', color: 'var(--status-danger)', border: '1px solid var(--status-danger)' }}
+												>
+													Revert Stock
+												</button>
+											</div>
+										) : (
+											<button
+												onClick={() => handleDeductInventory(selectedInvoice.id!)}
+												className="b2b-btn"
+												style={{ background: '#eab308', color: '#000', border: 'none', fontWeight: 600 }}
+											>
+												Deduct Inventory
+											</button>
+										)}
+									</>
+								)}
+								<button onClick={triggerPrint} className="b2b-btn b2b-btn-primary">Print / Download PDF</button>
+							</div>
 						</div>
 
 						{/* INVOICE PAGE DESIGN */}
@@ -1924,12 +4326,19 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 
 							<hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', marginBottom: '24px' }} />
 
-							<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginBottom: '36px' }}>
+							<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1.1fr', gap: '30px', marginBottom: '36px' }}>
 								<div>
 									<h4 style={{ margin: '0 0 8px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Bill To</h4>
-									<h3 style={{ margin: '0 0 6px 0', fontWeight: 700 }}>{selectedInvoice.customer_name}</h3>
+									<h3 style={{ margin: '0 0 6px 0', fontWeight: 700, fontSize: '15px' }}>{selectedInvoice.customer_name}</h3>
 									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedInvoice.customer_gstin}</div>
 									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedInvoice.customer_address}</div>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}><strong>State:</strong> {selectedInvoice.customer_state} ({selectedInvoice.customer_state_code})</div>
+								</div>
+								<div>
+									<h4 style={{ margin: '0 0 8px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Ship To</h4>
+									<h3 style={{ margin: '0 0 6px 0', fontWeight: 700, fontSize: '15px' }}>{selectedInvoice.customer_name}</h3>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedInvoice.customer_gstin}</div>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedInvoice.customer_shipping_address || selectedInvoice.customer_address}</div>
 									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}><strong>State:</strong> {selectedInvoice.customer_state} ({selectedInvoice.customer_state_code})</div>
 								</div>
 								<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '10px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -2001,6 +4410,77 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 											<div style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{selectedInvoice.customer_notes}</div>
 										</div>
 									)}
+
+									{/* Bank Details & UPI QR Code Section */}
+									{(appConfigs['bank_name'] || appConfigs['bank_account_no'] || appConfigs['bank_ifsc'] || appConfigs['upi_id']) && (
+										<div style={{ 
+											marginTop: '24px', 
+											padding: '20px', 
+											borderRadius: '14px', 
+											border: '1px solid rgba(14, 165, 233, 0.12)', 
+											background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.02) 0%, rgba(14, 165, 233, 0.05) 100%)',
+											boxShadow: '0 4px 12px -2px rgba(14, 165, 233, 0.04)'
+										}}>
+											<div style={{ 
+												display: 'flex', 
+												justifyContent: 'space-between', 
+												alignItems: 'center',
+												borderBottom: '1px solid rgba(14, 165, 233, 0.1)', 
+												paddingBottom: '8px', 
+												marginBottom: '12px' 
+											}}>
+												<h5 style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-color)', fontWeight: 700 }}>Payment Details</h5>
+												{appConfigs['upi_id'] && (
+													<span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--success-color)', fontWeight: 600 }}>
+														<span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success-color)', display: 'inline-block' }}></span>
+														UPI Active
+													</span>
+												)}
+											</div>
+											<div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+												<div style={{ flex: 1, fontSize: '13px', color: 'var(--text-secondary)' }}>
+													{appConfigs['bank_name'] && (
+														<div style={{ display: 'flex', marginBottom: '6px' }}>
+															<span style={{ width: '90px', color: 'var(--text-tertiary)', fontWeight: 500 }}>Bank:</span>
+															<span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{appConfigs['bank_name']}</span>
+														</div>
+													)}
+													{appConfigs['bank_account_no'] && (
+														<div style={{ display: 'flex', marginBottom: '6px' }}>
+															<span style={{ width: '90px', color: 'var(--text-tertiary)', fontWeight: 500 }}>Account No:</span>
+															<span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{appConfigs['bank_account_no']}</span>
+														</div>
+													)}
+													{appConfigs['bank_ifsc'] && (
+														<div style={{ display: 'flex', marginBottom: '6px' }}>
+															<span style={{ width: '90px', color: 'var(--text-tertiary)', fontWeight: 500 }}>IFSC Code:</span>
+															<span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{appConfigs['bank_ifsc']}</span>
+														</div>
+													)}
+													{appConfigs['upi_id'] && (
+														<div style={{ display: 'flex' }}>
+															<span style={{ width: '90px', color: 'var(--text-tertiary)', fontWeight: 500 }}>UPI ID:</span>
+															<span style={{ fontWeight: 600, color: 'var(--accent-color)' }}>{appConfigs['upi_id']}</span>
+														</div>
+													)}
+												</div>
+												{appConfigs['upi_id'] && selectedInvoice.balance_amount > 0 && (
+													<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+														<div style={{ background: 'white', padding: '6px', borderRadius: '8px', border: '1px solid rgba(14, 165, 233, 0.15)', boxShadow: '0 4px 10px rgba(0,0,0,0.04)' }}>
+															<img
+																src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(
+																	`upi://pay?pa=${appConfigs['upi_id']}&pn=${encodeURIComponent(selectedInvoice.seller_name || '')}&am=${selectedInvoice.balance_amount.toFixed(2)}&cu=INR`
+																)}`}
+																alt="Payment QR"
+																style={{ width: '100px', height: '100px', display: 'block' }}
+															/>
+														</div>
+														<span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 600 }}>Scan to Pay</span>
+													</div>
+												)}
+											</div>
+										</div>
+									)}
 								</div>
 								<div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
 									<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -2062,6 +4542,933 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 									<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700, marginTop: '4px' }}>
 										<span>Balance Due:</span>
 										<span style={{ color: selectedInvoice.balance_amount > 0 ? 'var(--status-warning)' : 'var(--status-active)' }}>₹{selectedInvoice.balance_amount.toFixed(2)}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* PROFORMA PREVIEW & PRINT LAYOUT VIEW */}
+				{viewMode === 'preview-pf' && selectedProforma && (() => {
+					const rootId = selectedProforma.parent_proforma_id || selectedProforma.id;
+					const historyStream = proformas
+						.filter(p => p.id === rootId || p.parent_proforma_id === rootId)
+						.sort((a, b) => a.revision_number - b.revision_number);
+
+					return (
+						<div>
+							<div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+								<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary">&larr; Back to List</button>
+								<div style={{ display: 'flex', gap: '8px' }}>
+									{selectedProforma.status === 'DRAFT' && userRole === 'admin' && (
+										<button
+											onClick={() => {
+												setFormProforma({ ...selectedProforma });
+												setViewMode('edit-pf');
+											}}
+											className="b2b-btn b2b-btn-secondary"
+										>
+											Edit Proforma
+										</button>
+									)}
+									<button onClick={() => window.print()} className="b2b-btn b2b-btn-primary">Print / Download PDF</button>
+								</div>
+							</div>
+
+							<div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '24px' }}>
+								{/* PROFORMA INVOICE DESIGN */}
+								<div className="print-invoice-area" style={{ background: 'var(--surface-color)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' }}>
+									<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '36px' }}>
+										<div>
+											<h1 style={{ margin: '0 0 8px 0', textTransform: 'uppercase', color: 'var(--accent-color)', fontWeight: 800, fontSize: '2rem' }}>PROFORMA INVOICE</h1>
+											<div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+												<strong>Revision:</strong> v{selectedProforma.revision_number}
+											</div>
+										</div>
+										<div style={{ textAlign: 'right' }}>
+											<h2 style={{ margin: '0 0 6px 0', fontWeight: 800 }}>{selectedProforma.seller_name}</h2>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedProforma.seller_gstin}</div>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '280px', lineHeight: 1.4 }}>{selectedProforma.seller_address}</div>
+										</div>
+									</div>
+
+									<hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', marginBottom: '24px' }} />
+
+									<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1.1fr', gap: '30px', marginBottom: '36px' }}>
+										<div>
+											<h4 style={{ margin: '0 0 8px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Bill To</h4>
+											<h3 style={{ margin: '0 0 6px 0', fontWeight: 700, fontSize: '15px' }}>{selectedProforma.customer_name}</h3>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedProforma.customer_gstin}</div>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedProforma.customer_address}</div>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}><strong>State:</strong> {selectedProforma.customer_state} ({selectedProforma.customer_state_code})</div>
+										</div>
+										<div>
+											<h4 style={{ margin: '0 0 8px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Ship To</h4>
+											<h3 style={{ margin: '0 0 6px 0', fontWeight: 700, fontSize: '15px' }}>{selectedProforma.customer_name}</h3>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedProforma.customer_gstin}</div>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedProforma.customer_shipping_address || selectedProforma.customer_address}</div>
+											<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}><strong>State:</strong> {selectedProforma.customer_state} ({selectedProforma.customer_state_code})</div>
+										</div>
+										<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '10px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+											<strong>Proforma Number:</strong>
+											<span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedProforma.proforma_number || 'DRAFT'}</span>
+
+											<strong>Proforma Date:</strong>
+											<span style={{ color: 'var(--text-primary)' }}>{selectedProforma.note_date ? selectedProforma.note_date.split('T')[0] : ''}</span>
+
+											{selectedProforma.valid_until && (
+												<>
+													<strong>Valid Until:</strong>
+													<span style={{ color: 'var(--text-primary)' }}>{selectedProforma.valid_until.split('T')[0]}</span>
+												</>
+											)}
+										</div>
+									</div>
+
+									<table className="b2b-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '36px' }}>
+										<thead>
+											<tr style={{ background: 'var(--bg-hover)', borderBottom: '2px solid var(--border-color)' }}>
+												<th style={{ textAlign: 'left', padding: '12px 16px' }}>#</th>
+												<th style={{ textAlign: 'left', padding: '12px 16px' }}>Product & Description</th>
+												<th style={{ textAlign: 'center', padding: '12px 16px' }}>HSN</th>
+												<th style={{ textAlign: 'right', padding: '12px 16px' }}>Qty</th>
+												<th style={{ textAlign: 'right', padding: '12px 16px' }}>Rate (₹)</th>
+												<th style={{ textAlign: 'right', padding: '12px 16px' }}>Amount (₹)</th>
+											</tr>
+										</thead>
+										<tbody>
+											{selectedProforma.items.map((item: any, i: number) => (
+												<tr key={item.id || i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+													<td style={{ padding: '12px 16px', color: 'var(--text-tertiary)' }}>{i + 1}</td>
+													<td style={{ padding: '12px 16px' }}>
+														<div style={{ fontWeight: '500' }}>{item.item_details}</div>
+														{item.sku && <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>SKU: {item.sku}</div>}
+													</td>
+													<td style={{ padding: '12px 16px', textAlign: 'center', fontFamily: 'monospace' }}>{item.hsn_code || '—'}</td>
+													<td style={{ padding: '12px 16px', textAlign: 'right' }}>{item.quantity}</td>
+													<td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{item.rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+													<td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '500' }}>₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+
+									<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', alignItems: 'start' }}>
+										<div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+											<h4 style={{ margin: '0 0 6px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '10px' }}>Notes</h4>
+											This is a commercial Proforma Invoice containing estimated pricing and specifications. This is not a legal tax invoice. Legal GST compliance documents will be generated upon formal order acceptance and confirmation.
+										</div>
+
+										<div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+												<span>Subtotal:</span>
+												<span>₹{selectedProforma.subtotal_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+											</div>
+
+											{selectedProforma.discount_amount > 0 && (
+												<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--danger-color)' }}>
+													<span>Discount ({selectedProforma.discount_percent}%):</span>
+													<span>-₹{selectedProforma.discount_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+												</div>
+											)}
+
+											{selectedProforma.cgst_amount > 0 && (
+												<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+													<span>CGST ({selectedProforma.cgst_rate}%):</span>
+													<span>₹{selectedProforma.cgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+												</div>
+											)}
+
+											{selectedProforma.sgst_amount > 0 && (
+												<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+													<span>SGST ({selectedProforma.sgst_rate}%):</span>
+													<span>₹{selectedProforma.sgst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+												</div>
+											)}
+
+											{selectedProforma.igst_amount > 0 && (
+												<div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+													<span>IGST ({selectedProforma.igst_rate}%):</span>
+													<span>₹{selectedProforma.igst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+												</div>
+											)}
+
+											<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '8px' }}>
+												<span>Total Amount:</span>
+												<span>₹{selectedProforma.total_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+											</div>
+
+											{selectedProforma.advance_paid > 0 && (
+												<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--success-color)', fontWeight: '600' }}>
+													<span>Advance Paid:</span>
+													<span>₹{selectedProforma.advance_paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+												</div>
+											)}
+										</div>
+									</div>
+								</div>
+
+								{/* REVISION HISTORY STREAM (SIDEBAR) */}
+								<div className="no-print" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '20px' }}>
+									<h4 style={{ margin: '0 0 16px 0', fontSize: '0.95rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Negotiation History</h4>
+									<div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', paddingLeft: '12px', borderLeft: '2px solid var(--border-color)' }}>
+										{historyStream.map(hist => (
+											<div key={hist.id} style={{ position: 'relative' }}>
+												{/* Marker dot */}
+												<div style={{
+													position: 'absolute',
+													left: '-19px',
+													top: '4px',
+													width: '12px',
+													height: '12px',
+													borderRadius: '50%',
+													background: hist.id === selectedProforma.id ? 'var(--accent-color)' : 'var(--text-tertiary)',
+													border: '2px solid var(--surface-color)'
+												}} />
+												<div style={{ fontSize: '0.85rem' }}>
+													<button
+														onClick={() => setSelectedProforma(hist)}
+														style={{
+															background: 'none',
+															border: 'none',
+															padding: 0,
+															textAlign: 'left',
+															fontWeight: hist.id === selectedProforma.id ? '700' : '500',
+															color: hist.id === selectedProforma.id ? 'var(--accent-color)' : 'var(--text-primary)',
+															cursor: 'pointer',
+															fontSize: '0.85rem'
+														}}
+													>
+														Revision v{hist.revision_number} {hist.proforma_number ? `(${hist.proforma_number.split('-R')[0]})` : '(Draft)'}
+													</button>
+													<div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+														{new Date(hist.note_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} • <span style={{ textTransform: 'capitalize' }}>{hist.status.toLowerCase()}</span>
+													</div>
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+						</div>
+					);
+				})()}
+
+
+				{/* CREDIT NOTE CREATOR & EDITOR VIEW */}
+				{(viewMode === 'create-cn' || viewMode === 'edit-cn') && (
+					<div className="b2b-form-area no-print" style={{ color: 'var(--text-primary)' }}>
+						<div className="form-header-container">
+							<div>
+								<h3 className="form-header-title">
+									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: 'var(--accent-color)' }}>
+										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+										<polyline points="14 2 14 8 20 8" />
+									</svg>
+									{viewMode === 'create-cn' ? 'Create Credit Note' : 'Edit Credit Note'}
+								</h3>
+								<p className="form-header-subtitle">Issue a credit note to reduce client outstanding balance.</p>
+							</div>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary" style={{ height: '40px' }}>
+								&larr; Back to List
+							</button>
+						</div>
+
+						<div className="b2b-form-section">
+							<div className="b2b-form-section-title">Link Invoice & Client Info</div>
+							<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+									<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+										<label className="form-label">Link B2B Invoice (Optional)</label>
+										<select
+											className="b2b-input"
+											value={formCreditNote.invoice_id || ''}
+											onChange={(e) => {
+												const invId = Number(e.target.value);
+												const inv = invoices.find(i => i.id === invId);
+												if (inv) {
+													const updated = {
+														...formCreditNote,
+														invoice_id: inv.id,
+														invoice_number: inv.invoice_number,
+														customer_id: inv.customer_id,
+														customer_gstin: inv.customer_gstin,
+														customer_name: inv.customer_name,
+														customer_state: inv.customer_state,
+														customer_state_code: inv.customer_state_code,
+														customer_address: inv.customer_address,
+														items: inv.items.map(item => ({
+															product_id: item.product_id,
+															item_details: item.item_details,
+															sku: item.sku,
+															hsn_code: item.hsn_code,
+															quantity: item.quantity,
+															rate: item.rate,
+															amount: item.amount
+														}))
+													};
+													recalculateCreditNoteTotals(updated);
+												}
+											}}
+											style={{ height: '46px' }}
+										>
+											<option value="">-- Select Invoice --</option>
+											{invoices.filter(i => i.status === 'ISSUED').map(i => (
+												<option key={i.id} value={i.id}>{i.invoice_number} - {i.customer_name} (₹{i.total_price.toFixed(2)})</option>
+											))}
+										</select>
+									</div>
+
+									<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+										<label className="form-label">Reason for Credit Note*</label>
+										<input
+											type="text"
+											className="b2b-input"
+											placeholder="e.g. Sales return / Damaged items / Quantity correction"
+											value={formCreditNote.reason || ''}
+											onChange={(e) => setFormCreditNote({ ...formCreditNote, reason: e.target.value })}
+										/>
+									</div>
+								</div>
+
+								{formCreditNote.customer_gstin ? (
+									<div className="client-info-card">
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+											<strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{formCreditNote.customer_name}</strong>
+											<span className="client-badge">GST ACTIVE</span>
+										</div>
+										<div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+											<span><strong>GSTIN:</strong></span>
+											<span style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>{formCreditNote.customer_gstin}</span>
+											<span><strong>State:</strong></span>
+											<span>{formCreditNote.customer_state} ({formCreditNote.customer_state_code})</span>
+											<span><strong>Address:</strong></span>
+											<span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={formCreditNote.customer_address}>{formCreditNote.customer_address}</span>
+										</div>
+									</div>
+								) : (
+									<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '120px', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'var(--bg-hover)', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+										Select a linked B2B invoice to automatically prefill client information and line items.
+									</div>
+								)}
+							</div>
+						</div>
+
+						<div className="b2b-form-section">
+							<div className="b2b-form-section-title font-bold">Credit Note Items</div>
+							<div className="table-responsive" style={{ overflowX: 'auto', marginBottom: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+								<table style={{ minWidth: '900px', width: '100%', borderCollapse: 'collapse' }}>
+									<thead>
+										<tr className="items-table-header" style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', background: 'var(--bg-hover)' }}>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Item Details</th>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Quantity</th>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Rate (₹)</th>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Amount</th>
+											<th style={{ padding: '14px 16px', textAlign: 'right' }}></th>
+										</tr>
+									</thead>
+									<tbody>
+										{formCreditNote.items.map((item: any, idx: number) => (
+											<tr key={idx} className="items-table-row" style={{ borderBottom: '1px solid var(--border-color)' }}>
+												<td style={{ padding: '12px 16px' }}>
+													<input
+														type="text"
+														className="b2b-input"
+														placeholder="Line item details..."
+														value={item.item_details}
+														onChange={(e) => {
+															const newItems = [...formCreditNote.items];
+															newItems[idx].item_details = e.target.value;
+															recalculateCreditNoteTotals({ ...formCreditNote, items: newItems });
+														}}
+													/>
+												</td>
+												<td style={{ padding: '12px 16px', width: '140px' }}>
+													<input
+														type="number"
+														className="b2b-input"
+														value={item.quantity}
+														min="1"
+														onChange={(e) => {
+															const newItems = [...formCreditNote.items];
+															newItems[idx].quantity = Number(e.target.value);
+															recalculateCreditNoteTotals({ ...formCreditNote, items: newItems });
+														}}
+													/>
+												</td>
+												<td style={{ padding: '12px 16px', width: '160px' }}>
+													<input
+														type="number"
+														className="b2b-input"
+														value={item.rate}
+														onChange={(e) => {
+															const newItems = [...formCreditNote.items];
+															newItems[idx].rate = Number(e.target.value);
+															recalculateCreditNoteTotals({ ...formCreditNote, items: newItems });
+														}}
+													/>
+												</td>
+												<td style={{ padding: '12px 16px', fontWeight: 'bold' }}>
+													₹{(item.quantity * item.rate).toFixed(2)}
+												</td>
+												<td style={{ padding: '12px 16px', textAlign: 'right' }}>
+													{formCreditNote.items.length > 1 && (
+														<button
+															onClick={() => {
+																const newItems = formCreditNote.items.filter((_: any, i: number) => i !== idx);
+																recalculateCreditNoteTotals({ ...formCreditNote, items: newItems });
+															}}
+															className="delete-row-btn"
+														>
+															✕
+														</button>
+													)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+							<button
+								onClick={() => {
+									const newItems = [...formCreditNote.items, { item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }];
+									setFormCreditNote({ ...formCreditNote, items: newItems });
+								}}
+								className="add-row-btn"
+							>
+								+ Add Row
+							</button>
+						</div>
+
+						<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginTop: '24px' }}>
+							<div>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+									<label className="form-label">Note Date*</label>
+									<input
+										type="date"
+										className="b2b-input"
+										value={formCreditNote.note_date}
+										onChange={(e) => setFormCreditNote({ ...formCreditNote, note_date: e.target.value })}
+									/>
+								</div>
+							</div>
+							<div className="summary-panel">
+								<div className="summary-row">
+									<span>Sub Total:</span>
+									<strong>₹{formCreditNote.subtotal_price.toFixed(2)}</strong>
+								</div>
+								{formCreditNote.cgst_amount > 0 && (
+									<div className="summary-row">
+										<span>CGST ({formCreditNote.cgst_rate}%):</span>
+										<span>₹{formCreditNote.cgst_amount.toFixed(2)}</span>
+									</div>
+								)}
+								{formCreditNote.sgst_amount > 0 && (
+									<div className="summary-row">
+										<span>SGST ({formCreditNote.sgst_rate}%):</span>
+										<span>₹{formCreditNote.sgst_amount.toFixed(2)}</span>
+									</div>
+								)}
+								{formCreditNote.igst_amount > 0 && (
+									<div className="summary-row">
+										<span>IGST ({formCreditNote.igst_rate}%):</span>
+										<span>₹{formCreditNote.igst_amount.toFixed(2)}</span>
+									</div>
+								)}
+								<div className="summary-total-box">
+									<span>Total Credit Amount:</span>
+									<strong style={{ fontSize: '1.3rem', color: 'var(--accent-color)' }}>₹{formCreditNote.total_price.toFixed(2)}</strong>
+								</div>
+							</div>
+						</div>
+
+						<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '40px', borderTop: '1px solid var(--border-color)', paddingTop: '28px' }}>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary">Cancel</button>
+							<button onClick={() => handleSaveCreditNote(true)} className="b2b-btn b2b-btn-secondary">Save as Draft</button>
+							<button onClick={() => handleSaveCreditNote(false)} className="b2b-btn b2b-btn-primary">Save & Issue Note</button>
+						</div>
+					</div>
+				)}
+
+				{/* DEBIT NOTE CREATOR & EDITOR VIEW */}
+				{(viewMode === 'create-dn' || viewMode === 'edit-dn') && (
+					<div className="b2b-form-area no-print" style={{ color: 'var(--text-primary)' }}>
+						<div className="form-header-container">
+							<div>
+								<h3 className="form-header-title">
+									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: 'var(--accent-color)' }}>
+										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+										<polyline points="14 2 14 8 20 8" />
+									</svg>
+									{viewMode === 'create-dn' ? 'Create Debit Note' : 'Edit Debit Note'}
+								</h3>
+								<p className="form-header-subtitle">Issue a debit note to increase client outstanding balance.</p>
+							</div>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary" style={{ height: '40px' }}>
+								&larr; Back to List
+							</button>
+						</div>
+
+						<div className="b2b-form-section">
+							<div className="b2b-form-section-title">Link Invoice & Client Info</div>
+							<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+									<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+										<label className="form-label">Link B2B Invoice (Optional)</label>
+										<select
+											className="b2b-input"
+											value={formDebitNote.invoice_id || ''}
+											onChange={(e) => {
+												const invId = Number(e.target.value);
+												const inv = invoices.find(i => i.id === invId);
+												if (inv) {
+													const updated = {
+														...formDebitNote,
+														invoice_id: inv.id,
+														invoice_number: inv.invoice_number,
+														customer_id: inv.customer_id,
+														customer_gstin: inv.customer_gstin,
+														customer_name: inv.customer_name,
+														customer_state: inv.customer_state,
+														customer_state_code: inv.customer_state_code,
+														customer_address: inv.customer_address,
+														items: inv.items.map(item => ({
+															product_id: item.product_id,
+															item_details: item.item_details,
+															sku: item.sku,
+															hsn_code: item.hsn_code,
+															quantity: item.quantity,
+															rate: item.rate,
+															amount: item.amount
+														}))
+													};
+													recalculateDebitNoteTotals(updated);
+												}
+											}}
+											style={{ height: '46px' }}
+										>
+											<option value="">-- Select Invoice --</option>
+											{invoices.filter(i => i.status === 'ISSUED').map(i => (
+												<option key={i.id} value={i.id}>{i.invoice_number} - {i.customer_name} (₹{i.total_price.toFixed(2)})</option>
+											))}
+										</select>
+									</div>
+
+									<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+										<label className="form-label">Reason for Debit Note*</label>
+										<input
+											type="text"
+											className="b2b-input"
+											placeholder="e.g. Value correction / Under-billing adjustment"
+											value={formDebitNote.reason || ''}
+											onChange={(e) => setFormDebitNote({ ...formDebitNote, reason: e.target.value })}
+										/>
+									</div>
+								</div>
+
+								{formDebitNote.customer_gstin ? (
+									<div className="client-info-card">
+										<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+											<strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{formDebitNote.customer_name}</strong>
+											<span className="client-badge">GST ACTIVE</span>
+										</div>
+										<div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+											<span><strong>GSTIN:</strong></span>
+											<span style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontWeight: 600 }}>{formDebitNote.customer_gstin}</span>
+											<span><strong>State:</strong></span>
+											<span>{formDebitNote.customer_state} ({formDebitNote.customer_state_code})</span>
+											<span><strong>Address:</strong></span>
+											<span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={formDebitNote.customer_address}>{formDebitNote.customer_address}</span>
+										</div>
+									</div>
+								) : (
+									<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '120px', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'var(--bg-hover)', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+										Select a linked B2B invoice to automatically prefill client information and line items.
+									</div>
+								)}
+							</div>
+						</div>
+
+						<div className="b2b-form-section">
+							<div className="b2b-form-section-title font-bold">Debit Note Items</div>
+							<div className="table-responsive" style={{ overflowX: 'auto', marginBottom: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+								<table style={{ minWidth: '900px', width: '100%', borderCollapse: 'collapse' }}>
+									<thead>
+										<tr className="items-table-header" style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', background: 'var(--bg-hover)' }}>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Item Details</th>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Quantity</th>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Rate (₹)</th>
+											<th style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>Amount</th>
+											<th style={{ padding: '14px 16px', textAlign: 'right' }}></th>
+										</tr>
+									</thead>
+									<tbody>
+										{formDebitNote.items.map((item: any, idx: number) => (
+											<tr key={idx} className="items-table-row" style={{ borderBottom: '1px solid var(--border-color)' }}>
+												<td style={{ padding: '12px 16px' }}>
+													<input
+														type="text"
+														className="b2b-input"
+														placeholder="Line item details..."
+														value={item.item_details}
+														onChange={(e) => {
+															const newItems = [...formDebitNote.items];
+															newItems[idx].item_details = e.target.value;
+															recalculateDebitNoteTotals({ ...formDebitNote, items: newItems });
+														}}
+													/>
+												</td>
+												<td style={{ padding: '12px 16px', width: '140px' }}>
+													<input
+														type="number"
+														className="b2b-input"
+														value={item.quantity}
+														min="1"
+														onChange={(e) => {
+															const newItems = [...formDebitNote.items];
+															newItems[idx].quantity = Number(e.target.value);
+															recalculateDebitNoteTotals({ ...formDebitNote, items: newItems });
+														}}
+													/>
+												</td>
+												<td style={{ padding: '12px 16px', width: '160px' }}>
+													<input
+														type="number"
+														className="b2b-input"
+														value={item.rate}
+														onChange={(e) => {
+															const newItems = [...formDebitNote.items];
+															newItems[idx].rate = Number(e.target.value);
+															recalculateDebitNoteTotals({ ...formDebitNote, items: newItems });
+														}}
+													/>
+												</td>
+												<td style={{ padding: '12px 16px', fontWeight: 'bold' }}>
+													₹{(item.quantity * item.rate).toFixed(2)}
+												</td>
+												<td style={{ padding: '12px 16px', textAlign: 'right' }}>
+													{formDebitNote.items.length > 1 && (
+														<button
+															onClick={() => {
+																const newItems = formDebitNote.items.filter((_: any, i: number) => i !== idx);
+																recalculateDebitNoteTotals({ ...formDebitNote, items: newItems });
+															}}
+															className="delete-row-btn"
+														>
+															✕
+														</button>
+													)}
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+							<button
+								onClick={() => {
+									const newItems = [...formDebitNote.items, { item_details: '', quantity: 1, rate: 0, amount: 0, hsn_code: '33029019' }];
+									setFormDebitNote({ ...formDebitNote, items: newItems });
+								}}
+								className="add-row-btn"
+							>
+								+ Add Row
+							</button>
+						</div>
+
+						<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginTop: '24px' }}>
+							<div>
+								<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+									<label className="form-label">Note Date*</label>
+									<input
+										type="date"
+										className="b2b-input"
+										value={formDebitNote.note_date}
+										onChange={(e) => setFormDebitNote({ ...formDebitNote, note_date: e.target.value })}
+									/>
+								</div>
+							</div>
+							<div className="summary-panel">
+								<div className="summary-row">
+									<span>Sub Total:</span>
+									<strong>₹{formDebitNote.subtotal_price.toFixed(2)}</strong>
+								</div>
+								{formDebitNote.cgst_amount > 0 && (
+									<div className="summary-row">
+										<span>CGST ({formDebitNote.cgst_rate}%):</span>
+										<span>₹{formDebitNote.cgst_amount.toFixed(2)}</span>
+									</div>
+								)}
+								{formDebitNote.sgst_amount > 0 && (
+									<div className="summary-row">
+										<span>SGST ({formDebitNote.sgst_rate}%):</span>
+										<span>₹{formDebitNote.sgst_amount.toFixed(2)}</span>
+									</div>
+								)}
+								{formDebitNote.igst_amount > 0 && (
+									<div className="summary-row">
+										<span>IGST ({formDebitNote.igst_rate}%):</span>
+										<span>₹{formDebitNote.igst_amount.toFixed(2)}</span>
+									</div>
+								)}
+								<div className="summary-total-box">
+									<span>Total Debit Amount:</span>
+									<strong style={{ fontSize: '1.3rem', color: 'var(--accent-color)' }}>₹{formDebitNote.total_price.toFixed(2)}</strong>
+								</div>
+							</div>
+						</div>
+
+						<div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '40px', borderTop: '1px solid var(--border-color)', paddingTop: '28px' }}>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary">Cancel</button>
+							<button onClick={() => handleSaveDebitNote(true)} className="b2b-btn b2b-btn-secondary">Save as Draft</button>
+							<button onClick={() => handleSaveDebitNote(false)} className="b2b-btn b2b-btn-primary">Save & Issue Note</button>
+						</div>
+					</div>
+				)}
+
+				{/* CREDIT NOTE PREVIEW */}
+				{viewMode === 'preview-cn' && selectedCreditNote && (
+					<div>
+						<div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', alignItems: 'center' }}>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary">&larr; Back to List</button>
+							<div style={{ display: 'flex', gap: '8px' }}>
+								{selectedCreditNote.status === 'DRAFT' && userRole === 'admin' && (
+									<button
+										onClick={() => {
+											setFormCreditNote({ ...selectedCreditNote });
+											setViewMode('edit-cn');
+										}}
+										className="b2b-btn b2b-btn-secondary"
+									>
+										Edit Credit Note
+									</button>
+								)}
+								<button onClick={triggerPrint} className="b2b-btn b2b-btn-primary">Print / Download Credit Note</button>
+							</div>
+						</div>
+
+						<div className="print-invoice-area" style={{ background: 'var(--surface-color)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' }}>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '36px' }}>
+								<div>
+									<h1 style={{ margin: '0 0 8px 0', textTransform: 'uppercase', color: 'var(--accent-color)', fontWeight: 800, fontSize: '2rem' }}>CREDIT NOTE</h1>
+									<div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}><strong>FY:</strong> {selectedCreditNote.financial_year || 'N/A'}</div>
+								</div>
+								<div style={{ textAlign: 'right' }}>
+									<h2 style={{ margin: '0 0 6px 0', fontWeight: 800 }}>{selectedCreditNote.seller_name}</h2>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedCreditNote.seller_gstin}</div>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '280px', lineHeight: 1.4 }}>{selectedCreditNote.seller_address}</div>
+								</div>
+							</div>
+
+							<hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', marginBottom: '24px' }} />
+
+							<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginBottom: '36px' }}>
+								<div>
+									<h4 style={{ margin: '0 0 8px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Issued To</h4>
+									<h3 style={{ margin: '0 0 6px 0', fontWeight: 700 }}>{selectedCreditNote.customer_name}</h3>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedCreditNote.customer_gstin}</div>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedCreditNote.customer_address}</div>
+								</div>
+								<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '10px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+									<strong>Credit Note Number:</strong>
+									<span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedCreditNote.credit_note_number || 'DRAFT'}</span>
+
+									<strong>Note Date:</strong>
+									<span style={{ color: 'var(--text-primary)' }}>{selectedCreditNote.note_date ? selectedCreditNote.note_date.split('T')[0] : ''}</span>
+
+									{selectedCreditNote.invoice_number && (
+										<>
+											<strong>Linked Invoice:</strong>
+											<span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedCreditNote.invoice_number}</span>
+										</>
+									)}
+
+									{selectedCreditNote.reason && (
+										<>
+											<strong>Reason:</strong>
+											<span style={{ color: 'var(--text-primary)' }}>{selectedCreditNote.reason}</span>
+										</>
+									)}
+								</div>
+							</div>
+
+							<table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '36px' }}>
+								<thead>
+									<tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>
+										<th style={{ padding: '12px 8px', fontWeight: 600 }}>Item Details</th>
+										<th style={{ padding: '12px 8px', width: '100px', textAlign: 'right', fontWeight: 600 }}>Qty</th>
+										<th style={{ padding: '12px 8px', width: '120px', textAlign: 'right', fontWeight: 600 }}>Rate (₹)</th>
+										<th style={{ padding: '12px 8px', width: '120px', textAlign: 'right', fontWeight: 600 }}>Amount (₹)</th>
+									</tr>
+								</thead>
+								<tbody>
+									{selectedCreditNote.items && selectedCreditNote.items.map((item: any, idx: number) => (
+										<tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px', color: 'var(--text-primary)' }}>
+											<td style={{ padding: '12px 8px' }}>
+												<strong>{item.item_details}</strong>
+											</td>
+											<td style={{ padding: '12px 8px', textAlign: 'right' }}>{item.quantity}</td>
+											<td style={{ padding: '12px 8px', textAlign: 'right' }}>₹{item.rate.toFixed(2)}</td>
+											<td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 'bold' }}>₹{item.amount.toFixed(2)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+
+							<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px' }}>
+								<div></div>
+								<div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+									<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+										<span>Sub Total:</span>
+										<span style={{ color: 'var(--text-primary)' }}>₹{selectedCreditNote.subtotal_price.toFixed(2)}</span>
+									</div>
+									{selectedCreditNote.cgst_amount > 0 && (
+										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+											<span>CGST ({selectedCreditNote.cgst_rate}%):</span>
+											<span style={{ color: 'var(--text-primary)' }}>₹{selectedCreditNote.cgst_amount.toFixed(2)}</span>
+										</div>
+									)}
+									{selectedCreditNote.sgst_amount > 0 && (
+										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+											<span>SGST ({selectedCreditNote.sgst_rate}%):</span>
+											<span style={{ color: 'var(--text-primary)' }}>₹{selectedCreditNote.sgst_amount.toFixed(2)}</span>
+										</div>
+									)}
+									{selectedCreditNote.igst_amount > 0 && (
+										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+											<span>IGST ({selectedCreditNote.igst_rate}%):</span>
+											<span style={{ color: 'var(--text-primary)' }}>₹{selectedCreditNote.igst_amount.toFixed(2)}</span>
+										</div>
+									)}
+									<hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '12px 0' }} />
+									<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
+										<span>Total Credit (₹):</span>
+										<span>₹{selectedCreditNote.total_price.toFixed(2)}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* DEBIT NOTE PREVIEW */}
+				{viewMode === 'preview-dn' && selectedDebitNote && (
+					<div>
+						<div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', alignItems: 'center' }}>
+							<button onClick={() => setViewMode('list')} className="b2b-btn b2b-btn-secondary">&larr; Back to List</button>
+							<div style={{ display: 'flex', gap: '8px' }}>
+								{selectedDebitNote.status === 'DRAFT' && userRole === 'admin' && (
+									<button
+										onClick={() => {
+											setFormDebitNote({ ...selectedDebitNote });
+											setViewMode('edit-dn');
+										}}
+										className="b2b-btn b2b-btn-secondary"
+									>
+										Edit Debit Note
+									</button>
+								)}
+								<button onClick={triggerPrint} className="b2b-btn b2b-btn-primary">Print / Download Debit Note</button>
+							</div>
+						</div>
+
+						<div className="print-invoice-area" style={{ background: 'var(--surface-color)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' }}>
+							<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '36px' }}>
+								<div>
+									<h1 style={{ margin: '0 0 8px 0', textTransform: 'uppercase', color: 'var(--accent-color)', fontWeight: 800, fontSize: '2rem' }}>DEBIT NOTE</h1>
+									<div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}><strong>FY:</strong> {selectedDebitNote.financial_year || 'N/A'}</div>
+								</div>
+								<div style={{ textAlign: 'right' }}>
+									<h2 style={{ margin: '0 0 6px 0', fontWeight: 800 }}>{selectedDebitNote.seller_name}</h2>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedDebitNote.seller_gstin}</div>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '280px', lineHeight: 1.4 }}>{selectedDebitNote.seller_address}</div>
+								</div>
+							</div>
+
+							<hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', marginBottom: '24px' }} />
+
+							<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginBottom: '36px' }}>
+								<div>
+									<h4 style={{ margin: '0 0 8px 0', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Issued To</h4>
+									<h3 style={{ margin: '0 0 6px 0', fontWeight: 700 }}>{selectedDebitNote.customer_name}</h3>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}><strong>GSTIN:</strong> {selectedDebitNote.customer_gstin}</div>
+									<div style={{ fontSize: '13px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{selectedDebitNote.customer_address}</div>
+								</div>
+								<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '10px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+									<strong>Debit Note Number:</strong>
+									<span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedDebitNote.debit_note_number || 'DRAFT'}</span>
+
+									<strong>Note Date:</strong>
+									<span style={{ color: 'var(--text-primary)' }}>{selectedDebitNote.note_date ? selectedDebitNote.note_date.split('T')[0] : ''}</span>
+
+									{selectedDebitNote.invoice_number && (
+										<>
+											<strong>Linked Invoice:</strong>
+											<span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedDebitNote.invoice_number}</span>
+										</>
+									)}
+
+									{selectedDebitNote.reason && (
+										<>
+											<strong>Reason:</strong>
+											<span style={{ color: 'var(--text-primary)' }}>{selectedDebitNote.reason}</span>
+										</>
+									)}
+								</div>
+							</div>
+
+							<table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '36px' }}>
+								<thead>
+									<tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>
+										<th style={{ padding: '12px 8px', fontWeight: 600 }}>Item Details</th>
+										<th style={{ padding: '12px 8px', width: '100px', textAlign: 'right', fontWeight: 600 }}>Qty</th>
+										<th style={{ padding: '12px 8px', width: '120px', textAlign: 'right', fontWeight: 600 }}>Rate (₹)</th>
+										<th style={{ padding: '12px 8px', width: '120px', textAlign: 'right', fontWeight: 600 }}>Amount (₹)</th>
+									</tr>
+								</thead>
+								<tbody>
+									{selectedDebitNote.items && selectedDebitNote.items.map((item: any, idx: number) => (
+										<tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px', color: 'var(--text-primary)' }}>
+											<td style={{ padding: '12px 8px' }}>
+												<strong>{item.item_details}</strong>
+											</td>
+											<td style={{ padding: '12px 8px', textAlign: 'right' }}>{item.quantity}</td>
+											<td style={{ padding: '12px 8px', textAlign: 'right' }}>₹{item.rate.toFixed(2)}</td>
+											<td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 'bold' }}>₹{item.amount.toFixed(2)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+
+							<div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px' }}>
+								<div></div>
+								<div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+									<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+										<span>Sub Total:</span>
+										<span style={{ color: 'var(--text-primary)' }}>₹{selectedDebitNote.subtotal_price.toFixed(2)}</span>
+									</div>
+									{selectedDebitNote.cgst_amount > 0 && (
+										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+											<span>CGST ({selectedDebitNote.cgst_rate}%):</span>
+											<span style={{ color: 'var(--text-primary)' }}>₹{selectedDebitNote.cgst_amount.toFixed(2)}</span>
+										</div>
+									)}
+									{selectedDebitNote.sgst_amount > 0 && (
+										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+											<span>SGST ({selectedDebitNote.sgst_rate}%):</span>
+											<span style={{ color: 'var(--text-primary)' }}>₹{selectedDebitNote.sgst_amount.toFixed(2)}</span>
+										</div>
+									)}
+									{selectedDebitNote.igst_amount > 0 && (
+										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+											<span>IGST ({selectedDebitNote.igst_rate}%):</span>
+											<span style={{ color: 'var(--text-primary)' }}>₹{selectedDebitNote.igst_amount.toFixed(2)}</span>
+										</div>
+									)}
+									<hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', margin: '12px 0' }} />
+									<div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
+										<span>Total Debit (₹):</span>
+										<span>₹{selectedDebitNote.total_price.toFixed(2)}</span>
 									</div>
 								</div>
 							</div>
@@ -2510,6 +5917,97 @@ export function B2BBills({ fetchWithAuth, userRole = 'read' }: B2BBillsProps) {
 							}} className="b2b-btn b2b-btn-secondary" style={{ flex: 1 }}>Cancel</button>
 							<button onClick={handleSavePaymentTerm} className="b2b-btn b2b-btn-primary" style={{ flex: 1 }}>Save</button>
 						</div>
+					</div>
+				</div>,
+				document.body
+			)}
+
+			{/* CUSTOMER LEDGER STATEMENT MODAL */}
+			{showLedgerModal && ledgerCustomer && createPortal(
+				<div className="modal-overlay" onClick={() => {
+					setShowLedgerModal(false);
+					setLedgerCustomer(null);
+					setLedgerData(null);
+				}} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto', padding: '2rem 1.5rem', zIndex: 3200 }}>
+					<div className="premium-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '850px', width: '100%', margin: '0 auto', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)', borderRadius: '24px', padding: '2.5rem', background: 'var(--surface-color)', position: 'relative' }}>
+						
+						{/* Modal Header */}
+						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.25rem' }}>
+							<div>
+								<h2 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Customer Ledger Statement</h2>
+								<p style={{ margin: '3px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+									Chronological account history for <strong>{ledgerCustomer.legal_name}</strong> ({ledgerCustomer.gstin})
+								</p>
+							</div>
+							<button onClick={() => {
+								setShowLedgerModal(false);
+								setLedgerCustomer(null);
+								setLedgerData(null);
+							}} className="b2b-btn b2b-btn-secondary" style={{ padding: '6px 12px' }}>✕ Close</button>
+						</div>
+
+						{ledgerData ? (
+							<div>
+								{/* Balance Overview Cards */}
+								<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+									<div style={{ background: 'var(--bg-hover)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+										<div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Opening Balance</div>
+										<div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>₹{ledgerData.opening_balance.toFixed(2)}</div>
+									</div>
+									<div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.05) 0%, rgba(16,185,129,0.05) 100%)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+										<div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Closing Outstanding Balance</div>
+										<div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-color)', marginTop: '4px' }}>₹{ledgerData.closing_balance.toFixed(2)}</div>
+									</div>
+								</div>
+
+								{/* Ledger Table */}
+								<div style={{ maxHeight: '350px', overflowY: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+									<table className="b2b-table" style={{ width: '100%' }}>
+										<thead>
+											<tr>
+												<th>Date</th>
+												<th>Type</th>
+												<th>Reference</th>
+												<th>Debit (Dr)</th>
+												<th>Credit (Cr)</th>
+												<th>Running Balance</th>
+											</tr>
+										</thead>
+										<tbody>
+											{ledgerData.transactions && ledgerData.transactions.length === 0 ? (
+												<tr>
+													<td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-tertiary)' }}>No financial transactions found.</td>
+												</tr>
+											) : (
+												ledgerData.transactions && ledgerData.transactions.map((tx: any, idx: number) => (
+													<tr key={idx}>
+														<td>{tx.date ? tx.date.split('T')[0] : ''}</td>
+														<td>
+															<span style={{
+																padding: '4px 8px',
+																borderRadius: '8px',
+																fontSize: '11px',
+																fontWeight: 600,
+																background: tx.type === 'INVOICE' || tx.type === 'DEBIT_NOTE' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)',
+																color: tx.type === 'INVOICE' || tx.type === 'DEBIT_NOTE' ? 'rgb(99,102,241)' : 'rgb(16,185,129)'
+															}}>
+																{tx.type}
+															</span>
+														</td>
+														<td>{tx.reference}</td>
+														<td style={{ color: tx.debit > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>{tx.debit > 0 ? `₹${tx.debit.toFixed(2)}` : '—'}</td>
+														<td style={{ color: tx.credit > 0 ? 'var(--status-active)' : 'var(--text-tertiary)' }}>{tx.credit > 0 ? `₹${tx.credit.toFixed(2)}` : '—'}</td>
+														<td style={{ fontWeight: 'bold' }}>₹{tx.running_balance.toFixed(2)}</td>
+													</tr>
+												))
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						) : (
+							<div style={{ textAlign: 'center', padding: '40px' }}>Loading ledger statement...</div>
+						)}
 					</div>
 				</div>,
 				document.body

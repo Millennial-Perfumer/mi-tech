@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"strings"
 	"time"
 
 	"mi-tech/internal/domain/dashboard/dto"
@@ -24,8 +25,12 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND t.source_id IN ?"
-		args = append(args, sourceIDs)
+		lowerSources := make([]string, len(sourceIDs))
+		for i, s := range sourceIDs {
+			lowerSources[i] = strings.ToLower(s)
+		}
+		sourceFilter = " AND LOWER(t.source_id) IN ?"
+		args = append(args, lowerSources)
 	}
 
 	query := `
@@ -35,9 +40,9 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as sgst,
 			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) ELSE 0 END), 0) as igst,
 			COUNT(t.transaction_id) as total_orders,
-			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) IN ('cancelled', 'canceled')) as cancelled_orders,
-			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) = 'fulfilled') as fulfilled_orders,
-			COUNT(t.transaction_id) FILTER (WHERE LOWER(COALESCE(t.order_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled'))) as unfulfilled_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled')) as cancelled_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.fulfillment_status) = 'fulfilled') as fulfilled_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(COALESCE(t.fulfillment_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as unfulfilled_orders,
 			COALESCE(SUM(t.total_discount), 0) as total_discount,
 			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) = 'paid') as paid_orders,
 			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('pending', 'unpaid')) as pending_orders,
@@ -118,8 +123,12 @@ func (r *gormMetricsRepository) GetTopProducts(startDate, endDate string, source
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND t.source_id IN ?"
-		args = append(args, sourceIDs)
+		lowerSources := make([]string, len(sourceIDs))
+		for i, s := range sourceIDs {
+			lowerSources[i] = strings.ToLower(s)
+		}
+		sourceFilter = " AND LOWER(t.source_id) IN ?"
+		args = append(args, lowerSources)
 	}
 
 	query := `
@@ -173,8 +182,12 @@ func (r *gormMetricsRepository) GetRevenueTrend(startDate, endDate string, sourc
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND t.source_id IN ?"
-		args = append(args, sourceIDs)
+		lowerSources := make([]string, len(sourceIDs))
+		for i, s := range sourceIDs {
+			lowerSources[i] = strings.ToLower(s)
+		}
+		sourceFilter = " AND LOWER(t.source_id) IN ?"
+		args = append(args, lowerSources)
 	}
 
 	query := `
@@ -197,8 +210,12 @@ func (r *gormMetricsRepository) GetGeoDistribution(startDate, endDate string, so
 	sourceFilter := ""
 	args := []interface{}{start, end}
 	if len(sourceIDs) > 0 {
-		sourceFilter = " AND t.source_id IN ?"
-		args = append(args, sourceIDs)
+		lowerSources := make([]string, len(sourceIDs))
+		for i, s := range sourceIDs {
+			lowerSources[i] = strings.ToLower(s)
+		}
+		sourceFilter = " AND LOWER(t.source_id) IN ?"
+		args = append(args, lowerSources)
 	}
 
 	query := `

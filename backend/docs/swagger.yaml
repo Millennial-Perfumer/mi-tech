@@ -192,11 +192,82 @@ definitions:
       totnum:
         type: integer
     type: object
+  mi-tech_internal_domain_gst_dto.GSTR1B2B:
+    properties:
+      ctin:
+        type: string
+      inv:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1B2BInv'
+        type: array
+    type: object
+  mi-tech_internal_domain_gst_dto.GSTR1B2BInv:
+    properties:
+      etin:
+        type: string
+      idt:
+        type: string
+      inum:
+        type: string
+      inv_typ:
+        description: '"R"'
+        type: string
+      itms:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1TaxItem'
+        type: array
+      pos:
+        type: string
+      rchrg:
+        description: '"N"'
+        type: string
+      val:
+        type: number
+    type: object
+  mi-tech_internal_domain_gst_dto.GSTR1CDNR:
+    properties:
+      ctin:
+        type: string
+      nt:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1CDNRNt'
+        type: array
+    type: object
+  mi-tech_internal_domain_gst_dto.GSTR1CDNRNt:
+    properties:
+      idt:
+        type: string
+      inum:
+        type: string
+      itms:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1TaxItem'
+        type: array
+      nt_dt:
+        type: string
+      nt_num:
+        type: string
+      ntty:
+        description: '"C" or "D"'
+        type: string
+      pos:
+        type: string
+      val:
+        type: number
+    type: object
   mi-tech_internal_domain_gst_dto.GSTR1Payload:
     properties:
+      b2b:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1B2B'
+        type: array
       b2cs:
         items:
           $ref: '#/definitions/mi-tech_internal_domain_gst_dto.B2CSRow'
+        type: array
+      cdnr:
+        items:
+          $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1CDNR'
         type: array
       cur_gt:
         type: number
@@ -214,6 +285,26 @@ definitions:
         $ref: '#/definitions/mi-tech_internal_domain_gst_dto.HSNWrapper'
       version:
         type: string
+    type: object
+  mi-tech_internal_domain_gst_dto.GSTR1TaxDetails:
+    properties:
+      camt:
+        type: number
+      iamt:
+        type: number
+      rt:
+        type: number
+      samt:
+        type: number
+      txval:
+        type: number
+    type: object
+  mi-tech_internal_domain_gst_dto.GSTR1TaxItem:
+    properties:
+      itm_det:
+        $ref: '#/definitions/mi-tech_internal_domain_gst_dto.GSTR1TaxDetails'
+      num:
+        type: integer
     type: object
   mi-tech_internal_domain_gst_dto.HSNRow:
     properties:

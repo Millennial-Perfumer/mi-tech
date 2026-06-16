@@ -54,6 +54,42 @@ func (m *mockGSTRepository) GetAmazonDocumentsIssued(startDate, endDate string) 
 	return minVal, maxVal, args.Int(2), args.Int(3), args.Error(4)
 }
 
+func (m *mockGSTRepository) GetB2BDocumentsIssued(startDate, endDate string) (*string, *string, int, int, error) {
+	args := m.Called(startDate, endDate)
+	var minVal, maxVal *string
+	if args.Get(0) != nil {
+		minVal = args.Get(0).(*string)
+	}
+	if args.Get(1) != nil {
+		maxVal = args.Get(1).(*string)
+	}
+	return minVal, maxVal, args.Int(2), args.Int(3), args.Error(4)
+}
+
+func (m *mockGSTRepository) GetB2BCreditNotesIssued(startDate, endDate string) (*string, *string, int, int, error) {
+	args := m.Called(startDate, endDate)
+	var minVal, maxVal *string
+	if args.Get(0) != nil {
+		minVal = args.Get(0).(*string)
+	}
+	if args.Get(1) != nil {
+		maxVal = args.Get(1).(*string)
+	}
+	return minVal, maxVal, args.Int(2), args.Int(3), args.Error(4)
+}
+
+func (m *mockGSTRepository) GetB2BDebitNotesIssued(startDate, endDate string) (*string, *string, int, int, error) {
+	args := m.Called(startDate, endDate)
+	var minVal, maxVal *string
+	if args.Get(0) != nil {
+		minVal = args.Get(0).(*string)
+	}
+	if args.Get(1) != nil {
+		maxVal = args.Get(1).(*string)
+	}
+	return minVal, maxVal, args.Int(2), args.Int(3), args.Error(4)
+}
+
 func (m *mockGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSRow, error) {
 	args := m.Called(startDate, endDate)
 	return args.Get(0).([]dto.B2CSRow), args.Error(1)
@@ -62,6 +98,16 @@ func (m *mockGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSR
 func (m *mockGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow, error) {
 	args := m.Called(startDate, endDate)
 	return args.Get(0).([]dto.HSNRow), args.Error(1)
+}
+
+func (m *mockGSTRepository) GetGSTR1B2B(startDate, endDate string) ([]dto.GSTR1B2B, error) {
+	args := m.Called(startDate, endDate)
+	return args.Get(0).([]dto.GSTR1B2B), args.Error(1)
+}
+
+func (m *mockGSTRepository) GetGSTR1CDNR(startDate, endDate string) ([]dto.GSTR1CDNR, error) {
+	args := m.Called(startDate, endDate)
+	return args.Get(0).([]dto.GSTR1CDNR), args.Error(1)
 }
 
 func TestGSTService_GetGSTR1JSON(t *testing.T) {
@@ -77,6 +123,8 @@ func TestGSTService_GetGSTR1JSON(t *testing.T) {
 
 	mockRepo.On("GetGSTR1B2CS", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").Return(b2csRows, nil)
 	mockRepo.On("GetGSTR1HSN", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").Return(hsnRows, nil)
+	mockRepo.On("GetGSTR1B2B", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").Return([]dto.GSTR1B2B{}, nil)
+	mockRepo.On("GetGSTR1CDNR", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").Return([]dto.GSTR1CDNR{}, nil)
 
 	var shMin int64 = 2853
 	var shMax int64 = 2855
@@ -88,6 +136,13 @@ func TestGSTService_GetGSTR1JSON(t *testing.T) {
 
 	mockRepo.On("GetAmazonDocumentsIssued", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").
 		Return(&amzMin, &amzMax, 1, 0, nil)
+
+	mockRepo.On("GetB2BDocumentsIssued", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").
+		Return((*string)(nil), (*string)(nil), 0, 0, nil)
+	mockRepo.On("GetB2BCreditNotesIssued", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").
+		Return((*string)(nil), (*string)(nil), 0, 0, nil)
+	mockRepo.On("GetB2BDebitNotesIssued", "2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z").
+		Return((*string)(nil), (*string)(nil), 0, 0, nil)
 
 	gstin := "33AUSPR1909H1ZC"
 	payload, err := srv.GetGSTR1JSON("2026-06-01T00:00:00Z", "2026-06-30T23:59:59Z", gstin)
