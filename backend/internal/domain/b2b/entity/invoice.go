@@ -20,15 +20,15 @@ type B2BInvoice struct {
 	Subject         *string    `gorm:"column:subject" json:"subject"`
 
 	// Customer snapshot fields (immutable historical details)
-	CustomerID              *int64  `gorm:"column:customer_id" json:"customer_id"`
-	CustomerGSTIN           string  `gorm:"column:customer_gstin" json:"customer_gstin"`
-	CustomerName            string  `gorm:"column:customer_name" json:"customer_name"`
-	CustomerEmail           *string `gorm:"column:customer_email" json:"customer_email"`
-	CustomerPhone           *string `gorm:"column:customer_phone" json:"customer_phone"`
-	CustomerState           string  `gorm:"column:customer_state" json:"customer_state"`
-	CustomerStateCode       string  `gorm:"column:customer_state_code" json:"customer_state_code"`
-	CustomerAddress         string  `gorm:"column:customer_address" json:"customer_address"`
-	CustomerShippingAddress string  `gorm:"column:customer_shipping_address" json:"customer_shipping_address"`
+	CustomerID        *int64  `gorm:"column:customer_id" json:"customer_id"`
+	CustomerGSTIN     string  `gorm:"column:customer_gstin" json:"customer_gstin"`
+	CustomerName      string  `gorm:"column:customer_name" json:"customer_name"`
+	CustomerEmail     *string `gorm:"column:customer_email" json:"customer_email"`
+	CustomerPhone     *string `gorm:"column:customer_phone" json:"customer_phone"`
+	CustomerState     string  `gorm:"column:customer_state" json:"customer_state"`
+	CustomerStateCode string  `gorm:"column:customer_state_code" json:"customer_state_code"`
+	CustomerAddress   string  `gorm:"column:customer_address" json:"customer_address"`
+	CustomerShippingAddress string `gorm:"column:customer_shipping_address" json:"customer_shipping_address"`
 
 	// Seller details snapshot
 	SellerGSTIN     string `gorm:"column:seller_gstin" json:"seller_gstin"`
@@ -67,12 +67,12 @@ type B2BInvoice struct {
 	PaymentDate   *time.Time `gorm:"column:payment_date" json:"payment_date"`
 	PaymentMethod *string    `gorm:"column:payment_method" json:"payment_method"`
 
-	CustomerNotes     *string   `gorm:"column:customer_notes" json:"customer_notes"`
-	ProformaID        *int64    `gorm:"column:proforma_id" json:"proforma_id"`
-	AdvanceAdjusted   float64   `gorm:"column:advance_adjusted" json:"advance_adjusted"`
-	InventoryDeducted bool      `gorm:"column:inventory_deducted;default:false" json:"inventory_deducted"`
-	CreatedAt         time.Time `gorm:"column:created_at;default:NOW()" json:"created_at"`
-	UpdatedAt         time.Time `gorm:"column:updated_at;default:NOW()" json:"updated_at"`
+	CustomerNotes *string   `gorm:"column:customer_notes" json:"customer_notes"`
+	ProformaID    *int64    `gorm:"column:proforma_id" json:"proforma_id"`
+	AdvanceAdjusted float64 `gorm:"column:advance_adjusted" json:"advance_adjusted"`
+	InventoryDeducted bool `gorm:"column:inventory_deducted;default:false" json:"inventory_deducted"`
+	CreatedAt     time.Time `gorm:"column:created_at;default:NOW()" json:"created_at"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;default:NOW()" json:"updated_at"`
 
 	Items []B2BInvoiceItem `gorm:"foreignKey:InvoiceID" json:"items"`
 }
