@@ -427,7 +427,7 @@ func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string) (dto.
 	filDtStr := ""
 	endPeriod := parseISO(endDate)
 	if !endPeriod.IsZero() {
-		fp = endPeriod.Format("012006") // e.g. "062026"
+		fp = endPeriod.Format("012006")           // e.g. "062026"
 		filDtStr = endPeriod.Format("02-01-2006") // e.g. "30-06-2026"
 	} else {
 		// fallback to current month
