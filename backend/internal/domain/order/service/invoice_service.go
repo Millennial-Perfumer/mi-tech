@@ -185,14 +185,15 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	pdf.CellFormat(30, 4, "Invoice No:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.SetTextColor(30, 41, 59) // slate-800
-	pdf.CellFormat(60, 4, "INV-"+order.OrderNumber, "0", 1, "L", false, 0, "")
+	cleanOrderNum := strings.ReplaceAll(order.OrderNumber, "#", "")
+	pdf.CellFormat(60, 4, "SY-"+cleanOrderNum, "0", 1, "L", false, 0, "")
 
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(30, 4, "Order No:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
 	pdf.SetTextColor(30, 41, 59) // slate-800
-	pdf.CellFormat(60, 4, order.OrderNumber, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(60, 4, cleanOrderNum, "0", 1, "L", false, 0, "")
 
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
 	pdf.SetTextColor(100, 116, 139) // slate-500
