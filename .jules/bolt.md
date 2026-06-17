@@ -38,3 +38,6 @@
 ## 2026-06-14 - [Batching Meta Template Status Sync]
 **Learning:** Sequential template synchronization within `SyncStatus` looping over templates to trigger `GetRemoteTemplateByName` causes an N+1 API call issue.
 **Action:** Always batch lookups using a single API call like `GetAllRemoteTemplates` and then perform synchronization processing in bulk to eliminate N+1 API calls.
+## 2026-06-17 - Optimize BulkDeleteCustomers
+**Learning:** Sequential deletion of records with external API calls (Shopify) and database operations creates an N+1 performance bottleneck.
+**Action:** Use golang.org/x/sync/errgroup to parallelize external API calls and batch the database deletion with GORM to significantly improve performance.
