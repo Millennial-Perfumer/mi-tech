@@ -7,26 +7,26 @@ import (
 
 // B2BProformaInvoice represents a commercial proforma invoice
 type B2BProformaInvoice struct {
-	ID               int64                  `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	ProformaNumber   *string                `gorm:"column:proforma_number;unique" json:"proforma_number"`
-	ProformaSequence *int                   `gorm:"column:proforma_sequence" json:"proforma_sequence"`
-	FinancialYear    *string                `gorm:"column:financial_year" json:"financial_year"`
-	NoteDate         time.Time              `gorm:"column:note_date" json:"note_date"`
-	ValidUntil       *time.Time             `gorm:"column:valid_until" json:"valid_until"`
-	Status           string                 `gorm:"column:status;default:DRAFT" json:"status"` // DRAFT, SENT, ACCEPTED, CONVERTED_TO_INVOICE, REJECTED, EXPIRED, CANCELLED
-	RevisionNumber   int                    `gorm:"column:revision_number;default:1" json:"revision_number"`
-	ParentProformaID *int64                 `gorm:"column:parent_proforma_id" json:"parent_proforma_id"`
+	ID               int64      `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	ProformaNumber   *string    `gorm:"column:proforma_number;unique" json:"proforma_number"`
+	ProformaSequence *int       `gorm:"column:proforma_sequence" json:"proforma_sequence"`
+	FinancialYear    *string    `gorm:"column:financial_year" json:"financial_year"`
+	NoteDate         time.Time  `gorm:"column:note_date" json:"note_date"`
+	ValidUntil       *time.Time `gorm:"column:valid_until" json:"valid_until"`
+	Status           string     `gorm:"column:status;default:DRAFT" json:"status"` // DRAFT, SENT, ACCEPTED, CONVERTED_TO_INVOICE, REJECTED, EXPIRED, CANCELLED
+	RevisionNumber   int        `gorm:"column:revision_number;default:1" json:"revision_number"`
+	ParentProformaID *int64     `gorm:"column:parent_proforma_id" json:"parent_proforma_id"`
 
 	// Customer snapshot fields (immutable historical details)
-	CustomerID        *int64  `gorm:"column:customer_id" json:"customer_id"`
-	CustomerGSTIN     string  `gorm:"column:customer_gstin" json:"customer_gstin"`
-	CustomerName      string  `gorm:"column:customer_name" json:"customer_name"`
-	CustomerEmail     *string `gorm:"column:customer_email" json:"customer_email"`
-	CustomerPhone     *string `gorm:"column:customer_phone" json:"customer_phone"`
-	CustomerState     string  `gorm:"column:customer_state" json:"customer_state"`
-	CustomerStateCode string  `gorm:"column:customer_state_code" json:"customer_state_code"`
-	CustomerAddress   string  `gorm:"column:customer_address" json:"customer_address"`
-	CustomerShippingAddress string `gorm:"column:customer_shipping_address" json:"customer_shipping_address"`
+	CustomerID              *int64  `gorm:"column:customer_id" json:"customer_id"`
+	CustomerGSTIN           string  `gorm:"column:customer_gstin" json:"customer_gstin"`
+	CustomerName            string  `gorm:"column:customer_name" json:"customer_name"`
+	CustomerEmail           *string `gorm:"column:customer_email" json:"customer_email"`
+	CustomerPhone           *string `gorm:"column:customer_phone" json:"customer_phone"`
+	CustomerState           string  `gorm:"column:customer_state" json:"customer_state"`
+	CustomerStateCode       string  `gorm:"column:customer_state_code" json:"customer_state_code"`
+	CustomerAddress         string  `gorm:"column:customer_address" json:"customer_address"`
+	CustomerShippingAddress string  `gorm:"column:customer_shipping_address" json:"customer_shipping_address"`
 
 	// Seller details snapshot
 	SellerGSTIN     string `gorm:"column:seller_gstin" json:"seller_gstin"`

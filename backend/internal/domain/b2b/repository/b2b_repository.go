@@ -174,7 +174,7 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 
 	orderData := map[string]interface{}{
 		"source_id":          "b2b",
-		"external_order_id":   extID,
+		"external_order_id":  extID,
 		"order_number":       orderNumber,
 		"invoice_number":     invoiceNumber,
 		"total_price":        inv.TotalPrice,

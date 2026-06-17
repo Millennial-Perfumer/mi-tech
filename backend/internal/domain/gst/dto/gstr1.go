@@ -17,7 +17,7 @@ type GSTR1Payload struct {
 
 // B2B Section
 type GSTR1B2B struct {
-	Ctin string       `json:"ctin"`
+	Ctin string        `json:"ctin"`
 	Inv  []GSTR1B2BInv `json:"inv"`
 }
 
@@ -47,19 +47,19 @@ type GSTR1TaxDetails struct {
 
 // CDNR Section
 type GSTR1CDNR struct {
-	Ctin string       `json:"ctin"`
+	Ctin string        `json:"ctin"`
 	Nt   []GSTR1CDNRNt `json:"nt"`
 }
 
 type GSTR1CDNRNt struct {
-	Ntty   string         `json:"ntty"` // "C" or "D"
-	NtNum  string         `json:"nt_num"`
-	NtDt   string         `json:"nt_dt"`
-	Inum   string         `json:"inum"`
-	Idt    string         `json:"idt"`
-	Val    float64        `json:"val"`
-	Pos    string         `json:"pos"`
-	Itms   []GSTR1TaxItem `json:"itms"`
+	Ntty  string         `json:"ntty"` // "C" or "D"
+	NtNum string         `json:"nt_num"`
+	NtDt  string         `json:"nt_dt"`
+	Inum  string         `json:"inum"`
+	Idt   string         `json:"idt"`
+	Val   float64        `json:"val"`
+	Pos   string         `json:"pos"`
+	Itms  []GSTR1TaxItem `json:"itms"`
 }
 
 // B2CSRow represents the consolidated B2C Small row in GSTR-1.
