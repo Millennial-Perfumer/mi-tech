@@ -817,4 +817,3 @@ func (h *B2BHandler) CheckExpiredProformas(w http.ResponseWriter, r *http.Reques
 	}
 	json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "expired_count": count})
 }
-

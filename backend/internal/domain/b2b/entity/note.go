@@ -6,14 +6,14 @@ import (
 
 // B2BCreditNote represents a B2B Credit Note
 type B2BCreditNote struct {
-	ID                 int64      `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	CreditNoteNumber   *string    `gorm:"column:credit_note_number;unique" json:"credit_note_number"`
-	CreditNoteSequence *int       `gorm:"column:credit_note_sequence" json:"credit_note_sequence"`
-	FinancialYear      *string    `gorm:"column:financial_year" json:"financial_year"`
-	InvoiceID          *int64     `gorm:"column:invoice_id" json:"invoice_id"`
-	InvoiceNumber      *string    `gorm:"column:invoice_number" json:"invoice_number"`
-	NoteDate           time.Time  `gorm:"column:note_date" json:"note_date"`
-	Reason             *string    `gorm:"column:reason" json:"reason"`
+	ID                 int64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	CreditNoteNumber   *string   `gorm:"column:credit_note_number;unique" json:"credit_note_number"`
+	CreditNoteSequence *int      `gorm:"column:credit_note_sequence" json:"credit_note_sequence"`
+	FinancialYear      *string   `gorm:"column:financial_year" json:"financial_year"`
+	InvoiceID          *int64    `gorm:"column:invoice_id" json:"invoice_id"`
+	InvoiceNumber      *string   `gorm:"column:invoice_number" json:"invoice_number"`
+	NoteDate           time.Time `gorm:"column:note_date" json:"note_date"`
+	Reason             *string   `gorm:"column:reason" json:"reason"`
 
 	// Customer snapshot
 	CustomerID        *int64  `gorm:"column:customer_id" json:"customer_id"`
@@ -79,14 +79,14 @@ func (B2BCreditNoteItem) TableName() string {
 
 // B2BDebitNote represents a B2B Debit Note
 type B2BDebitNote struct {
-	ID                int64      `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	DebitNoteNumber   *string    `gorm:"column:debit_note_number;unique" json:"debit_note_number"`
-	DebitNoteSequence *int       `gorm:"column:debit_note_sequence" json:"debit_note_sequence"`
-	FinancialYear     *string    `gorm:"column:financial_year" json:"financial_year"`
-	InvoiceID         *int64     `gorm:"column:invoice_id" json:"invoice_id"`
-	InvoiceNumber     *string    `gorm:"column:invoice_number" json:"invoice_number"`
-	NoteDate          time.Time  `gorm:"column:note_date" json:"note_date"`
-	Reason            *string    `gorm:"column:reason" json:"reason"`
+	ID                int64     `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	DebitNoteNumber   *string   `gorm:"column:debit_note_number;unique" json:"debit_note_number"`
+	DebitNoteSequence *int      `gorm:"column:debit_note_sequence" json:"debit_note_sequence"`
+	FinancialYear     *string   `gorm:"column:financial_year" json:"financial_year"`
+	InvoiceID         *int64    `gorm:"column:invoice_id" json:"invoice_id"`
+	InvoiceNumber     *string   `gorm:"column:invoice_number" json:"invoice_number"`
+	NoteDate          time.Time `gorm:"column:note_date" json:"note_date"`
+	Reason            *string   `gorm:"column:reason" json:"reason"`
 
 	// Customer snapshot
 	CustomerID        *int64  `gorm:"column:customer_id" json:"customer_id"`

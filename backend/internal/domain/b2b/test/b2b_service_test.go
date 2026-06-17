@@ -299,4 +299,3 @@ func (s *B2BServiceTestSuite) TestInvoiceDeleteCascadesAndSync() {
 func TestB2BServiceSuite(t *testing.T) {
 	suite.Run(t, new(B2BServiceTestSuite))
 }
-
