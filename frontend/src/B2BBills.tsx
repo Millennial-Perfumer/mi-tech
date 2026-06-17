@@ -277,6 +277,54 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	// Outstanding Aging Report state
 	const [outstandingReport, setOutstandingReport] = useState<any[]>([]);
 
+	// Custom Confirm modal state
+	const [confirmConfig, setConfirmConfig] = useState<{
+		show: boolean;
+		message: string;
+		resolve?: (val: boolean) => void;
+	}>({ show: false, message: '' });
+
+	const showConfirm = (message: string): Promise<boolean> => {
+		return new Promise((resolve) => {
+			setConfirmConfig({
+				show: true,
+				message,
+				resolve
+			});
+		});
+	};
+
+	// Custom Alert modal state
+	const [alertConfig, setAlertConfig] = useState<{
+		show: boolean;
+		message: string;
+	}>({ show: false, message: '' });
+
+	const alert = (message: string) => {
+		setAlertConfig({ show: true, message });
+	};
+
+	const getProformaStatusStyle = (status: string) => {
+		switch (status) {
+			case 'DRAFT':
+				return { bg: 'rgba(156, 163, 175, 0.1)', color: '#4b5563', border: 'rgba(156, 163, 175, 0.2)' };
+			case 'SENT':
+				return { bg: 'rgba(245, 158, 11, 0.1)', color: '#d97706', border: 'rgba(245, 158, 11, 0.2)' };
+			case 'ACCEPTED':
+				return { bg: 'rgba(16, 185, 129, 0.1)', color: '#059669', border: 'rgba(16, 185, 129, 0.2)' };
+			case 'CONVERTED_TO_INVOICE':
+				return { bg: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', border: 'rgba(99, 102, 241, 0.2)' };
+			case 'REJECTED':
+				return { bg: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', border: 'rgba(239, 68, 68, 0.2)' };
+			case 'CANCELLED':
+				return { bg: 'rgba(220, 38, 38, 0.15)', color: '#b91c1c', border: 'rgba(220, 38, 38, 0.2)' };
+			case 'EXPIRED':
+				return { bg: 'rgba(107, 114, 128, 0.1)', color: '#374151', border: 'rgba(107, 114, 128, 0.2)' };
+			default:
+				return { bg: 'rgba(156, 163, 175, 0.1)', color: '#4b5563', border: 'rgba(156, 163, 175, 0.2)' };
+		}
+	};
+
 	// GST locks/periods state
 	const [gstPeriods, setGstPeriods] = useState<any[]>([]);
 
@@ -461,7 +509,10 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 			} else {
 				delete pf.valid_until;
 			}
-			const method = pf.id ? 'PUT' : 'POST';
+			const method = (viewMode === 'edit-pf' || formProforma.id || pf.id) ? 'PUT' : 'POST';
+			if (method === 'PUT' && !pf.id && formProforma.id) {
+				pf.id = formProforma.id;
+			}
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas`, {
 				method,
 				headers: { 'Content-Type': 'application/json' },
@@ -491,7 +542,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleDeleteProforma = async (id: number) => {
-		if (!confirm('Are you sure you want to delete this draft proforma?')) return;
+		if (!await showConfirm('Are you sure you want to delete this proforma? This action cannot be undone.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas?id=${id}`, {
 				method: 'DELETE'
@@ -508,7 +559,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleIssueProforma = async (id: number) => {
-		if (!confirm('Are you sure you want to issue this proforma invoice? This locks modifications and generates the sequential number.')) return;
+		if (!await showConfirm('Are you sure you want to issue this proforma invoice? This locks modifications and generates the sequential number.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/issue?id=${id}`, {
 				method: 'POST'
@@ -540,24 +591,9 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 		}
 	};
 
-	const handleRejectProforma = async (id: number) => {
-		try {
-			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/reject?id=${id}`, {
-				method: 'POST'
-			});
-			if (res.ok) {
-				loadProformas();
-			} else {
-				const text = await res.text();
-				alert(text);
-			}
-		} catch (err) {
-			console.error(err);
-		}
-	};
 
 	const handleCancelProforma = async (id: number) => {
-		if (!confirm('Are you sure you want to cancel this proforma?')) return;
+		if (!await showConfirm('Are you sure you want to cancel this proforma?')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/cancel?id=${id}`, {
 				method: 'POST'
@@ -574,7 +610,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleCreateRevision = async (id: number) => {
-		if (!confirm('Are you sure you want to create a new revision of this proforma?')) return;
+		if (!await showConfirm('Are you sure you want to create a new revision of this proforma?')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/revision?id=${id}`, {
 				method: 'POST'
@@ -596,7 +632,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleConvertToTaxInvoice = async (id: number) => {
-		if (!confirm('Are you sure you want to convert this proforma into a Tax Invoice? This will create a draft tax invoice and mark the proforma as converted.')) return;
+		if (!await showConfirm('Are you sure you want to convert this proforma into a Tax Invoice? This will create a draft tax invoice and mark the proforma as converted.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/proformas/convert?id=${id}`, {
 				method: 'POST'
@@ -891,7 +927,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 
 	// Delete Customer
 	const handleDeleteCustomer = async (id: number) => {
-		if (!confirm('Are you sure you want to delete this customer?')) return;
+		if (!await showConfirm('Are you sure you want to delete this customer?')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/customers?id=${id}`, {
 				method: 'DELETE'
@@ -1195,7 +1231,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleDeleteCreditNote = async (id: number) => {
-		if (!confirm('Are you sure you want to delete this credit note?')) return;
+		if (!await showConfirm('Are you sure you want to delete this credit note?')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes?id=${id}`, {
 				method: 'DELETE'
@@ -1212,7 +1248,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleIssueCreditNote = async (id: number) => {
-		if (!confirm('Are you sure you want to issue this credit note? This will post it and adjust the linked invoice outstanding balance.')) return;
+		if (!await showConfirm('Are you sure you want to issue this credit note? This will post it and adjust the linked invoice outstanding balance.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes/issue?id=${id}`, {
 				method: 'POST'
@@ -1230,7 +1266,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleCancelCreditNote = async (id: number) => {
-		if (!confirm('Are you sure you want to cancel this credit note? This will restore the outstanding balance of the linked invoice.')) return;
+		if (!await showConfirm('Are you sure you want to cancel this credit note? This will restore the outstanding balance of the linked invoice.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/credit-notes/cancel?id=${id}`, {
 				method: 'POST'
@@ -1289,7 +1325,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleDeleteDebitNote = async (id: number) => {
-		if (!confirm('Are you sure you want to delete this debit note?')) return;
+		if (!await showConfirm('Are you sure you want to delete this debit note?')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes?id=${id}`, {
 				method: 'DELETE'
@@ -1306,7 +1342,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleIssueDebitNote = async (id: number) => {
-		if (!confirm('Are you sure you want to issue this debit note? This will post it and adjust the linked invoice outstanding balance.')) return;
+		if (!await showConfirm('Are you sure you want to issue this debit note? This will post it and adjust the linked invoice outstanding balance.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes/issue?id=${id}`, {
 				method: 'POST'
@@ -1324,7 +1360,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 	};
 
 	const handleCancelDebitNote = async (id: number) => {
-		if (!confirm('Are you sure you want to cancel this debit note? This will reduce the outstanding balance of the linked invoice.')) return;
+		if (!await showConfirm('Are you sure you want to cancel this debit note? This will reduce the outstanding balance of the linked invoice.')) return;
 		try {
 			const res = await fetchWithAuth(`${API_BASE}/api/b2b/debit-notes/cancel?id=${id}`, {
 				method: 'POST'
@@ -1598,6 +1634,13 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 				}
 				.b2b-billing-container {
 					animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+				}
+				.b2b-table-container {
+					width: 100%;
+					overflow-x: auto;
+					overflow-y: visible;
+					-webkit-overflow-scrolling: touch;
+					margin-bottom: 1rem;
 				}
 				.b2b-input {
 					background-color: var(--bg-input) !important;
@@ -2571,53 +2614,95 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 													) : '—'}
 												</td>
 												<td>
-													<span className={`status-badge ${
-														pf.status === 'ACCEPTED' || pf.status === 'CONVERTED_TO_INVOICE' ? 'status-paid' :
-														pf.status === 'SENT' ? 'status-partial' :
-														pf.status === 'DRAFT' ? 'status-unpaid' : 'status-cancelled'
-													}`} style={{ fontSize: '0.75rem' }}>
-														{pf.status.replace(/_/g, ' ')}
-													</span>
+													{(() => {
+														const { bg, color, border } = getProformaStatusStyle(pf.status);
+														return (
+															<span style={{ 
+																display: 'inline-flex',
+																alignItems: 'center',
+																padding: '6px 12px',
+																borderRadius: '9999px',
+																fontSize: '0.72rem',
+																fontWeight: 700,
+																backgroundColor: bg,
+																color: color,
+																border: `1px solid ${border}`,
+																textTransform: 'uppercase',
+																letterSpacing: '0.03em',
+																gap: '6px'
+															}}>
+																<span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: color }} />
+																{pf.status === 'CONVERTED_TO_INVOICE' ? 'CONVERTED' : pf.status.replace(/_/g, ' ')}
+															</span>
+														);
+													})()}
 												</td>
-												<td className="no-print">
-													<div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+												<td className="no-print" style={{ width: '1%', whiteSpace: 'nowrap' }}>
+													<div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
 														<button
-															className="b2b-btn b2b-btn-secondary"
+															className="b2b-btn b2b-btn-secondary b2b-tooltip"
 															onClick={() => {
 																setSelectedProforma(pf);
 																setViewMode('preview-pf');
 															}}
-															style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+															data-tooltip="View Proforma"
+															style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+															onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.background = '#f9fafb'; }}
+															onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; }}
 														>
-															View
+															<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+																<circle cx="12" cy="12" r="3"></circle>
+															</svg>
 														</button>
+
+														{userRole === 'admin' && (
+															<button
+																className="b2b-btn b2b-btn-danger b2b-tooltip"
+																onClick={() => handleDeleteProforma(pf.id)}
+																data-tooltip="Delete Proforma"
+																style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--status-danger)'; e.currentTarget.style.background = 'var(--status-danger-bg)'; e.currentTarget.style.color = 'var(--status-danger)'; }}
+																onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#374151'; }}
+															>
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																	<polyline points="3 6 5 6 21 6"></polyline>
+																	<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+																</svg>
+															</button>
+														)}
 
 														{pf.status === 'DRAFT' && userRole === 'admin' && (
 															<>
 																<button
-																	className="b2b-btn b2b-btn-secondary"
+																	className="b2b-btn b2b-btn-secondary b2b-tooltip"
 																	onClick={() => {
 																		setFormProforma(pf);
 																		setViewMode('edit-pf');
 																		fetchNextProformaNumber(pf.note_date);
 																	}}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																	data-tooltip="Edit Proforma"
+																	style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																	onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.background = '#f9fafb'; }}
+																	onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; }}
 																>
-																	Edit
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																		<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+																		<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+																	</svg>
 																</button>
 																<button
-																	className="b2b-btn b2b-btn-primary"
+																	className="b2b-btn b2b-btn-primary b2b-tooltip"
 																	onClick={() => handleIssueProforma(pf.id)}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																	data-tooltip="Send Proforma"
+																	style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																	onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#9ca3af'; e.currentTarget.style.background = '#f9fafb'; }}
+																	onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; }}
 																>
-																	Send
-																</button>
-																<button
-																	className="b2b-btn b2b-btn-danger"
-																	onClick={() => handleDeleteProforma(pf.id)}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
-																>
-																	Delete
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																		<line x1="22" y1="2" x2="11" y2="13"></line>
+																		<polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+																	</svg>
 																</button>
 															</>
 														)}
@@ -2625,53 +2710,75 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 														{pf.status === 'SENT' && userRole === 'admin' && (
 															<>
 																<button
-																	className="b2b-btn b2b-btn-secondary"
+																	className="b2b-btn b2b-btn-secondary b2b-tooltip"
 																	onClick={() => handleAcceptProforma(pf.id)}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success-color)', borderColor: 'rgba(16, 185, 129, 0.2)' }}
+																	data-tooltip="Accept Proforma"
+																	style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																	onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--status-success)'; e.currentTarget.style.background = 'var(--status-success-bg)'; e.currentTarget.style.color = 'var(--status-success)'; }}
+																	onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#374151'; }}
 																>
-																	Accept
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+																		<polyline points="20 6 9 17 4 12"></polyline>
+																	</svg>
 																</button>
 																<button
-																	className="b2b-btn b2b-btn-secondary"
-																	onClick={() => handleRejectProforma(pf.id)}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
-																>
-																	Reject
-																</button>
-																<button
-																	className="b2b-btn b2b-btn-secondary"
+																	className="b2b-btn b2b-btn-secondary b2b-tooltip"
 																	onClick={() => handleCreateRevision(pf.id)}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																	data-tooltip="Revise Proforma"
+																	style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																	onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#eab308'; e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'; e.currentTarget.style.color = '#eab308'; }}
+																	onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#374151'; }}
 																>
-																	Revise
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																		<path d="M12 20h9"></path>
+																		<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+																	</svg>
 																</button>
 																<button
-																	className="b2b-btn b2b-btn-danger"
+																	className="b2b-btn b2b-btn-danger b2b-tooltip"
 																	onClick={() => handleCancelProforma(pf.id)}
-																	style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																	data-tooltip="Cancel Proforma"
+																	style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																	onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--status-danger)'; e.currentTarget.style.background = 'var(--status-danger-bg)'; e.currentTarget.style.color = 'var(--status-danger)'; }}
+																	onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#374151'; }}
 																>
-																	Cancel
+																	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																		<circle cx="12" cy="12" r="10"></circle>
+																		<line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+																	</svg>
 																</button>
 															</>
 														)}
 
 														{(pf.status === 'ACCEPTED' || pf.status === 'SENT') && userRole === 'admin' && (
 															<button
-																className="b2b-btn b2b-btn-primary"
+																className="b2b-btn b2b-btn-primary b2b-tooltip"
 																onClick={() => handleConvertToTaxInvoice(pf.id)}
-																style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto', background: 'var(--success-color)' }}
+																data-tooltip="Convert to Tax Invoice"
+																style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-color)'; e.currentTarget.style.background = 'var(--accent-subtle)'; e.currentTarget.style.color = 'var(--accent-color)'; }}
+																onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#374151'; }}
 															>
-																Convert
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																	<rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+																	<line x1="1" y1="10" x2="23" y2="10"></line>
+																</svg>
 															</button>
 														)}
 
 														{pf.status === 'REJECTED' && userRole === 'admin' && (
 															<button
-																className="b2b-btn b2b-btn-secondary"
+																className="b2b-btn b2b-btn-secondary b2b-tooltip"
 																onClick={() => handleCreateRevision(pf.id)}
-																style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+																data-tooltip="Revise Proforma"
+																style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', padding: '0', minHeight: 'auto', borderRadius: '12px', background: '#ffffff', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+																onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#eab308'; e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'; e.currentTarget.style.color = '#eab308'; }}
+																onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#374151'; }}
 															>
-																Revise
+																<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+																	<path d="M12 20h9"></path>
+																	<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+																</svg>
 															</button>
 														)}
 													</div>
@@ -6008,6 +6115,98 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 						) : (
 							<div style={{ textAlign: 'center', padding: '40px' }}>Loading ledger statement...</div>
 						)}
+					</div>
+				</div>,
+				document.body
+			)}
+
+			{/* CUSTOM CONFIRM MODAL */}
+			{confirmConfig.show && createPortal(
+				<div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)' }}>
+					<div className="premium-modal" style={{ maxWidth: '440px', width: '90%', padding: '28px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', background: 'var(--surface-color)', animation: 'modalFadeIn 0.2s ease-out', position: 'relative' }}>
+						<div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '20px' }}>
+							<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', flexShrink: 0 }}>
+								<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+									<circle cx="12" cy="12" r="10"></circle>
+									<line x1="12" y1="8" x2="12" y2="12"></line>
+									<line x1="12" y1="16" x2="12.01" y2="16"></line>
+								</svg>
+							</div>
+							<div style={{ flex: 1 }}>
+								<h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Action Required</h3>
+								<p style={{ margin: '8px 0 0 0', fontSize: '0.925rem', color: 'var(--text-secondary)', lineHeight: '1.5', fontWeight: 500 }}>
+									{confirmConfig.message}
+								</p>
+							</div>
+						</div>
+						<div className="modal-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+							<button 
+								onClick={() => {
+									confirmConfig.resolve?.(false);
+									setConfirmConfig({ show: false, message: '' });
+								}} 
+								className="b2b-btn b2b-btn-secondary" 
+								style={{ flex: 1, padding: '10px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600 }}
+							>
+								Cancel
+							</button>
+							<button 
+								onClick={() => {
+									confirmConfig.resolve?.(true);
+									setConfirmConfig({ show: false, message: '' });
+								}} 
+								className="b2b-btn b2b-btn-danger" 
+								style={{ flex: 1, padding: '10px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, background: 'var(--status-danger)', color: '#ffffff', borderColor: 'var(--status-danger)' }}
+							>
+								Confirm
+							</button>
+						</div>
+					</div>
+				</div>,
+				document.body
+			)}
+
+			{/* CUSTOM ALERT MODAL */}
+			{alertConfig.show && createPortal(
+				<div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(8px)' }}>
+					<div className="premium-modal" style={{ maxWidth: '440px', width: '90%', padding: '28px', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', background: 'var(--surface-color)', animation: 'modalFadeIn 0.2s ease-out', position: 'relative' }}>
+						<div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '20px' }}>
+							{/success/i.test(alertConfig.message) ? (
+								// Success Icon
+								<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(16, 185, 129, 0.08)', color: '#10b981', flexShrink: 0 }}>
+									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+										<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+										<polyline points="22 4 12 14.01 9 11.01"></polyline>
+									</svg>
+								</div>
+							) : (
+								// Warning/Info Icon
+								<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(99, 102, 241, 0.08)', color: 'var(--accent-color)', flexShrink: 0 }}>
+									<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+										<circle cx="12" cy="12" r="10"></circle>
+										<line x1="12" y1="16" x2="12" y2="12"></line>
+										<line x1="12" y1="8" x2="12.01" y2="8"></line>
+									</svg>
+								</div>
+							)}
+							<div style={{ flex: 1 }}>
+								<h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+									{/success/i.test(alertConfig.message) ? 'Success' : 'Notification'}
+								</h3>
+								<p style={{ margin: '8px 0 0 0', fontSize: '0.925rem', color: 'var(--text-secondary)', lineHeight: '1.5', fontWeight: 500 }}>
+									{alertConfig.message}
+								</p>
+							</div>
+						</div>
+						<div className="modal-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+							<button 
+								onClick={() => setAlertConfig({ show: false, message: '' })} 
+								className="b2b-btn b2b-btn-primary" 
+								style={{ flex: 1, padding: '10px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600, background: /success/i.test(alertConfig.message) ? '#10b981' : 'var(--accent-color)', color: '#ffffff', borderColor: /success/i.test(alertConfig.message) ? '#10b981' : 'var(--accent-color)' }}
+							>
+								OK
+							</button>
+						</div>
 					</div>
 				</div>,
 				document.body

@@ -88,7 +88,7 @@ func (s *B2BService) GetNextProformaNumber(pfDate string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("MP/%s/%05d", fy, seq), nil
+	return fmt.Sprintf("PT/PI/%s/%03d", fy, seq), nil
 }
 
 // IssueProforma transitions status to SENT and assigns sequential number
@@ -129,7 +129,7 @@ func (s *B2BService) IssueProforma(id int64) (*entity.B2BProformaInvoice, error)
 					parentNum = parentNum[:idx]
 				}
 			} else {
-				parentNum = fmt.Sprintf("MP/%s/%05d", fy, 0)
+				parentNum = fmt.Sprintf("PT/PI/%s/%03d", fy, 0)
 			}
 
 			pfNum := fmt.Sprintf("%s-R%d", parentNum, pf.RevisionNumber)
@@ -141,7 +141,7 @@ func (s *B2BService) IssueProforma(id int64) (*entity.B2BProformaInvoice, error)
 			if err != nil {
 				return err
 			}
-			pfNum := fmt.Sprintf("MP/%s/%05d", fy, seq)
+			pfNum := fmt.Sprintf("PT/PI/%s/%03d", fy, seq)
 			pf.ProformaNumber = &pfNum
 			pf.ProformaSequence = &seq
 		}

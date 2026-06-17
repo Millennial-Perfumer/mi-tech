@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"mi-tech/internal/domain/b2b/entity"
@@ -274,7 +276,7 @@ func (r *gormB2BRepository) CreateInvoice(inv *entity.B2BInvoice) error {
 func (r *gormB2BRepository) UpdateInvoice(inv *entity.B2BInvoice) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// Update parent fields
-		if err := tx.Omit("Items").Save(inv).Error; err != nil {
+		if err := tx.Model(inv).Omit("Items").Select("*").Updates(inv).Error; err != nil {
 			return err
 		}
 
@@ -350,11 +352,13 @@ func (r *gormB2BRepository) DeleteInvoice(id int64) error {
 }
 
 func (r *gormB2BRepository) GetNextSequenceForFY(fy string) (int, error) {
-	var count int64
-	err := r.db.Model(&entity.B2BInvoice{}).
-		Where("financial_year = ? AND status = 'ISSUED'", fy).
-		Count(&count).Error
-	return int(count) + 1, err
+	var maxSeq int
+	row := r.db.Model(&entity.B2BInvoice{}).
+		Where("financial_year = ?", fy).
+		Select("COALESCE(MAX(invoice_sequence), 0)").
+		Row()
+	err := row.Scan(&maxSeq)
+	return maxSeq + 1, err
 }
 
 // Payment Terms implementation
@@ -542,7 +546,23 @@ func (r *gormB2BRepository) GetGSTPeriod(month, year int) (entity.GSTPeriod, err
 }
 
 func (r *gormB2BRepository) SaveGSTPeriod(p *entity.GSTPeriod) error {
-	return r.db.Save(p).Error
+	var existing entity.GSTPeriod
+	err := r.db.Where("month = ? AND year = ?", p.Month, p.Year).First(&existing).Error
+	if err == nil {
+		existing.Status = p.Status
+		existing.UpdatedAt = time.Now()
+		err = r.db.Save(&existing).Error
+		if err == nil {
+			*p = existing
+		}
+		return err
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		p.CreatedAt = time.Now()
+		p.UpdatedAt = time.Now()
+		return r.db.Create(p).Error
+	}
+	return err
 }
 
 // Audit Logs implementation
@@ -607,7 +627,7 @@ func (r *gormB2BRepository) CreateProforma(pf *entity.B2BProformaInvoice) error 
 
 func (r *gormB2BRepository) UpdateProforma(pf *entity.B2BProformaInvoice) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Omit("Items").Save(pf).Error; err != nil {
+		if err := tx.Model(pf).Omit("Items").Select("*").Updates(pf).Error; err != nil {
 			return err
 		}
 		if err := tx.Where("proforma_invoice_id = ?", pf.ID).Delete(&entity.B2BProformaInvoiceItem{}).Error; err != nil {
@@ -628,14 +648,6 @@ func (r *gormB2BRepository) UpdateProforma(pf *entity.B2BProformaInvoice) error 
 
 func (r *gormB2BRepository) DeleteProforma(id int64) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		var status string
-		err := tx.Model(&entity.B2BProformaInvoice{}).Where("id = ?", id).Pluck("status", &status).Error
-		if err != nil {
-			return err
-		}
-		if status != "DRAFT" {
-			return fmt.Errorf("only DRAFT proforma invoices can be deleted; current status is %s", status)
-		}
 		if err := tx.Where("proforma_invoice_id = ?", id).Delete(&entity.B2BProformaInvoiceItem{}).Error; err != nil {
 			return err
 		}
@@ -644,11 +656,13 @@ func (r *gormB2BRepository) DeleteProforma(id int64) error {
 }
 
 func (r *gormB2BRepository) GetNextProformaSequenceForFY(fy string) (int, error) {
-	var count int64
-	err := r.db.Model(&entity.B2BProformaInvoice{}).
-		Where("financial_year = ? AND proforma_sequence IS NOT NULL", fy).
-		Count(&count).Error
-	return int(count) + 1, err
+	var maxSeq int
+	row := r.db.Model(&entity.B2BProformaInvoice{}).
+		Where("financial_year = ?", fy).
+		Select("COALESCE(MAX(proforma_sequence), 0)").
+		Row()
+	err := row.Scan(&maxSeq)
+	return maxSeq + 1, err
 }
 
 

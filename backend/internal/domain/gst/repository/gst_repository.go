@@ -272,7 +272,8 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 				o.total_price,
 				ROUND(o.total_price / 1.18, 2) as order_taxable,
 				(o.total_price - ROUND(o.total_price / 1.18, 2)) as order_tax,
-				COALESCE(s.code, '33') as pos_code
+				COALESCE(s.code, '33') as pos_code,
+				CASE WHEN LOWER(COALESCE(o.source_id, '')) = 'b2b' THEN true ELSE false END as is_b2b
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
 			LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
@@ -293,6 +294,7 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 				order_taxable,
 				order_tax,
 				pos_code,
+				is_b2b,
 				CASE 
 					WHEN line_sum > 0 THEN (line_val / line_sum)
 					WHEN qty_sum > 0 THEN (quantity::numeric / qty_sum)
@@ -308,9 +310,10 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 			ROUND(SUM(share * order_taxable), 2) as taxable_val,
 			ROUND(SUM(CASE WHEN pos_code != '33' THEN share * order_tax ELSE 0 END), 2) as igst,
 			ROUND(SUM(CASE WHEN pos_code = '33' THEN (share * order_tax) / 2 ELSE 0 END), 2) as cgst,
-			ROUND(SUM(CASE WHEN pos_code = '33' THEN (share * order_tax) / 2 ELSE 0 END), 2) as sgst
+			ROUND(SUM(CASE WHEN pos_code = '33' THEN (share * order_tax) / 2 ELSE 0 END), 2) as sgst,
+			is_b2b
 		FROM CalculatedShares
-		GROUP BY hs_code
+		GROUP BY hs_code, is_b2b
 	`
 
 	type hsnQueryResult struct {
@@ -322,6 +325,7 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 		Igst        float64
 		Cgst        float64
 		Sgst        float64
+		IsB2b       bool
 	}
 
 	var results []hsnQueryResult
@@ -346,6 +350,7 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 			Iamt:  res.Igst,
 			Camt:  res.Cgst,
 			Samt:  res.Sgst,
+			IsB2B: res.IsB2b,
 		})
 	}
 

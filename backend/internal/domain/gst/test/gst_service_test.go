@@ -153,8 +153,9 @@ func TestGSTService_GetGSTR1JSON(t *testing.T) {
 	assert.Len(t, payload.B2CS, 1)
 	assert.Equal(t, "INTRA", payload.B2CS[0].SplyTy)
 
-	assert.Len(t, payload.HSN.Data, 1)
-	assert.Equal(t, "330290", payload.HSN.Data[0].HsnSc)
+	assert.Len(t, payload.HSN.HsnB2C, 1)
+	assert.Equal(t, "330290", payload.HSN.HsnB2C[0].HsnSc)
+	assert.Len(t, payload.HSN.HsnB2B, 0)
 
 	assert.Len(t, payload.DocIssue.DocDet, 1)
 	assert.Len(t, payload.DocIssue.DocDet[0].Docs, 2)
