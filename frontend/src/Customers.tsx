@@ -41,7 +41,6 @@ interface WhatsAppTemplate {
 
 interface CustomersProps {
     fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
-    showClearButton?: boolean;
     bulkSuffix?: string;
     userRole?: string;
 }
@@ -61,7 +60,7 @@ const CUSTOMER_COLUMN_OPTIONS: ColumnOption[] = [
 
 const DEFAULT_CUSTOMER_COLUMNS: ColumnKey[] = ['name', 'phone', 'location', 'orders', 'spent', 'activity'];
 
-export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix = '_marketing', userRole = 'read' }: CustomersProps) {
+export function Customers({ fetchWithAuth, bulkSuffix = '_marketing', userRole = 'read' }: CustomersProps) {
     const { success: toastSuccess, error: toastError } = useToast();
     const { confirm } = useConfirm();
     const [file, setFile] = useState<File | null>(null);
@@ -311,34 +310,7 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
         }
     };
 
-    const handleDeleteAll = async () => {
-        const confirmed = await confirm({
-            title: 'Clear All Customers',
-            message: 'Are you absolutely sure? This will permanently delete ALL customers from the database. This action cannot be undone.',
-            variant: 'danger',
-            confirmLabel: 'Clear All'
-        });
 
-        if (!confirmed) return;
-
-        setIsDeleting(true);
-        try {
-            const response = await fetchWithAuth(`${API_BASE}/api/customers`, {
-                method: 'DELETE',
-            });
-            if (response.ok) {
-                toastSuccess('All customers cleared successfully.');
-                fetchCustomers();
-            } else {
-                toastError('Failed to clear customers.');
-            }
-        } catch (error) {
-            console.error('Error deleting customers:', error);
-            toastError('Error during deletion.');
-        } finally {
-            setIsDeleting(false);
-        }
-    };
 
     const handleMetaExport = async (type: 'customer' | 'engaged') => {
         try {
@@ -607,15 +579,6 @@ export function Customers({ fetchWithAuth, showClearButton = false, bulkSuffix =
                             </button>
                         )}
 
-                        {showClearButton && !isDeleting && selectedCustomerIDs.size === 0 && (
-                            <button 
-                                onClick={handleDeleteAll} 
-                                className="btn-danger-minimal"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                Clear All
-                            </button>
-                        )}
                     </div>
                 )}
             </div>

@@ -4,6 +4,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 import { ColumnSelector } from './ColumnSelector';
 import type { ColumnOption } from './ColumnSelector';
 import { GSTReports } from './gst/GSTReports';
+import { B2BBills } from './B2BBills';
 import { WhatsAppAutomation } from './WhatsAppAutomation';
 import fullLogo from './assets/full_logo.png';
 import fullLogoDark from './assets/full_logo_dark_theme.png';
@@ -222,7 +223,7 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
-  const [appSettings, setAppSettings] = useState<Record<string, string>>({});
+  const [, setAppSettings] = useState<Record<string, string>>({});
   const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
 
   // Handle auto-redirection if a module is disabled via config
@@ -828,6 +829,10 @@ function App() {
              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             <span>GST Reports</span>
           </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'b2b' ? 'active' : ''}`} onClick={() => setActiveTab('b2b')} title={isSidebarCollapsed ? "B2B Billing" : ""} style={{ animationDelay: '210ms' }}>
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+            <span>B2B Billing</span>
+          </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} title={isSidebarCollapsed ? "Inventory" : ""} style={{ animationDelay: '225ms' }}>
              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             <span>Inventory</span>
@@ -1020,14 +1025,14 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'b2b' ? 'B2B Billing' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'b2b' ? "Generate GST-compliant B2B invoices and manage customer registries." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
         </header>
         
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && activeTab !== 'b2b' && (
           <div className="date-range-header-bar" style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1083,7 +1088,8 @@ function App() {
               {[
                 { id: 'shopify', label: 'Shopify', color: '#96bf48' },
                 { id: 'amazon', label: 'Amazon', color: '#ff9900' },
-                { id: 'pos', label: 'POS', color: '#6366f1' }
+                { id: 'pos', label: 'POS', color: '#6366f1' },
+                { id: 'b2b', label: 'B2B', color: '#10b981' }
               ].map(ch => (
                 <button
                   key={ch.id}
@@ -1621,7 +1627,7 @@ function App() {
                       Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
                     </th>
                   )}
-                  {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp">WHATSAPP</th>}
+                  {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp no-print">WHATSAPP</th>}
                   {visibleColumns.includes('gst_invoice') && <th className="col-fixed-invoice">INVOICE</th>}
                   {visibleColumns.includes('feedback_status') && <th className="col-fixed-feedback">FEEDBACK</th>}
                 </tr>
@@ -1669,9 +1675,12 @@ function App() {
                         <td style={{ position: 'relative' }}>
                           <span 
                             className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : (order.financial_status === 'pending' ? 'warning' : 'yellow')}`}
-                            style={{ cursor: isUpdatingPaymentStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 }}
+                            style={{ 
+                              cursor: (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer', 
+                              opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 
+                            }}
                             onClick={(e) => {
-                              if (isUpdatingPaymentStatus) return;
+                              if (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') return;
                               e.stopPropagation();
                               setEditingPaymentStatusId(editingPaymentStatusId === order.id ? null : order.id);
                             }}
@@ -1679,7 +1688,7 @@ function App() {
                             <span className="dot"></span> {isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 'Updating...' : (order.financial_status?.toLowerCase().charAt(0).toUpperCase() + order.financial_status?.toLowerCase().slice(1) || 'Unknown')}
                           </span>
 
-                          {editingPaymentStatusId === order.id && (
+                          {editingPaymentStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
                             <div className="status-popover" onClick={e => e.stopPropagation()}>
                               <div className="status-popover-header">Update Payment</div>
                               <div 
@@ -1708,9 +1717,12 @@ function App() {
                         <td style={{ position: 'relative' }}>
                           <span 
                             className={`badge-pill badge-pill-${order.fulfillment_status?.toLowerCase() === 'fulfilled' ? 'gray' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'danger' : 'yellow')}`}
-                            style={{ cursor: isUpdatingStatus ? 'not-allowed' : 'pointer', opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 }}
+                            style={{ 
+                              cursor: (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer', 
+                              opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 
+                            }}
                             onClick={(e) => {
-                              if (isUpdatingStatus) return;
+                              if (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') return;
                               e.stopPropagation();
                               setEditingStatusId(editingStatusId === order.id ? null : order.id);
                             }}
@@ -1718,7 +1730,7 @@ function App() {
                              <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.toLowerCase().charAt(0).toUpperCase() + order.fulfillment_status?.toLowerCase().slice(1) || 'Unfulfilled'))}
                           </span>
 
-                          {editingStatusId === order.id && (
+                          {editingStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
                             <div className="status-popover" onClick={e => e.stopPropagation()}>
                               <div className="status-popover-header">Update Status</div>
                               <div 
@@ -1797,7 +1809,7 @@ function App() {
                         </td>
                       )}
                       {visibleColumns.includes('whatsapp') && (
-                        <td className="col-fixed-whatsapp">
+                        <td className="col-fixed-whatsapp no-print">
                           <div className="col-align-center">
                             {order.customer_phone ? (
                               <button 
@@ -1846,13 +1858,17 @@ function App() {
                       {visibleColumns.includes('gst_invoice') && (
                         <td className="col-fixed-invoice">
                           <div className="col-align-center">
-                            <button 
-                              onClick={() => handleDownloadInvoice(order.id, order.order_number)}
-                              className="btn-primary" 
-                              style={{fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none'}}
-                            >
-                              Invoice
-                            </button>
+                            {order.source_id?.toLowerCase() === 'b2b' ? (
+                              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
+                            ) : (
+                              <button 
+                                onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                                className="btn-primary" 
+                                style={{fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none'}}
+                              >
+                                Invoice
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}
@@ -1985,6 +2001,14 @@ function App() {
               businessGstin={appConfigs?.business_gstin}
             />
           )}
+ 
+           {activeTab === 'b2b' && (
+             <B2BBills 
+               fetchWithAuth={fetchWithAuth} 
+               userRole={userRole}
+               appConfigs={appConfigs}
+             />
+           )}
 
           {activeTab === 'automation' && (
             <WhatsAppAutomation 
@@ -2043,7 +2067,6 @@ function App() {
           {activeTab === 'customers' && (
             <Customers 
               fetchWithAuth={fetchWithAuth} 
-              showClearButton={appSettings?.show_clear_customers_button === 'true'} 
               bulkSuffix={appConfigs?.bulk_template_suffix || '_marketing'}
               userRole={userRole}
             />

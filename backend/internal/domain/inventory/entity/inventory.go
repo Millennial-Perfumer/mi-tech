@@ -13,6 +13,7 @@ type InventoryItem struct {
 	Specification *string   `gorm:"column:specification" json:"specification"`
 	CurrentStock  int       `gorm:"column:current_stock" json:"current_stock"`
 	Price         float64   `gorm:"column:price" json:"price"`
+	HSNCode       string    `gorm:"column:hsn_code" json:"hsn_code"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 

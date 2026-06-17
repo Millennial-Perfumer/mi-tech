@@ -6,6 +6,9 @@ import (
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	aiRepoPkg "mi-tech/internal/domain/ai/repository"
 	aiServicePkg "mi-tech/internal/domain/ai/service"
+	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
+	b2bRepoPkg "mi-tech/internal/domain/b2b/repository"
+	b2bServicePkg "mi-tech/internal/domain/b2b/service"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
 	communicationRepoPkg "mi-tech/internal/domain/communication/repository"
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
@@ -109,6 +112,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	aiReadRepo := aiRepoPkg.NewAIReadRepository(db)
 	aiConvRepo := aiRepoPkg.NewAIConversationRepository(db)
 	aiMemRepo := aiRepoPkg.NewAIMemoryRepository(db)
+	b2bRepo := b2bRepoPkg.NewB2BRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -147,6 +151,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	socialService := marketingServicePkg.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := systemServicePkg.NewSystemService("../docs")
 	aiService := aiServicePkg.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
+	b2bService := b2bServicePkg.NewB2BService(b2bRepo, settingsProvider, db)
 	marketingHandler := marketingHandlerPkg.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := marketingHandlerPkg.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := systemHandlerPkg.NewSystemHandler(systemService)
@@ -176,6 +181,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	poHandler := productionHandlerPkg.NewPurchaseOrderHandler(poService)
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
 	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
+	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
 
 	RegisterRoutes(
 		mux,
@@ -204,6 +210,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		poHandler,
 		mfgHandler,
 		aiHandler,
+		b2bHandler,
 		authService,
 	)
 

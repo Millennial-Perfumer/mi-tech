@@ -80,7 +80,7 @@
 
 /* Compact Confirm Modal Overrides */
 .premium-modal.confirm-modal {
-  max-width: 380px;
+  max-width: 440px;
   padding: 2rem;
   border-radius: 20px;
 }
@@ -818,4 +818,10 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
 }

@@ -48,7 +48,15 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 	if filter.Source != "" {
-		query = query.Where("source_id = ?", filter.Source)
+		sources := strings.Split(filter.Source, ",")
+		for i, s := range sources {
+			sources[i] = strings.ToLower(s)
+		}
+		if len(sources) > 1 {
+			query = query.Where("LOWER(source_id) IN ?", sources)
+		} else {
+			query = query.Where("LOWER(source_id) = ?", sources[0])
+		}
 	}
 	if filter.FinancialStatus != "" {
 		if strings.ToLower(filter.FinancialStatus) == "unpaid" {
@@ -528,7 +536,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		if len(allLineItems) > 0 {
 			if err := tx.Clauses(clause.OnConflict{
 				Columns:   []clause.Column{{Name: "id"}},
-				DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount"}),
+				DoUpdates: clause.AssignmentColumns([]string{"title", "sku", "hs_code", "quantity", "price", "discount", "order_discount"}),
 			}).Create(&allLineItems).Error; err != nil {
 				return fmt.Errorf("failed to batch upsert line items: %w", err)
 			}
