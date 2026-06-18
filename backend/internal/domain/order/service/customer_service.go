@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -798,14 +799,46 @@ func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID str
 	return s.repo.Delete(ctx, cust.ID)
 }
 
+// BulkDeleteCustomers deletes multiple customers.
+// Optimization: Resolves N+1 query/API bottlenecks by fetching entities in one batch,
+// parallelizing external API deletions (concurrency limit 5), and performing a single batch database delete.
 func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
-	for _, id := range ids {
-		// Use DeleteCustomer to ensure Shopify sync per customer
-		if err := s.DeleteCustomer(ctx, id); err != nil {
-			log.Printf("BulkDelete: Failed to delete customer %d: %v", id, err)
-		}
+	if len(ids) == 0 {
+		return nil
 	}
-	return nil
+
+	uintIDs := make([]uint, len(ids))
+	for i, id := range ids {
+		uintIDs[i] = uint(id)
+	}
+
+	customers, err := s.repo.GetByIDs(ctx, uintIDs)
+	if err != nil {
+		return err
+	}
+
+	if s.shopifyClient != nil {
+		g, _ := errgroup.WithContext(ctx)
+		g.SetLimit(5)
+
+		for _, cust := range customers {
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if extID > 0 {
+					captureExtID := extID
+					g.Go(func() error {
+						if err := s.shopifyClient.DeleteCustomer(captureExtID); err != nil {
+							log.Printf("Failed to sync customer deletion to Shopify for extID %d: %v", captureExtID, err)
+						}
+						return nil
+					})
+				}
+			}
+		}
+		_ = g.Wait()
+	}
+
+	return s.repo.BulkDelete(ctx, ids)
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {

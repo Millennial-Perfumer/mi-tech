@@ -38,3 +38,7 @@
 ## 2026-06-14 - [Batching Meta Template Status Sync]
 **Learning:** Sequential template synchronization within `SyncStatus` looping over templates to trigger `GetRemoteTemplateByName` causes an N+1 API call issue.
 **Action:** Always batch lookups using a single API call like `GetAllRemoteTemplates` and then perform synchronization processing in bulk to eliminate N+1 API calls.
+
+## 2024-06-18 - Optimize Bulk Customer Deletion
+**Learning:** In backend operations that require orchestrating external API calls and local database operations across an array of entities (like bulk deletions), iterating synchronously causes severe N+1 bottlenecks (O(N) network calls, O(N) DB queries). The `errgroup` pattern with a concurrency limit is essential for parallelizing external I/O without overwhelming limits, and it must be paired with batch DB reads/writes (`GetByIDs`, `BulkDelete`). Also note the conversion of `[]int64` to `[]uint` for GORM `id IN ?` operations across domains.
+**Action:** When implementing or optimizing bulk REST endpoints, structure the logic to: 1. Batch fetch needed data. 2. Process external I/O concurrently using `errgroup` with limits. 3. Batch write/delete to the database.
