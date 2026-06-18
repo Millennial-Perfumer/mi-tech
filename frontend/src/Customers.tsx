@@ -1532,7 +1532,7 @@ const BulkTemplateModal: React.FC<{
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
                 <div className="modal-header">
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>Send Bulk Messages</h2>
-                    <button className="close-button" onClick={onClose}>&times;</button>
+                    <button type="button" aria-label="Close modal" className="close-button" onClick={onClose}>&times;</button>
                 </div>
 
                 <div className="modal-body" style={{ padding: '1.5rem' }}>

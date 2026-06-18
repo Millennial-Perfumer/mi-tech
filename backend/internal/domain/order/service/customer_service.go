@@ -804,7 +804,7 @@ func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) 
 		return nil
 	}
 
-	// 1. Fetch all customers to identify which ones need Shopify deletion
+	// 1. Fetch all customers in one batch to get their Shopify IDs
 	uintIDs := make([]uint, len(ids))
 	for i, id := range ids {
 		uintIDs[i] = uint(id)
@@ -815,37 +815,31 @@ func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) 
 		return fmt.Errorf("failed to fetch customers for bulk delete: %w", err)
 	}
 
-	// 2. Perform concurrent external API deletions
+	// 2. Parallelize external API calls to Shopify
 	if s.shopifyClient != nil {
 		g, _ := errgroup.WithContext(ctx)
-		g.SetLimit(5) // Limit concurrent API calls
+		g.SetLimit(5) // Limit concurrency to avoid rate limits
 
 		for _, cust := range customers {
 			if cust.ExternalID != nil && *cust.ExternalID != "" {
 				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
 				if extID > 0 {
 					g.Go(func() error {
-						if err := s.shopifyClient.DeleteCustomer(extID); err != nil {
+						err := s.shopifyClient.DeleteCustomer(extID)
+						if err != nil {
 							log.Printf("Failed to sync customer deletion to Shopify for %d: %v", extID, err)
-							// Ignore external error, we still want to delete locally
 						}
-						return nil
+						return nil // We still want to proceed with local deletion even if Shopify fails
 					})
 				}
 			}
 		}
-
-		if err := g.Wait(); err != nil {
-			log.Printf("BulkDelete: Error waiting for Shopify syncs: %v", err)
-		}
+		// Wait for all Shopify deletions to finish
+		_ = g.Wait()
 	}
 
-	// 3. Batch DB delete
-	if err := s.repo.BulkDelete(ctx, ids); err != nil {
-		return fmt.Errorf("failed to bulk delete customers from DB: %w", err)
-	}
-
-	return nil
+	// 3. Perform a single batch database delete
+	return s.repo.BulkDelete(ctx, ids)
 }
 
 func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {

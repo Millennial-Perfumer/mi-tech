@@ -855,7 +855,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', position: 'sticky', top: 0, background: 'var(--surface-color)', zIndex: 10, paddingBottom: '0.5rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Product Specifications</h3>
-              <button className="toolbar-btn" onClick={() => setSelectedProduct(null)} style={{ fontSize: '1.2rem', padding: '0.5rem' }}>✕</button>
+              <button type="button" aria-label="Close" className="toolbar-btn" onClick={() => setSelectedProduct(null)} style={{ fontSize: '1.2rem', padding: '0.5rem' }}>✕</button>
             </div>
             
             <div style={{ display: 'grid', gap: '1.25rem' }}>
@@ -1074,7 +1074,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                   {selectedProduct.title} ({selectedProduct.mi_sku})
                 </p>
               </div>
-              <button className="toolbar-btn" onClick={() => setShowLogsModal(false)}>✕</button>
+              <button type="button" aria-label="Close" className="toolbar-btn" onClick={() => setShowLogsModal(false)}>✕</button>
             </div>
 
             <div style={{ maxHeight: '450px', overflowY: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }}>

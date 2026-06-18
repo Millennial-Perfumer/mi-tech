@@ -173,7 +173,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           <div className="datepicker-modal-container">
             <div className="datepicker-modal-header">
               <h3>Select Date Range</h3>
-              <button className="modal-close-btn" onClick={handleCancel}>&times;</button>
+              <button type="button" aria-label="Close modal" className="modal-close-btn" onClick={handleCancel}>&times;</button>
             </div>
             
             <div className="datepicker-content">
