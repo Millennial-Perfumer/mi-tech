@@ -367,14 +367,12 @@ func (r *gormGSTRepository) GetGSTR1B2B(startDate, endDate string) ([]dto.GSTR1B
 			i.invoice_date,
 			i.total_price,
 			i.customer_state_code,
-			COALESCE(SUM(ii.amount), 0) as taxable_value,
-			COALESCE(SUM(CASE WHEN i.seller_state_code = i.customer_state_code THEN ii.amount * 0.09 ELSE 0 END), 0) as cgst,
-			COALESCE(SUM(CASE WHEN i.seller_state_code = i.customer_state_code THEN ii.amount * 0.09 ELSE 0 END), 0) as sgst,
-			COALESCE(SUM(CASE WHEN i.seller_state_code != i.customer_state_code THEN ii.amount * 0.18 ELSE 0 END), 0) as igst
+			ROUND(i.total_price / 1.18, 2) as taxable_value,
+			CASE WHEN i.seller_state_code = i.customer_state_code THEN ROUND((i.total_price - ROUND(i.total_price / 1.18, 2)) / 2, 2) ELSE 0 END as cgst,
+			CASE WHEN i.seller_state_code = i.customer_state_code THEN ROUND((i.total_price - ROUND(i.total_price / 1.18, 2)) / 2, 2) ELSE 0 END as sgst,
+			CASE WHEN i.seller_state_code != i.customer_state_code THEN (i.total_price - ROUND(i.total_price / 1.18, 2)) ELSE 0 END as igst
 		FROM b2b_invoices i
-		JOIN b2b_invoice_items ii ON i.id = ii.invoice_id
 		WHERE i.invoice_date >= ? AND i.invoice_date <= ? AND i.status = 'ISSUED'
-		GROUP BY i.customer_gstin, i.invoice_number, i.invoice_date, i.total_price, i.customer_state_code
 	`
 
 	type b2bQueryResult struct {
