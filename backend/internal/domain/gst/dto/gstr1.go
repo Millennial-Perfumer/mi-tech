@@ -93,10 +93,10 @@ type B2CSRow struct {
 
 // HSNWrapper encapsulates the bifurcated HSN lists.
 type HSNWrapper struct {
-	Flag   string   `json:"flag"`                 // "N"
-	HsnB2B []HSNRow `json:"hsn_b2b"`              // Table 12 B2B supplies
-	HsnB2C []HSNRow `json:"hsn_b2c"`              // Table 12 B2C supplies
-	Chksum string   `json:"chksum,omitempty"`     // Checksum
+	Flag   string   `json:"flag"`             // "N"
+	HsnB2B []HSNRow `json:"hsn_b2b"`          // Table 12 B2B supplies
+	HsnB2C []HSNRow `json:"hsn_b2c"`          // Table 12 B2C supplies
+	Chksum string   `json:"chksum,omitempty"` // Checksum
 }
 
 // HSNRow represents Table 12 rate-wise summary of outward supplies.
@@ -116,7 +116,7 @@ type HSNRow struct {
 
 // DocIssueWrapper encapsulates documents issued.
 type DocIssueWrapper struct {
-	Flag   string        `json:"flag"`             // "N"
+	Flag   string        `json:"flag"` // "N"
 	DocDet []DocCategory `json:"doc_det"`
 	Chksum string        `json:"chksum,omitempty"` // Checksum
 }

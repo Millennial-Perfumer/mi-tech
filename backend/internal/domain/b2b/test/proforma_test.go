@@ -110,7 +110,6 @@ func (s *B2BProformaTestSuite) TestProformaLifecycle() {
 	s.db.Model(&entity.B2BProformaInvoice{}).Count(&pfCount)
 	assert.Equal(s.T(), int64(2), pfCount) // Must be exactly 2 (the parent/original and the revision)
 
-
 	// Issue revision
 	issuedRev, err := s.b2bService.IssueProforma(rev.ID)
 	assert.NoError(s.T(), err)
@@ -126,7 +125,7 @@ func (s *B2BProformaTestSuite) TestProformaLifecycle() {
 	assert.Equal(s.T(), "DRAFT", taxInv.Status)
 	assert.Equal(s.T(), issuedRev.ID, *taxInv.ProformaID)
 	assert.Equal(s.T(), 5000.00, taxInv.AdvanceAdjusted)
-	
+
 	// Total price = 22000 + 18% GST (3960) = 25960.00
 	assert.Equal(s.T(), 25960.00, taxInv.TotalPrice)
 	// Balance = Total - AdvanceAdjusted = 25960.00 - 5000.00 = 20960.00
@@ -186,4 +185,3 @@ func (s *B2BProformaTestSuite) TestProformaUnmarshal() {
 func TestB2BProformaSuite(t *testing.T) {
 	suite.Run(t, new(B2BProformaTestSuite))
 }
-
