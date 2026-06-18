@@ -1,6 +1,7 @@
 package test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -90,7 +91,7 @@ func (s *B2BProformaTestSuite) TestProformaLifecycle() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "SENT", issued.Status)
 	assert.Equal(s.T(), "26-27", *issued.FinancialYear)
-	assert.Equal(s.T(), "MP/26-27/00001", *issued.ProformaNumber)
+	assert.Equal(s.T(), "PT/PI/26-27/001", *issued.ProformaNumber)
 
 	// 4. Create Revision
 	rev, err := s.b2bService.CreateRevision(issued.ID)
@@ -105,11 +106,16 @@ func (s *B2BProformaTestSuite) TestProformaLifecycle() {
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), 22000.00, rev.SubtotalPrice) // (12 * 1000) + (2 * 5000)
 
+	var pfCount int64
+	s.db.Model(&entity.B2BProformaInvoice{}).Count(&pfCount)
+	assert.Equal(s.T(), int64(2), pfCount) // Must be exactly 2 (the parent/original and the revision)
+
+
 	// Issue revision
 	issuedRev, err := s.b2bService.IssueProforma(rev.ID)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "SENT", issuedRev.Status)
-	assert.Equal(s.T(), "MP/26-27/00001-R2", *issuedRev.ProformaNumber)
+	assert.Equal(s.T(), "PT/PI/26-27/001-R2", *issuedRev.ProformaNumber)
 
 	// 5. Accept and Convert
 	err = s.b2bService.AcceptProforma(issuedRev.ID)
@@ -167,6 +173,17 @@ func (s *B2BProformaTestSuite) TestProformaExpiration() {
 	assert.Equal(s.T(), "EXPIRED", updatedPf.Status)
 }
 
+func (s *B2BProformaTestSuite) TestProformaUnmarshal() {
+	jsonData := `{"id": 42, "note_date": "2026-06-15", "status": "DRAFT", "customer_gstin": "29ABCDE1234F1Z5"}`
+	var pf entity.B2BProformaInvoice
+	err := json.Unmarshal([]byte(jsonData), &pf)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), int64(42), pf.ID)
+	assert.Equal(s.T(), "DRAFT", pf.Status)
+	assert.Equal(s.T(), "29ABCDE1234F1Z5", pf.CustomerGSTIN)
+}
+
 func TestB2BProformaSuite(t *testing.T) {
 	suite.Run(t, new(B2BProformaTestSuite))
 }
+

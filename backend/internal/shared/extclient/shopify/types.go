@@ -123,6 +123,7 @@ type GraphQLLineItemEdge struct {
 type GraphQLLineItemNode struct {
 	ID                   string               `json:"id"`
 	Title                string               `json:"title"`
+	VariantTitle         string               `json:"variantTitle"`
 	SKU                  string               `json:"sku"`
 	Quantity             int                  `json:"quantity"`
 	CurrentQuantity      *int                 `json:"currentQuantity"`

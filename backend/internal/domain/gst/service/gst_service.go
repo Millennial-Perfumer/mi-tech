@@ -390,29 +390,69 @@ func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string) (dto.
 		})
 	}
 
+	// Format B2CS Rows to include Flag: "N"
+	for i := range b2csRows {
+		b2csRows[i].Flag = "N"
+	}
+
+	// Partition HSN Rows into B2B and B2C arrays
+	var hsnB2B []dto.HSNRow
+	var hsnB2C []dto.HSNRow
+	b2bIdx := 1
+	b2cIdx := 1
+	for _, row := range hsnRows {
+		if row.IsB2B {
+			row.Num = b2bIdx
+			hsnB2B = append(hsnB2B, row)
+			b2bIdx++
+		} else {
+			row.Num = b2cIdx
+			hsnB2C = append(hsnB2C, row)
+			b2cIdx++
+		}
+	}
+
+	// Populate utility fields for B2B invoices if they exist
+	for i := range b2bRows {
+		b2bRows[i].Cfs = "N"
+		for j := range b2bRows[i].Inv {
+			b2bRows[i].Inv[j].Flag = "U"
+			b2bRows[i].Inv[j].Updby = "S"
+			b2bRows[i].Inv[j].Cflag = "N"
+		}
+	}
+
 	// Determine filing period (fp) format: MMYYYY
 	fp := ""
+	filDtStr := ""
 	endPeriod := parseISO(endDate)
 	if !endPeriod.IsZero() {
 		fp = endPeriod.Format("012006") // e.g. "062026"
+		filDtStr = endPeriod.Format("02-01-2006") // e.g. "30-06-2026"
 	} else {
 		// fallback to current month
 		fp = time.Now().Format("012006")
+		filDtStr = time.Now().Format("02-01-2006")
 	}
 
 	payload := dto.GSTR1Payload{
-		GSTIN:   gstin,
-		FP:      fp,
-		Version: "v1.0",
-		B2B:     b2bRows,
-		B2CS:    b2csRows,
-		CDNR:    cdnrRows,
+		GSTIN:     gstin,
+		FP:        fp,
+		FilingTyp: "M",
+		Version:   "v1.0",
+		B2B:       b2bRows,
+		B2CS:      b2csRows,
+		CDNR:      cdnrRows,
 		HSN: dto.HSNWrapper{
-			Data: hsnRows,
+			Flag:   "N",
+			HsnB2B: hsnB2B,
+			HsnB2C: hsnB2C,
 		},
 		DocIssue: dto.DocIssueWrapper{
+			Flag:   "N",
 			DocDet: docCategories,
 		},
+		FilDt: filDtStr,
 	}
 
 	return payload, nil

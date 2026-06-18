@@ -111,6 +111,12 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 		}
 	}
 
+	// Top brand bar
+	pdf.SetFillColor(0, 176, 116) // Vibrant Emerald Green
+	pdf.Rect(10, 10, 190, 1.5, "F")
+
+	pdf.SetY(16.5)
+
 	// -- Header --
 	bizName := s.getSetting("business_name", DefaultBusinessName)
 	gstin := s.getSetting("business_gstin", DefaultBusinessGSTIN)
@@ -118,25 +124,55 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 	addr2 := s.getSetting("business_address_line2", DefaultAddressLine2)
 	phone := s.getSetting("business_phone", DefaultBusinessPhone)
 
-	s.safeSetFont(pdf, "Montserrat", "B", 13.5, hasMontserrat)
-	pdf.CellFormat(100, 10, bizName, "0", 0, "L", false, 0, "")
-	pdf.CellFormat(80, 10, "TAX INVOICE", "0", 1, "R", false, 0, "")
+	pdf.SetDrawColor(226, 232, 240) // slate-200 for clean borders
 
+	// Left Side: TAX INVOICE
+	s.safeSetFont(pdf, "Montserrat", "B", 16, hasMontserrat)
+	pdf.SetTextColor(0, 176, 116) // Vibrant Emerald Green
+	pdf.CellFormat(100, 10, "TAX INVOICE", "0", 0, "L", false, 0, "")
+
+	// Right Side: Company Name
+	s.safeSetFont(pdf, "Montserrat", "B", 13.5, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
+	pdf.CellFormat(90, 10, bizName, "0", 1, "R", false, 0, "")
+
+	// Details grid
+	startY := pdf.GetY()
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
-	pdf.Ln(2)
-	pdf.CellFormat(100, 4, "GSTIN: "+gstin, "0", 1, "L", false, 0, "")
-	pdf.Ln(1)
-	pdf.CellFormat(100, 4, addr1, "0", 1, "L", false, 0, "")
-	pdf.CellFormat(100, 4, addr2, "0", 1, "L", false, 0, "")
-	pdf.Ln(1)
-	pdf.CellFormat(100, 4, "Phone: "+phone, "0", 1, "L", false, 0, "")
-	pdf.Ln(6.5)
+
+	// Left side FY subtitle
+	pdf.SetY(startY)
+	pdf.SetTextColor(71, 85, 105) // slate-600
+	orderYear := order.CreatedAt.Year()
+	orderMonth := order.CreatedAt.Month()
+	var fy string
+	if orderMonth >= 4 {
+		fy = fmt.Sprintf("%02d-%02d", orderYear%100, (orderYear+1)%100)
+	} else {
+		fy = fmt.Sprintf("%02d-%02d", (orderYear-1)%100, orderYear%100)
+	}
+	pdf.CellFormat(100, 4.5, "FY: "+fy, "0", 1, "L", false, 0, "")
+
+	// Right side Business address
+	pdf.SetY(startY)
+	pdf.SetTextColor(100, 116, 139) // slate-500
+	pdf.SetX(110)
+	pdf.CellFormat(90, 4, "GSTIN: "+gstin, "0", 1, "R", false, 0, "")
+	pdf.SetX(110)
+	pdf.CellFormat(90, 4, addr1, "0", 1, "R", false, 0, "")
+	pdf.SetX(110)
+	pdf.CellFormat(90, 4, addr2, "0", 1, "R", false, 0, "")
+	pdf.SetX(110)
+	pdf.CellFormat(90, 4, "Phone: "+phone, "0", 1, "R", false, 0, "")
+
+	pdf.SetY(startY + 20) // Add a generous gap before details section
 
 	// -- Invoice & Customer Details --
 	leftCol := 90.0
 	rightCol := 90.0
 
-	s.safeSetFont(pdf, "Arial", "B", 9, hasMontserrat)
+	s.safeSetFont(pdf, "Montserrat", "B", 8.5, hasMontserrat)
+	pdf.SetTextColor(71, 85, 105) // slate-600
 	pdf.CellFormat(leftCol, 6, "INVOICE DETAILS", "B", 0, "L", false, 0, "")
 	pdf.CellFormat(rightCol, 6, "BILL TO (CUSTOMER)", "B", 1, "L", false, 0, "")
 	pdf.Ln(3)
@@ -145,18 +181,25 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 
 	// Left side: Invoice meta
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
+	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(30, 4, "Invoice No:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
-	pdf.CellFormat(60, 4, "INV-"+order.OrderNumber, "0", 1, "L", false, 0, "")
+	pdf.SetTextColor(30, 41, 59) // slate-800
+	cleanOrderNum := strings.ReplaceAll(order.OrderNumber, "#", "")
+	pdf.CellFormat(60, 4, "SY-"+cleanOrderNum, "0", 1, "L", false, 0, "")
 
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
+	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(30, 4, "Order No:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
-	pdf.CellFormat(60, 4, order.OrderNumber, "0", 1, "L", false, 0, "")
+	pdf.SetTextColor(30, 41, 59) // slate-800
+	pdf.CellFormat(60, 4, cleanOrderNum, "0", 1, "L", false, 0, "")
 
 	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
+	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(30, 4, "Date:", "0", 0, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
 	pdf.CellFormat(60, 4, order.CreatedAt.Format("2006-01-02"), "0", 1, "L", false, 0, "")
 
 	// Right side: Customer info
@@ -168,10 +211,12 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 		displayName = "Valued Customer"
 	}
 	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
 	pdf.SetX(leftCol + 15)
 	pdf.CellFormat(rightCol, 4, displayName, "0", 1, "L", false, 0, "")
 
 	s.safeSetFont(pdf, "Montserrat", "", 7.5, hasMontserrat)
+	pdf.SetTextColor(71, 85, 105) // slate-600
 	if email := ns(order.CustomerEmail); email != "" {
 		pdf.SetX(leftCol + 15)
 		pdf.CellFormat(rightCol, 4, email, "0", 1, "L", false, 0, "")
@@ -209,8 +254,9 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 }
 
 func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem, hasMontserrat bool) {
-	pdf.SetFillColor(245, 245, 245)
-	s.safeSetFont(pdf, "Montserrat", "I", 7.5, hasMontserrat)
+	pdf.SetFillColor(241, 245, 249) // slate-100 table header bg
+	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
+	pdf.SetTextColor(71, 85, 105) // slate-600
 
 	wName := 76.2
 	wSKU := 14.5
@@ -234,11 +280,12 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 	pdf.CellFormat(wGSTAmt, hHeader, "GST Amt", "1", 1, "C", true, 0, "")
 
 	s.safeSetFont(pdf, "Montserrat", "", 6.75, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
 
 	totalTaxable := 0.0
 	totalTax := 0.0
 
-	for _, item := range items {
+	for i, item := range items {
 		rawPrice := item.Price
 		itemDiscount := item.Discount
 		orderDiscount := item.OrderDiscount
@@ -275,24 +322,31 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		if numLines < 1 {
 			numLines = 1
 		}
-		h := numLines * 4.5
-		if h < 8.5 {
-			h = 8.5
+		h := (numLines * 4.5) + 3.0
+		if h < 9.5 {
+			h = 9.5
+		}
+
+		// Zebra striping background
+		fill := false
+		if i%2 == 1 {
+			pdf.SetFillColor(248, 250, 252) // slate-50 (very light grey)
+			fill = true
 		}
 
 		// Draw background/borders for the whole row height h
-		pdf.CellFormat(wName, h, "", "1", 0, "L", false, 0, "")
-		pdf.CellFormat(wSKU, h, sku, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(wHSN, h, hsCode, "1", 0, "C", false, 0, "")
-		pdf.CellFormat(wQty, h, fmt.Sprintf("%d", item.Quantity), "1", 0, "C", false, 0, "")
-		pdf.CellFormat(wPrice, h, fmt.Sprintf("%.2f", displayPrice), "1", 0, "R", false, 0, "")
+		pdf.CellFormat(wName, h, "", "1", 0, "L", fill, 0, "")
+		pdf.CellFormat(wSKU, h, sku, "1", 0, "C", fill, 0, "")
+		pdf.CellFormat(wHSN, h, hsCode, "1", 0, "C", fill, 0, "")
+		pdf.CellFormat(wQty, h, fmt.Sprintf("%d", item.Quantity), "1", 0, "C", fill, 0, "")
+		pdf.CellFormat(wPrice, h, fmt.Sprintf("%.2f", displayPrice), "1", 0, "R", fill, 0, "")
 
 		totalItemDiscountForDisplay := itemDiscount + orderDiscount
-		pdf.CellFormat(wDiscount, h, fmt.Sprintf("%.2f", totalItemDiscountForDisplay), "1", 0, "R", false, 0, "")
+		pdf.CellFormat(wDiscount, h, fmt.Sprintf("%.2f", totalItemDiscountForDisplay), "1", 0, "R", fill, 0, "")
 
-		pdf.CellFormat(wTaxable, h, fmt.Sprintf("%.2f", lineTaxable), "1", 0, "R", false, 0, "")
-		pdf.CellFormat(wGSTPct, h, "18%", "1", 0, "C", false, 0, "")
-		pdf.CellFormat(wGSTAmt, h, fmt.Sprintf("%.2f", lineTax), "1", 1, "R", false, 0, "")
+		pdf.CellFormat(wTaxable, h, fmt.Sprintf("%.2f", lineTaxable), "1", 0, "R", fill, 0, "")
+		pdf.CellFormat(wGSTPct, h, "18%", "1", 0, "C", fill, 0, "")
+		pdf.CellFormat(wGSTAmt, h, fmt.Sprintf("%.2f", lineTax), "1", 1, "R", fill, 0, "")
 
 		// Reposition to write MultiCell text in the first column
 		pdf.SetXY(curX+2, curY+(h-(numLines*4.5))/2)
@@ -316,8 +370,10 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 	pdf.Ln(5.8)
 	pdf.SetX(120)
 	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(40, 5, "Subtotal (Gross):", "0", 0, "R", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
 	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totalGrossSubtotal), "0", 1, "R", false, 0, "")
 
 	discountLabel := "Discount"
@@ -344,36 +400,46 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 		pdf.Ln(1)
 		pdf.SetX(120)
 		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+		pdf.SetTextColor(100, 116, 139) // slate-500
 		pdf.CellFormat(40, 5, discountLabel+":", "0", 0, "R", false, 0, "")
 		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
+		pdf.SetTextColor(239, 68, 68) // red-500 for discount
 		pdf.CellFormat(30, 5, fmt.Sprintf("-%.2f", totalOrderDiscount), "0", 1, "R", false, 0, "")
 	}
 
 	pdf.Ln(1)
 	pdf.SetX(120)
 	s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(40, 5, "Net Taxable:", "0", 0, "R", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
 	pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TaxableValue), "0", 1, "R", false, 0, "")
 	pdf.Ln(1)
 
 	if !isInterState {
 		pdf.SetX(120)
 		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+		pdf.SetTextColor(100, 116, 139) // slate-500
 		pdf.CellFormat(40, 5, "CGST (9%):", "0", 0, "R", false, 0, "")
 		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
+		pdf.SetTextColor(30, 41, 59) // slate-800
 		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax/2), "0", 1, "R", false, 0, "")
 		pdf.Ln(1)
 		pdf.SetX(120)
 		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+		pdf.SetTextColor(100, 116, 139) // slate-500
 		pdf.CellFormat(40, 5, "SGST (9%):", "0", 0, "R", false, 0, "")
 		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
+		pdf.SetTextColor(30, 41, 59) // slate-800
 		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax/2), "0", 1, "R", false, 0, "")
 	} else {
 		pdf.SetX(120)
 		s.safeSetFont(pdf, "Montserrat", "B", 8.25, hasMontserrat)
+		pdf.SetTextColor(100, 116, 139) // slate-500
 		pdf.CellFormat(40, 5, "IGST (18%):", "0", 0, "R", false, 0, "")
 		s.safeSetFont(pdf, "Montserrat", "", 8.25, hasMontserrat)
+		pdf.SetTextColor(30, 41, 59) // slate-800
 		pdf.CellFormat(30, 5, fmt.Sprintf("%.2f", totals.TotalTax), "0", 1, "R", false, 0, "")
 	}
 
@@ -382,6 +448,7 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 	pdf.CellFormat(70, 0, "", "T", 1, "R", false, 0, "")
 	pdf.SetX(120)
 	s.safeSetFont(pdf, "Montserrat", "B", 10.5, hasMontserrat)
+	pdf.SetTextColor(30, 41, 59) // slate-800
 	pdf.CellFormat(40, 10, "GRAND TOTAL:", "0", 0, "R", false, 0, "")
 	pdf.CellFormat(30, 10, fmt.Sprintf("%.2f", oGrandTotal), "0", 1, "R", false, 0, "")
 	pdf.Ln(8.0)
@@ -390,6 +457,7 @@ func (s *InvoiceService) renderTotals(pdf *gofpdf.Fpdf, order entity.Order, item
 func (s *InvoiceService) renderFooter(pdf *gofpdf.Fpdf, hasMontserrat bool) {
 	footerSize := 6.4
 	s.safeSetFont(pdf, "Montserrat", "B", footerSize, hasMontserrat)
+	pdf.SetTextColor(100, 116, 139) // slate-500
 	pdf.CellFormat(0, 4, "Payment Terms:", "0", 1, "L", false, 0, "")
 	s.safeSetFont(pdf, "Montserrat", "", footerSize, hasMontserrat)
 	pdf.MultiCell(0, 3.5, "Full payment is required before the due date mentioned on the invoice.", "0", "L", false)

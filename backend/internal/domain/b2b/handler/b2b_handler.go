@@ -593,6 +593,7 @@ func (h *B2BHandler) HandleProformas(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid proforma body", http.StatusBadRequest)
 			return
 		}
+		log.Printf("[B2BHandler] CreateProforma (POST) called with body ID: %d, note_date: %v", pf.ID, pf.NoteDate)
 		if err := h.srv.CreateProforma(&pf); err != nil {
 			log.Printf("B2BHandler.CreateProforma error: %v", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -607,6 +608,7 @@ func (h *B2BHandler) HandleProformas(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid proforma body", http.StatusBadRequest)
 			return
 		}
+		log.Printf("[B2BHandler] UpdateProforma (PUT) called with body ID: %d, note_date: %v", pf.ID, pf.NoteDate)
 		if err := h.srv.UpdateProforma(&pf); err != nil {
 			log.Printf("B2BHandler.UpdateProforma error: %v", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)

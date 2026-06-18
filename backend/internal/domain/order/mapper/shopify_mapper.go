@@ -187,16 +187,25 @@ func GraphQLLineItemsToEntities(orderID int64, items shopify.GraphQLLineItemWrap
 			continue
 		}
 
-		itemDiscount := parseFloat(li.TotalDiscountSet.ShopMoney.Amount)
+		totalDiscount := parseFloat(li.TotalDiscountSet.ShopMoney.Amount)
 		orderDiscount := 0.0
 		for _, allocation := range li.DiscountAllocations {
 			orderDiscount += parseFloat(allocation.AllocatedAmount.Amount)
+		}
+		itemDiscount := totalDiscount - orderDiscount
+		if itemDiscount < 0 {
+			itemDiscount = 0
+		}
+
+		title := li.Title
+		if li.VariantTitle != "" && !strings.Contains(strings.ToLower(li.Title), strings.ToLower(li.VariantTitle)) {
+			title = title + " - " + li.VariantTitle
 		}
 
 		result = append(result, entity.LineItem{
 			ID:            itemID,
 			OrderID:       orderID,
-			Title:         strPtr(li.Title),
+			Title:         strPtr(title),
 			SKU:           strPtr(li.SKU),
 			HSCode:        strPtrOr(hsCode, defaultHSN),
 			Quantity:      qty,
@@ -392,12 +401,17 @@ func WebhookOrderToEntity(payload dto.ShopifyWebhookOrder, rawPayload *json.RawM
 			continue
 		}
 
+		title := li.Title
+		if li.VariantTitle != "" && !strings.Contains(strings.ToLower(li.Title), strings.ToLower(li.VariantTitle)) {
+			title = title + " - " + li.VariantTitle
+		}
+
 		order.LineItems = append(order.LineItems, entity.LineItem{
 			ID:            strconv.FormatInt(li.ID, 10),
 			OrderID:       0, // Will be linked in repository
 			ProductID:     strPtr(strconv.FormatInt(li.ProductID, 10)),
 			VariantID:     strPtr(strconv.FormatInt(li.VariantID, 10)),
-			Title:         strPtr(li.Title),
+			Title:         strPtr(title),
 			SKU:           strPtr(li.SKU),
 			HSCode:        &defaultHSN,
 			Quantity:      qty,

@@ -296,6 +296,44 @@ func (s *B2BServiceTestSuite) TestInvoiceDeleteCascadesAndSync() {
 	assert.Equal(s.T(), int64(0), orderCount)
 }
 
+func (s *B2BServiceTestSuite) TestGSTPeriodLockUnlock() {
+	tDate := time.Date(2026, 6, 15, 10, 0, 0, 0, time.UTC)
+	
+	// Ensure the test table is clean for this period
+	s.db.Exec("DELETE FROM gst_periods WHERE month = 6 AND year = 2026")
+
+	// Initially period should not be locked
+	locked, err := s.b2bService.IsPeriodLocked(tDate)
+	assert.NoError(s.T(), err)
+	assert.False(s.T(), locked)
+
+	// Lock the period
+	period := &entity.GSTPeriod{
+		Month:  6,
+		Year:   2026,
+		Status: "LOCKED",
+	}
+	err = s.b2bService.SaveGSTPeriod(period)
+	assert.NoError(s.T(), err)
+
+	locked, err = s.b2bService.IsPeriodLocked(tDate)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), locked)
+
+	// Try saving/locking again (should update status, not create duplicate)
+	period2 := &entity.GSTPeriod{
+		Month:  6,
+		Year:   2026,
+		Status: "OPEN",
+	}
+	err = s.b2bService.SaveGSTPeriod(period2)
+	assert.NoError(s.T(), err)
+
+	locked, err = s.b2bService.IsPeriodLocked(tDate)
+	assert.NoError(s.T(), err)
+	assert.False(s.T(), locked)
+}
+
 func TestB2BServiceSuite(t *testing.T) {
 	suite.Run(t, new(B2BServiceTestSuite))
 }
