@@ -41,3 +41,7 @@
 ## 2026-06-17 - Optimize BulkDeleteCustomers
 **Learning:** Sequential deletion of records with external API calls (Shopify) and database operations creates an N+1 performance bottleneck.
 **Action:** Use golang.org/x/sync/errgroup to parallelize external API calls and batch the database deletion with GORM to significantly improve performance.
+
+## 2025-02-18 - ⚡ Bolt: Synchronous Marketing Send in Loop
+**Learning:** Sending external API calls in a sequential loop creates an O(N) bottleneck.
+**Action:** Replaced sequential loop in `SendBulkMarketing` (`handlers.go`) with concurrent execution using `golang.org/x/sync/errgroup` with a limit of 5 and `sync/atomic` for safe metric aggregation. Benchmark showed an improvement from ~530ms to ~53ms for 100 iterations.
