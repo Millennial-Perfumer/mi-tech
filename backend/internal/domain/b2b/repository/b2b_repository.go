@@ -145,7 +145,7 @@ func (r *gormB2BRepository) GetInvoiceByID(id int64) (entity.B2BInvoice, error) 
 
 func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoice) error {
 	extID := fmt.Sprintf("B2B-%d", inv.ID)
-	
+
 	// Check if order already exists
 	var orderID int64
 	err := tx.Table("orders").Where("source_id = ? AND external_order_id = ?", "b2b", extID).Pluck("id", &orderID).Error
@@ -163,7 +163,7 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 	}
 
 	totalTax := inv.CGSTAmount + inv.SGSTAmount + inv.IGSTAmount
-	
+
 	orderNumber := extID
 	if inv.InvoiceNumber != nil && *inv.InvoiceNumber != "" {
 		orderNumber = *inv.InvoiceNumber
@@ -176,7 +176,7 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 
 	orderData := map[string]interface{}{
 		"source_id":          "b2b",
-		"external_order_id":   extID,
+		"external_order_id":  extID,
 		"order_number":       orderNumber,
 		"invoice_number":     invoiceNumber,
 		"total_price":        inv.TotalPrice,
@@ -225,7 +225,7 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 			if item.ID == 0 {
 				liID = fmt.Sprintf("b2b-%d-idx-%d", inv.ID, i)
 			}
-			
+
 			var productIDStr *string
 			if item.ProductID != nil {
 				s := fmt.Sprintf("%d", *item.ProductID)
@@ -664,5 +664,3 @@ func (r *gormB2BRepository) GetNextProformaSequenceForFY(fy string) (int, error)
 	err := row.Scan(&maxSeq)
 	return maxSeq + 1, err
 }
-
-

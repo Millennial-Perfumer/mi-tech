@@ -298,7 +298,7 @@ func (s *B2BServiceTestSuite) TestInvoiceDeleteCascadesAndSync() {
 
 func (s *B2BServiceTestSuite) TestGSTPeriodLockUnlock() {
 	tDate := time.Date(2026, 6, 15, 10, 0, 0, 0, time.UTC)
-	
+
 	// Ensure the test table is clean for this period
 	s.db.Exec("DELETE FROM gst_periods WHERE month = 6 AND year = 2026")
 
@@ -337,4 +337,3 @@ func (s *B2BServiceTestSuite) TestGSTPeriodLockUnlock() {
 func TestB2BServiceSuite(t *testing.T) {
 	suite.Run(t, new(B2BServiceTestSuite))
 }
-
