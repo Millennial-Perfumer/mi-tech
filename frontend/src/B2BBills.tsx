@@ -3865,7 +3865,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 									</div>
 								)}
 
-								<div className="summary-row" style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+								<div className="summary-row" style={{ color: 'var(--text-secondary)', marginBottom: formInvoice.transportation_charge > 0 ? '4px' : '16px' }}>
 									<span>Transportation:</span>
 									<input
 										type="number"
@@ -3875,6 +3875,13 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 										style={{ width: '110px', padding: '6px 10px !important', textAlign: 'right', background: 'var(--surface-color)', height: '32px' }}
 									/>
 								</div>
+								{formInvoice.transportation_charge > 0 && (
+									<div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '0px', marginBottom: '16px', gap: '8px' }}>
+										<span>Taxable (Revenue): ₹{(formInvoice.transportation_charge / 1.18).toFixed(2)}</span>
+										<span>|</span>
+										<span>GST (18%): ₹{(formInvoice.transportation_charge - (formInvoice.transportation_charge / 1.18)).toFixed(2)}</span>
+									</div>
+								)}
 
 								{formInvoice.tds_tcs_type !== 'NONE' && (
 									<div className="summary-row" style={{ color: 'var(--status-warning)', fontWeight: 600 }}>
@@ -4622,9 +4629,16 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 									)}
 
 									{selectedInvoice.transportation_charge > 0 && (
-										<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-											<span>Transportation Charges:</span>
-											<span style={{ color: 'var(--text-primary)' }}>₹{selectedInvoice.transportation_charge.toFixed(2)}</span>
+										<div style={{ marginBottom: '8px' }}>
+											<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+												<span>Transportation Charges (incl. 18% GST):</span>
+												<span style={{ color: 'var(--text-primary)' }}>₹{selectedInvoice.transportation_charge.toFixed(2)}</span>
+											</div>
+											<div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11px', color: 'var(--text-tertiary)', gap: '8px' }}>
+												<span>Taxable (Revenue): ₹{(selectedInvoice.transportation_charge / 1.18).toFixed(2)}</span>
+												<span>|</span>
+												<span>GST (18%): ₹{(selectedInvoice.transportation_charge - (selectedInvoice.transportation_charge / 1.18)).toFixed(2)}</span>
+											</div>
 										</div>
 									)}
 
