@@ -2074,7 +2074,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 										onChange={(e) => setInvoiceSearch(e.target.value)}
 									/>
 									{invoiceSearch && (
-										<button className="clear-search-btn" onClick={() => setInvoiceSearch('')}>✕</button>
+										<button type="button" aria-label="Clear search" className="clear-search-btn" onClick={() => setInvoiceSearch('')}>✕</button>
 									)}
 								</div>
 								<select
@@ -2497,7 +2497,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 										onChange={(e) => setProformaSearch(e.target.value)}
 									/>
 									{proformaSearch && (
-										<button className="clear-search-btn" onClick={() => setProformaSearch('')}>✕</button>
+										<button type="button" aria-label="Clear search" className="clear-search-btn" onClick={() => setProformaSearch('')}>✕</button>
 									)}
 								</div>
 								<select
@@ -2814,7 +2814,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 									onChange={(e) => setCustomerSearch(e.target.value)}
 								/>
 								{customerSearch && (
-									<button className="clear-search-btn" onClick={() => setCustomerSearch('')}>✕</button>
+									<button type="button" aria-label="Clear search" className="clear-search-btn" onClick={() => setCustomerSearch('')}>✕</button>
 								)}
 							</div>
 							{userRole === 'admin' && (
@@ -2928,7 +2928,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 										onChange={(e) => setCreditSearch(e.target.value)}
 									/>
 									{creditSearch && (
-										<button className="clear-search-btn" onClick={() => setCreditSearch('')}>✕</button>
+										<button type="button" aria-label="Clear search" className="clear-search-btn" onClick={() => setCreditSearch('')}>✕</button>
 									)}
 								</div>
 							</div>
@@ -3083,7 +3083,7 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 										onChange={(e) => setDebitSearch(e.target.value)}
 									/>
 									{debitSearch && (
-										<button className="clear-search-btn" onClick={() => setDebitSearch('')}>✕</button>
+										<button type="button" aria-label="Clear search" className="clear-search-btn" onClick={() => setDebitSearch('')}>✕</button>
 									)}
 								</div>
 							</div>
@@ -4265,6 +4265,8 @@ export function B2BBills({ fetchWithAuth, userRole = 'read', appConfigs = {} }: 
 												</td>
 												<td style={{ textAlign: 'center' }}>
 													<button
+														type="button"
+														aria-label="Remove item"
 														disabled={formProforma.items.length <= 1}
 														onClick={() => {
 															const newItems = formProforma.items.filter((_: any, i: number) => i !== idx);
