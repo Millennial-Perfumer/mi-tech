@@ -17,12 +17,3 @@
 * **Business Growth & Profit Impact**: Recovering abandoned carts is one of the highest leverage ways to increase conversion rates and AOV. By capturing draft orders from Shopify and directly pushing them into the MI-Tech SMM hub, we can implement an automated or semi-automated WhatsApp sequence. Even a 10-15% recovery rate on abandoned carts will directly and significantly contribute to hitting the 3 Lakhs/month revenue target with very little additional marginal cost.
 * **Technical Complexity**: Medium
 * **Description**: Implement a new backend module that listens for Shopify 'checkout/update' and 'checkout/create' webhooks (or periodically polls draft orders). The system will map these to a new "AbandonedCart" entity. Integrate this with the SMM hub to automatically dispatch a WhatsApp template message (e.g., "Hi [Name], you left [Item] in your cart. Need help?") 30-60 minutes after abandonment, complete with a direct checkout link.
-
-### [IDE-003] Automated VIP Customer Tiering & Retention Sequences
-* **Added On**: 2024-06-18
-* **Target Audience**: Store Admins, End Customers
-* **3L Growth Vector**: Increase Purchase Frequency (LTV Boost)
-* **Customer Value Proposition**: Highly loyal customers automatically receive VIP recognition and exclusive perks (e.g., early access to new clones, special pricing), enhancing their connection to the brand and increasing their perceived value.
-* **Business Growth & Profit Impact**: By utilizing the existing `TotalSpent` and `TotalOrders` tracked natively in the `Customer` entity (`backend/internal/domain/order/entity/customer.go`), we can programmatically segment the customer base. Automatically identifying VIPs and triggering targeted, high-margin cross-sells or replenishment reminders via the SMM Hub will directly increase Customer Lifetime Value (LTV). Retaining these proven, high-value customers avoids new acquisition costs, padding net margins on the path to the 3L/month target.
-* **Technical Complexity**: Low
-* **Description**: Create a scheduled background job (or extend the automation planner) that periodically evaluates all customers against configurable VIP thresholds (e.g., `TotalSpent > 5000` or `TotalOrders >= 3`). When a customer crosses a threshold, their profile is automatically tagged as "VIP" in the MI-Tech system. This event then triggers the SMM Hub to dispatch a specialized, personalized WhatsApp welcoming sequence, including an exclusive high-margin VIP offer, and periodically re-engages them for future high-value product launches.
