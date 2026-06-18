@@ -17,3 +17,12 @@
 * **Business Growth & Profit Impact**: Recovering abandoned carts is one of the highest leverage ways to increase conversion rates and AOV. By capturing draft orders from Shopify and directly pushing them into the MI-Tech SMM hub, we can implement an automated or semi-automated WhatsApp sequence. Even a 10-15% recovery rate on abandoned carts will directly and significantly contribute to hitting the 3 Lakhs/month revenue target with very little additional marginal cost.
 * **Technical Complexity**: Medium
 * **Description**: Implement a new backend module that listens for Shopify 'checkout/update' and 'checkout/create' webhooks (or periodically polls draft orders). The system will map these to a new "AbandonedCart" entity. Integrate this with the SMM hub to automatically dispatch a WhatsApp template message (e.g., "Hi [Name], you left [Item] in your cart. Need help?") 30-60 minutes after abandonment, complete with a direct checkout link.
+
+### [IDE-003] VIP Customer Segmentation & Automated Retention Loop
+* **Added On**: 2024-06-17
+* **Target Audience**: Store Admins, End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (LTV Boost)
+* **Customer Value Proposition**: High-value customers feel recognized and rewarded. They receive exclusive early access, targeted bundles, or special gifts via WhatsApp, cementing their loyalty and enhancing their premium brand experience.
+* **Business Growth & Profit Impact**: By identifying and isolating the top 10% of customers (VIPs based on `TotalSpent` and `TotalOrders`), we can run highly targeted retention campaigns via the SMM hub. VIPs are significantly more likely to convert on higher-margin upsells and repeat purchases without relying on paid ads, driving net profit margins and accelerating the path to 3L/month.
+* **Technical Complexity**: Medium
+* **Description**: Implement a scheduled background job in the backend that scans the `customers` table for individuals exceeding defined thresholds for `TotalSpent` and `TotalOrders`. These customers are automatically tagged as 'VIP'. Integrate this tag with the `communication` (SMM) module to allow admins to broadcast exclusive WhatsApp templates (e.g., new product drops, personalized clone recommendations) specifically to this high-value segment.
