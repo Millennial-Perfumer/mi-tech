@@ -39,3 +39,8 @@
 **Vulnerability:** `ShopifyWebhookHandler` used a simple string equality check (`==`) to compare the provided HMAC signature with the expected HMAC signature in `verifyWebhook`.
 **Learning:** Standard string equality checks short-circuit on the first mismatched character. An attacker could measure the time taken for the comparison to fail and incrementally deduce the correct signature character by character, bypassing the verification entirely.
 **Prevention:** Always use constant-time comparison functions, such as `hmac.Equal`, when validating cryptographic signatures or sensitive tokens to prevent timing attacks.
+
+## 2025-02-27 - B2B Handlers DoS Vulnerability via Unbounded Request Bodies
+**Vulnerability:** Several B2B handlers (`HandleCustomers`, `HandleInvoices`, `HandlePaymentTerms`, etc.) read the HTTP request body using `io.ReadAll(r.Body)` or `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
+**Learning:** Even internal or authenticated routes can be vulnerable to resource exhaustion. The Go standard library does not automatically limit request bodies, so manual constraints must be applied before decoding.
+**Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers, before calling `io.ReadAll` or decoding JSON.
