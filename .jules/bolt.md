@@ -45,3 +45,7 @@
 ## 2025-02-18 - ⚡ Bolt: Synchronous Marketing Send in Loop
 **Learning:** Sending external API calls in a sequential loop creates an O(N) bottleneck.
 **Action:** Replaced sequential loop in `SendBulkMarketing` (`handlers.go`) with concurrent execution using `golang.org/x/sync/errgroup` with a limit of 5 and `sync/atomic` for safe metric aggregation. Benchmark showed an improvement from ~530ms to ~53ms for 100 iterations.
+
+## 2026-06-19 - [Batching GlobalSync calls]
+**Learning:** Sequential inventory synchronization within `OrderService` and `ManufacturingService` loops over affected items to trigger `GlobalSync`, causing an N+1 query issue since it internally queries `GetItemByID`.
+**Action:** Always batch lookups using a single `GlobalSyncBatch` call to process multiple items efficiently and eliminate N+1 database queries. When adding batched methods to interfaces, remember to update the corresponding local interface definitions in service files.
