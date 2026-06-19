@@ -27,7 +27,7 @@
 * **Technical Complexity**: Medium
 * **Description**: Implement a scheduled background job in the backend that scans the `customers` table for individuals exceeding defined thresholds for `TotalSpent` and `TotalOrders`. These customers are automatically tagged as 'VIP'. Integrate this tag with the `communication` (SMM) module to allow admins to broadcast exclusive WhatsApp templates (e.g., new product drops, personalized clone recommendations) specifically to this high-value segment.
 
-### [IDE-004] High-Margin Stockout Risk Alerting Pipeline
+### [IDE-005] High-Margin Stockout Risk Alerting Pipeline
 * **Added On**: 2024-06-18
 * **Target Audience**: Store Admins, Operations Leads
 * **3L Growth Vector**: Reduce Operational & Loss Leakage
