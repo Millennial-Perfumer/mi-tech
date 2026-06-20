@@ -11,3 +11,6 @@
 ## 2026-06-25 - [Accessibility for Modals and Search Filters]
 **Learning:** Found multiple instances where utility 'close' or 'clear' icon buttons in modals and search inputs (e.g., `&times;` or `✕`) lacked `type="button"` and `aria-label`. Without these attributes, screen readers cannot communicate the button's function, and they may inadvertently trigger parent form submissions.
 **Action:** When creating or maintaining modals, popovers, and search bars, aggressively add `type="button"` and descriptive `aria-label` attributes to any icon-only interactive controls.
+## 2026-06-25 - [Admin Note Accessibility and Modal Buttons]
+**Learning:** Found an admin note modal close button containing only an SVG without an `aria-label` or `type="button"`. Other "Cancel" buttons in modals also lacked `type="button"`. This pattern risks accidental form submissions and poor screen reader experiences.
+**Action:** Always verify `type="button"` and `aria-label` when creating modal controls, particularly for icon-only close buttons.

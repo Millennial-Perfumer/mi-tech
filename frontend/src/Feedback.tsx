@@ -300,6 +300,7 @@ const Feedback: React.FC<FeedbackProps> = ({
               </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button 
+                  type="button"
                   onClick={() => setIsScanModalOpen(false)}
                   className="btn-secondary"
                   style={{ border: 'none', background: 'transparent', color: 'var(--text-secondary)', fontSize: '0.875rem' }}
@@ -410,6 +411,8 @@ const Feedback: React.FC<FeedbackProps> = ({
                 </p>
               </div>
               <button 
+                type="button"
+                aria-label="Close modal"
                 onClick={() => setIsAdminModalOpen(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
               >
@@ -466,6 +469,7 @@ const Feedback: React.FC<FeedbackProps> = ({
 
             <div className="modal-actions" style={{ display: 'flex', gap: '1rem' }}>
               <button 
+                type="button"
                 onClick={() => setIsAdminModalOpen(false)} 
                 className="btn-secondary"
                 style={{
