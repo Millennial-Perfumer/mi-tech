@@ -18,6 +18,7 @@ import (
 type SyncOrchestrator interface {
 	AdjustStockByPlatformSKU(ctx context.Context, platform string, sku string, delta int, reason string, externalOrderID *string) error
 	GlobalSync(ctx context.Context, itemID int, sourcePlatform string) error
+	GlobalSyncBatch(ctx context.Context, itemIDs []int, sourcePlatform string) error
 }
 
 // OrderService handles order CRUD business logic.
@@ -177,8 +178,8 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 	}
 
 	// Trigger global sync for all affected inventory items
-	for _, id := range affectedIDs {
-		_ = s.orchestrator.GlobalSync(context.Background(), id, order.SourceID)
+	if len(affectedIDs) > 0 {
+		_ = s.orchestrator.GlobalSyncBatch(context.Background(), affectedIDs, order.SourceID)
 	}
 
 	if s.customerService != nil {
@@ -395,10 +396,8 @@ func (s *OrderService) CreateManualOrder(ctx context.Context, req dto.OrderCreat
 	}
 
 	// 5. GlobalSync → push updated stock to Shopify + Amazon
-	if s.orchestrator != nil {
-		for _, id := range affectedIDs {
-			_ = s.orchestrator.GlobalSync(ctx, id, "pos")
-		}
+	if s.orchestrator != nil && len(affectedIDs) > 0 {
+		_ = s.orchestrator.GlobalSyncBatch(ctx, affectedIDs, "pos")
 	}
 
 	// 6. Create/update customer profile

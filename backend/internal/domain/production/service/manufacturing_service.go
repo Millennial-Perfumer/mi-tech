@@ -70,11 +70,9 @@ func (s *ManufacturingService) Create(ctx context.Context, record *entity.Manufa
 		return nil
 	})
 
-	if err == nil {
+	if err == nil && len(productsToSync) > 0 {
 		// External Sync after commit
-		for _, itemID := range productsToSync {
-			s.orchestrator.GlobalSync(ctx, itemID, "internal")
-		}
+		s.orchestrator.GlobalSyncBatch(ctx, productsToSync, "internal")
 	}
 
 	return err
@@ -166,11 +164,9 @@ func (s *ManufacturingService) Update(ctx context.Context, record *entity.Manufa
 		return s.mfgRepo.WithTx(tx).Update(record)
 	})
 
-	if err == nil {
+	if err == nil && len(productsToSync) > 0 {
 		// External Sync after commit
-		for _, itemID := range productsToSync {
-			s.orchestrator.GlobalSync(ctx, itemID, "internal")
-		}
+		s.orchestrator.GlobalSyncBatch(ctx, productsToSync, "internal")
 	}
 	return err
 }
@@ -212,11 +208,9 @@ func (s *ManufacturingService) Delete(ctx context.Context, id int) error {
 		return s.mfgRepo.WithTx(tx).Delete(id)
 	})
 
-	if err == nil {
+	if err == nil && len(productsToSync) > 0 {
 		// External Sync after commit
-		for _, itemID := range productsToSync {
-			s.orchestrator.GlobalSync(ctx, itemID, "internal")
-		}
+		s.orchestrator.GlobalSyncBatch(ctx, productsToSync, "internal")
 	}
 	return err
 }
