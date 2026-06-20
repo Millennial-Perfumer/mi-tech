@@ -26,3 +26,12 @@
 * **Business Growth & Profit Impact**: By identifying and isolating the top 10% of customers (VIPs based on `TotalSpent` and `TotalOrders`), we can run highly targeted retention campaigns via the SMM hub. VIPs are significantly more likely to convert on higher-margin upsells and repeat purchases without relying on paid ads, driving net profit margins and accelerating the path to 3L/month.
 * **Technical Complexity**: Medium
 * **Description**: Implement a scheduled background job in the backend that scans the `customers` table for individuals exceeding defined thresholds for `TotalSpent` and `TotalOrders`. These customers are automatically tagged as 'VIP'. Integrate this tag with the `communication` (SMM) module to allow admins to broadcast exclusive WhatsApp templates (e.g., new product drops, personalized clone recommendations) specifically to this high-value segment.
+
+### [IDE-005] High-Margin Stockout Risk Alerting Pipeline
+* **Added On**: 2024-06-18
+* **Target Audience**: Store Admins, Operations Leads
+* **3L Growth Vector**: Reduce Operational & Loss Leakage
+* **Customer Value Proposition**: Ensures top-selling and high-margin products remain continuously available, preventing customer frustration from out-of-stock experiences and maintaining trust in order fulfillment.
+* **Business Growth & Profit Impact**: Stockouts on high-margin items represent direct, unrecoverable revenue leakage. By identifying top-performing SKUs (via sales velocity metrics from the order/report repository) and correlating them with current inventory levels, the system can proactively alert admins 7-14 days before a stockout occurs. This prevents loss of sales momentum on hero products, directly safeguarding the revenue trajectory needed to hit 3L/month while optimizing inventory turnover and capital allocation.
+* **Technical Complexity**: Low
+* **Description**: Implement an automated weekly (or daily) background task (`planner/cron`) that queries the `report_repository` to determine the top 20% of items by sales volume and margin over the last 30 days. It then checks the `inventory` module for their `CurrentStock`. If the projected run-rate suggests a stockout within 14 days, it triggers a notification via the `communication` hub to the store admin's WhatsApp/Dashboard, providing an actionable restocking manifest.
