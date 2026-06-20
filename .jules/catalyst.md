@@ -26,3 +26,12 @@
 * **Business Growth & Profit Impact**: By identifying and isolating the top 10% of customers (VIPs based on `TotalSpent` and `TotalOrders`), we can run highly targeted retention campaigns via the SMM hub. VIPs are significantly more likely to convert on higher-margin upsells and repeat purchases without relying on paid ads, driving net profit margins and accelerating the path to 3L/month.
 * **Technical Complexity**: Medium
 * **Description**: Implement a scheduled background job in the backend that scans the `customers` table for individuals exceeding defined thresholds for `TotalSpent` and `TotalOrders`. These customers are automatically tagged as 'VIP'. Integrate this tag with the `communication` (SMM) module to allow admins to broadcast exclusive WhatsApp templates (e.g., new product drops, personalized clone recommendations) specifically to this high-value segment.
+
+### [IDE-004] Predictive Stockout Alerts & Automated Replenishment Planning
+* **Added On**: 2024-06-19
+* **Target Audience**: Store Admins, Operations Team
+* **3L Growth Vector**: Reduce Operational & Loss Leakage
+* **Customer Value Proposition**: Ensures top-selling products are consistently in-stock, reducing customer frustration from "out-of-stock" experiences and ensuring immediate fulfillment of their favorite items.
+* **Business Growth & Profit Impact**: Stockouts on high-velocity, high-margin items result in direct, irrecoverable revenue loss and wasted marketing spend. By leveraging `InventoryItem` data (`CurrentStock`, `Price`) alongside historical order velocity from `InventoryLog` entries, we can accurately forecast when items will run out. Proactively alerting the team 14-21 days before stockouts preserves our revenue pipeline and ensures continuous sales momentum towards the 3L/month goal.
+* **Technical Complexity**: Medium
+* **Description**: Implement a scheduled background worker in the backend that calculates the 7-day and 30-day sales velocity for each internal SKU by aggregating `InventoryLog` entries where `reason` is 'sale'. The worker will compare the sales velocity against `CurrentStock` to compute the "Days of Inventory Remaining" (DIR). If the DIR drops below a configurable threshold (e.g., 15 days), the system will generate a dashboard alert and send an automated restocking priority list to admins.
