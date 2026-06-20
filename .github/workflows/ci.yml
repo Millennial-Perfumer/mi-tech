@@ -14,6 +14,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
+          POSTGRES_USER: postgres
           POSTGRES_DB: mi-tech-test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
