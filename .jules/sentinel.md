@@ -39,3 +39,8 @@
 **Vulnerability:** `ShopifyWebhookHandler` used a simple string equality check (`==`) to compare the provided HMAC signature with the expected HMAC signature in `verifyWebhook`.
 **Learning:** Standard string equality checks short-circuit on the first mismatched character. An attacker could measure the time taken for the comparison to fail and incrementally deduce the correct signature character by character, bypassing the verification entirely.
 **Prevention:** Always use constant-time comparison functions, such as `hmac.Equal`, when validating cryptographic signatures or sensitive tokens to prevent timing attacks.
+
+## 2024-05-20 - DoS via Unbounded Body Reading
+**Vulnerability:** Several endpoints in `B2BHandler` were reading the HTTP request body (`r.Body`) without a size limit via `json.NewDecoder(r.Body)` and `io.ReadAll(r.Body)`.
+**Learning:** This exposes the server to a Denial-of-Service (DoS) vulnerability where an attacker could send an extremely large payload, leading to memory exhaustion. This pattern was missing across multiple POST/PUT B2B operations.
+**Prevention:** Always bound the request body before reading using `r.Body = http.MaxBytesReader(w, r.Body, <limit>)`, such as a 1MB limit for standard JSON payloads.
