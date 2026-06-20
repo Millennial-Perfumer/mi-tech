@@ -33,6 +33,7 @@ func (h *B2BHandler) HandleCustomers(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(custs)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var cust entity.B2BCustomer
 		if err := json.NewDecoder(r.Body).Decode(&cust); err != nil {
 			http.Error(w, "Invalid customer body", http.StatusBadRequest)
@@ -47,6 +48,7 @@ func (h *B2BHandler) HandleCustomers(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(cust)
 
 	case http.MethodPut:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var cust entity.B2BCustomer
 		if err := json.NewDecoder(r.Body).Decode(&cust); err != nil {
 			http.Error(w, "Invalid customer body", http.StatusBadRequest)
@@ -94,6 +96,7 @@ func (h *B2BHandler) HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(invs)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("B2BHandler.CreateInvoice read body error: %v", err)
@@ -115,6 +118,7 @@ func (h *B2BHandler) HandleInvoices(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(inv)
 
 	case http.MethodPut:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("B2BHandler.UpdateInvoice read body error: %v", err)
@@ -354,6 +358,7 @@ func (h *B2BHandler) HandleCreditNotes(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(notes)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var note entity.B2BCreditNote
 		if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 			http.Error(w, "Invalid credit note body", http.StatusBadRequest)
@@ -367,6 +372,7 @@ func (h *B2BHandler) HandleCreditNotes(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(note)
 
 	case http.MethodPut:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var note entity.B2BCreditNote
 		if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 			http.Error(w, "Invalid credit note body", http.StatusBadRequest)
@@ -441,6 +447,7 @@ func (h *B2BHandler) HandleDebitNotes(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(notes)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var note entity.B2BDebitNote
 		if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 			http.Error(w, "Invalid debit note body", http.StatusBadRequest)
@@ -454,6 +461,7 @@ func (h *B2BHandler) HandleDebitNotes(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(note)
 
 	case http.MethodPut:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var note entity.B2BDebitNote
 		if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 			http.Error(w, "Invalid debit note body", http.StatusBadRequest)
@@ -559,6 +567,7 @@ func (h *B2BHandler) HandleGSTPeriods(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(periods)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var req entity.GSTPeriod
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid body", http.StatusBadRequest)
@@ -588,6 +597,7 @@ func (h *B2BHandler) HandleProformas(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(pfs)
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var pf entity.B2BProformaInvoice
 		if err := json.NewDecoder(r.Body).Decode(&pf); err != nil {
 			http.Error(w, "Invalid proforma body", http.StatusBadRequest)
@@ -603,6 +613,7 @@ func (h *B2BHandler) HandleProformas(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(pf)
 
 	case http.MethodPut:
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		var pf entity.B2BProformaInvoice
 		if err := json.NewDecoder(r.Body).Decode(&pf); err != nil {
 			http.Error(w, "Invalid proforma body", http.StatusBadRequest)
