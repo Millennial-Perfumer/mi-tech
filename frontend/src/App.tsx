@@ -792,7 +792,7 @@ function App() {
               transition: 'width 0.3s ease'
             }} 
           />
-          <button 
+          <button type="button"
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
             style={{ 
@@ -1011,7 +1011,7 @@ function App() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                 )}
               </button>
-              <button
+              <button type="button"
                 onClick={handleLogout}
                 aria-label="Logout"
                 title="Sign Out"

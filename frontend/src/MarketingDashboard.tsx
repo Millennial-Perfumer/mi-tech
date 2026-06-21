@@ -445,7 +445,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
                         </td>
                         <td style={{ padding: '1.4rem 1.8rem', textAlign: 'right', borderBottom: '1px solid var(--border-color)' }}>
                            <a href={`https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${metaData.activeId}&selected_campaign_ids=${camp.id}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                             <button className="toolbar-btn" style={{ padding: '8px' }} title="Change in Meta Dashboard">
+                             <button type="button" className="toolbar-btn" style={{ padding: '8px' }} title="Change in Meta Dashboard" aria-label="Change in Meta Dashboard">
                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                              </button>
                            </a>
@@ -554,7 +554,7 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
                         )}
                         <td style={{ padding: '1.2rem 1.8rem', textAlign: 'right', borderBottom: '1px solid var(--border-color)' }}>
                            <a href={`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${metaData.activeId}&selected_ad_ids=${ad.id}`} target="_blank" rel="noreferrer">
-                             <button className="toolbar-btn" style={{ padding: '8px' }} title="Edit in Meta Dashboard">
+                             <button type="button" className="toolbar-btn" style={{ padding: '8px' }} title="Edit in Meta Dashboard" aria-label="Edit in Meta Dashboard">
                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                              </button>
                            </a>
