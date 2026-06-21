@@ -35,3 +35,12 @@
 * **Business Growth & Profit Impact**: Stockouts on high-margin items represent direct, unrecoverable revenue leakage. By identifying top-performing SKUs (via sales velocity metrics from the order/report repository) and correlating them with current inventory levels, the system can proactively alert admins 7-14 days before a stockout occurs. This prevents loss of sales momentum on hero products, directly safeguarding the revenue trajectory needed to hit 3L/month while optimizing inventory turnover and capital allocation.
 * **Technical Complexity**: Low
 * **Description**: Implement an automated weekly (or daily) background task (`planner/cron`) that queries the `report_repository` to determine the top 20% of items by sales volume and margin over the last 30 days. It then checks the `inventory` module for their `CurrentStock`. If the projected run-rate suggests a stockout within 14 days, it triggers a notification via the `communication` hub to the store admin's WhatsApp/Dashboard, providing an actionable restocking manifest.
+
+### [IDE-006] Automated GST Reconciliation & Mismatch Alerting
+* **Added On**: 2024-06-21
+* **Target Audience**: Store Admins, Operations Leads, Accounting
+* **3L Growth Vector**: Reduce Operational & Loss Leakage
+* **Customer Value Proposition**: Ensures accurate tax collection and invoicing, providing customers with compliant and error-free tax invoices which builds trust and professional credibility.
+* **Business Growth & Profit Impact**: Manually reconciling GST across synced Shopify/Amazon orders against internal inventory tax mappings is highly error-prone. Mismatched HSN codes or tax discrepancies lead to compliance fines and margin leakage during tax filings. By automating this matching pipeline to flag discrepancies immediately upon order sync, we prevent compounding errors and save significant accounting hours, directly preserving net profit margins as order volume scales to 3 Lakhs/month.
+* **Technical Complexity**: Medium
+* **Description**: Create a background job or event listener in the `gst` module that triggers whenever an order is synced from Shopify/Amazon. It will compare the tax amount and rates reported by the sales channel against the expected tax calculated using the MI-Tech `inventory` module's HSN codes and pricing. Discrepancies exceeding a defined tolerance (e.g., ₹1) will be flagged in a new "GST Reconciliation Alerts" dashboard view, and notifications will be sent to admins via the `communication` hub.
