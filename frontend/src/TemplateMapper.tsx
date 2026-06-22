@@ -8,27 +8,31 @@ interface TemplateMapperProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
-// Available mapping options based on entity.Order and entity.Customer
+// Available mapping options based on entity.Order, entity.Customer and entity.AbandonedCheckout
 const availableVariables = [
-  { value: '', label: '-- Not Mapped --' },
-  { value: 'customer_name', label: 'Customer Name' },
-  { value: 'customer_email', label: 'Customer Email' },
-  { value: 'customer_phone', label: 'Customer Phone' },
-  { value: 'customer_city', label: 'Customer City' },
-  { value: 'customer_state', label: 'Customer State' },
-  { value: 'customer_country', label: 'Customer Country' },
-  { value: 'customer_zip', label: 'Customer Zip Code' },
-  { value: 'customer_address1', label: 'Customer Address 1' },
-  { value: 'customer_address2', label: 'Customer Address 2' },
-  { value: 'customer_total_orders', label: 'Total Orders' },
-  { value: 'customer_total_spent', label: 'Total Spent' },
-  { value: 'order_id', label: 'Order Number (e.g. 1001)' },
-  { value: 'internal_order_id', label: 'Internal DB Order ID' },
-  { value: 'order_total', label: 'Order Total' },
-  { value: 'tracking_link', label: 'Tracking Link' },
-  { value: 'tracking_number', label: 'Tracking Number' },
-  { value: 'shipping_company', label: 'Shipping Company' },
-  { value: 'feedback_url', label: 'Customer Feedback URL' },
+  { value: '', label: '-- Not Mapped --', category: 'General' },
+  { value: 'checkout_url', label: 'Checkout URL', category: 'Checkout (Abandoned Carts)' },
+  { value: 'total_price', label: 'Checkout Total Price', category: 'Checkout (Abandoned Carts)' },
+  { value: 'currency', label: 'Checkout Currency', category: 'Checkout (Abandoned Carts)' },
+  { value: 'customer_name', label: 'Checkout Customer Name', category: 'Checkout (Abandoned Carts)' },
+  { value: 'customer_name', label: 'Customer Name', category: 'Customer Details' },
+  { value: 'customer_email', label: 'Customer Email', category: 'Customer Details' },
+  { value: 'customer_phone', label: 'Customer Phone', category: 'Customer Details' },
+  { value: 'customer_city', label: 'Customer City', category: 'Customer Details' },
+  { value: 'customer_state', label: 'Customer State', category: 'Customer Details' },
+  { value: 'customer_country', label: 'Customer Country', category: 'Customer Details' },
+  { value: 'customer_zip', label: 'Customer Zip Code', category: 'Customer Details' },
+  { value: 'customer_address1', label: 'Customer Address 1', category: 'Customer Details' },
+  { value: 'customer_address2', label: 'Customer Address 2', category: 'Customer Details' },
+  { value: 'customer_total_orders', label: 'Total Orders', category: 'Customer Details' },
+  { value: 'customer_total_spent', label: 'Total Spent', category: 'Customer Details' },
+  { value: 'order_id', label: 'Order Number (e.g. 1001)', category: 'Order Details' },
+  { value: 'internal_order_id', label: 'Internal DB Order ID', category: 'Order Details' },
+  { value: 'order_total', label: 'Order Total', category: 'Order Details' },
+  { value: 'tracking_link', label: 'Tracking Link', category: 'Order Details' },
+  { value: 'tracking_number', label: 'Tracking Number', category: 'Order Details' },
+  { value: 'shipping_company', label: 'Shipping Company', category: 'Order Details' },
+  { value: 'feedback_url', label: 'Customer Feedback URL', category: 'Order Details' },
 ];
 
 export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapperProps) {
@@ -102,6 +106,31 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
     }));
   };
 
+  const renderSelectOptions = () => {
+    const groups: Record<string, typeof availableVariables> = {};
+    availableVariables.forEach(v => {
+      if (!v.value) return; // Skip empty mapping option
+      const cat = v.category || 'Other';
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat].push(v);
+    });
+
+    return (
+      <>
+        <option value="">-- Not Mapped --</option>
+        {Object.entries(groups).map(([category, vars]) => (
+          <optgroup key={category} label={category}>
+            {vars.map(v => (
+              <option key={v.value} value={v.value}>{v.label}</option>
+            ))}
+          </optgroup>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="template-mapper" style={{ padding: '2rem', backgroundColor: 'var(--bg-color)', minHeight: '100vh' }}>
       <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
@@ -137,7 +166,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                       onChange={(e) => handleMappingChange(`header_text_0_{{${i+1}}}`, e.target.value)}
                       style={{ width: '250px' }}
                     >
-                      {availableVariables.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                      {renderSelectOptions()}
                     </select>
                   </div>
                 ))}
@@ -186,7 +215,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                       style={{ width: '250px' }}
                       required
                     >
-                      {availableVariables.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                      {renderSelectOptions()}
                     </select>
                   </div>
                 ))}
@@ -211,7 +240,7 @@ export function TemplateMapper({ template, onBack, fetchWithAuth }: TemplateMapp
                           style={{ width: '250px' }}
                           required
                         >
-                          {availableVariables.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                          {renderSelectOptions()}
                         </select>
                       </div>
                     );

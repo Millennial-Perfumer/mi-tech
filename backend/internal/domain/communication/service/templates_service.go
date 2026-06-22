@@ -187,7 +187,8 @@ func (s *TemplatesService) mapToMetaComponents(req dto.CreateTemplateRequest) ([
 					url = "https://" + url
 				}
 				btn["url"] = url
-				if strings.Contains(url, "{{1}}") {
+				btn["cta_url_link_tracking_opted_out"] = false // Explicitly enable Meta link tracking to report website clicks
+				if strings.Contains(url, "{{1}}") || strings.Contains(strings.ToLower(url), "%7b%7b1%7d%7d") {
 					btn["example"] = []string{"https://www.example.com/track/123456"}
 				}
 			case "call_phone":

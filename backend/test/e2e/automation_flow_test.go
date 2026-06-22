@@ -91,7 +91,7 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	shopifyClient := shopify.NewClient(settingsProvider)
 	webhookService := webhookServicePkg.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 
-	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider)
+	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider, nil)
 
 	// Pre-cleanup: Delete existing triggers for orders/create to avoid conflicts
 	db.Exec("DELETE FROM automation_triggers WHERE webhook_topic = 'orders/create'")

@@ -25,6 +25,7 @@ import { InventoryHub } from './InventoryHub';
 import { AIAnalysis } from './AIAnalysis';
 import { CreateOrderModal } from './CreateOrderModal';
 import { DashboardOrdersModal } from './DashboardOrdersModal';
+import { AbandonedCarts } from './AbandonedCarts';
 
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -179,7 +180,7 @@ function App() {
       return 'read';
     }
   }, [token]);
-  
+
   useEffect(() => {
     console.log('Current userRole:', userRole);
   }, [userRole]);
@@ -284,7 +285,7 @@ function App() {
   // Default to Year-to-Date (YTD) or January 1st as requested
   const defaultStartDate = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
   const defaultEndDate = getTodayIST();
-  
+
   // Initialize with values from LocalStorage if available, otherwise defaults
   const [startDate, setStartDate] = useState(() => localStorage.getItem('socialSmmStartDate') || defaultStartDate);
   const [endDate, setEndDate] = useState(() => localStorage.getItem('socialSmmEndDate') || defaultEndDate);
@@ -333,10 +334,10 @@ function App() {
 
   const handleStartSync = async () => {
     setIsSyncing(true);
-    const endpoint = syncMode === 'shopify' 
-      ? `${API_BASE}/api/shopify/sync` 
+    const endpoint = syncMode === 'shopify'
+      ? `${API_BASE}/api/shopify/sync`
       : `${API_BASE}/api/inventory/amazon/sync`;
-    
+
     try {
       const resp = await fetchWithAuth(endpoint, {
         method: 'POST',
@@ -582,7 +583,7 @@ function App() {
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     // Auto-refresh main data every 60 seconds
     const interval = setInterval(() => {
       // Only refresh if tab is active (browser might throttle intervals anyway, but good to be explicit)
@@ -600,7 +601,7 @@ function App() {
       if (!response.ok) {
         throw new Error('Failed to download invoice');
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -640,12 +641,12 @@ function App() {
             <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             </div>
-            
+
             <h2 style={{ marginBottom: '0.5rem' }}>Manual Synchronization</h2>
-            
+
             <div className="step-content">
-              <p style={{marginBottom: '2rem'}}>Select the date range you wish to synchronize from {syncMode === 'shopify' ? 'Shopify' : 'Amazon India'}. Existing orders will be updated.</p>
-              
+              <p style={{ marginBottom: '2rem' }}>Select the date range you wish to synchronize from {syncMode === 'shopify' ? 'Shopify' : 'Amazon India'}. Existing orders will be updated.</p>
+
               <div className="sync-date-selector" style={{ marginBottom: '2rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px', marginBottom: '1.5rem' }}>
                   {[
@@ -658,9 +659,9 @@ function App() {
                     <button
                       key={preset.label}
                       className="btn-secondary"
-                      style={{ 
-                        padding: '0.5rem', 
-                        fontSize: '0.85rem', 
+                      style={{
+                        padding: '0.5rem',
+                        fontSize: '0.85rem',
                         background: 'var(--surface-color)',
                         borderColor: 'var(--border-color)',
                         color: 'var(--text-secondary)'
@@ -691,22 +692,22 @@ function App() {
                     </button>
                   ))}
                 </div>
-                
+
                 <div className="sync-date-row" style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'var(--bg-input)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
                   <div style={{ flex: 1 }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>From Date</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={syncStartDate}
                       max={syncEndDate}
                       onChange={(e) => setSyncStartDate(e.target.value)}
-                      style={{ 
-                        width: '100%', 
-                        padding: '0.75rem', 
-                        borderRadius: '8px', 
-                        border: '2px solid transparent', 
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        border: '2px solid transparent',
                         boxShadow: '0 0 0 1px var(--border-color)',
-                        outline: 'none', 
+                        outline: 'none',
                         fontFamily: 'inherit',
                         fontSize: '0.95rem',
                         background: 'var(--surface-color)',
@@ -720,18 +721,18 @@ function App() {
                   <div className="sync-date-arrow" style={{ color: 'var(--text-tertiary)', fontSize: '1.5rem', alignSelf: 'flex-end', paddingBottom: '0.5rem' }}>→</div>
                   <div style={{ flex: 1 }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>To Date</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={syncEndDate}
                       min={syncStartDate}
                       onChange={(e) => setSyncEndDate(e.target.value)}
-                      style={{ 
-                        width: '100%', 
-                        padding: '0.75rem', 
-                        borderRadius: '8px', 
-                        border: '2px solid transparent', 
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        borderRadius: '8px',
+                        border: '2px solid transparent',
                         boxShadow: '0 0 0 1px var(--border-color)',
-                        outline: 'none', 
+                        outline: 'none',
                         fontFamily: 'inherit',
                         fontSize: '0.95rem',
                         background: 'var(--surface-color)',
@@ -745,10 +746,10 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ 
-                background: '#fffbeb', 
-                padding: '1rem', 
-                borderRadius: '12px', 
+              <div style={{
+                background: '#fffbeb',
+                padding: '1rem',
+                borderRadius: '12px',
                 border: '1px solid #fef3c7',
                 display: 'flex',
                 gap: '0.75rem',
@@ -765,11 +766,11 @@ function App() {
                 </div>
               </div>
             </div>
-            
+
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setShowSyncModal(false)}>Cancel</button>
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 onClick={handleStartSync}
                 disabled={isSyncing}
                 style={{ minWidth: '200px' }}
@@ -782,21 +783,21 @@ function App() {
       )}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-brand" style={{ justifyContent: 'space-between', paddingLeft: '1rem', paddingRight: '0.5rem', marginBottom: '1rem' }}>
-          <img 
-            src={isSidebarCollapsed ? halfLogo : (theme === 'dark' ? fullLogoDark : fullLogo)} 
-            alt="Mi Tech" 
-            style={{ 
-              width: isSidebarCollapsed ? '32px' : '140px', 
-              height: 'auto', 
+          <img
+            src={isSidebarCollapsed ? halfLogo : (theme === 'dark' ? fullLogoDark : fullLogo)}
+            alt="Mi Tech"
+            style={{
+              width: isSidebarCollapsed ? '32px' : '140px',
+              height: 'auto',
               objectFit: 'contain',
               transition: 'width 0.3s ease'
-            }} 
+            }}
           />
-          <button 
+          <button
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
-            style={{ 
-              color: 'var(--text-secondary)', 
+            style={{
+              color: 'var(--text-secondary)',
               padding: '4px',
               borderRadius: '6px',
               display: 'flex',
@@ -826,15 +827,15 @@ function App() {
             <span>Customers</span>
           </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')} title={isSidebarCollapsed ? "GST Reports" : ""} style={{ animationDelay: '200ms' }}>
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             <span>GST Reports</span>
           </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'b2b' ? 'active' : ''}`} onClick={() => setActiveTab('b2b')} title={isSidebarCollapsed ? "B2B Billing" : ""} style={{ animationDelay: '210ms' }}>
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
             <span>B2B Billing</span>
           </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} title={isSidebarCollapsed ? "Inventory" : ""} style={{ animationDelay: '225ms' }}>
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             <span>Inventory</span>
           </a>
 
@@ -855,10 +856,20 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             <span>Automation</span>
           </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'abandoned-carts' ? 'active' : ''}`} onClick={() => setActiveTab('abandoned-carts')} title={isSidebarCollapsed ? "Abandoned Carts" : ""} style={{ animationDelay: '385ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+              <circle cx="16" cy="11" r="3"></circle>
+              <path d="M16 10v2h2"></path>
+            </svg>
+            <span>Abandoned Carts</span>
+          </a>
 
           <div className="nav-group-label" style={{ animationDelay: '400ms' }}>GROWTH</div>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => setActiveTab('marketing')} title={isSidebarCollapsed ? "Ads Intelligence" : ""} style={{ animationDelay: '425ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h2M11 9h2M11 13h2M11 17h2M7 9h10v10c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2V9zM18 5c1.1 0 2 .9 2 2v2H4V7c0-1.1.9-2 2-2h12z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h2M11 9h2M11 13h2M11 17h2M7 9h10v10c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2V9zM18 5c1.1 0 2 .9 2 2v2H4V7c0-1.1.9-2 2-2h12z" /></svg>
             <span>Ads</span>
           </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'social' ? 'active' : ''}`} onClick={() => setActiveTab('social')} title={isSidebarCollapsed ? "Social Media" : ""} style={{ animationDelay: '450ms' }}>
@@ -906,7 +917,7 @@ function App() {
               )}
             </div>
           </div>
-          
+
           <div className="sidebar-footer-bottom">
             <div className="sidebar-footer-icons">
               <button
@@ -927,9 +938,9 @@ function App() {
                 style={{ width: '38px', height: '38px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', transition: 'all 0.2s ease' }}
               >
                 {theme === 'dark' ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
                 ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
                 )}
               </button>
             </div>
@@ -950,27 +961,27 @@ function App() {
       {/* ---- MOBILE: Bottom Tab Bar ---- */}
       <nav className="bottom-tab-bar">
         <button className={`tab-btn nav-item-stagger ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')} style={{ animationDelay: '50ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
           <span>Home</span>
         </button>
         <button className={`tab-btn nav-item-stagger ${activeTab === 'shopify' ? 'active' : ''}`} onClick={() => setActiveTab('shopify')} style={{ animationDelay: '100ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
           <span>Orders</span>
         </button>
         <button className={`tab-btn nav-item-stagger ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')} style={{ animationDelay: '150ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
           <span>GST</span>
         </button>
         <button className={`tab-btn nav-item-stagger ${activeTab === 'automation' ? 'active' : ''}`} onClick={() => setActiveTab('automation')} style={{ animationDelay: '200ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
           <span>Auto</span>
         </button>
         <button className={`tab-btn nav-item-stagger ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')} style={{ animationDelay: '250ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
           <span>People</span>
         </button>
         <button className={`tab-btn nav-item-stagger ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ animationDelay: '300ms' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
           <span>More</span>
         </button>
         {appConfigs['kanban_enabled'] === 'true' && (
@@ -1006,9 +1017,9 @@ function App() {
                 style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}
               >
                 {theme === 'dark' ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
                 ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
                 )}
               </button>
               <button
@@ -1017,7 +1028,7 @@ function App() {
                 title="Sign Out"
                 style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', color: '#ef4444' }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
               </button>
             </div>
           </div>
@@ -1025,18 +1036,18 @@ function App() {
 
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'b2b' ? 'B2B Billing' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : 'Settings'}</h1>
+            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'b2b' ? 'B2B Billing' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : activeTab === 'abandoned-carts' ? 'Abandoned Carts' : 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'b2b' ? "Generate GST-compliant B2B invoices and manage customer registries." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'b2b' ? "Generate GST-compliant B2B invoices and manage customer registries." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'abandoned-carts' ? "Recover lost sales by tracking abandoned checkouts and triggering WhatsApp messages." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
             </p>
           </div>
         </header>
-        
+
         {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && activeTab !== 'b2b' && (
-          <div className="date-range-header-bar" style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
+          <div className="date-range-header-bar" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginBottom: '2rem',
             padding: '1.25rem 1.5rem',
             background: 'var(--surface-color)',
@@ -1046,36 +1057,38 @@ function App() {
           }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
-                {activeTab === 'dashboard' ? 'Business Overview' : 
-                 activeTab === 'reports' ? 'GST Reports' : 
-                 activeTab === 'customers' ? 'Customer Directory' : 
-                 activeTab === 'marketing' ? 'Social Marketing Pulse' : 
-                 activeTab === 'social' ? 'Social Channel Pulse' :
-                 'Shopify Orders'}
+                {activeTab === 'dashboard' ? 'Business Overview' :
+                  activeTab === 'reports' ? 'GST Reports' :
+                    activeTab === 'customers' ? 'Customer Directory' :
+                      activeTab === 'marketing' ? 'Social Marketing Pulse' :
+                        activeTab === 'social' ? 'Social Channel Pulse' :
+                          activeTab === 'abandoned-carts' ? 'Abandoned Cart Recovery' :
+                            'Shopify Orders'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>
-                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' : 
-                 activeTab === 'reports' ? 'Generate and export GST-ready reports' : 
-                 activeTab === 'customers' ? 'Manage and analyze your customer base' : 
-                 activeTab === 'marketing' ? 'Analyze and manage social media engagement' : 
-                 activeTab === 'social' ? 'Unified management for all your social channels' :
-                 'Manage your Shopify store orders'}
+                {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' :
+                  activeTab === 'reports' ? 'Generate and export GST-ready reports' :
+                    activeTab === 'customers' ? 'Manage and analyze your customer base' :
+                      activeTab === 'marketing' ? 'Analyze and manage social media engagement' :
+                        activeTab === 'social' ? 'Unified management for all your social channels' :
+                          activeTab === 'abandoned-carts' ? 'Track and recover abandoned checkouts' :
+                            'Manage your Shopify store orders'}
               </p>
             </div>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <button className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Export Data
               </button>
 
-              {(activeTab === 'dashboard' || activeTab === 'reports' || activeTab === 'shopify') && (
+              {(activeTab === 'dashboard' || activeTab === 'reports' || activeTab === 'shopify' || activeTab === 'abandoned-carts') && (
                 <>
                   <div style={{ width: '1px', height: '32px', backgroundColor: 'var(--border-color)' }}></div>
-                  <CustomDatePicker 
-                    startDate={startDate} 
-                    endDate={endDate} 
-                    onDateChange={handleUpdateDateRange} 
+                  <CustomDatePicker
+                    startDate={startDate}
+                    endDate={endDate}
+                    onDateChange={handleUpdateDateRange}
                   />
                 </>
               )}
@@ -1094,7 +1107,7 @@ function App() {
                 <button
                   key={ch.id}
                   onClick={() => {
-                    setSelectedChannels(prev => 
+                    setSelectedChannels(prev =>
                       prev.includes(ch.id) ? prev.filter(id => id !== ch.id) : [...prev, ch.id]
                     );
                   }}
@@ -1120,7 +1133,7 @@ function App() {
                 </button>
               ))}
               {selectedChannels.length > 0 && (
-                <button 
+                <button
                   onClick={() => setSelectedChannels([])}
                   style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', fontSize: '0.85rem', padding: '0 0.5rem', cursor: 'pointer' }}
                 >
@@ -1133,18 +1146,18 @@ function App() {
             <div className="metrics-hero-grid">
               <div className="metric-card metric-card-hero">
                 <div className="metric-icon metric-icon-1">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                 </div>
                 <div className="metric-label">Total Revenue</div>
                 <div className="metric-value">₹{metrics?.total_revenue?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</div>
                 <div className="metric-sub">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                   {metrics?.total_invoices?.toLocaleString('en-IN') || '0'} invoices
                 </div>
               </div>
               <div className="metric-card metric-card-hero">
                 <div className="metric-icon metric-icon-2">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
                 </div>
                 <div className="metric-label">Total GST Collected</div>
                 <div className="metric-value">₹{metrics?.total_gst_collected?.toLocaleString('en-IN', { maximumFractionDigits: 0 }) || '0'}</div>
@@ -1158,73 +1171,73 @@ function App() {
 
             {/* Order Metrics Grid */}
             <div className="metrics-grid">
-              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
-                   onClick={() => setDashboardMetricModalLabel('Total')}
-                   onMouseEnter={(e) => {
-                     e.currentTarget.style.transform = 'translateY(-4px)';
-                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
-                   }}
-                   onMouseLeave={(e) => {
-                     e.currentTarget.style.transform = 'translateY(0)';
-                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                   }}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Total')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-1">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
                 </div>
                 <div className="metric-label">Total Orders</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
-                   onClick={() => setDashboardMetricModalLabel('Fulfilled')}
-                   onMouseEnter={(e) => {
-                     e.currentTarget.style.transform = 'translateY(-4px)';
-                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
-                   }}
-                   onMouseLeave={(e) => {
-                     e.currentTarget.style.transform = 'translateY(0)';
-                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                   }}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Fulfilled')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-2">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 </div>
                 <div className="metric-label">Fulfilled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--status-active)' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
-                   onClick={() => setDashboardMetricModalLabel('Unfulfilled')}
-                   onMouseEnter={(e) => {
-                     e.currentTarget.style.transform = 'translateY(-4px)';
-                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
-                   }}
-                   onMouseLeave={(e) => {
-                     e.currentTarget.style.transform = 'translateY(0)';
-                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                   }}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Unfulfilled')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                 </div>
                 <div className="metric-label">Unfulfilled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: '#f59e0b' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }} 
-                   onClick={() => setDashboardMetricModalLabel('Cancelled')}
-                   onMouseEnter={(e) => {
-                     e.currentTarget.style.transform = 'translateY(-4px)';
-                     e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
-                   }}
-                   onMouseLeave={(e) => {
-                     e.currentTarget.style.transform = 'translateY(0)';
-                     e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                   }}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Cancelled')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-4">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
                 </div>
                 <div className="metric-label">Cancelled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: '#ef4444' }}>{metrics?.cancelled_orders?.toLocaleString() || '0'}</div>
               </div>
               <div className="metric-card">
                 <div className="metric-icon metric-icon-5">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
                 </div>
                 <div className="metric-label">Avg. Order Value</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>₹{metrics?.total_orders && metrics.total_orders > 0 ? Math.round(metrics.total_revenue / metrics.total_orders).toLocaleString('en-IN') : '0'}</div>
@@ -1233,7 +1246,7 @@ function App() {
 
             {/* Advanced Analytics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
-              
+
               {/* Revenue Trend Sparkline */}
               <div className="metric-card" style={{ gridColumn: 'span 2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -1281,11 +1294,11 @@ function App() {
                         <span>₹{ch.revenue.toLocaleString('en-IN')} ({Math.round((ch.revenue / metrics.total_revenue) * 100)}%)</span>
                       </div>
                       <div style={{ height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ 
-                          height: '100%', 
-                          width: `${(ch.revenue / metrics.total_revenue) * 100}%`, 
+                        <div style={{
+                          height: '100%',
+                          width: `${(ch.revenue / metrics.total_revenue) * 100}%`,
                           background: ch.source_id === 'shopify' ? '#96bf48' : ch.source_id === 'amazon' ? '#ff9900' : '#6366f1',
-                          borderRadius: '4px' 
+                          borderRadius: '4px'
                         }} />
                       </div>
                     </div>
@@ -1333,7 +1346,7 @@ function App() {
               <div className="metric-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <h4 style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment & Discounts</h4>
-                  
+
                   <div style={{ marginBottom: '2rem' }}>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Collection Health</div>
                     <div style={{ height: '24px', background: 'var(--bg-input)', borderRadius: '12px', overflow: 'hidden', display: 'flex' }}>
@@ -1361,7 +1374,7 @@ function App() {
 
         {activeTab === 'dashboard' && isLoading && (
           <section className="metrics-hero-grid">
-            {[1,2].map(i => (
+            {[1, 2].map(i => (
               <div key={i} className="metric-card metric-card-hero" style={{ minHeight: 130 }}>
                 <div style={{ width: 80, height: 12, borderRadius: 6, background: 'var(--border-color)', marginBottom: 8 }} />
                 <div style={{ width: 140, height: 28, borderRadius: 6, background: 'var(--border-color)' }} />
@@ -1399,15 +1412,15 @@ function App() {
                 <h3 style={{ fontSize: '1rem', margin: 0 }}>Stored Orders</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   {userRole === 'admin' && (
-                    <button 
-                      className="btn-primary" 
+                    <button
+                      className="btn-primary"
                       title="Create a new manual/POS order"
                       onClick={() => setShowCreateOrderModal(true)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        padding: '0.5rem 1rem', 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 1rem',
                         fontSize: '0.85rem',
                         height: '42px',
                         borderRadius: '10px',
@@ -1426,15 +1439,15 @@ function App() {
                     </button>
                   )}
                   {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
-                    <button 
-                      className="btn-secondary" 
-                      onClick={handleSyncAmazon} 
+                    <button
+                      className="btn-secondary"
+                      onClick={handleSyncAmazon}
                       disabled={isSyncing}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        padding: '0.5rem 1rem', 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 1rem',
                         fontSize: '0.85rem',
                         height: '42px',
                         borderRadius: '10px'
@@ -1448,15 +1461,15 @@ function App() {
                     </button>
                   )}
                   {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
-                    <button 
-                      className="btn-primary" 
+                    <button
+                      className="btn-primary"
                       title="Manually fetch orders from Shopify"
                       onClick={handleSyncShopify}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        padding: '0.5rem 1rem', 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 1rem',
                         fontSize: '0.85rem',
                         height: '42px',
                         borderRadius: '10px'
@@ -1485,17 +1498,17 @@ function App() {
               <div className="orders-filter-bar" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-input)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
                   <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                  <input 
+                  <input
                     ref={searchInputRef}
-                    type="text" 
-                    placeholder="Search orders or customers..." 
+                    type="text"
+                    placeholder="Search orders or customers..."
                     aria-label="Search orders or customers"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                    style={{ 
-                      paddingLeft: '2.5rem', 
+                    style={{
+                      paddingLeft: '2.5rem',
                       paddingRight: search ? '2.5rem' : '1rem',
-                      fontSize: '0.875rem', 
+                      fontSize: '0.875rem',
                       background: 'transparent',
                       border: 'none',
                       color: 'var(--text-primary)',
@@ -1539,9 +1552,9 @@ function App() {
                     </button>
                   )}
                 </div>
-                
-                <select 
-                  value={sourceFilter} 
+
+                <select
+                  value={sourceFilter}
                   onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
                   style={{ width: 'auto', fontSize: '0.875rem', padding: '0.5rem 2rem 0.5rem 1rem' }}
                 >
@@ -1551,8 +1564,8 @@ function App() {
                   <option value="pos">POS</option>
                 </select>
 
-                <select 
-                  value={paymentFilter} 
+                <select
+                  value={paymentFilter}
                   onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
                   style={{ width: 'auto', fontSize: '0.875rem', padding: '0.5rem 2rem 0.5rem 1rem' }}
                 >
@@ -1561,8 +1574,8 @@ function App() {
                   <option value="unpaid">Unpaid</option>
                 </select>
 
-                <select 
-                  value={fulfillmentFilter} 
+                <select
+                  value={fulfillmentFilter}
                   onChange={(e) => { setFulfillmentFilter(e.target.value); setPage(1); }}
                   style={{ width: 'auto', fontSize: '0.875rem', padding: '0.5rem 2rem 0.5rem 1rem' }}
                 >
@@ -1572,8 +1585,8 @@ function App() {
                 </select>
 
                 {(search || sourceFilter || paymentFilter || fulfillmentFilter) && (
-                  <button 
-                    className="btn-secondary" 
+                  <button
+                    className="btn-secondary"
                     onClick={() => { setSearch(''); setSourceFilter(''); setPaymentFilter(''); setFulfillmentFilter(''); setPage(1); }}
                     style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}
                   >
@@ -1582,438 +1595,438 @@ function App() {
                 )}
               </div>
             </div>
-            <div style={{overflowX: 'auto'}}>
-            <table>
-              <thead>
-                <tr>
-
-                  {visibleColumns.includes('order_id') && (
-                    <th onClick={() => { setSortBy('order_number'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Order ID {sortBy === 'order_number' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('customer_name') && (
-                    <th onClick={() => { setSortBy('customer_name'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Customer {sortBy === 'customer_name' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('city') && <th>City</th>}
-                  {visibleColumns.includes('state') && <th>State</th>}
-                  {visibleColumns.includes('country') && <th>Country</th>}
-                  {visibleColumns.includes('date') && (
-                    <th onClick={() => { setSortBy('created_at'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Date {sortBy === 'created_at' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('time') && <th>Time</th>}
-                  {visibleColumns.includes('amount') && (
-                    <th onClick={() => { setSortBy('total_price'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Amount {sortBy === 'total_price' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('financial_status') && (
-                    <th onClick={() => { setSortBy('financial_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Payment {sortBy === 'financial_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('fulfillment_status') && (
-                    <th onClick={() => { setSortBy('fulfillment_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Fulfillment {sortBy === 'fulfillment_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('delivery_status') && <th>Delivery Status</th>}
-                  {visibleColumns.includes('source') && (
-                    <th onClick={() => { setSortBy('source_id'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                      Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
-                    </th>
-                  )}
-                  {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp no-print">WHATSAPP</th>}
-                  {visibleColumns.includes('gst_invoice') && <th className="col-fixed-invoice">INVOICE</th>}
-                  {visibleColumns.includes('feedback_status') && <th className="col-fixed-feedback">FEEDBACK</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
+            <div style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>Loading orders...</td>
+
+                    {visibleColumns.includes('order_id') && (
+                      <th onClick={() => { setSortBy('order_number'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Order ID {sortBy === 'order_number' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('customer_name') && (
+                      <th onClick={() => { setSortBy('customer_name'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Customer {sortBy === 'customer_name' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('city') && <th>City</th>}
+                    {visibleColumns.includes('state') && <th>State</th>}
+                    {visibleColumns.includes('country') && <th>Country</th>}
+                    {visibleColumns.includes('date') && (
+                      <th onClick={() => { setSortBy('created_at'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Date {sortBy === 'created_at' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('time') && <th>Time</th>}
+                    {visibleColumns.includes('amount') && (
+                      <th onClick={() => { setSortBy('total_price'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Amount {sortBy === 'total_price' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('financial_status') && (
+                      <th onClick={() => { setSortBy('financial_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Payment {sortBy === 'financial_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('fulfillment_status') && (
+                      <th onClick={() => { setSortBy('fulfillment_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Fulfillment {sortBy === 'fulfillment_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('delivery_status') && <th>Delivery Status</th>}
+                    {visibleColumns.includes('source') && (
+                      <th onClick={() => { setSortBy('source_id'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
+                        Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      </th>
+                    )}
+                    {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp no-print">WHATSAPP</th>}
+                    {visibleColumns.includes('gst_invoice') && <th className="col-fixed-invoice">INVOICE</th>}
+                    {visibleColumns.includes('feedback_status') && <th className="col-fixed-feedback">FEEDBACK</th>}
                   </tr>
-                ) : orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No orders found. Click Sync Shopify to fetch.</td>
-                  </tr>
-                ) : (
-                  orders.map((order, idx) => (
-                    <tr 
-                      key={order.id} 
-                      className="table-row-stagger" 
-                      style={{ animationDelay: `${idx * 20}ms` }}
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>Loading orders...</td>
+                    </tr>
+                  ) : orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '2rem' }}>No orders found. Click Sync Shopify to fetch.</td>
+                    </tr>
+                  ) : (
+                    orders.map((order, idx) => (
+                      <tr
+                        key={order.id}
+                        className="table-row-stagger"
+                        style={{ animationDelay: `${idx * 20}ms` }}
 
-                    >
+                      >
 
-                      {visibleColumns.includes('order_id') && (
-                        <td>
-                          <a 
-                            href="#" 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setSelectedOrderDetailsId(order.id);
-                            }}
-                            style={{ fontWeight: 600, color: 'var(--accent-color)', textDecoration: 'none' }}
-                          >
-                            {order.order_number}
-                          </a>
-                        </td>
-                      )}
-                      {visibleColumns.includes('customer_name') && <td>{order.customer_name}</td>}
-                      {visibleColumns.includes('city') && <td>{order.customer_city || 'N/A'}</td>}
-                      {visibleColumns.includes('state') && <td>{order.customer_state || 'N/A'}</td>}
-                      {visibleColumns.includes('country') && <td>{order.customer_country || 'N/A'}</td>}
-                      {visibleColumns.includes('date') && <td>{new Date(order.created_at).toLocaleDateString()}</td>}
-                      {visibleColumns.includes('time') && <td>{new Date(order.created_at).toLocaleTimeString()}</td>}
-                      {visibleColumns.includes('amount') && <td>₹{order.total_price}</td>}
-                      {visibleColumns.includes('financial_status') && (
-                        <td style={{ position: 'relative' }}>
-                          <span 
-                            className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : (order.financial_status === 'pending' ? 'warning' : 'yellow')}`}
-                            style={{ 
-                              cursor: (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer', 
-                              opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1 
-                            }}
-                            onClick={(e) => {
-                              if (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') return;
-                              e.stopPropagation();
-                              setEditingPaymentStatusId(editingPaymentStatusId === order.id ? null : order.id);
-                            }}
-                          >
-                            <span className="dot"></span> {isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 'Updating...' : (order.financial_status?.toLowerCase().charAt(0).toUpperCase() + order.financial_status?.toLowerCase().slice(1) || 'Unknown')}
-                          </span>
-
-                          {editingPaymentStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
-                            <div className="status-popover" onClick={e => e.stopPropagation()}>
-                              <div className="status-popover-header">Update Payment</div>
-                              <div 
-                                className="status-option"
-                                onClick={() => handlePaymentStatusUpdate(order.id, 'paid')}
-                              >
-                                <span className="badge-pill badge-pill-success"><span className="dot"></span> Paid</span>
-                              </div>
-                              <div 
-                                className="status-option"
-                                onClick={() => handlePaymentStatusUpdate(order.id, 'pending')}
-                              >
-                                <span className="badge-pill badge-pill-warning"><span className="dot"></span> Pending</span>
-                              </div>
-                              <div 
-                                className="status-option"
-                                onClick={() => handlePaymentStatusUpdate(order.id, 'partially_paid')}
-                              >
-                                <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Partial</span>
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.includes('fulfillment_status') && (
-                        <td style={{ position: 'relative' }}>
-                          <span 
-                            className={`badge-pill badge-pill-${order.fulfillment_status?.toLowerCase() === 'fulfilled' ? 'gray' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'danger' : 'yellow')}`}
-                            style={{ 
-                              cursor: (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer', 
-                              opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1 
-                            }}
-                            onClick={(e) => {
-                              if (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') return;
-                              e.stopPropagation();
-                              setEditingStatusId(editingStatusId === order.id ? null : order.id);
-                            }}
-                          >
-                             <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.toLowerCase().charAt(0).toUpperCase() + order.fulfillment_status?.toLowerCase().slice(1) || 'Unfulfilled'))}
-                          </span>
-
-                          {editingStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
-                            <div className="status-popover" onClick={e => e.stopPropagation()}>
-                              <div className="status-popover-header">Update Status</div>
-                              <div 
-                                className="status-option"
-                                onClick={() => handleStatusUpdate(order.id, 'fulfilled')}
-                              >
-                                <span className="badge-pill badge-pill-gray"><span className="dot"></span> Fulfilled</span>
-                              </div>
-                              <div 
-                                className="status-option"
-                                onClick={() => handleStatusUpdate(order.id, 'unfulfilled')}
-                              >
-                                <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Unfulfilled</span>
-                              </div>
-                              <div 
-                                className="status-option"
-                                onClick={() => handleStatusUpdate(order.id, 'cancelled')}
-                              >
-                                <span className="badge-pill badge-pill-danger"><span className="dot"></span> Cancelled</span>
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.includes('delivery_status') && (
-                        <td>
-                          {order.status?.toUpperCase() === 'CANCELLED' ? (
-                            <span style={{color: 'var(--text-tertiary)', fontSize: '0.8rem'}}>—</span>
-                          ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
-                            <div 
-                              className="delivery-status-collapsed"
-                              title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} ${order.tracking_number ? `- ${order.shipping_company || 'Standard'}: ${order.tracking_number}` : ''}`}
+                        {visibleColumns.includes('order_id') && (
+                          <td>
+                            <a
+                              href="#"
                               onClick={(e) => {
-                                if (order.tracking_number) {
-                                  e.stopPropagation();
-                                  setTrackingOrder(order);
-                                }
+                                e.preventDefault();
+                                setSelectedOrderDetailsId(order.id);
                               }}
-                              style={{ cursor: order.tracking_number ? 'pointer' : 'default', display: 'inline-block' }}
+                              style={{ fontWeight: 600, color: 'var(--accent-color)', textDecoration: 'none' }}
                             >
-                              <span className="badge-pill badge-pill-info">
-                                <span className="dot"></span> {order.delivery_status?.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                              </span>
-                            </div>
-                          ) : (
-                            <button 
-                              className="btn-secondary" 
-                              onClick={(e) => { e.stopPropagation(); handleMarkAsDelivered(order.id); }}
-                              disabled={isMarkingAsDelivered === order.id}
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', height: '28px', borderRadius: '6px' }}
+                              {order.order_number}
+                            </a>
+                          </td>
+                        )}
+                        {visibleColumns.includes('customer_name') && <td>{order.customer_name}</td>}
+                        {visibleColumns.includes('city') && <td>{order.customer_city || 'N/A'}</td>}
+                        {visibleColumns.includes('state') && <td>{order.customer_state || 'N/A'}</td>}
+                        {visibleColumns.includes('country') && <td>{order.customer_country || 'N/A'}</td>}
+                        {visibleColumns.includes('date') && <td>{new Date(order.created_at).toLocaleDateString()}</td>}
+                        {visibleColumns.includes('time') && <td>{new Date(order.created_at).toLocaleTimeString()}</td>}
+                        {visibleColumns.includes('amount') && <td>₹{order.total_price}</td>}
+                        {visibleColumns.includes('financial_status') && (
+                          <td style={{ position: 'relative' }}>
+                            <span
+                              className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : (order.financial_status === 'pending' ? 'warning' : 'yellow')}`}
+                              style={{
+                                cursor: (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer',
+                                opacity: isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 0.7 : 1
+                              }}
+                              onClick={(e) => {
+                                if (isUpdatingPaymentStatus || order.source_id?.toLowerCase() === 'b2b') return;
+                                e.stopPropagation();
+                                setEditingPaymentStatusId(editingPaymentStatusId === order.id ? null : order.id);
+                              }}
                             >
-                              {isMarkingAsDelivered === order.id ? 'Updating...' : 'Mark Delivered'}
-                            </button>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.includes('source') && (
-                        <td>
-                          <span 
-                            style={{ 
-                              background: order.source_id === 'amazon' ? 'var(--status-warning-bg)' : 
-                                          order.source_id === 'pos' ? 'var(--status-active-bg)' : 'var(--bg-input)', 
-                              color: order.source_id === 'amazon' ? 'var(--status-warning)' : 
-                                     order.source_id === 'pos' ? 'var(--status-active)' : 'var(--text-secondary)',
-                              border: `1px solid ${order.source_id === 'amazon' ? 'var(--status-warning)' : 
-                                                  order.source_id === 'pos' ? 'var(--status-active)' : 'var(--border-color)'}`,
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '9999px',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              textTransform: 'capitalize'
-                            }}
-                          >
-                            {order.source_id || 'Shopify'}
-                          </span>
-                        </td>
-                      )}
-                      {visibleColumns.includes('whatsapp') && (
-                        <td className="col-fixed-whatsapp no-print">
-                          <div className="col-align-center">
-                            {order.customer_phone ? (
-                              <button 
-                                className="btn-icon-minimal" 
-                                title="Send WhatsApp Message"
-                                aria-label="Send WhatsApp Message"
+                              <span className="dot"></span> {isUpdatingPaymentStatus && editingPaymentStatusId === order.id ? 'Updating...' : (order.financial_status?.toLowerCase().charAt(0).toUpperCase() + order.financial_status?.toLowerCase().slice(1) || 'Unknown')}
+                            </span>
+
+                            {editingPaymentStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
+                              <div className="status-popover" onClick={e => e.stopPropagation()}>
+                                <div className="status-popover-header">Update Payment</div>
+                                <div
+                                  className="status-option"
+                                  onClick={() => handlePaymentStatusUpdate(order.id, 'paid')}
+                                >
+                                  <span className="badge-pill badge-pill-success"><span className="dot"></span> Paid</span>
+                                </div>
+                                <div
+                                  className="status-option"
+                                  onClick={() => handlePaymentStatusUpdate(order.id, 'pending')}
+                                >
+                                  <span className="badge-pill badge-pill-warning"><span className="dot"></span> Pending</span>
+                                </div>
+                                <div
+                                  className="status-option"
+                                  onClick={() => handlePaymentStatusUpdate(order.id, 'partially_paid')}
+                                >
+                                  <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Partial</span>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {visibleColumns.includes('fulfillment_status') && (
+                          <td style={{ position: 'relative' }}>
+                            <span
+                              className={`badge-pill badge-pill-${order.fulfillment_status?.toLowerCase() === 'fulfilled' ? 'gray' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'danger' : 'yellow')}`}
+                              style={{
+                                cursor: (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') ? 'default' : 'pointer',
+                                opacity: isUpdatingStatus && editingStatusId === order.id ? 0.7 : 1
+                              }}
+                              onClick={(e) => {
+                                if (isUpdatingStatus || order.source_id?.toLowerCase() === 'b2b') return;
+                                e.stopPropagation();
+                                setEditingStatusId(editingStatusId === order.id ? null : order.id);
+                              }}
+                            >
+                              <span className="dot"></span> {isUpdatingStatus && editingStatusId === order.id ? 'Updating...' : (order.status?.toUpperCase() === 'CANCELLED' || order.fulfillment_status?.toLowerCase() === 'cancelled' ? 'Cancelled' : (order.fulfillment_status?.toLowerCase().charAt(0).toUpperCase() + order.fulfillment_status?.toLowerCase().slice(1) || 'Unfulfilled'))}
+                            </span>
+
+                            {editingStatusId === order.id && order.source_id?.toLowerCase() !== 'b2b' && (
+                              <div className="status-popover" onClick={e => e.stopPropagation()}>
+                                <div className="status-popover-header">Update Status</div>
+                                <div
+                                  className="status-option"
+                                  onClick={() => handleStatusUpdate(order.id, 'fulfilled')}
+                                >
+                                  <span className="badge-pill badge-pill-gray"><span className="dot"></span> Fulfilled</span>
+                                </div>
+                                <div
+                                  className="status-option"
+                                  onClick={() => handleStatusUpdate(order.id, 'unfulfilled')}
+                                >
+                                  <span className="badge-pill badge-pill-yellow"><span className="dot"></span> Unfulfilled</span>
+                                </div>
+                                <div
+                                  className="status-option"
+                                  onClick={() => handleStatusUpdate(order.id, 'cancelled')}
+                                >
+                                  <span className="badge-pill badge-pill-danger"><span className="dot"></span> Cancelled</span>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {visibleColumns.includes('delivery_status') && (
+                          <td>
+                            {order.status?.toUpperCase() === 'CANCELLED' ? (
+                              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>—</span>
+                            ) : order.delivery_status && order.delivery_status !== 'pending' && order.delivery_status !== 'fulfilled' ? (
+                              <div
+                                className="delivery-status-collapsed"
+                                title={`${order.delivery_status.charAt(0).toUpperCase() + order.delivery_status.slice(1).replace(/_/g, ' ')} ${order.tracking_number ? `- ${order.shipping_company || 'Standard'}: ${order.tracking_number}` : ''}`}
                                 onClick={(e) => {
-                                  e.stopPropagation();
-                                  setWhatsappOrder(order);
+                                  if (order.tracking_number) {
+                                    e.stopPropagation();
+                                    setTrackingOrder(order);
+                                  }
                                 }}
-                                style={{ 
-                                  background: 'var(--accent-color)', 
-                                  color: 'white',
-                                  borderRadius: '10px', 
-                                  width: '32px', 
-                                  height: '32px', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  border: '1px solid var(--border-color)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s',
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.borderColor = 'var(--accent-color)';
-                                  e.currentTarget.style.color = 'var(--accent-color)';
-                                  e.currentTarget.style.background = 'var(--accent-subtle)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.borderColor = 'var(--border-color)';
-                                  e.currentTarget.style.color = 'white';
-                                  e.currentTarget.style.background = 'var(--accent-color)';
-                                }}
+                                style={{ cursor: order.tracking_number ? 'pointer' : 'default', display: 'inline-block' }}
                               >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
-                              </button>
+                                <span className="badge-pill badge-pill-info">
+                                  <span className="dot"></span> {order.delivery_status?.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                </span>
+                              </div>
                             ) : (
-                              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.includes('gst_invoice') && (
-                        <td className="col-fixed-invoice">
-                          <div className="col-align-center">
-                            {order.source_id?.toLowerCase() === 'b2b' ? (
-                              <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
-                            ) : (
-                              <button 
-                                onClick={() => handleDownloadInvoice(order.id, order.order_number)}
-                                className="btn-primary" 
-                                style={{fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none'}}
+                              <button
+                                className="btn-secondary"
+                                onClick={(e) => { e.stopPropagation(); handleMarkAsDelivered(order.id); }}
+                                disabled={isMarkingAsDelivered === order.id}
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', height: '28px', borderRadius: '6px' }}
                               >
-                                Invoice
+                                {isMarkingAsDelivered === order.id ? 'Updating...' : 'Mark Delivered'}
                               </button>
                             )}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.includes('feedback_status') && (
-                        <td className="col-fixed-feedback">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {(() => {
-                              const sentAt = order.feedback_sent_at ? new Date(order.feedback_sent_at) : null;
-                              const statusId = order.feedback_status_id;
-                              
-                              if (statusId === 3) {
-                                return (
-                                  <span 
-                                    className="badge-pill badge-pill-success"
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setInitialSelectedFeedbackOrderId(Number(order.id));
-                                      setActiveTab('feedback');
-                                    }}
-                                  >
-                                    <span className="dot"></span> Received
-                                  </span>
-                                );
-                              }
-                              
-                              if (statusId === 2 && sentAt) {
-                                const expiryMins = parseInt(appConfigs?.feedback_link_expiry_minutes || '2880');
-                                const isExpired = (new Date().getTime() - sentAt.getTime()) > (expiryMins * 60 * 1000);
-                                const surveyURL = `${appConfigs?.feedback_base_url || 'https://feedback-form.millennialperfumer.in'}?o=${order.id}&p=${order.customer_phone}`;
-                                
-                                if (isExpired) {
+                          </td>
+                        )}
+                        {visibleColumns.includes('source') && (
+                          <td>
+                            <span
+                              style={{
+                                background: order.source_id === 'amazon' ? 'var(--status-warning-bg)' :
+                                  order.source_id === 'pos' ? 'var(--status-active-bg)' : 'var(--bg-input)',
+                                color: order.source_id === 'amazon' ? 'var(--status-warning)' :
+                                  order.source_id === 'pos' ? 'var(--status-active)' : 'var(--text-secondary)',
+                                border: `1px solid ${order.source_id === 'amazon' ? 'var(--status-warning)' :
+                                  order.source_id === 'pos' ? 'var(--status-active)' : 'var(--border-color)'}`,
+                                padding: '0.25rem 0.75rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'capitalize'
+                              }}
+                            >
+                              {order.source_id || 'Shopify'}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.includes('whatsapp') && (
+                          <td className="col-fixed-whatsapp no-print">
+                            <div className="col-align-center">
+                              {order.customer_phone ? (
+                                <button
+                                  className="btn-icon-minimal"
+                                  title="Send WhatsApp Message"
+                                  aria-label="Send WhatsApp Message"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setWhatsappOrder(order);
+                                  }}
+                                  style={{
+                                    background: 'var(--accent-color)',
+                                    color: 'white',
+                                    borderRadius: '10px',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '1px solid var(--border-color)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--accent-color)';
+                                    e.currentTarget.style.color = 'var(--accent-color)';
+                                    e.currentTarget.style.background = 'var(--accent-subtle)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                                    e.currentTarget.style.color = 'white';
+                                    e.currentTarget.style.background = 'var(--accent-color)';
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                  </svg>
+                                </button>
+                              ) : (
+                                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.includes('gst_invoice') && (
+                          <td className="col-fixed-invoice">
+                            <div className="col-align-center">
+                              {order.source_id?.toLowerCase() === 'b2b' ? (
+                                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 600 }}>N/A</span>
+                              ) : (
+                                <button
+                                  onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                                  className="btn-primary"
+                                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', height: '32px', minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none' }}
+                                >
+                                  Invoice
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.includes('feedback_status') && (
+                          <td className="col-fixed-feedback">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {(() => {
+                                const sentAt = order.feedback_sent_at ? new Date(order.feedback_sent_at) : null;
+                                const statusId = order.feedback_status_id;
+
+                                if (statusId === 3) {
                                   return (
-                                    <span className="badge-pill badge-pill-danger" title={`Expired after ${expiryMins} mins`}>
-                                      <span className="dot"></span> Expired
+                                    <span
+                                      className="badge-pill badge-pill-success"
+                                      style={{ cursor: 'pointer' }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setInitialSelectedFeedbackOrderId(Number(order.id));
+                                        setActiveTab('feedback');
+                                      }}
+                                    >
+                                      <span className="dot"></span> Received
                                     </span>
                                   );
                                 }
-                                
+
+                                if (statusId === 2 && sentAt) {
+                                  const expiryMins = parseInt(appConfigs?.feedback_link_expiry_minutes || '2880');
+                                  const isExpired = (new Date().getTime() - sentAt.getTime()) > (expiryMins * 60 * 1000);
+                                  const surveyURL = `${appConfigs?.feedback_base_url || 'https://feedback-form.millennialperfumer.in'}?o=${order.id}&p=${order.customer_phone}`;
+
+                                  if (isExpired) {
+                                    return (
+                                      <span className="badge-pill badge-pill-danger" title={`Expired after ${expiryMins} mins`}>
+                                        <span className="dot"></span> Expired
+                                      </span>
+                                    );
+                                  }
+
+                                  return (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      <span className="badge-pill badge-pill-info">
+                                        <span className="dot"></span> Sent
+                                      </span>
+                                      <button
+                                        className="btn-icon-minimal"
+                                        title="Copy Feedback Link"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(surveyURL);
+                                          const btn = e.currentTarget;
+                                          const original = btn.innerHTML;
+                                          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                                          setTimeout(() => btn.innerHTML = original, 2000);
+                                        }}
+                                        style={{
+                                          width: '24px',
+                                          height: '24px',
+                                          padding: 0,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderRadius: '6px',
+                                          background: 'var(--bg-input)',
+                                          border: '1px solid var(--border-color)',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
                                 return (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span className="badge-pill badge-pill-info">
-                                      <span className="dot"></span> Sent
-                                    </span>
-                                    <button 
-                                      className="btn-icon-minimal" 
-                                      title="Copy Feedback Link"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(surveyURL);
-                                        const btn = e.currentTarget;
-                                        const original = btn.innerHTML;
-                                        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-                                        setTimeout(() => btn.innerHTML = original, 2000);
-                                      }}
-                                      style={{ 
-                                        width: '24px', 
-                                        height: '24px', 
-                                        padding: 0, 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        justifyContent: 'center',
-                                        borderRadius: '6px',
-                                        background: 'var(--bg-input)',
-                                        border: '1px solid var(--border-color)',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                                      </svg>
-                                    </button>
-                                  </div>
+                                  <span className="badge-pill badge-pill-gray" style={{ opacity: 0.6 }}>
+                                    Pending
+                                  </span>
                                 );
-                              }
-                              
-                              return (
-                                <span className="badge-pill badge-pill-gray" style={{ opacity: 0.6 }}>
-                                   Pending
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Pagination Controls */}
-          {activeTab === 'shopify' && orders.length > 0 && (
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                {Math.min((page - 1) * limit + 1, totalCount)}–{Math.min(page * limit, totalCount)} of {totalCount} orders
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  className="btn-secondary" 
-                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                  disabled={page === 1 || isLoading}
-                  style={{ padding: '0.4rem 1rem', fontSize: '0.875rem' }}
-                >
-                  Previous
-                </button>
-                <button 
-                  className="btn-secondary" 
-                  onClick={() => setPage(prev => prev + 1)}
-                  disabled={page * limit >= totalCount || isLoading}
-                  style={{ padding: '0.4rem 1rem', fontSize: '0.875rem' }}
-                >
-                  Next
-                </button>
-              </div>
+                              })()}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {/* Pagination Controls */}
+            {activeTab === 'shopify' && orders.length > 0 && (
+              <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  {Math.min((page - 1) * limit + 1, totalCount)}–{Math.min(page * limit, totalCount)} of {totalCount} orders
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                    disabled={page === 1 || isLoading}
+                    style={{ padding: '0.4rem 1rem', fontSize: '0.875rem' }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setPage(prev => prev + 1)}
+                    disabled={page * limit >= totalCount || isLoading}
+                    style={{ padding: '0.4rem 1rem', fontSize: '0.875rem' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
         <div className="tab-content-fade" key={activeTab}>
           {activeTab === 'reports' && (
-            <GSTReports 
-              startDate={startDate} 
-              endDate={endDate} 
-              fetchWithAuth={fetchWithAuth} 
+            <GSTReports
+              startDate={startDate}
+              endDate={endDate}
+              fetchWithAuth={fetchWithAuth}
               refreshTrigger={refreshTrigger}
               businessGstin={appConfigs?.business_gstin}
             />
           )}
- 
-           {activeTab === 'b2b' && (
-             <B2BBills 
-               fetchWithAuth={fetchWithAuth} 
-               userRole={userRole}
-               appConfigs={appConfigs}
-             />
-           )}
+
+          {activeTab === 'b2b' && (
+            <B2BBills
+              fetchWithAuth={fetchWithAuth}
+              userRole={userRole}
+              appConfigs={appConfigs}
+            />
+          )}
 
           {activeTab === 'automation' && (
-            <WhatsAppAutomation 
-              fetchWithAuth={fetchWithAuth} 
-              startDate={startDate} 
+            <WhatsAppAutomation
+              fetchWithAuth={fetchWithAuth}
+              startDate={startDate}
               endDate={endDate}
               onDateChange={handleUpdateDateRange}
               refreshTrigger={refreshTrigger}
@@ -2025,18 +2038,26 @@ function App() {
             <WhatsAppChat fetchWithAuth={fetchWithAuth} />
           )}
 
+          {activeTab === 'abandoned-carts' && (
+            <AbandonedCarts
+              fetchWithAuth={fetchWithAuth}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          )}
+
           {activeTab === 'tickets' && (
             <Tickets fetchWithAuth={fetchWithAuth} />
           )}
 
           {activeTab === 'settings' && (
-            <SettingsTab 
+            <SettingsTab
               fetchWithAuth={fetchWithAuth}
             />
           )}
 
           {activeTab === 'marketing' && (
-            <MarketingDashboard 
+            <MarketingDashboard
               fetchWithAuth={fetchWithAuth}
               userRole={userRole}
               onNavigate={(tab) => setActiveTab(tab)}
@@ -2044,7 +2065,7 @@ function App() {
           )}
 
           {activeTab === 'social' && (
-            <SocialDashboard 
+            <SocialDashboard
               fetchWithAuth={fetchWithAuth}
               userRole={userRole}
               startDate={startDate}
@@ -2054,10 +2075,10 @@ function App() {
           )}
 
           {activeTab === 'feedback' && (
-            <Feedback 
-              API_BASE={API_BASE} 
-              token={token} 
-              fetchWithAuth={fetchWithAuth} 
+            <Feedback
+              API_BASE={API_BASE}
+              token={token}
+              fetchWithAuth={fetchWithAuth}
               onNavigate={(tab) => setActiveTab(tab)}
               initialSelectedOrderId={initialSelectedFeedbackOrderId}
               clearInitialSelectedOrderId={() => setInitialSelectedFeedbackOrderId(null)}
@@ -2065,8 +2086,8 @@ function App() {
           )}
 
           {activeTab === 'customers' && (
-            <Customers 
-              fetchWithAuth={fetchWithAuth} 
+            <Customers
+              fetchWithAuth={fetchWithAuth}
               bulkSuffix={appConfigs?.bulk_template_suffix || '_marketing'}
               userRole={userRole}
             />
@@ -2079,8 +2100,8 @@ function App() {
           )}
 
           {activeTab === 'users' && userRole === 'admin' && (
-            <Users 
-              fetchWithAuth={fetchWithAuth} 
+            <Users
+              fetchWithAuth={fetchWithAuth}
             />
           )}
 
@@ -2095,8 +2116,8 @@ function App() {
       </main>
       {/* WhatsApp Modal */}
       {whatsappOrder && (
-        <ManualWhatsAppModal  
-          isOpen={!!whatsappOrder} 
+        <ManualWhatsAppModal
+          isOpen={!!whatsappOrder}
           onClose={() => setWhatsappOrder(null)}
           orderId={whatsappOrder.id}
           orderNumber={whatsappOrder.order_number}
@@ -2111,10 +2132,10 @@ function App() {
           <div className="premium-modal tracking-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, #10b981, #06b6d4)' }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                <rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
               </svg>
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h2>Tracking Details</h2>
@@ -2128,19 +2149,19 @@ function App() {
             <div className="tracking-card">
               <div className="tracking-label">Carrier</div>
               <div className="tracking-value">{trackingOrder.shipping_company || 'Standard Tracking'}</div>
-              
+
               <div style={{ margin: '1.5rem 0' }}>
                 <div className="tracking-label">Tracking Number</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <a 
-                    href={trackingOrder.tracking_url || '#'} 
-                    target="_blank" 
+                  <a
+                    href={trackingOrder.tracking_url || '#'}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="tracking-modal-link"
                   >
                     {trackingOrder.tracking_number}
                   </a>
-                  <button 
+                  <button
                     className="copy-btn-minimal"
                     title="Copy tracking number"
                     aria-label="Copy tracking number"
@@ -2153,7 +2174,7 @@ function App() {
                     }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
                     </svg>
                   </button>
                 </div>
@@ -2161,9 +2182,9 @@ function App() {
 
               <div className="modal-actions" style={{ marginTop: '2rem' }}>
                 <button className="btn-secondary" onClick={() => setTrackingOrder(null)}>Close</button>
-                <a 
-                  href={trackingOrder.tracking_url || '#'} 
-                  target="_blank" 
+                <a
+                  href={trackingOrder.tracking_url || '#'}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="btn-primary"
                   style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

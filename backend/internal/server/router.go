@@ -22,6 +22,7 @@ import (
 	userServicePkg "mi-tech/internal/domain/user/service"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
+	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 
@@ -60,6 +61,7 @@ func RegisterRoutes(
 	mfgHandler *productionHandlerPkg.ManufacturingHandler,
 	aiHandler *aiHandlerPkg.AIHandler,
 	b2bHandler *b2bHandlerPkg.B2BHandler,
+	acHandler *abandonedCheckoutHandlerPkg.AbandonedCheckoutHandler,
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -466,4 +468,9 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/b2b/proformas/revision", protected(b2bHandler.CreateRevision))
 	mux.HandleFunc("/api/b2b/proformas/convert", protected(b2bHandler.ConvertToTaxInvoice))
 	mux.HandleFunc("/api/b2b/proformas/check-expiry", protected(b2bHandler.CheckExpiredProformas))
+
+	// --- Abandoned Checkout Routes ---
+	mux.HandleFunc("/api/abandoned-checkouts", protected(acHandler.GetAbandonedCheckouts))
+	mux.HandleFunc("/api/abandoned-checkouts/recover", adminProtected(acHandler.RecoverCheckout))
+	mux.HandleFunc("/api/abandoned-checkouts/analytics", protected(acHandler.GetAbandonedCheckoutAnalytics))
 }

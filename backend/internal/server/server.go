@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 	"log"
+	abandonedCheckoutHandler "mi-tech/internal/domain/abandoned_checkout/handler"
+	abandonedCheckoutRepo "mi-tech/internal/domain/abandoned_checkout/repository"
+	abandonedCheckoutService "mi-tech/internal/domain/abandoned_checkout/service"
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	aiRepoPkg "mi-tech/internal/domain/ai/repository"
 	aiServicePkg "mi-tech/internal/domain/ai/service"
@@ -68,6 +71,7 @@ type Server struct {
 	db                *gorm.DB
 	amzPoller         *syncServicePkg.AmazonOrderPoller
 	feedbackScheduler *feedbackServicePkg.FeedbackScheduler
+	checkoutScheduler *abandonedCheckoutService.AbandonedRecoveryScheduler
 }
 
 func New() (*Server, error) {
@@ -113,6 +117,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	aiConvRepo := aiRepoPkg.NewAIConversationRepository(db)
 	aiMemRepo := aiRepoPkg.NewAIMemoryRepository(db)
 	b2bRepo := b2bRepoPkg.NewB2BRepository(db)
+	acRepo := abandonedCheckoutRepo.NewAbandonedCheckoutRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -152,6 +157,9 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	systemService := systemServicePkg.NewSystemService("../docs")
 	aiService := aiServicePkg.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
 	b2bService := b2bServicePkg.NewB2BService(b2bRepo, settingsProvider, db)
+	acService := abandonedCheckoutService.NewAbandonedCheckoutService(acRepo, whatsappRepo, messagesService, settingsProvider)
+	checkoutScheduler := abandonedCheckoutService.NewAbandonedRecoveryScheduler(acService)
+	acHandler := abandonedCheckoutHandler.NewAbandonedCheckoutHandler(acService)
 	marketingHandler := marketingHandlerPkg.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := marketingHandlerPkg.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := systemHandlerPkg.NewSystemHandler(systemService)
@@ -163,7 +171,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	syncHandler := syncHandlerPkg.NewSyncHandler(syncService)
 	metricsHandler := dashboardHandlerPkg.NewMetricsHandler(metricsService)
 	reportHandler := gstHandlerPkg.NewGSTHandler(reportService)
-	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider)
+	webhookHandler := webhookHandlerPkg.NewWebhookHandler(webhookService, mappingService, settingsProvider, acService)
 	automationHandler := communicationHandlerPkg.NewAutomationHandler(whatsappService, messagesService, mappingService, orderService, customerService, settingsProvider, agentService)
 	settingsHandler := configHandlerPkg.NewSettingsHandler(settingsRepo)
 	configsHandler := configHandlerPkg.NewConfigsHandler(configsRepo, db)
@@ -211,6 +219,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		mfgHandler,
 		aiHandler,
 		b2bHandler,
+		acHandler,
 		authService,
 	)
 
@@ -222,6 +231,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		db:                db,
 		amzPoller:         amazonOrderPoller,
 		feedbackScheduler: feedbackScheduler,
+		checkoutScheduler: checkoutScheduler,
 	}
 }
 
@@ -243,6 +253,9 @@ func (s *Server) Run() error {
 	}
 	if s.feedbackScheduler != nil {
 		go s.feedbackScheduler.Start(context.Background())
+	}
+	if s.checkoutScheduler != nil {
+		go s.checkoutScheduler.Start(context.Background())
 	}
 
 	return server.ListenAndServe()
