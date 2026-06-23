@@ -29,6 +29,7 @@ type AbandonedCheckoutService interface {
 	TriggerManualRecovery(ctx context.Context, storeID string, id int) error
 	GetAnalytics(ctx context.Context, storeID string, startDate, endDate string) (*acDto.AbandonedCheckoutAnalyticsResponse, error)
 	DeleteCheckout(ctx context.Context, storeID string, id int) error
+	UpdateCheckoutStatus(ctx context.Context, storeID string, id int, status string, completed bool) error
 }
 
 type abandonedCheckoutService struct {
@@ -292,4 +293,8 @@ func (s *abandonedCheckoutService) GetAnalytics(ctx context.Context, storeID str
 
 func (s *abandonedCheckoutService) DeleteCheckout(ctx context.Context, storeID string, id int) error {
 	return s.repo.Delete(ctx, storeID, id)
+}
+
+func (s *abandonedCheckoutService) UpdateCheckoutStatus(ctx context.Context, storeID string, id int, status string, completed bool) error {
+	return s.repo.UpdateStatus(ctx, storeID, id, status, completed)
 }

@@ -78,6 +78,11 @@ func (m *MockAbandonedCheckoutRepository) Delete(ctx context.Context, storeID st
 	return args.Error(0)
 }
 
+func (m *MockAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, storeID string, id int, status string, completed bool) error {
+	args := m.Called(ctx, storeID, id, status, completed)
+	return args.Error(0)
+}
+
 
 type MockTemplatesRepository struct {
 	mock.Mock

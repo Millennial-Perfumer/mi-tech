@@ -147,6 +147,41 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
     }
   };
 
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const handleStatusChange = async (id: number, val: string) => {
+    setUpdatingStatus(true);
+    try {
+      const completed = val === 'RECOVERED';
+      const recoveryStatus = completed ? 'SENT' : val;
+
+      const resp = await fetchWithAuth(`${API_BASE}/api/abandoned-checkouts/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, recovery_status: recoveryStatus, completed }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        setToastMsg({ type: 'success', text: 'Status updated successfully!' });
+        
+        // Update local list
+        setCheckouts(prev => prev.map(c => c.id === id ? { ...c, recovery_status: recoveryStatus, completed } : c));
+        
+        // Update selected detail
+        if (selectedCart && selectedCart.id === id) {
+          setSelectedCart((prev: any) => prev ? { ...prev, recovery_status: recoveryStatus, completed } : null);
+        }
+      } else {
+        setToastMsg({ type: 'error', text: data.message || 'Failed to update status.' });
+      }
+    } catch (err: any) {
+      setToastMsg({ type: 'error', text: err.message || 'Network error updating status.' });
+    } finally {
+      setUpdatingStatus(false);
+      setTimeout(() => setToastMsg(null), 5000);
+    }
+  };
+
   const getRecoveryBadge = (status: string, completed: boolean) => {
     if (completed) {
       return <span className="badge-pill badge-pill-success"><span className="dot" style={{ backgroundColor: '#10b981' }}></span>RECOVERED</span>;
@@ -412,34 +447,7 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                         </td>
                         <td style={{ verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{
-                              padding: '0.3rem 0.6rem',
-                              borderRadius: '8px',
-                              fontSize: '0.7rem',
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              width: 'fit-content',
-                              backgroundColor: c.completed
-                                ? 'var(--status-active-bg)'
-                                : c.recovery_status === 'FAILED'
-                                  ? 'var(--status-danger-bg)'
-                                  : c.recovery_status === 'SENT'
-                                    ? 'var(--status-active-bg)'
-                                    : c.recovery_status === 'CANCELLED'
-                                      ? 'var(--bg-input)'
-                                      : 'var(--status-warning-bg)',
-                              color: c.completed
-                                ? 'var(--status-active)'
-                                : c.recovery_status === 'FAILED'
-                                  ? 'var(--status-danger)'
-                                  : c.recovery_status === 'SENT'
-                                    ? 'var(--accent-color)'
-                                    : c.recovery_status === 'CANCELLED'
-                                      ? 'var(--text-secondary)'
-                                      : 'var(--status-warning)',
-                            }}>
-                              {c.completed ? 'RECOVERED' : c.recovery_status}
-                            </span>
+                            {getRecoveryBadge(c.recovery_status, c.completed)}
                             {c.completed_at && c.order_id && (
                               <span style={{ fontSize: '0.75rem', color: 'var(--status-active)', fontWeight: 600 }}>
                                 Order: #{c.order_id}
@@ -622,8 +630,76 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
               <div style={{ background: 'var(--bg-input)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                 <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Status & Times</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.9rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <strong>State:</strong> {getRecoveryBadge(selectedCart.recovery_status, selectedCart.completed)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    <strong>State:</strong>
+                    {(() => {
+                      const getSelectColors = (status: string, completed: boolean) => {
+                        if (completed) {
+                          return { bg: 'var(--status-active-bg)', color: 'var(--status-active)' };
+                        }
+                        switch (status.toUpperCase()) {
+                          case 'PENDING':
+                            return { bg: 'var(--bg-input)', color: 'var(--text-secondary)' };
+                          case 'PROCESSING':
+                            return { bg: 'var(--status-warning-bg)', color: 'var(--status-warning)' };
+                          case 'SENT':
+                            return { bg: 'var(--status-active-bg)', color: 'var(--accent-color)' };
+                          case 'FAILED':
+                            return { bg: 'var(--status-danger-bg)', color: 'var(--status-danger)' };
+                          case 'CANCELLED':
+                            return { bg: 'var(--bg-input)', color: 'var(--text-secondary)' };
+                          default:
+                            return { bg: 'var(--bg-input)', color: 'var(--text-secondary)' };
+                        }
+                      };
+
+                      const colors = getSelectColors(selectedCart.recovery_status, selectedCart.completed);
+                      const currentState = selectedCart.completed ? 'RECOVERED' : selectedCart.recovery_status;
+                      
+                      return (
+                        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                          <select
+                            value={currentState}
+                            disabled={updatingStatus}
+                            onChange={(e) => handleStatusChange(selectedCart.id, e.target.value)}
+                            style={{
+                              padding: '0.4rem 2rem 0.4rem 0.75rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              borderRadius: '8px',
+                              border: '1px solid rgba(0,0,0,0.05)',
+                              backgroundColor: colors.bg,
+                              color: colors.color,
+                              cursor: 'pointer',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              textTransform: 'uppercase',
+                              transition: 'all 0.2s ease',
+                              boxShadow: 'var(--shadow-sm)'
+                            }}
+                          >
+                            <option value="PENDING" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }}>PENDING</option>
+                            <option value="PROCESSING" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }}>PROCESSING</option>
+                            <option value="SENT" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }}>SENT</option>
+                            <option value="FAILED" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }}>FAILED</option>
+                            <option value="CANCELLED" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }}>CANCELLED</option>
+                            <option value="RECOVERED" style={{ backgroundColor: 'var(--surface-color)', color: 'var(--text-primary)' }}>RECOVERED</option>
+                          </select>
+                          <div style={{
+                            position: 'absolute',
+                            right: '0.6rem',
+                            pointerEvents: 'none',
+                            color: colors.color,
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m6 9 6 6 6-6" />
+                            </svg>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div><strong>Attempts:</strong> {selectedCart.recovery_attempts}</div>
                   <div><strong>Abandoned:</strong> {new Date(selectedCart.abandoned_at).toLocaleString()}</div>

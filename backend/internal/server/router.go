@@ -473,4 +473,5 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/abandoned-checkouts", protected(acHandler.GetAbandonedCheckouts))
 	mux.HandleFunc("/api/abandoned-checkouts/recover", adminProtected(acHandler.RecoverCheckout))
 	mux.HandleFunc("/api/abandoned-checkouts/analytics", protected(acHandler.GetAbandonedCheckoutAnalytics))
+	mux.HandleFunc("/api/abandoned-checkouts/status", adminProtected(acHandler.UpdateCheckoutStatus))
 }

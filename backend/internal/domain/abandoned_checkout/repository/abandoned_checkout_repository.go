@@ -19,6 +19,7 @@ type AbandonedCheckoutRepository interface {
 	GetAnalytics(ctx context.Context, storeID string, startDate, endDate string) (*acDto.AbandonedCheckoutAnalyticsResponse, error)
 	CheckRecentOrders(ctx context.Context, phone, email string, since time.Time) (bool, error)
 	Delete(ctx context.Context, storeID string, id int) error
+	UpdateStatus(ctx context.Context, storeID string, id int, status string, completed bool) error
 }
 
 type gormAbandonedCheckoutRepository struct {
@@ -72,19 +73,17 @@ func (r *gormAbandonedCheckoutRepository) Upsert(ctx context.Context, ac *entity
 
 	// Cancel prior pending checkouts for the same customer since a newer checkout has been created/updated
 	if ac.Phone != "" || ac.Email != "" {
-		twoDaysPrior := now.Add(-48 * time.Hour)
 		cancelQuery := `
 			UPDATE abandoned_checkouts
 			SET recovery_status = 'CANCELLED', last_error = 'Superseded by newer checkout', updated_at = ?
 			WHERE completed = false
-			  AND abandoned_at >= ?
 			  AND (recovery_status = 'PENDING' OR recovery_status = 'FAILED')
 			  AND checkout_token != ?
 			  AND (
 				(phone = ? AND phone != '') OR
 				(email = ? AND email != '')
 			  )`
-		_ = r.db.WithContext(ctx).Exec(cancelQuery, now, twoDaysPrior, ac.CheckoutToken, ac.Phone, ac.Email)
+		_ = r.db.WithContext(ctx).Exec(cancelQuery, now, ac.CheckoutToken, ac.Phone, ac.Email)
 	}
 
 	return nil
@@ -113,17 +112,16 @@ func (r *gormAbandonedCheckoutRepository) MarkCompleted(ctx context.Context, che
 		Limit(1).Scan(&orderInfo).Error
 
 	if err == nil && (orderInfo.CustomerPhone != "" || orderInfo.CustomerEmail != "") {
-		twoDaysPrior := orderInfo.CreatedAt.Add(-48 * time.Hour)
 		queryPrior := `
 			UPDATE abandoned_checkouts
 			SET completed = true, completed_at = ?, recovery_status = 'CANCELLED', last_error = 'Customer completed order #' || ?, updated_at = ?
 			WHERE completed = false
-			  AND abandoned_at >= ? AND abandoned_at < ?
+			  AND abandoned_at < ?
 			  AND (
 				(phone = ? AND phone != '') OR
 				(email = ? AND email != '')
 			  )`
-		_ = r.db.WithContext(ctx).Exec(queryPrior, now, orderID, now, twoDaysPrior, orderInfo.CreatedAt, orderInfo.CustomerPhone, orderInfo.CustomerEmail)
+		_ = r.db.WithContext(ctx).Exec(queryPrior, now, orderID, now, orderInfo.CreatedAt, orderInfo.CustomerPhone, orderInfo.CustomerEmail)
 	}
 
 	return nil
@@ -439,5 +437,23 @@ func (r *gormAbandonedCheckoutRepository) CheckRecentOrders(ctx context.Context,
 
 func (r *gormAbandonedCheckoutRepository) Delete(ctx context.Context, storeID string, id int) error {
 	return r.db.WithContext(ctx).Where("store_id = ? AND id = ?", storeID, id).Delete(&entity.AbandonedCheckout{}).Error
+}
+
+func (r *gormAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, storeID string, id int, status string, completed bool) error {
+	updates := map[string]interface{}{
+		"recovery_status": status,
+		"completed":       completed,
+		"updated_at":      time.Now(),
+	}
+	if completed {
+		now := time.Now()
+		updates["completed_at"] = &now
+	} else {
+		updates["completed_at"] = nil
+		updates["order_id"] = ""
+	}
+	return r.db.WithContext(ctx).Model(&entity.AbandonedCheckout{}).
+		Where("store_id = ? AND id = ?", storeID, id).
+		Updates(updates).Error
 }
 

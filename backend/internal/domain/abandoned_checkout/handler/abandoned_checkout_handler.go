@@ -156,3 +156,39 @@ func (h *AbandonedCheckoutHandler) DeleteCheckout(w http.ResponseWriter, r *http
 		"message": "Checkout deleted successfully",
 	})
 }
+
+// UpdateCheckoutStatus handles PUT /api/abandoned-checkouts/status
+func (h *AbandonedCheckoutHandler) UpdateCheckoutStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID             int    `json:"id"`
+		RecoveryStatus string `json:"recovery_status"`
+		Completed      bool   `json:"completed"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID <= 0 {
+		http.Error(w, "Missing or invalid checkout ID", http.StatusBadRequest)
+		return
+	}
+
+	err := h.acService.UpdateCheckoutStatus(r.Context(), config.StoreIDShopify, req.ID, req.RecoveryStatus, req.Completed)
+	if err != nil {
+		http.Error(w, "Failed to update status: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Checkout status updated successfully",
+	})
+}
