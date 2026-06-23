@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	checkoutDto "mi-tech/internal/domain/abandoned_checkout/dto"
+	checkoutMapper "mi-tech/internal/domain/abandoned_checkout/mapper"
+	checkoutService "mi-tech/internal/domain/abandoned_checkout/service"
 	communicationServicePkg "mi-tech/internal/domain/communication/service"
 	orderDto "mi-tech/internal/domain/order/dto"
 	webhookEntity "mi-tech/internal/domain/webhook/entity"
@@ -25,14 +29,16 @@ type WebhookHandler struct {
 	webhookService *webhookService.WebhookService
 	mappingService *communicationServicePkg.WebhookMappingService
 	settings       *config.SettingsProvider
+	acService      checkoutService.AbandonedCheckoutService
 }
 
 // NewWebhookHandler creates a new WebhookHandler.
-func NewWebhookHandler(webhookService *webhookService.WebhookService, mappingService *communicationServicePkg.WebhookMappingService, settings *config.SettingsProvider) *WebhookHandler {
+func NewWebhookHandler(webhookService *webhookService.WebhookService, mappingService *communicationServicePkg.WebhookMappingService, settings *config.SettingsProvider, acService checkoutService.AbandonedCheckoutService) *WebhookHandler {
 	return &WebhookHandler{
 		webhookService: webhookService,
 		mappingService: mappingService,
 		settings:       settings,
+		acService:      acService,
 	}
 }
 
@@ -94,6 +100,14 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 			switch topic {
 			case "orders/create":
 				processErr = h.webhookService.ProcessOrderCreate(payload, &raw)
+				if processErr == nil && h.acService != nil {
+					checkoutIDStr := ""
+					if payload.CheckoutID != nil {
+						checkoutIDStr = strconv.FormatInt(*payload.CheckoutID, 10)
+					}
+					log.Printf("Webhook Order Completion Link: Marking checkout complete for token %s, id %s", payload.CheckoutToken, checkoutIDStr)
+					_ = h.acService.MarkCheckoutCompleted(context.Background(), payload.CheckoutToken, checkoutIDStr, externalID)
+				}
 			case "orders/updated":
 				processErr = h.webhookService.ProcessOrderUpdate(payload, &raw)
 			case "orders/paid":
@@ -102,6 +116,22 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 				processErr = h.webhookService.ProcessOrderFulfilled(externalID)
 			case "orders/cancelled":
 				processErr = h.webhookService.ProcessOrderUpdate(payload, &raw)
+			}
+		} else if strings.HasPrefix(topic, "checkouts/") {
+			var payload checkoutDto.ShopifyWebhookCheckout
+			if err := json.Unmarshal(body, &payload); err != nil {
+				log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+				return
+			}
+			externalID = strconv.FormatInt(payload.ID, 10)
+			log.Printf("Webhook Processing: Handling topic %s for Checkout External ID %s", topic, externalID)
+
+			switch topic {
+			case "checkouts/create", "checkouts/update":
+				if h.acService != nil {
+					checkoutEntity := checkoutMapper.WebhookCheckoutToEntity(payload)
+					processErr = h.acService.ProcessCheckoutWebhook(context.Background(), config.StoreIDShopify, checkoutEntity)
+				}
 			}
 		} else if strings.HasPrefix(topic, "fulfillments/") {
 			var payload orderDto.ShopifyWebhookFulfillment

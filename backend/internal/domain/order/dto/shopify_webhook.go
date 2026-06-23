@@ -18,6 +18,8 @@ type ShopifyWebhookOrder struct {
 	UpdatedAt         string               `json:"updated_at"`
 	CancelledAt       *string              `json:"cancelled_at"`
 	CancelReason      string               `json:"cancel_reason"`
+	CheckoutToken     string               `json:"checkout_token"`
+	CheckoutID        *int64               `json:"checkout_id"`
 	Customer          *ShopifyCustomer     `json:"customer"`
 	BillingAddress    *ShopifyAddress      `json:"billing_address"`
 	ShippingAddress   *ShopifyAddress      `json:"shipping_address"`

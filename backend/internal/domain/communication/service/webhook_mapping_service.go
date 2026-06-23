@@ -278,7 +278,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *co
 			for i, btn := range buttons {
 				if btn["type"] == "visit_website" {
 					url, _ := btn["url"].(string)
-					if strings.Contains(url, "{{1}}") {
+					if strings.Contains(url, "{{1}}") || strings.Contains(strings.ToLower(url), "%7b%7b1%7d%7d") {
 						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
 						fieldToMap := mappings[mapKey]
 
@@ -531,7 +531,7 @@ func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *c
 			for i, btn := range buttons {
 				if btn["type"] == "visit_website" {
 					url, _ := btn["url"].(string)
-					if strings.Contains(url, "{{1}}") {
+					if strings.Contains(url, "{{1}}") || strings.Contains(strings.ToLower(url), "%7b%7b1%7d%7d") {
 						mapKey := fmt.Sprintf("button_url_%d_{{1}}", i)
 						fieldToMap := mappings[mapKey]
 						val := resolveCustomerVariable(fieldToMap, customer)

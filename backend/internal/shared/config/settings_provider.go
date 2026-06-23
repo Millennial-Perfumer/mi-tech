@@ -328,3 +328,16 @@ func (p *SettingsProvider) GetFeedbackAutoTriggerTime() string {
 	}
 	return val
 }
+
+func (p *SettingsProvider) GetAbandonedCheckoutDelayMinutes() int {
+	val := p.Get("abandoned_checkout_delay_minutes")
+	if val == "" {
+		return 30 // default 30 mins
+	}
+	var mins int
+	fmt.Sscanf(val, "%d", &mins)
+	if mins <= 0 {
+		return 30
+	}
+	return mins
+}
