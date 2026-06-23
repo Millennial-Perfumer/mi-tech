@@ -712,7 +712,7 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
             {/* Cart Line Items */}
             <div style={{ marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Line Items</h3>
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflowY: 'auto', maxHeight: '240px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-input)' }}>
