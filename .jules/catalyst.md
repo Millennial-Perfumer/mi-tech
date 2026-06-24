@@ -44,3 +44,12 @@
 * **Business Growth & Profit Impact**: Uncaught GST discrepancies can lead to significant financial penalties or miscalculated profit margins, which directly hinders reaching and sustaining the 3L/month target. This automation actively monitors synchronized orders against local GST settings (especially via the `gst` module), flagging incorrect HSN codes, missing GST numbers on B2B invoices, or discrepancies between Shopify tax collection and MI-Tech reported tax. Catching these early prevents loss leakage and streamlines the end-of-month accounting process.
 * **Technical Complexity**: Medium
 * **Description**: Extend the `order` and `gst` domains by implementing a background reconciliation worker. When new orders are synchronized (via `webhook/order` or manual sync), the worker compares the order line items' tax lines and HSN codes against the canonical database configurations. If a mismatch is detected (e.g., Shopify charged 18% but the item HSN dictates 12%), it logs a `TaxDiscrepancy` event and pushes an alert to the `dashboard` and `communication` channels for manual review before invoice generation.
+
+### [IDE-007] Automated Post-Purchase Replenishment Reminders
+* **Added On**: 2024-06-24
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (LTV Boost)
+* **Customer Value Proposition**: Customers receive a timely, helpful reminder via WhatsApp exactly when they are likely running out of their previous purchase (e.g., a 30ml perfume or consumable), allowing them to seamlessly restock with a single click.
+* **Business Growth & Profit Impact**: Consumable products have a natural consumption cycle. By estimating this cycle (e.g., 45 days) and automatically triggering a WhatsApp reminder with a direct checkout link, we can predictably generate repeat purchases. This high-conversion, zero-CAC tactic directly increases LTV and provides a steady baseline of recurring revenue, heavily contributing to the jump from 1L to 3L/month.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `planner/cron` and `communication` modules to scan the `orders` table daily for delivered orders containing specific SKUs that were fulfilled X days ago (based on a configurable consumption window per item). Trigger a targeted WhatsApp template message to the `customer_phone` via the SMM hub offering a quick restock link, potentially bundled with a complementary item to boost AOV.
