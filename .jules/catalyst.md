@@ -53,3 +53,12 @@
 * **Business Growth & Profit Impact**: Dramatically boosts Customer Lifetime Value (LTV) and repeat purchase frequency. Assuming a typical 30-60 day consumption cycle for core products, automating this follow-up creates a passive, recurring revenue stream with zero acquisition cost. Stacking predictable repeat orders on top of new customer acquisition is a highly leveraged mechanism to accelerate from 1L to 3L/month while maximizing profit margins.
 * **Technical Complexity**: Medium
 * **Description**: Implement a new automated background task (`planner/cron`) that analyzes the `order` module for past purchases of consumable SKUs (defined by an 'expected_lifespan_days' attribute added to the `inventory` module). When a customer approaches their estimated depletion date, the system integrates with the `communication` (SMM) hub to dispatch a personalized WhatsApp template (e.g., "Running low on your favorite scent?") containing a pre-filled, one-click Shopify checkout link for instant replenishment.
+
+### [IDE-008] High-Margin "Complete the Set" Checkout Upsell Widget
+* **Added On**: 2024-06-25
+* **Target Audience**: End Customers, Store Admins
+* **3L Growth Vector**: Increase Average Order Value (AOV)
+* **Customer Value Proposition**: Enhances the shopping experience by intuitively recommending perfectly matching accessories or smaller complimentary items (like a matching body lotion to a perfume) exactly when they are most excited to buy, saving them time searching.
+* **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
+* **Technical Complexity**: Medium
+* **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
