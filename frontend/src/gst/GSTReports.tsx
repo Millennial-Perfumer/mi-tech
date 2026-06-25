@@ -1,5 +1,6 @@
 import { API_BASE } from '../api';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { DashboardOrdersModal } from '../DashboardOrdersModal';
 
 interface GSTSummary {
   total_orders: number;
@@ -59,10 +60,20 @@ interface GSTReportsProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   refreshTrigger?: number;
   businessGstin?: string;
+  token: string | null;
+  onViewOrderDetails: (id: number) => void;
 }
 
 
-export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetchWithAuth, refreshTrigger, businessGstin }) => {
+export const GSTReports: React.FC<GSTReportsProps> = ({
+  startDate,
+  endDate,
+  fetchWithAuth,
+  refreshTrigger,
+  businessGstin,
+  token,
+  onViewOrderDetails
+}) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'state' | 'hsn' | 'documents' | 'gstr1'>('summary');
   const [summary, setSummary] = useState<GSTSummary | null>(null);
   const [stateData, setStateData] = useState<StateReport[] | null>(null);
@@ -71,6 +82,8 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
   const [opSummary, setOpSummary] = useState<OperationalSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedSources, setSelectedSources] = useState<string[]>(['shopify', 'amazon', 'pos', 'b2b']);
+  const [selectedStateForModal, setSelectedStateForModal] = useState<string | null>(null);
 
   const [gstin, setGstin] = useState(businessGstin || '33AUSPR1909H1ZC');
   const [isExporting, setIsExporting] = useState(false);
@@ -179,7 +192,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
     setDocsData(null);
     setOpSummary(null);
     setLoading(true);
-  }, [startDate, endDate, refreshTrigger]);
+  }, [startDate, endDate, refreshTrigger, selectedSources]);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -218,11 +231,12 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
           endObj = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
         }
 
+        const sourceIdsQuery = selectedSources.length > 0 ? `&source_ids=${selectedSources.join(',')}` : '';
         const fetchTasks: Promise<unknown>[] = [];
 
         if (needsSummary) {
           fetchTasks.push(
-            fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}`)
+            fetchWithAuth(`${API_BASE}/api/reports/summary?start_date=${startObj}&end_date=${endObj}${sourceIdsQuery}`)
               .then(res => res.json())
               .then(data => {
                 if (data.success) {
@@ -242,7 +256,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
 
         if (needsState) {
           fetchTasks.push(
-            fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}`)
+            fetchWithAuth(`${API_BASE}/api/reports/state-wise?start_date=${startObj}&end_date=${endObj}${sourceIdsQuery}`)
               .then(res => res.json())
               .then(data => {
                 if (data.success) setStateData(data.data || []);
@@ -252,7 +266,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
 
         if (needsHSN) {
           fetchTasks.push(
-            fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}`)
+            fetchWithAuth(`${API_BASE}/api/reports/hsn-wise?start_date=${startObj}&end_date=${endObj}${sourceIdsQuery}`)
               .then(res => res.json())
               .then(data => {
                 if (data.success) setHsnData(data.data || []);
@@ -262,7 +276,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
 
         if (needsDocs) {
           fetchTasks.push(
-            fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}`)
+            fetchWithAuth(`${API_BASE}/api/reports/documents-issued?start_date=${startObj}&end_date=${endObj}${sourceIdsQuery}`)
               .then(res => res.json())
               .then(data => {
                 if (data.success) setDocsData(data.data || []);
@@ -281,7 +295,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
 
     fetchReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, fetchWithAuth, refreshTrigger, activeSubTab]);
+  }, [startDate, endDate, fetchWithAuth, refreshTrigger, activeSubTab, selectedSources]);
 
   const downloadCSV = (data: Record<string, string | number | null>[], filename: string) => {
     if (data.length === 0) return;
@@ -313,7 +327,7 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
       const endObj = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
 
       const response = await fetchWithAuth(
-        `${API_BASE}/api/reports/gstr1-json?start_date=${startObj}&end_date=${endObj}&gstin=${gstin.trim()}`
+        `${API_BASE}/api/reports/gstr1-json?start_date=${startObj}&end_date=${endObj}&gstin=${gstin.trim()}&source_ids=${selectedSources.join(',')}`
       );
 
       if (!response.ok) {
@@ -395,6 +409,86 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
             </div>
           )}
         </div>
+      </div>
+
+      {/* Channel Filters */}
+      <div className="channel-filters" style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        gap: '0.5rem',
+        background: '#f0f2f5',
+        padding: '0.35rem 0.5rem',
+        borderRadius: '12px',
+        border: '1px solid #e1e3e6',
+        marginTop: '-1rem',
+        alignSelf: 'flex-start'
+      }}>
+        {[
+          { id: 'shopify', label: 'Shopify', dotColor: '#8cb73d' },
+          { id: 'amazon', label: 'Amazon', dotColor: '#ff9900' },
+          { id: 'pos', label: 'POS', dotColor: '#5c6ac4' },
+          { id: 'b2b', label: 'B2B', dotColor: '#10b981' }
+        ].map(ch => {
+          const isActive = selectedSources.includes(ch.id);
+          return (
+            <button
+              key={ch.id}
+              onClick={() => {
+                if (isActive) {
+                  setSelectedSources(selectedSources.filter(s => s !== ch.id));
+                } else {
+                  setSelectedSources([...selectedSources, ch.id]);
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.45rem 1rem',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: '1px solid',
+                borderColor: isActive ? '#e1e3e6' : 'transparent',
+                background: isActive ? '#ffffff' : 'transparent',
+                color: isActive ? '#798c9e' : '#b2bbc4',
+                opacity: isActive ? 1 : 0.5,
+                transition: 'all 0.2s ease',
+                outline: 'none',
+                boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
+              }}
+            >
+              <span style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: ch.dotColor,
+                display: 'inline-block'
+              }}></span>
+              {ch.label}
+            </button>
+          );
+        })}
+        {selectedSources.length !== 4 && (
+          <button
+            onClick={() => setSelectedSources(['shopify', 'amazon', 'pos', 'b2b'])}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#10b981',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: '0.45rem 0.75rem',
+              outline: 'none',
+              transition: 'opacity 0.2s ease',
+              marginLeft: '0.25rem'
+            }}
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {activeSubTab === 'summary' && (
@@ -483,8 +577,13 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
                   </tr>
                 ) : (
                   sortedStateData.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{row.state || 'N/A'}</td>
+                    <tr 
+                      key={idx} 
+                      onClick={() => row.state && setSelectedStateForModal(row.state)} 
+                      style={{ cursor: 'pointer' }}
+                      className="hover-row"
+                    >
+                      <td style={{ fontWeight: 600, color: 'var(--accent-color)' }}>{row.state || 'N/A'}</td>
                       <td>{row.orders}</td>
                       <td>₹{row.taxable_value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       <td>₹{row.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -799,6 +898,20 @@ export const GSTReports: React.FC<GSTReportsProps> = ({ startDate, endDate, fetc
             </div>
           </div>
         </div>
+      )}
+
+      {selectedStateForModal && (
+        <DashboardOrdersModal
+          isOpen={selectedStateForModal !== null}
+          onClose={() => setSelectedStateForModal(null)}
+          metricLabel={selectedStateForModal}
+          startDate={startDate}
+          endDate={endDate}
+          selectedChannels={selectedSources}
+          token={token}
+          onViewOrderDetails={onViewOrderDetails}
+          state={selectedStateForModal}
+        />
       )}
     </div>
   );

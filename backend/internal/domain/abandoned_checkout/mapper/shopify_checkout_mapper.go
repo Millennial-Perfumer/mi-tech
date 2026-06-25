@@ -78,6 +78,23 @@ func WebhookCheckoutToEntity(payload checkoutDto.ShopifyWebhookCheckout) checkou
 		}
 	}
 
+	// Extract location details
+	city := ""
+	province := ""
+	country := ""
+	zip := ""
+	if payload.ShippingAddress != nil {
+		city = payload.ShippingAddress.City
+		province = payload.ShippingAddress.Province
+		country = payload.ShippingAddress.Country
+		zip = payload.ShippingAddress.Zip
+	} else if payload.BillingAddress != nil {
+		city = payload.BillingAddress.City
+		province = payload.BillingAddress.Province
+		country = payload.BillingAddress.Country
+		zip = payload.BillingAddress.Zip
+	}
+
 	return checkoutEntity.AbandonedCheckout{
 		CheckoutID:       strconv.FormatInt(payload.ID, 10),
 		CheckoutToken:    payload.Token,
@@ -91,6 +108,10 @@ func WebhookCheckoutToEntity(payload checkoutDto.ShopifyWebhookCheckout) checkou
 		Currency:         payload.Currency,
 		MarketingConsent: marketingConsent,
 		SMSConsent:       smsConsent,
+		City:             city,
+		Province:         province,
+		Country:          country,
+		Zip:              zip,
 		AbandonedAt:      abandonedAt,
 		CreatedAt:        createdAt,
 	}

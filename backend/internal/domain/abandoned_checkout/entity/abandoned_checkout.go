@@ -27,6 +27,10 @@ type AbandonedCheckout struct {
 	LastError             string           `json:"last_error" gorm:"column:last_error"`
 	MarketingConsent      bool             `json:"marketing_consent" gorm:"column:marketing_consent;default:false"`
 	SMSConsent            bool             `json:"sms_consent" gorm:"column:sms_consent;default:false"`
+	City                  string           `json:"city" gorm:"column:city"`
+	Province              string           `json:"province" gorm:"column:province"`
+	Country               string           `json:"country" gorm:"column:country"`
+	Zip                   string           `json:"zip" gorm:"column:zip"`
 	AbandonedAt           time.Time        `json:"abandoned_at" gorm:"column:abandoned_at;default:CURRENT_TIMESTAMP"`
 	CreatedAt             time.Time        `json:"created_at" gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
 	UpdatedAt             time.Time        `json:"updated_at" gorm:"column:updated_at;default:CURRENT_TIMESTAMP"`

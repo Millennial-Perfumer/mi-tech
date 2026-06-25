@@ -81,6 +81,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [messages, setMessages] = useState<AutomationMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+  const isStateNA = !order || !order.customer_state || order.customer_state.trim() === '' || order.customer_state.toLowerCase() === 'n/a' || order.customer_state.toLowerCase() === 'null';
+
   const fetchMessages = React.useCallback(async () => {
     setIsLoadingMessages(true);
     try {
@@ -278,7 +280,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <h3 style={{ fontSize: '0.85rem', fontWeight: 600, margin: 0, color: 'var(--accent-color)' }}>Customer & Shipping</h3>
 
 
-                    {userRole === 'admin' && (
+                    {(userRole === 'admin' || isStateNA) && (
                       <button 
                         type="button"
                         className="btn-icon-minimal" 
@@ -302,8 +304,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                           name="customer_first_name" 
                           value={formData.customer_first_name || ''} 
                           onChange={handleInputChange} 
-                          disabled={!isEditing}
-                          className={!isEditing ? 'input-readonly' : ''}
+                          disabled={!isEditing || userRole !== 'admin'}
+                          className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                       <div className="input-group">
@@ -312,8 +314,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                           name="customer_last_name" 
                           value={formData.customer_last_name || ''} 
                           onChange={handleInputChange} 
-                          disabled={!isEditing}
-                          className={!isEditing ? 'input-readonly' : ''}
+                          disabled={!isEditing || userRole !== 'admin'}
+                          className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                     </div>
@@ -324,8 +326,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         name="customer_email" 
                         value={formData.customer_email || ''} 
                         onChange={handleInputChange} 
-                        disabled={!isEditing}
-                        className={!isEditing ? 'input-readonly' : ''}
+                        disabled={!isEditing || userRole !== 'admin'}
+                        className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
                     </div>
 
@@ -335,8 +337,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         name="customer_phone" 
                         value={formData.customer_phone || ''} 
                         onChange={handleInputChange} 
-                        disabled={!isEditing}
-                        className={!isEditing ? 'input-readonly' : ''}
+                        disabled={!isEditing || userRole !== 'admin'}
+                        className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
                     </div>
 
@@ -346,8 +348,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         name="customer_address1" 
                         value={formData.customer_address1 || ''} 
                         onChange={handleInputChange} 
-                        disabled={!isEditing}
-                        className={!isEditing ? 'input-readonly' : ''}
+                        disabled={!isEditing || userRole !== 'admin'}
+                        className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
                     </div>
 
@@ -357,8 +359,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         name="customer_address2" 
                         value={formData.customer_address2 || ''} 
                         onChange={handleInputChange} 
-                        disabled={!isEditing}
-                        className={!isEditing ? 'input-readonly' : ''}
+                        disabled={!isEditing || userRole !== 'admin'}
+                        className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
                     </div>
 
@@ -369,8 +371,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                           name="customer_city" 
                           value={formData.customer_city || ''} 
                           onChange={handleInputChange} 
-                          disabled={!isEditing}
-                          className={!isEditing ? 'input-readonly' : ''}
+                          disabled={!isEditing || userRole !== 'admin'}
+                          className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                       <div className="input-group">
@@ -379,8 +381,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                           name="customer_zip" 
                           value={formData.customer_zip || ''} 
                           onChange={handleInputChange} 
-                          disabled={!isEditing}
-                          className={!isEditing ? 'input-readonly' : ''}
+                          disabled={!isEditing || userRole !== 'admin'}
+                          className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                     </div>
@@ -402,8 +404,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                           name="customer_country" 
                           value={formData.customer_country || ''} 
                           onChange={handleInputChange} 
-                          disabled={!isEditing}
-                          className={!isEditing ? 'input-readonly' : ''}
+                          disabled={!isEditing || userRole !== 'admin'}
+                          className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                     </div>

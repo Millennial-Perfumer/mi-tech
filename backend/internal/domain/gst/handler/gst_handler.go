@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	_ "mi-tech/internal/domain/gst/dto"
 	"mi-tech/internal/domain/gst/service"
@@ -17,6 +18,14 @@ type GSTHandler struct {
 // NewGSTHandler creates a new GSTHandler.
 func NewGSTHandler(gstService *service.GSTService) *GSTHandler {
 	return &GSTHandler{gstService: gstService}
+}
+
+func parseSourceIDs(r *http.Request) []string {
+	sourcesStr := r.URL.Query().Get("source_ids")
+	if sourcesStr == "" {
+		return nil
+	}
+	return strings.Split(sourcesStr, ",")
 }
 
 // GetGSTSummary handles GET /api/reports/summary.
@@ -33,8 +42,9 @@ func NewGSTHandler(gstService *service.GSTService) *GSTHandler {
 func (h *GSTHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+	sourceIDs := parseSourceIDs(r)
 
-	summary, err := h.gstService.GetGSTSummary(startDate, endDate)
+	summary, err := h.gstService.GetGSTSummary(startDate, endDate, sourceIDs)
 	if err != nil {
 		http.Error(w, "Failed to fetch summary: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -58,8 +68,9 @@ func (h *GSTHandler) GetGSTSummary(w http.ResponseWriter, r *http.Request) {
 func (h *GSTHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+	sourceIDs := parseSourceIDs(r)
 
-	data, err := h.gstService.GetStateSummary(startDate, endDate)
+	data, err := h.gstService.GetStateSummary(startDate, endDate, sourceIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -83,8 +94,9 @@ func (h *GSTHandler) GetStateSummary(w http.ResponseWriter, r *http.Request) {
 func (h *GSTHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+	sourceIDs := parseSourceIDs(r)
 
-	data, err := h.gstService.GetHSNSummary(startDate, endDate)
+	data, err := h.gstService.GetHSNSummary(startDate, endDate, sourceIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -98,8 +110,9 @@ func (h *GSTHandler) GetHSNSummary(w http.ResponseWriter, r *http.Request) {
 func (h *GSTHandler) GetDocumentsIssued(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
+	sourceIDs := parseSourceIDs(r)
 
-	data, err := h.gstService.GetDocumentsIssued(startDate, endDate)
+	data, err := h.gstService.GetDocumentsIssued(startDate, endDate, sourceIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -124,11 +137,12 @@ func (h *GSTHandler) GetGSTR1JSON(w http.ResponseWriter, r *http.Request) {
 	startDate := r.URL.Query().Get("start_date")
 	endDate := r.URL.Query().Get("end_date")
 	gstin := r.URL.Query().Get("gstin")
+	sourceIDs := parseSourceIDs(r)
 	if gstin == "" {
 		gstin = "33AUSPR1909H1ZC" // Default fallback
 	}
 
-	payload, err := h.gstService.GetGSTR1JSON(startDate, endDate, gstin)
+	payload, err := h.gstService.GetGSTR1JSON(startDate, endDate, gstin, sourceIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

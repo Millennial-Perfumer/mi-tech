@@ -67,8 +67,9 @@ func (h *OrderHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	sortBy := r.URL.Query().Get("sort_by")
 	sortOrder := r.URL.Query().Get("sort_order")
+	state := r.URL.Query().Get("state")
 
-	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, status, sortBy, sortOrder)
+	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, status, sortBy, sortOrder, state)
 	if err != nil {
 		http.Error(w, "Failed to retrieve orders", http.StatusInternalServerError)
 		return
