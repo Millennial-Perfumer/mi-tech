@@ -49,3 +49,7 @@
 ## 2026-06-19 - [Batching GlobalSync calls]
 **Learning:** Sequential inventory synchronization within `OrderService` and `ManufacturingService` loops over affected items to trigger `GlobalSync`, causing an N+1 query issue since it internally queries `GetItemByID`.
 **Action:** Always batch lookups using a single `GlobalSyncBatch` call to process multiple items efficiently and eliminate N+1 database queries. When adding batched methods to interfaces, remember to update the corresponding local interface definitions in service files.
+
+## 2026-06-21 - [Parallelize External API Calls in GlobalSyncBatch]
+**Learning:** Performing multiple independent external API calls sequentially (like pushing inventory levels to Shopify and Amazon for an entire batch of items in `GlobalSyncBatch`) creates a severe $O(N)$ performance bottleneck, limited by network latency on every individual request.
+**Action:** When iterating over items in a batch that each require external API updates, use `golang.org/x/sync/errgroup` to parallelize the requests with a reasonable concurrency limit (e.g., 10) to drastically reduce the total sync execution time without violating external rate limits. Always move common dependencies (like fetching a location ID) outside the parallel loop.
