@@ -233,6 +233,42 @@ func (s *InventoryService) SyncShopifyPrices(ctx context.Context) (PriceSyncStat
 		return stats, fmt.Errorf("failed to fetch products from shopify: %w", err)
 	}
 
+	// 1. Extract all SKUs from Shopify products for batch DB lookup
+	var skus []string
+	for _, sp := range shopifyProducts {
+		for _, v := range sp.Variants.Edges {
+			if v.Node.SKU != "" {
+				skus = append(skus, v.Node.SKU)
+			}
+		}
+	}
+
+	// 2. Fetch relevant local items in one query to prevent N+1 queries during matching
+	allItems, err := s.repo.GetItemsBySKUs(skus)
+	if err != nil {
+		return stats, fmt.Errorf("failed to fetch local inventory items: %w", err)
+	}
+
+	// 3. Create O(1) lookup maps
+	skuToItemID := make(map[string]int)
+	miSKUToItemID := make(map[string]int)
+	itemMap := make(map[int]*entity.InventoryItem)
+
+	for i := range allItems {
+		item := &allItems[i]
+		itemMap[item.ID] = item
+		miSKUToItemID[strings.ToLower(item.MISKU)] = item.ID
+
+		for _, mapping := range item.Mappings {
+			if strings.ToLower(mapping.Platform) == "shopify" {
+				skuToItemID[strings.ToLower(mapping.ExternalSKU)] = item.ID
+			}
+		}
+	}
+
+	// Use a map to correctly capture multiple price updates to the same item pointer
+	itemsToUpdateMap := make(map[int]*entity.InventoryItem)
+
 	for _, sp := range shopifyProducts {
 		for _, v := range sp.Variants.Edges {
 			stats.TotalProcessed++
@@ -252,42 +288,44 @@ func (s *InventoryService) SyncShopifyPrices(ctx context.Context) (PriceSyncStat
 				continue
 			}
 
-			// 1. Match via inventory_mappings
-			item, err := s.repo.GetItemByPlatformSKU("shopify", sku)
-			if err == nil {
-				item.Price = priceVal
-				if err := s.repo.UpdateItem(&item); err != nil {
-					slog.Error("Failed to update item price via mapping in price sync", "sku", sku, "error", err)
-				} else {
-					slog.Info("Successfully updated price via mapping in price sync", "sku", sku, "price", priceVal)
-					stats.UpdatedCount++
-				}
-				continue
+			lowerSKU := strings.ToLower(sku)
+			var matchedItem *entity.InventoryItem
+
+			// Match via inventory_mappings
+			if itemID, ok := skuToItemID[lowerSKU]; ok {
+				matchedItem = itemMap[itemID]
+			} else if itemID, ok := miSKUToItemID[lowerSKU]; ok {
+				// Fallback: match via direct mi_sku
+				matchedItem = itemMap[itemID]
 			}
 
-			// 2. Fallback: match via direct mi_sku
-			items, err := s.repo.ListItems(sku)
-			if err == nil && len(items) > 0 {
-				var directMatched bool
-				for _, item := range items {
-					if strings.EqualFold(item.MISKU, sku) {
-						item.Price = priceVal
-						if err := s.repo.UpdateItem(&item); err == nil {
-							slog.Info("Successfully updated price via direct SKU match in price sync", "sku", sku, "price", priceVal)
-							stats.UpdatedCount++
-							directMatched = true
-							break
-						}
-					}
+			if matchedItem != nil {
+				// Only update if price actually changed
+				if matchedItem.Price != priceVal {
+					matchedItem.Price = priceVal
+					itemsToUpdateMap[matchedItem.ID] = matchedItem
+					slog.Info("Staged price update in price sync", "sku", sku, "price", priceVal)
 				}
-				if directMatched {
-					continue
-				}
+				stats.UpdatedCount++
+			} else {
+				slog.Warn("No mapping or direct SKU match found for Shopify variant in price sync", "sku", sku)
+				stats.NotFoundCount++
 			}
-
-			slog.Warn("No mapping or direct SKU match found for Shopify variant in price sync", "sku", sku)
-			stats.NotFoundCount++
 		}
+	}
+
+	var itemsToUpdate []entity.InventoryItem
+	for _, item := range itemsToUpdateMap {
+		itemsToUpdate = append(itemsToUpdate, *item)
+	}
+
+	// Batch update prices in one query
+	if len(itemsToUpdate) > 0 {
+		if err := s.repo.BulkUpdatePrices(itemsToUpdate); err != nil {
+			slog.Error("Failed to bulk update prices", "error", err)
+			return stats, fmt.Errorf("failed to bulk update prices: %w", err)
+		}
+		slog.Info("Successfully batch updated prices", "count", len(itemsToUpdate))
 	}
 
 	return stats, nil

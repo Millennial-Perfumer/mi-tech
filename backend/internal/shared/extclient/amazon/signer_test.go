@@ -222,4 +222,51 @@ func TestSignV4Edges(t *testing.T) {
 			t.Errorf("Expected Authorization header to be replaced with AWS4 signature, got %s", auth)
 		}
 	})
+
+	t.Run("req.URL.Host fallback", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "https://example-url-host.com", nil)
+		// Request automatically parses "https://example-url-host.com" into req.URL.Host
+		req.Host = ""
+		err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "s3", time.Now())
+		if err != nil {
+			t.Fatalf("SignV4 failed: %v", err)
+		}
+		if req.Header.Get("Host") != "example-url-host.com" {
+			t.Errorf("Expected Host to be set to example-url-host.com, got %s", req.Header.Get("Host"))
+		}
+	})
+
+	t.Run("Path with characters to escape", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "https://example.com/test path/!chars", nil)
+		err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "s3", time.Now())
+		if err != nil {
+			t.Fatalf("SignV4 failed: %v", err)
+		}
+		auth := req.Header.Get("Authorization")
+		if auth == "" {
+			t.Error("Expected Authorization header")
+		}
+	})
+}
+
+func TestUriEscapePath(t *testing.T) {
+	s := "test path/+with space"
+	escaped := uriEscapePath(s)
+	if escaped != "test%20path/%2Bwith%20space" {
+		t.Errorf("Unexpected uriEscapePath output: %s", escaped)
+	}
+}
+
+func TestSignV4HostHeader(t *testing.T) {
+	req, _ := http.NewRequest("GET", "https://api.amazon.com/test", nil)
+	req.Host = "" // Force empty req.Host so req.URL.Host is used
+	req.Header.Del("Host")
+
+	err := SignV4(req, nil, "AKID", "SECRET", "us-east-1", "s3", time.Now())
+	if err != nil {
+		t.Fatalf("SignV4 failed: %v", err)
+	}
+	if req.Header.Get("Host") != "api.amazon.com" {
+		t.Errorf("Expected Host to be set to api.amazon.com, got %s", req.Header.Get("Host"))
+	}
 }
