@@ -24,10 +24,11 @@ type AssumeRoleResponse struct {
 
 // STSSigner handles AWS STS AssumeRole to get temporary credentials.
 type STSSigner struct {
-	accessKey string
-	secretKey string
-	region    string
-	roleARN   string
+	accessKey  string
+	secretKey  string
+	region     string
+	roleARN    string
+	httpClient *http.Client
 }
 
 func NewSTSSigner(accessKey, secretKey, region, roleARN string) *STSSigner {
@@ -36,6 +37,9 @@ func NewSTSSigner(accessKey, secretKey, region, roleARN string) *STSSigner {
 		secretKey: secretKey,
 		region:    region,
 		roleARN:   roleARN,
+		httpClient: &http.Client{
+			Timeout: 15 * time.Second,
+		},
 	}
 }
 
@@ -65,7 +69,7 @@ func (s *STSSigner) AssumeRole() (accessKey, secretKey, sessionToken string, err
 		return "", "", "", fmt.Errorf("failed to sign STS request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return "", "", "", err
 	}
