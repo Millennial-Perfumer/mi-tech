@@ -62,3 +62,12 @@
 * **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
 * **Technical Complexity**: Medium
 * **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
+
+### [IDE-009] AI-Powered Customer Sentiment & Churn Prevention Pipeline
+* **Added On**: 2024-06-27
+* **Target Audience**: Store Admins, Support Agents
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Unhappy or frustrated customers are quickly identified and offered proactive support or appeasement, turning negative experiences into long-term brand loyalty.
+* **Business Growth & Profit Impact**: Reducing churn is mathematically the fastest way to compound LTV. By using the AI module to analyze incoming support tickets and feedback, we can automatically tag "High Churn Risk" customers and instantly escalate them to human agents or trigger automated "win-back" discount workflows in the SMM hub. This plugs LTV leakage, ensuring that acquired customers stick around and contribute to the 3L/month goal.
+* **Technical Complexity**: High
+* **Description**: Extend the `feedback` and `support` modules to stream incoming text (reviews, tickets) to the `ai` module for sentiment and intent analysis. If the AI scores the interaction as 'highly negative' or detects 'churn intent', a webhook fires to the `planner` module. This orchestrates two actions: 1) Flags the `Customer` entity in the `order` domain as 'At-Risk', and 2) dispatches a high-priority alert to the SMM hub (`communication`) or triggers an automated WhatsApp message offering immediate resolution or a win-back discount.
