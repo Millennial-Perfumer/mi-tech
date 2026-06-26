@@ -11,3 +11,6 @@
 ## 2026-06-25 - [Accessibility for Modals and Search Filters]
 **Learning:** Found multiple instances where utility 'close' or 'clear' icon buttons in modals and search inputs (e.g., `&times;` or `✕`) lacked `type="button"` and `aria-label`. Without these attributes, screen readers cannot communicate the button's function, and they may inadvertently trigger parent form submissions.
 **Action:** When creating or maintaining modals, popovers, and search bars, aggressively add `type="button"` and descriptive `aria-label` attributes to any icon-only interactive controls.
+## 2026-06-26 - [Accessible Table Header Sorting]
+**Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), do not use a static `aria-label` on the inner button, as it overrides the dynamic text for screen readers. Instead, the standard accessibility pattern is to apply the `aria-sort` attribute (e.g., `aria-sort="ascending"` or `"descending"`) to the parent `<th>` element.
+**Action:** When implementing or updating sortable tables, apply `aria-sort` to the active `<th>` element and ensure the inner interactive trigger has `type="button"`.
