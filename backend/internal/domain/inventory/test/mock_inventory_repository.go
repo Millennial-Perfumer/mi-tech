@@ -100,3 +100,13 @@ func (m *MockInventoryRepository) GetItemByPlatformSKU(platform, externalSKU str
 	args := m.Called(platform, externalSKU)
 	return args.Get(0).(entity.InventoryItem), args.Error(1)
 }
+
+func (m *MockInventoryRepository) BulkUpdatePrices(items []entity.InventoryItem) error {
+	args := m.Called(items)
+	return args.Error(0)
+}
+
+func (m *MockInventoryRepository) GetItemsBySKUs(skus []string) ([]entity.InventoryItem, error) {
+	args := m.Called(skus)
+	return args.Get(0).([]entity.InventoryItem), args.Error(1)
+}

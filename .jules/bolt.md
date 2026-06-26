@@ -49,3 +49,7 @@
 ## 2026-06-19 - [Batching GlobalSync calls]
 **Learning:** Sequential inventory synchronization within `OrderService` and `ManufacturingService` loops over affected items to trigger `GlobalSync`, causing an N+1 query issue since it internally queries `GetItemByID`.
 **Action:** Always batch lookups using a single `GlobalSyncBatch` call to process multiple items efficiently and eliminate N+1 database queries. When adding batched methods to interfaces, remember to update the corresponding local interface definitions in service files.
+
+## 2026-06-25 - [Fixing N+1 Queries in Shopify Price Sync with GORM Associations]
+**Learning:** Resolving N+1 query loops by pre-fetching associated local entities (like `InventoryItem` with `Mappings`) and bulk updating their fields (like `Price`) using GORM's `clause.OnConflict` can trigger primary key duplicate violations. Because the entities contain populated association slices, GORM attempts to re-insert them during the `Create` operation.
+**Action:** When performing bulk upserts or updates with `gorm.clause.OnConflict` on full entities loaded from the database, always use `.Omit(clause.Associations)` (e.g., `db.Omit(clause.Associations).Clauses(...)`) to restrict the operation to the parent model and prevent association constraint errors. Also, use a map of entity pointers (`map[int]*entity.InventoryItem`) when staging updates to avoid struct copy bugs that lose intermediate changes.
