@@ -22,6 +22,7 @@ interface DashboardOrdersModalProps {
   selectedChannels: string[];
   token: string | null;
   onViewOrderDetails: (id: number) => void;
+  state?: string;
 }
 
 export const DashboardOrdersModal: React.FC<DashboardOrdersModalProps> = ({
@@ -32,7 +33,8 @@ export const DashboardOrdersModal: React.FC<DashboardOrdersModalProps> = ({
   endDate,
   selectedChannels,
   token,
-  onViewOrderDetails
+  onViewOrderDetails,
+  state
 }) => {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +68,10 @@ export const DashboardOrdersModal: React.FC<DashboardOrdersModalProps> = ({
         }
         let url = `${API_BASE}/api/orders?start_date=${startObj}&end_date=${endObj}&page=${page}&limit=${limit}&sort_by=created_at&sort_order=DESC`;
         
+        if (state) {
+          url += `&state=${encodeURIComponent(state)}`;
+        }
+
         if (selectedChannels.length > 0) {
           url += `&source=${selectedChannels.join(',')}`;
         }
@@ -93,7 +99,7 @@ export const DashboardOrdersModal: React.FC<DashboardOrdersModalProps> = ({
     };
 
     fetchOrders();
-  }, [isOpen, metricLabel, startDate, endDate, selectedChannels, page]);
+  }, [isOpen, metricLabel, startDate, endDate, selectedChannels, page, state]);
 
   if (!isOpen) return null;
 

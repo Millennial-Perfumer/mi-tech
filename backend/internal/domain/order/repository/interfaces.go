@@ -19,6 +19,7 @@ type OrderFilter struct {
 	SortBy            string
 	SortOrder         string
 	Status            string
+	State             string
 }
 
 // OrderRepository defines all data access operations for the orders table.

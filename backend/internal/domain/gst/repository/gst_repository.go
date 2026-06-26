@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"mi-tech/internal/domain/gst/dto"
@@ -19,8 +20,17 @@ func NewGSTRepository(db *gorm.DB) GSTRepository {
 	return &gormGSTRepository{db: db}
 }
 
-func (r *gormGSTRepository) GetGSTSummary(startDate, endDate string) (GSTSummaryResult, error) {
+func (r *gormGSTRepository) GetGSTSummary(startDate, endDate string, sourceIDs []string) (GSTSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
+
+	sourceFilter := ""
+	var lowerSources []string
+	if len(sourceIDs) > 0 {
+		for _, s := range sourceIDs {
+			lowerSources = append(lowerSources, strings.ToLower(s))
+		}
+		sourceFilter = " AND LOWER(t.source_id) IN ?"
+	}
 
 	query := `
 		SELECT 
@@ -37,11 +47,15 @@ func (r *gormGSTRepository) GetGSTSummary(startDate, endDate string) (GSTSummary
 			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst
 		FROM unified_revenue_transactions t
 		LEFT JOIN gst_state_codes s ON LOWER(TRIM(t.state)) = ANY(s.aliases)
-		WHERE t.tx_date >= ? AND t.tx_date <= ?
-	`
+		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter
 
 	var result GSTSummaryResult
-	row := r.db.Raw(query, start, end).Row()
+	var row *sql.Row
+	if len(sourceIDs) > 0 {
+		row = r.db.Raw(query, start, end, lowerSources).Row()
+	} else {
+		row = r.db.Raw(query, start, end).Row()
+	}
 	err := row.Scan(
 		&result.TotalOrders, &result.CancelledOrders, &result.FulfilledOrders,
 		&result.UnfulfilledOrders, &result.PaidOrders,
@@ -55,8 +69,17 @@ func (r *gormGSTRepository) GetGSTSummary(startDate, endDate string) (GSTSummary
 	return result, nil
 }
 
-func (r *gormGSTRepository) GetStateSummary(startDate, endDate string) ([]StateSummaryResult, error) {
+func (r *gormGSTRepository) GetStateSummary(startDate, endDate string, sourceIDs []string) ([]StateSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
+
+	sourceFilter := ""
+	var lowerSources []string
+	if len(sourceIDs) > 0 {
+		for _, s := range sourceIDs {
+			lowerSources = append(lowerSources, strings.ToLower(s))
+		}
+		sourceFilter = " AND LOWER(COALESCE(source_id, '')) IN ?"
+	}
 
 	query := `
 		SELECT 
@@ -66,20 +89,35 @@ func (r *gormGSTRepository) GetStateSummary(startDate, endDate string) ([]StateS
 			COALESCE(SUM(total_price - ROUND(total_price / 1.18, 2)), 0) as total_gst,
 			COALESCE(SUM(total_price), 0) as revenue
 		FROM unified_revenue_transactions
-		WHERE tx_date >= ? AND tx_date <= ? AND LOWER(COALESCE(source_id, '')) NOT IN ('b2b') AND NOT (LOWER(COALESCE(order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))
+		WHERE tx_date >= ? AND tx_date <= ? AND LOWER(COALESCE(source_id, '')) NOT IN ('b2b') AND NOT (LOWER(COALESCE(order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
 		GROUP BY INITCAP(COALESCE(state, 'N/A'))
 		ORDER BY revenue DESC
 	`
 
 	var results []StateSummaryResult
-	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+	var err error
+	if len(sourceIDs) > 0 {
+		err = r.db.Raw(query, start, end, lowerSources).Scan(&results).Error
+	} else {
+		err = r.db.Raw(query, start, end).Scan(&results).Error
+	}
+	if err != nil {
 		return nil, fmt.Errorf("failed to query state summary: %w", err)
 	}
 	return results, nil
 }
 
-func (r *gormGSTRepository) GetHSNSummary(startDate, endDate string) ([]HSNSummaryResult, error) {
+func (r *gormGSTRepository) GetHSNSummary(startDate, endDate string, sourceIDs []string) ([]HSNSummaryResult, error) {
 	start, end := parseDateRange(startDate, endDate)
+
+	sourceFilter := ""
+	var lowerSources []string
+	if len(sourceIDs) > 0 {
+		for _, s := range sourceIDs {
+			lowerSources = append(lowerSources, strings.ToLower(s))
+		}
+		sourceFilter = " AND LOWER(COALESCE(o.source_id, '')) IN ?"
+	}
 
 	query := `
 		WITH LineItemShares AS (
@@ -97,7 +135,7 @@ func (r *gormGSTRepository) GetHSNSummary(startDate, endDate string) ([]HSNSumma
 				INITCAP(COALESCE(o.customer_state, 'N/A')) as state
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
-			WHERE o.created_at >= ? AND o.created_at <= ?
+			WHERE o.created_at >= ? AND o.created_at <= ?` + sourceFilter + `
 			  AND (
 			    (LOWER(COALESCE(o.source_id, '')) = 'b2b' AND LOWER(COALESCE(o.status, '')) = 'issued')
 			    OR 
@@ -134,13 +172,32 @@ func (r *gormGSTRepository) GetHSNSummary(startDate, endDate string) ([]HSNSumma
 	`
 
 	var results []HSNSummaryResult
-	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+	var err error
+	if len(sourceIDs) > 0 {
+		err = r.db.Raw(query, start, end, lowerSources).Scan(&results).Error
+	} else {
+		err = r.db.Raw(query, start, end).Scan(&results).Error
+	}
+	if err != nil {
 		return nil, fmt.Errorf("failed to query HSN summary: %w", err)
 	}
 	return results, nil
 }
 
-func (r *gormGSTRepository) GetShopifyDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+func (r *gormGSTRepository) GetShopifyDocumentsIssued(startDate, endDate string, sourceIDs []string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "shopify" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, nil, 0, 0, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -168,7 +225,20 @@ func (r *gormGSTRepository) GetShopifyDocumentsIssued(startDate, endDate string)
 	return
 }
 
-func (r *gormGSTRepository) GetAmazonDocumentsIssued(startDate, endDate string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+func (r *gormGSTRepository) GetAmazonDocumentsIssued(startDate, endDate string, sourceIDs []string) (minOrder, maxOrder *int64, total, cancelled int, err error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "amazon" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, nil, 0, 0, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -196,8 +266,17 @@ func (r *gormGSTRepository) GetAmazonDocumentsIssued(startDate, endDate string) 
 	return
 }
 
-func (r *gormGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSRow, error) {
+func (r *gormGSTRepository) GetGSTR1B2CS(startDate, endDate string, sourceIDs []string) ([]dto.B2CSRow, error) {
 	start, end := parseDateRange(startDate, endDate)
+
+	sourceFilter := ""
+	var lowerSources []string
+	if len(sourceIDs) > 0 {
+		for _, s := range sourceIDs {
+			lowerSources = append(lowerSources, strings.ToLower(s))
+		}
+		sourceFilter = " AND LOWER(COALESCE(o.source_id, '')) IN ?"
+	}
 
 	query := `
 		SELECT 
@@ -207,7 +286,7 @@ func (r *gormGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSR
 			COALESCE(SUM(o.total_price - ROUND(o.total_price / 1.18, 2)), 0) as total_gst
 		FROM orders o
 		LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
-		WHERE o.created_at >= ? AND o.created_at <= ? AND COALESCE(o.source_id, '') != 'b2b' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))
+		WHERE o.created_at >= ? AND o.created_at <= ? AND COALESCE(o.source_id, '') != 'b2b' AND NOT (LOWER(COALESCE(o.status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(o.fulfillment_status, '')) IN ('cancelled', 'canceled'))` + sourceFilter + `
 		GROUP BY COALESCE(s.code, '33'), (o.source_id = 'amazon')
 	`
 
@@ -219,7 +298,13 @@ func (r *gormGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSR
 	}
 
 	var results []b2cQueryResult
-	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+	var err error
+	if len(sourceIDs) > 0 {
+		err = r.db.Raw(query, start, end, lowerSources).Scan(&results).Error
+	} else {
+		err = r.db.Raw(query, start, end).Scan(&results).Error
+	}
+	if err != nil {
 		return nil, err
 	}
 
@@ -255,8 +340,17 @@ func (r *gormGSTRepository) GetGSTR1B2CS(startDate, endDate string) ([]dto.B2CSR
 	return rows, nil
 }
 
-func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow, error) {
+func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string, sourceIDs []string) ([]dto.HSNRow, error) {
 	start, end := parseDateRange(startDate, endDate)
+
+	sourceFilter := ""
+	var lowerSources []string
+	if len(sourceIDs) > 0 {
+		for _, s := range sourceIDs {
+			lowerSources = append(lowerSources, strings.ToLower(s))
+		}
+		sourceFilter = " AND LOWER(COALESCE(o.source_id, '')) IN ?"
+	}
 
 	query := `
 		WITH LineItemShares AS (
@@ -277,7 +371,7 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 			FROM order_line_items li
 			JOIN orders o ON li.order_id = o.id
 			LEFT JOIN gst_state_codes s ON LOWER(TRIM(o.customer_state)) = ANY(s.aliases)
-			WHERE o.created_at >= ? AND o.created_at <= ?
+			WHERE o.created_at >= ? AND o.created_at <= ?` + sourceFilter + `
 			  AND (
 			    (LOWER(COALESCE(o.source_id, '')) = 'b2b' AND LOWER(COALESCE(o.status, '')) = 'issued')
 			    OR 
@@ -329,7 +423,13 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 	}
 
 	var results []hsnQueryResult
-	if err := r.db.Raw(query, start, end).Scan(&results).Error; err != nil {
+	var err error
+	if len(sourceIDs) > 0 {
+		err = r.db.Raw(query, start, end, lowerSources).Scan(&results).Error
+	} else {
+		err = r.db.Raw(query, start, end).Scan(&results).Error
+	}
+	if err != nil {
 		return nil, err
 	}
 
@@ -357,7 +457,20 @@ func (r *gormGSTRepository) GetGSTR1HSN(startDate, endDate string) ([]dto.HSNRow
 	return rows, nil
 }
 
-func (r *gormGSTRepository) GetGSTR1B2B(startDate, endDate string) ([]dto.GSTR1B2B, error) {
+func (r *gormGSTRepository) GetGSTR1B2B(startDate, endDate string, sourceIDs []string) ([]dto.GSTR1B2B, error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "b2b" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return []dto.GSTR1B2B{}, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -433,7 +546,20 @@ func (r *gormGSTRepository) GetGSTR1B2B(startDate, endDate string) ([]dto.GSTR1B
 	return list, nil
 }
 
-func (r *gormGSTRepository) GetGSTR1CDNR(startDate, endDate string) ([]dto.GSTR1CDNR, error) {
+func (r *gormGSTRepository) GetGSTR1CDNR(startDate, endDate string, sourceIDs []string) ([]dto.GSTR1CDNR, error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "b2b" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return []dto.GSTR1CDNR{}, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 
 	query := `
@@ -553,7 +679,20 @@ func gsinDeref(s string) string {
 	return s
 }
 
-func (r *gormGSTRepository) GetB2BDocumentsIssued(startDate, endDate string) (minInvoice, maxInvoice *string, total, cancelled int, err error) {
+func (r *gormGSTRepository) GetB2BDocumentsIssued(startDate, endDate string, sourceIDs []string) (minInvoice, maxInvoice *string, total, cancelled int, err error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "b2b" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, nil, 0, 0, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 
 	var minSeq, maxSeq sql.NullInt64
@@ -592,7 +731,20 @@ func (r *gormGSTRepository) GetB2BDocumentsIssued(startDate, endDate string) (mi
 	return
 }
 
-func (r *gormGSTRepository) GetB2BCreditNotesIssued(startDate, endDate string) (minNote, maxNote *string, total, cancelled int, err error) {
+func (r *gormGSTRepository) GetB2BCreditNotesIssued(startDate, endDate string, sourceIDs []string) (minNote, maxNote *string, total, cancelled int, err error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "b2b" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, nil, 0, 0, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 	var minSeq, maxSeq sql.NullInt64
 	query := `
@@ -628,7 +780,20 @@ func (r *gormGSTRepository) GetB2BCreditNotesIssued(startDate, endDate string) (
 	return
 }
 
-func (r *gormGSTRepository) GetB2BDebitNotesIssued(startDate, endDate string) (minNote, maxNote *string, total, cancelled int, err error) {
+func (r *gormGSTRepository) GetB2BDebitNotesIssued(startDate, endDate string, sourceIDs []string) (minNote, maxNote *string, total, cancelled int, err error) {
+	if len(sourceIDs) > 0 {
+		found := false
+		for _, s := range sourceIDs {
+			if strings.ToLower(s) == "b2b" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, nil, 0, 0, nil
+		}
+	}
+
 	start, end := parseDateRange(startDate, endDate)
 	var minSeq, maxSeq sql.NullInt64
 	query := `

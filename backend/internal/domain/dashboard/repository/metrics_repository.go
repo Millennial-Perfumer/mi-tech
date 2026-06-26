@@ -35,18 +35,18 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 
 	query := `
 		SELECT 
-			COALESCE(SUM(t.total_price), 0) as total_revenue,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as cgst,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END), 0) as sgst,
-			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) ELSE 0 END), 0) as igst,
+			COALESCE(SUM(t.total_price) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as total_revenue,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as cgst,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') = '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) / 2 ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as sgst,
+			COALESCE(SUM(CASE WHEN COALESCE(s.code, '33') != '33' THEN (t.total_price - ROUND(t.total_price / 1.18, 2)) ELSE 0 END) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as igst,
 			COUNT(t.transaction_id) as total_orders,
 			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.order_status) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled')) as cancelled_orders,
 			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.fulfillment_status) = 'fulfilled') as fulfilled_orders,
 			COUNT(t.transaction_id) FILTER (WHERE LOWER(COALESCE(t.fulfillment_status, '')) != 'fulfilled' AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as unfulfilled_orders,
-			COALESCE(SUM(t.total_discount), 0) as total_discount,
-			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) = 'paid') as paid_orders,
-			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('pending', 'unpaid')) as pending_orders,
-			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('partially_paid', 'partial')) as partial_orders
+			COALESCE(SUM(t.total_discount) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as total_discount,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) = 'paid' AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as paid_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('pending', 'unpaid') AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as pending_orders,
+			COUNT(t.transaction_id) FILTER (WHERE LOWER(t.payment_status) IN ('partially_paid', 'partial') AND NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as partial_orders
 		FROM unified_revenue_transactions t
 		LEFT JOIN gst_state_codes s ON LOWER(TRIM(t.state)) = ANY(s.aliases)
 		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter
@@ -77,9 +77,9 @@ func (r *gormMetricsRepository) GetDashboardMetrics(startDate, endDate string, s
 	channelQuery := `
 		SELECT 
 			source_id,
-			COALESCE(SUM(total_price), 0) as revenue,
-			COUNT(transaction_id) as orders,
-			COALESCE(AVG(total_price), 0) as aov
+			COALESCE(SUM(total_price) FILTER (WHERE NOT (LOWER(COALESCE(order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as revenue,
+			COUNT(transaction_id) FILTER (WHERE NOT (LOWER(COALESCE(order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))) as orders,
+			COALESCE(AVG(total_price) FILTER (WHERE NOT (LOWER(COALESCE(order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))), 0) as aov
 		FROM unified_revenue_transactions t
 		WHERE tx_date >= ? AND tx_date <= ?` + sourceFilter + `
 		GROUP BY source_id
@@ -193,8 +193,8 @@ func (r *gormMetricsRepository) GetRevenueTrend(startDate, endDate string, sourc
 	query := `
 		SELECT 
 			TO_CHAR(t.tx_date, 'YYYY-MM-DD') as date,
-			SUM(t.total_price) as revenue,
-			COUNT(t.transaction_id) as orders
+			SUM(t.total_price) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as revenue,
+			COUNT(t.transaction_id) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as orders
 		FROM unified_revenue_transactions t
 		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter + `
 		GROUP BY date
@@ -221,8 +221,8 @@ func (r *gormMetricsRepository) GetGeoDistribution(startDate, endDate string, so
 	query := `
 		SELECT 
 			INITCAP(COALESCE(t.state, 'Unknown')) as state,
-			COUNT(t.transaction_id) as orders,
-			SUM(t.total_price) as revenue
+			COUNT(t.transaction_id) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as orders,
+			SUM(t.total_price) FILTER (WHERE NOT (LOWER(COALESCE(t.order_status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(t.fulfillment_status, '')) IN ('cancelled', 'canceled'))) as revenue
 		FROM unified_revenue_transactions t
 		WHERE t.tx_date >= ? AND t.tx_date <= ?` + sourceFilter + `
 		GROUP BY state

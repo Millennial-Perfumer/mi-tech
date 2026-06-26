@@ -47,7 +47,7 @@ func (s *GSTRepositoryTestSuite) TestGetGSTSummary() {
 	}).Error
 	assert.NoError(s.T(), err)
 
-	res, err := s.reportRepo.GetGSTSummary("", now)
+	res, err := s.reportRepo.GetGSTSummary("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), 1, res.TotalOrders)
 	assert.Equal(s.T(), 1, res.PaidOrders)
@@ -70,7 +70,7 @@ func (s *GSTRepositoryTestSuite) TestGetStateSummary() {
 	err = s.db.Create(&orderEntity.Order{SourceID: "shopify", ExternalOrderID: "s3", TotalPrice: 50, CustomerState: &ka, CreatedAt: time.Now()}).Error
 	assert.NoError(s.T(), err)
 
-	results, err := s.reportRepo.GetStateSummary("", now)
+	results, err := s.reportRepo.GetStateSummary("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), 2, len(results))
 
@@ -107,7 +107,7 @@ func (s *GSTRepositoryTestSuite) TestGetHSNSummary() {
 	}).Error
 	assert.NoError(s.T(), err)
 
-	results, err := s.reportRepo.GetHSNSummary("", now)
+	results, err := s.reportRepo.GetHSNSummary("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), results)
 
@@ -162,14 +162,14 @@ func (s *GSTRepositoryTestSuite) TestGetDocumentsIssued() {
 	}).Error
 	assert.NoError(s.T(), err)
 
-	minVal, maxVal, total, cancelled, err := s.reportRepo.GetShopifyDocumentsIssued("", now)
+	minVal, maxVal, total, cancelled, err := s.reportRepo.GetShopifyDocumentsIssued("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), int64(2853), *minVal)
 	assert.Equal(s.T(), int64(2855), *maxVal)
 	assert.Equal(s.T(), 2, total) // Only Shopify orders counted
 	assert.Equal(s.T(), 0, cancelled)
 
-	amzMinVal, amzMaxVal, amzTotal, amzCancelled, err := s.reportRepo.GetAmazonDocumentsIssued("", now)
+	amzMinVal, amzMaxVal, amzTotal, amzCancelled, err := s.reportRepo.GetAmazonDocumentsIssued("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), int64(1), *amzMinVal)
 	assert.Equal(s.T(), int64(1), *amzMaxVal)
@@ -202,7 +202,7 @@ func (s *GSTRepositoryTestSuite) TestGetGSTR1B2CS() {
 	}).Error
 	assert.NoError(s.T(), err)
 
-	rows, err := s.reportRepo.GetGSTR1B2CS("", now)
+	rows, err := s.reportRepo.GetGSTR1B2CS("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.Len(s.T(), rows, 2)
 
@@ -255,7 +255,7 @@ func (s *GSTRepositoryTestSuite) TestGetGSTR1HSN() {
 	}).Error
 	assert.NoError(s.T(), err)
 
-	rows, err := s.reportRepo.GetGSTR1HSN("", now)
+	rows, err := s.reportRepo.GetGSTR1HSN("", now, nil)
 	assert.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), rows)
 

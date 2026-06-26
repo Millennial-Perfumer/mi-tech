@@ -68,6 +68,9 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 	if filter.FulfillmentStatus != "" {
 		query = query.Where("fulfillment_status = ?", filter.FulfillmentStatus)
 	}
+	if filter.State != "" {
+		query = query.Where("customer_state ILIKE ?", filter.State)
+	}
 	if filter.Status != "" {
 		statusLower := strings.ToLower(filter.Status)
 		if statusLower == "cancelled" || statusLower == "canceled" {

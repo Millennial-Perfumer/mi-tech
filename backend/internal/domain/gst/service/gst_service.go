@@ -20,8 +20,8 @@ func NewGSTService(gstRepo repository.GSTRepository) *GSTService {
 }
 
 // GetGSTSummary computes the full GST summary including CGST/SGST/IGST splits by state.
-func (s *GSTService) GetGSTSummary(startDate, endDate string) (dto.GSTSummaryResponse, error) {
-	res, err := s.gstRepo.GetGSTSummary(startDate, endDate)
+func (s *GSTService) GetGSTSummary(startDate, endDate string, sourceIDs []string) (dto.GSTSummaryResponse, error) {
+	res, err := s.gstRepo.GetGSTSummary(startDate, endDate, sourceIDs)
 	if err != nil {
 		return dto.GSTSummaryResponse{}, err
 	}
@@ -45,8 +45,8 @@ func (s *GSTService) GetGSTSummary(startDate, endDate string) (dto.GSTSummaryRes
 }
 
 // GetStateSummary returns per-state revenue and tax breakdown.
-func (s *GSTService) GetStateSummary(startDate, endDate string) ([]dto.StateSummaryRow, error) {
-	results, err := s.gstRepo.GetStateSummary(startDate, endDate)
+func (s *GSTService) GetStateSummary(startDate, endDate string, sourceIDs []string) ([]dto.StateSummaryRow, error) {
+	results, err := s.gstRepo.GetStateSummary(startDate, endDate, sourceIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +72,8 @@ func (s *GSTService) GetStateSummary(startDate, endDate string) ([]dto.StateSumm
 }
 
 // GetHSNSummary returns per-HSN code revenue and tax breakdown.
-func (s *GSTService) GetHSNSummary(startDate, endDate string) ([]dto.HSNSummaryRow, error) {
-	results, err := s.gstRepo.GetHSNSummary(startDate, endDate)
+func (s *GSTService) GetHSNSummary(startDate, endDate string, sourceIDs []string) ([]dto.HSNSummaryRow, error) {
+	results, err := s.gstRepo.GetHSNSummary(startDate, endDate, sourceIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +112,8 @@ func (s *GSTService) GetHSNSummary(startDate, endDate string) ([]dto.HSNSummaryR
 }
 
 // GetDocumentsIssued returns the documents issued report.
-func (s *GSTService) GetDocumentsIssued(startDate, endDate string) ([]dto.DocumentIssuedRow, error) {
-	minOrder, maxOrder, total, cancelled, err := s.gstRepo.GetShopifyDocumentsIssued(startDate, endDate)
+func (s *GSTService) GetDocumentsIssued(startDate, endDate string, sourceIDs []string) ([]dto.DocumentIssuedRow, error) {
+	minOrder, maxOrder, total, cancelled, err := s.gstRepo.GetShopifyDocumentsIssued(startDate, endDate, sourceIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *GSTService) GetDocumentsIssued(startDate, endDate string) ([]dto.Docume
 		})
 	}
 
-	amzMin, amzMax, amzTotal, amzCancelled, err := s.gstRepo.GetAmazonDocumentsIssued(startDate, endDate)
+	amzMin, amzMax, amzTotal, amzCancelled, err := s.gstRepo.GetAmazonDocumentsIssued(startDate, endDate, sourceIDs)
 	if err == nil && amzTotal > 0 {
 		fromS := "N/A"
 		toS := "N/A"
@@ -158,7 +158,7 @@ func (s *GSTService) GetDocumentsIssued(startDate, endDate string) ([]dto.Docume
 		})
 	}
 
-	b2bMin, b2bMax, b2bTotal, b2bCancelled, err := s.gstRepo.GetB2BDocumentsIssued(startDate, endDate)
+	b2bMin, b2bMax, b2bTotal, b2bCancelled, err := s.gstRepo.GetB2BDocumentsIssued(startDate, endDate, sourceIDs)
 	if err == nil && b2bTotal > 0 {
 		fromS := "N/A"
 		toS := "N/A"
@@ -178,7 +178,7 @@ func (s *GSTService) GetDocumentsIssued(startDate, endDate string) ([]dto.Docume
 		})
 	}
 
-	cnMin, cnMax, cnTotal, cnCancelled, err := s.gstRepo.GetB2BCreditNotesIssued(startDate, endDate)
+	cnMin, cnMax, cnTotal, cnCancelled, err := s.gstRepo.GetB2BCreditNotesIssued(startDate, endDate, sourceIDs)
 	if err == nil && cnTotal > 0 {
 		fromS := "N/A"
 		toS := "N/A"
@@ -198,7 +198,7 @@ func (s *GSTService) GetDocumentsIssued(startDate, endDate string) ([]dto.Docume
 		})
 	}
 
-	dnMin, dnMax, dnTotal, dnCancelled, err := s.gstRepo.GetB2BDebitNotesIssued(startDate, endDate)
+	dnMin, dnMax, dnTotal, dnCancelled, err := s.gstRepo.GetB2BDebitNotesIssued(startDate, endDate, sourceIDs)
 	if err == nil && dnTotal > 0 {
 		fromS := "N/A"
 		toS := "N/A"
@@ -227,38 +227,38 @@ func isTamilNadu(state string) bool {
 	return len(s) > 0 && (s == "Tamil Nadu" || s == "TN" || strings.EqualFold(s, "tamil nadu"))
 }
 
-func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string) (dto.GSTR1Payload, error) {
+func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string, sourceIDs []string) (dto.GSTR1Payload, error) {
 	// 1. Fetch B2CS
-	b2csRows, err := s.gstRepo.GetGSTR1B2CS(startDate, endDate)
+	b2csRows, err := s.gstRepo.GetGSTR1B2CS(startDate, endDate, sourceIDs)
 	if err != nil {
 		return dto.GSTR1Payload{}, err
 	}
 
 	// 2. Fetch HSN summary
-	hsnRows, err := s.gstRepo.GetGSTR1HSN(startDate, endDate)
+	hsnRows, err := s.gstRepo.GetGSTR1HSN(startDate, endDate, sourceIDs)
 	if err != nil {
 		return dto.GSTR1Payload{}, err
 	}
 
 	// 3. Fetch B2B Invoices
-	b2bRows, err := s.gstRepo.GetGSTR1B2B(startDate, endDate)
+	b2bRows, err := s.gstRepo.GetGSTR1B2B(startDate, endDate, sourceIDs)
 	if err != nil {
 		// Log error and fallback to empty
 		b2bRows = []dto.GSTR1B2B{}
 	}
 
 	// 4. Fetch Credit/Debit Notes (CDNR)
-	cdnrRows, err := s.gstRepo.GetGSTR1CDNR(startDate, endDate)
+	cdnrRows, err := s.gstRepo.GetGSTR1CDNR(startDate, endDate, sourceIDs)
 	if err != nil {
 		cdnrRows = []dto.GSTR1CDNR{}
 	}
 
 	// 5. Fetch Doc Issue stats
-	shMin, shMax, shTotal, shCancelled, err := s.gstRepo.GetShopifyDocumentsIssued(startDate, endDate)
+	shMin, shMax, shTotal, shCancelled, err := s.gstRepo.GetShopifyDocumentsIssued(startDate, endDate, sourceIDs)
 	if err != nil {
 		return dto.GSTR1Payload{}, err
 	}
-	amzMin, amzMax, amzTotal, amzCancelled, err := s.gstRepo.GetAmazonDocumentsIssued(startDate, endDate)
+	amzMin, amzMax, amzTotal, amzCancelled, err := s.gstRepo.GetAmazonDocumentsIssued(startDate, endDate, sourceIDs)
 	if err != nil {
 		return dto.GSTR1Payload{}, err
 	}
@@ -306,7 +306,7 @@ func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string) (dto.
 		docIdx++
 	}
 
-	b2bMin, b2bMax, b2bTotal, b2bCancelled, err := s.gstRepo.GetB2BDocumentsIssued(startDate, endDate)
+	b2bMin, b2bMax, b2bTotal, b2bCancelled, err := s.gstRepo.GetB2BDocumentsIssued(startDate, endDate, sourceIDs)
 	if err != nil {
 		return dto.GSTR1Payload{}, err
 	}
@@ -339,7 +339,7 @@ func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string) (dto.
 	}
 
 	// Category 4: Debit Notes
-	dnMin, dnMax, dnTotal, dnCancelled, err := s.gstRepo.GetB2BDebitNotesIssued(startDate, endDate)
+	dnMin, dnMax, dnTotal, dnCancelled, err := s.gstRepo.GetB2BDebitNotesIssued(startDate, endDate, sourceIDs)
 	if err == nil && dnTotal > 0 {
 		fromS := "N/A"
 		toS := "N/A"
@@ -365,7 +365,7 @@ func (s *GSTService) GetGSTR1JSON(startDate, endDate string, gstin string) (dto.
 	}
 
 	// Category 5: Credit Notes
-	cnMin, cnMax, cnTotal, cnCancelled, err := s.gstRepo.GetB2BCreditNotesIssued(startDate, endDate)
+	cnMin, cnMax, cnTotal, cnCancelled, err := s.gstRepo.GetB2BCreditNotesIssued(startDate, endDate, sourceIDs)
 	if err == nil && cnTotal > 0 {
 		fromS := "N/A"
 		toS := "N/A"

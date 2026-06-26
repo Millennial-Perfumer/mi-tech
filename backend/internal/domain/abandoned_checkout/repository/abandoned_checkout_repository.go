@@ -40,9 +40,10 @@ func (r *gormAbandonedCheckoutRepository) Upsert(ctx context.Context, ac *entity
 			store_id, checkout_id, checkout_token, cart_token, email, phone,
 			customer_name, checkout_url, line_items, total_price, currency,
 			completed, recovery_status, recovery_attempts, marketing_consent, sms_consent,
+			city, province, country, zip,
 			abandoned_at, created_at, updated_at
 		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (store_id, checkout_token)
 		DO UPDATE SET
@@ -57,6 +58,10 @@ func (r *gormAbandonedCheckoutRepository) Upsert(ctx context.Context, ac *entity
 			currency = EXCLUDED.currency,
 			marketing_consent = EXCLUDED.marketing_consent,
 			sms_consent = EXCLUDED.sms_consent,
+			city = EXCLUDED.city,
+			province = EXCLUDED.province,
+			country = EXCLUDED.country,
+			zip = EXCLUDED.zip,
 			abandoned_at = EXCLUDED.abandoned_at,
 			updated_at = EXCLUDED.updated_at
 		RETURNING id`
@@ -65,6 +70,7 @@ func (r *gormAbandonedCheckoutRepository) Upsert(ctx context.Context, ac *entity
 		ac.StoreID, ac.CheckoutID, ac.CheckoutToken, ac.CartToken, ac.Email, ac.Phone,
 		ac.CustomerName, ac.CheckoutURL, ac.LineItems, ac.TotalPrice, ac.Currency,
 		ac.Completed, ac.RecoveryStatus, ac.RecoveryAttempts, ac.MarketingConsent, ac.SMSConsent,
+		ac.City, ac.Province, ac.Country, ac.Zip,
 		ac.AbandonedAt, now, now,
 	).Scan(&ac.ID).Error
 	if err != nil {

@@ -2012,6 +2012,8 @@ function App() {
               fetchWithAuth={fetchWithAuth}
               refreshTrigger={refreshTrigger}
               businessGstin={appConfigs?.business_gstin}
+              token={token}
+              onViewOrderDetails={(id) => setSelectedOrderDetailsId(id)}
             />
           )}
 

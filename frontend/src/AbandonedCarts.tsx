@@ -32,6 +32,10 @@ interface AbandonedCheckout {
   last_error?: string;
   marketing_consent: boolean;
   sms_consent: boolean;
+  city?: string;
+  province?: string;
+  country?: string;
+  zip?: string;
   abandoned_at: string;
   created_at: string;
   updated_at: string;
@@ -609,6 +613,11 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                   <div><strong>Name:</strong> {selectedCart.customer_name || 'Anonymous'}</div>
                   <div><strong>Phone:</strong> {formatPhoneNumber(selectedCart.phone)}</div>
                   {selectedCart.email && <div><strong>Email:</strong> {selectedCart.email}</div>}
+                  {(selectedCart.city || selectedCart.province || selectedCart.country || selectedCart.zip) && (
+                    <div>
+                      <strong>Location:</strong> {[selectedCart.city, selectedCart.province, selectedCart.country, selectedCart.zip].filter(Boolean).join(', ')}
+                    </div>
+                  )}
                   <div>
                     <strong>Marketing:</strong> {selectedCart.marketing_consent ? (
                       <span style={{ color: 'var(--status-active)', fontWeight: 600 }}>Subscribed</span>

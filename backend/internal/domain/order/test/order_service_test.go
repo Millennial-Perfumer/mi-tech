@@ -25,7 +25,7 @@ func TestOrderService_ListOrders(t *testing.T) {
 
 	mockOrderRepo.On("List", filter).Return(orders, 1, nil)
 
-	resp, total, err := svc.ListOrders("", "", 1, 25, "", "", "", "", "", "", "")
+	resp, total, err := svc.ListOrders("", "", 1, 25, "", "", "", "", "", "", "", "")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, total)
