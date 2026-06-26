@@ -44,3 +44,7 @@
 **Vulnerability:** Several B2B handlers (`HandleCustomers`, `HandleInvoices`, `HandlePaymentTerms`, etc.) read the HTTP request body using `io.ReadAll(r.Body)` or `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Even internal or authenticated routes can be vulnerable to resource exhaustion. The Go standard library does not automatically limit request bodies, so manual constraints must be applied before decoding.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers, before calling `io.ReadAll` or decoding JSON.
+## 2025-02-23 - Prevent DoS via unbounded payload parsing
+**Vulnerability:** Unbounded readers like `json.NewDecoder` used directly on `r.Body` across various handlers (like `auth_handler.go` and `user_handler.go`) allow Denial-of-Service attacks via large payloads.
+**Learning:** `json.NewDecoder` does not limit the size of the body it attempts to read and decode, allowing attackers to exhaust memory and CPU by sending excessively large JSON bodies to authentication and user creation endpoints.
+**Prevention:** Wrap `r.Body` with `http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) before passing it to `json.NewDecoder`. Always limit incoming HTTP payloads on unbounded readers.
