@@ -2,6 +2,7 @@ package repository
 
 import (
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"mi-tech/internal/domain/inventory/entity"
 )
 
@@ -31,7 +32,9 @@ type InventoryRepository interface {
 	// Utilities
 	DeleteAll() error
 	BulkCreateItem(items []entity.InventoryItem) error
+	BulkUpdatePrices(items []entity.InventoryItem) error
 	GetItemByPlatformSKU(platform, externalSKU string) (entity.InventoryItem, error)
+	GetItemsBySKUs(skus []string) ([]entity.InventoryItem, error)
 }
 
 type gormInventoryRepository struct {
@@ -152,6 +155,27 @@ func (r *gormInventoryRepository) DeleteAll() error {
 
 func (r *gormInventoryRepository) BulkCreateItem(items []entity.InventoryItem) error {
 	return r.db.Create(&items).Error
+}
+
+func (r *gormInventoryRepository) BulkUpdatePrices(items []entity.InventoryItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	return r.db.Omit(clause.Associations).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"price"}),
+	}).Create(&items).Error
+}
+
+func (r *gormInventoryRepository) GetItemsBySKUs(skus []string) ([]entity.InventoryItem, error) {
+	var items []entity.InventoryItem
+	if len(skus) == 0 {
+		return items, nil
+	}
+	err := r.db.Preload("Mappings").
+		Where("mi_sku IN ? OR id IN (SELECT inventory_item_id FROM inventory_mappings WHERE external_sku IN ?)", skus, skus).
+		Find(&items).Error
+	return items, err
 }
 
 func (r *gormInventoryRepository) LogAdjustment(l *entity.InventoryLog) error {
