@@ -62,3 +62,13 @@
 * **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
 * **Technical Complexity**: Medium
 * **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
+
+
+### [IDE-009] VIP Customer Automation Segmentation Pipeline
+* **Added On**: 2024-06-28
+* **Target Audience**: Store Admins, End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Highly loyal customers receive automated, personalized perks (like exclusive access or specialized high-end bundled discounts) directly via WhatsApp, increasing their lifetime loyalty and making them feel uniquely valued.
+* **Business Growth & Profit Impact**: The top tier of customers drive a disproportionate amount of revenue with minimal marginal acquisition cost. By programmatically identifying customers who hit a specific `TotalSpent` or `TotalOrders` threshold within the `order` domain, we can integrate with the `communication` SMM hub to automatically enroll them in VIP retention flows. Shifting these users into higher-margin repeat purchases natively pushes the LTV up, which is one of the highest-leverage paths to crossing the 3L/month target efficiently.
+* **Technical Complexity**: Medium
+* **Description**: Implement a scheduled job (e.g., in `planner` or as a background cron) that queries the `CustomerRepository` for customers exceeding specific `TotalSpent` thresholds. When identified, the system assigns a `VIP` tag/status and dispatches an event. This event triggers an automated WhatsApp message through the `communication` module (using an existing `TemplateID` in the SMM hub), welcoming them to the VIP tier and offering a personalized, one-click checkout upsell link.
