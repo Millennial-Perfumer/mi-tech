@@ -10,6 +10,7 @@ import (
 	"mi-tech/internal/shared/extclient/shopify"
 	"os"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -134,12 +135,45 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 
 	log.Printf("SyncOrchestrator: Triggering global sync batch for %d items", len(items))
 
-	// Discover location ID once per batch if needed
+	// Discover location ID once per batch if needed, OUTSIDE the parallel loop
 	var shopifyLocationID string
 	var locationDiscovered bool
 
+	// Pre-discover Shopify Location ID if any item requires Shopify sync
 	for _, item := range items {
 		for _, m := range item.Mappings {
+			if m.Platform == "shopify" && m.Platform != sourcePlatform && m.ExternalVariantID != nil {
+				if shopifyLocationID == "" && !locationDiscovered {
+					shopifyLocationID = s.shopifyClient.GetLocationID()
+					if shopifyLocationID == "" {
+						discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
+						if err == nil {
+							shopifyLocationID = discoveredID
+							log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
+						} else {
+							log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+						}
+					}
+					locationDiscovered = true
+				}
+				break
+			}
+		}
+		if locationDiscovered {
+			break
+		}
+	}
+
+	// ⚡ Bolt: Parallelize external API calls to avoid O(N) network latency bottleneck
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(5) // Limit concurrency to prevent rate limiting
+
+	for _, item := range items {
+		item := item // capture loop variable
+
+		for _, m := range item.Mappings {
+			m := m // capture loop variable
+
 			if m.Platform == sourcePlatform {
 				continue // Don't push back to the platform that triggered the change
 			}
@@ -147,37 +181,33 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 			switch m.Platform {
 			case "shopify":
 				if m.ExternalVariantID != nil {
-					log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
-
-					if shopifyLocationID == "" && !locationDiscovered {
-						shopifyLocationID = s.shopifyClient.GetLocationID()
-						if shopifyLocationID == "" {
-							discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
-							if err == nil {
-								shopifyLocationID = discoveredID
-								log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
-							} else {
-								log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+					g.Go(func() error {
+						log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
+						if shopifyLocationID != "" {
+							err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
+							if err != nil {
+								log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
 							}
 						}
-						locationDiscovered = true
-					}
-
-					if shopifyLocationID != "" {
-						err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
-						if err != nil {
-							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
-						}
-					}
+						return nil // Log and continue, don't fail the whole batch
+					})
 				}
 			case "amazon":
-				log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
-				err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
-				if err != nil {
-					log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
-				}
+				g.Go(func() error {
+					log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
+					err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
+					if err != nil {
+						log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
+					}
+					return nil // Log and continue, don't fail the whole batch
+				})
 			}
 		}
+	}
+
+	// Wait for all concurrent syncs to complete
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	return nil

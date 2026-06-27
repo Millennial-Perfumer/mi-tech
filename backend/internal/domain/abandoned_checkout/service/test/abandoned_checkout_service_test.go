@@ -83,7 +83,6 @@ func (m *MockAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, stor
 	return args.Error(0)
 }
 
-
 type MockTemplatesRepository struct {
 	mock.Mock
 }
