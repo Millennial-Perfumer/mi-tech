@@ -57,3 +57,7 @@
 ## 2026-06-21 - [Parallelize External API Calls in GlobalSyncBatch]
 **Learning:** Performing multiple independent external API calls sequentially (like pushing inventory levels to Shopify and Amazon for an entire batch of items in `GlobalSyncBatch`) creates a severe $O(N)$ performance bottleneck, limited by network latency on every individual request.
 **Action:** When iterating over items in a batch that each require external API updates, use `golang.org/x/sync/errgroup` to parallelize the requests. Limit concurrency to `5` (rather than 10) to remain consistent with established rate-limiting guards in the codebase (e.g. `customer_service.go`, `handlers.go`) and prevent triggering rate limit errors from external platforms like Shopify. Always move common dependencies (like fetching a location ID) outside the parallel loop.
+
+## 2026-06-28 - [Parallelize External API Calls in Polling Operations]
+**Learning:** Iterating sequentially over a list of items (like Amazon orders) to fetch additional details via an external API creates a severe O(N) performance bottleneck, as the execution time is limited by the network latency of each individual request.
+**Action:** When a polling or synchronization loop involves making external API calls for each item, use `golang.org/x/sync/errgroup` to parallelize the requests. Implement a concurrency limit (e.g., `eg.SetLimit(5)`) to respect external API rate limits and avoid throttling or timeouts. Always ensure loop variables are properly captured before launching goroutines.
