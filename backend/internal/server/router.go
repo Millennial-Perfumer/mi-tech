@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
@@ -22,7 +23,6 @@ import (
 	userServicePkg "mi-tech/internal/domain/user/service"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
-	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 
