@@ -1601,43 +1601,57 @@ function App() {
                   <tr>
 
                     {visibleColumns.includes('order_id') && (
-                      <th onClick={() => { setSortBy('order_number'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Order ID {sortBy === 'order_number' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'order_number' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('order_number'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Order ID {sortBy === 'order_number' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('customer_name') && (
-                      <th onClick={() => { setSortBy('customer_name'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Customer {sortBy === 'customer_name' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'customer_name' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('customer_name'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Customer {sortBy === 'customer_name' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('city') && <th>City</th>}
                     {visibleColumns.includes('state') && <th>State</th>}
                     {visibleColumns.includes('country') && <th>Country</th>}
                     {visibleColumns.includes('date') && (
-                      <th onClick={() => { setSortBy('created_at'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Date {sortBy === 'created_at' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'created_at' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('created_at'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Date {sortBy === 'created_at' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('time') && <th>Time</th>}
                     {visibleColumns.includes('amount') && (
-                      <th onClick={() => { setSortBy('total_price'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Amount {sortBy === 'total_price' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'total_price' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('total_price'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Amount {sortBy === 'total_price' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('financial_status') && (
-                      <th onClick={() => { setSortBy('financial_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Payment {sortBy === 'financial_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'financial_status' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('financial_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Payment {sortBy === 'financial_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('fulfillment_status') && (
-                      <th onClick={() => { setSortBy('fulfillment_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Fulfillment {sortBy === 'fulfillment_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'fulfillment_status' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('fulfillment_status'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Fulfillment {sortBy === 'fulfillment_status' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('delivery_status') && <th>Delivery Status</th>}
                     {visibleColumns.includes('source') && (
-                      <th onClick={() => { setSortBy('source_id'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ cursor: 'pointer' }}>
-                        Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                      <th aria-sort={sortBy === 'source_id' ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => { setSortBy('source_id'); setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC'); }} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          Source {sortBy === 'source_id' && (sortOrder === 'ASC' ? ' ↑' : ' ↓')}
+                        </button>
                       </th>
                     )}
                     {visibleColumns.includes('whatsapp') && <th className="col-fixed-whatsapp no-print">WHATSAPP</th>}

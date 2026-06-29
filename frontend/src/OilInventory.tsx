@@ -333,23 +333,35 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
                   onChange={toggleSelectAll} 
                 />
               </th>
-              <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer' }}>
-                Oil Name {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th aria-sort={sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('name')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  Oil Name {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
               </th>
-              <th onClick={() => toggleSort('inventory_item.mi_sku')} style={{ cursor: 'pointer' }}>
-                SKU {sortConfig?.key === 'inventory_item.mi_sku' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th aria-sort={sortConfig?.key === 'inventory_item.mi_sku' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('inventory_item.mi_sku')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  SKU {sortConfig?.key === 'inventory_item.mi_sku' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
               </th>
-              <th onClick={() => toggleSort('inventory_item.title')} style={{ cursor: 'pointer' }}>
-                Linked Product {sortConfig?.key === 'inventory_item.title' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th aria-sort={sortConfig?.key === 'inventory_item.title' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('inventory_item.title')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  Linked Product {sortConfig?.key === 'inventory_item.title' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
               </th>
-              <th onClick={() => toggleSort('supplier.name')} style={{ cursor: 'pointer' }}>
-                Supplier {sortConfig?.key === 'supplier.name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th aria-sort={sortConfig?.key === 'supplier.name' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('supplier.name')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  Supplier {sortConfig?.key === 'supplier.name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
               </th>
-              <th onClick={() => toggleSort('purchase_price_per_kg')} style={{ cursor: 'pointer' }}>
-                Price/kg {sortConfig?.key === 'purchase_price_per_kg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th aria-sort={sortConfig?.key === 'purchase_price_per_kg' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('purchase_price_per_kg')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  Price/kg {sortConfig?.key === 'purchase_price_per_kg' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
               </th>
-              <th onClick={() => toggleSort('grams_left')} style={{ cursor: 'pointer' }}>
-                Stock {sortConfig?.key === 'grams_left' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th aria-sort={sortConfig?.key === 'grams_left' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" onClick={() => toggleSort('grams_left')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  Stock {sortConfig?.key === 'grams_left' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
               </th>
               <th style={{ paddingRight: '2rem', textAlign: 'right' }}>Actions</th>
             </tr>
