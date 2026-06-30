@@ -4,7 +4,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<div class="shop-ai-chat-container">
+<div class="shop-ai-chat-container" style="
+  --chat-bubble-offset-y: {{ block.settings.chat_bubble_offset_y | default: 24 }}px;
+  {% if block.settings.chat_bubble_position_horizontal == 'left' %}
+    --chat-bubble-offset-x-left: {{ block.settings.chat_bubble_offset_x | default: 24 }}px;
+    --chat-bubble-offset-x-right: auto;
+    --chat-window-offset-x-left: 0;
+    --chat-window-offset-x-right: auto;
+  {% else %}
+    --chat-bubble-offset-x-left: auto;
+    --chat-bubble-offset-x-right: {{ block.settings.chat_bubble_offset_x | default: 24 }}px;
+    --chat-window-offset-x-left: auto;
+    --chat-window-offset-x-right: 0;
+  {% endif %}
+">
   <div class="shop-ai-chat-bubble">
     <!-- Premium AI Chat Bubble Sparkle Constellation -->
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -84,6 +97,40 @@
         }
       ],
       "default": "standardAssistant"
+    },
+    {
+      "type": "select",
+      "id": "chat_bubble_position_horizontal",
+      "label": "Horizontal Position",
+      "options": [
+        {
+          "value": "right",
+          "label": "Right"
+        },
+        {
+          "value": "left",
+          "label": "Left"
+        }
+      ],
+      "default": "right"
+    },
+    {
+      "type": "range",
+      "id": "chat_bubble_offset_x",
+      "label": "Horizontal Offset (px)",
+      "min": 10,
+      "max": 200,
+      "step": 5,
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "chat_bubble_offset_y",
+      "label": "Vertical Offset (px)",
+      "min": 10,
+      "max": 200,
+      "step": 5,
+      "default": 24
     }
   ]
 }

@@ -20,11 +20,21 @@
 /* Base Container & Typography */
 .shop-ai-chat-container {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  /* Default: stacks above the WhatsApp button (bottom: 40px + 60px height + 10px gap = 110px) */
+  bottom: var(--chat-bubble-offset-y, 110px);
+  left: var(--chat-bubble-offset-x-left, auto);
+  right: var(--chat-bubble-offset-x-right, 40px);
   z-index: 9999;
   font-family: 'Montserrat', sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+@media (max-width: 768px) {
+  .shop-ai-chat-container {
+    /* Mobile: WhatsApp is at bottom: 20px, right: 20px */
+    bottom: var(--chat-bubble-offset-y, 90px);
+    right: var(--chat-bubble-offset-x-right, 20px);
+  }
 }
 
 /* Floating Chat Bubble Button */
@@ -68,7 +78,8 @@
 .shop-ai-chat-window {
   position: absolute;
   bottom: 80px;
-  right: 0;
+  left: var(--chat-window-offset-x-left, auto);
+  right: var(--chat-window-offset-x-right, 0);
   width: 90vw;
   max-width: 420px;
   height: 75vh;
