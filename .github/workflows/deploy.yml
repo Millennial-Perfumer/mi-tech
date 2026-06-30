@@ -83,6 +83,21 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend-feedback:latest
           labels: ${{ steps.meta-frontend-feedback.outputs.labels }}
 
+      # Shop Chat Agent Image
+      - name: Extract metadata (tags, labels) for Shop Chat Agent
+        id: meta-shop-chat-agent
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-shop-chat-agent
+
+      - name: Build and push Shop Chat Agent Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./shop-chat-agent
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-shop-chat-agent:latest
+          labels: ${{ steps.meta-shop-chat-agent.outputs.labels }}
+
   deploy-to-vm:
     needs: build-and-push-images
     runs-on: ubuntu-latest

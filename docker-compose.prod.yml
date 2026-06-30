@@ -83,9 +83,7 @@ services:
       - app-network
 
   shop-chat-agent:
-    build:
-      context: ./shop-chat-agent
-      dockerfile: Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-shop-chat-agent:latest
     restart: always
     environment:
       DATABASE_URL: "file:dev.sqlite"
