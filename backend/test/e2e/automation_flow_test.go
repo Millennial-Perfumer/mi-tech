@@ -57,16 +57,17 @@ func TestEndToEnd_OrderCreationAutomation(t *testing.T) {
 	defer mockMetaServer.Close()
 
 	// Intercept graph.facebook.com
-	originalTransport := http.DefaultClient.Transport
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Host == "graph.facebook.com" {
+			req = req.Clone(req.Context())
 			u, _ := url.Parse(mockMetaServer.URL)
 			req.URL.Scheme = u.Scheme
 			req.URL.Host = u.Host
 		}
-		return http.DefaultTransport.RoundTrip(req)
+		return originalTransport.RoundTrip(req)
 	})
-	defer func() { http.DefaultClient.Transport = originalTransport }()
+	defer func() { http.DefaultTransport = originalTransport }()
 
 	// 1. Setup repos
 	orderRepo := orderRepoPkg.NewOrderRepository(db)
