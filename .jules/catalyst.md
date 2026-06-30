@@ -62,3 +62,12 @@
 * **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
 * **Technical Complexity**: Medium
 * **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
+
+### [IDE-009] VIP Product Bundling for WhatsApp Sales
+* **Added On**: 2024-07-01
+* **Target Audience**: Store Admins, End Customers
+* **3L Growth Vector**: Increase Average Order Value (AOV)
+* **Customer Value Proposition**: Allows high-value VIP customers to access custom, discounted product bundles directly through WhatsApp, streamlining their purchasing experience.
+* **Business Growth & Profit Impact**: High-value customers are extremely likely to respond to exclusive bulk deals or "Complete the Set" bundles. By offering easy 1-click bundle checkouts via WhatsApp, we can drastically boost AOV, making it significantly easier to hit the 3 Lakhs/month revenue target while bypassing traditional acquisition costs.
+* **Technical Complexity**: Medium
+* **Description**: Create a new API route in the `communication` (SMM hub) and `order` modules that dynamically generates unique Shopify Draft Orders for pre-configured product bundles (leveraging `InventoryItem` data). This allows agents or automated WhatsApp workflows to send VIP customers direct checkout links for 3+ item bundles, automatically applying a discount tier before dispatching the message.
