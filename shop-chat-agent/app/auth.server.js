@@ -1,6 +1,8 @@
 /**
  * Authentication service for handling OAuth and PKCE flows
  */
+import { webcrypto } from 'node:crypto';
+const crypto = webcrypto;
 
 /**
  * Generate authorization URL for the customer
