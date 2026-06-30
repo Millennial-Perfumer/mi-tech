@@ -408,6 +408,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
             <svg className="chat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search"
                 title="Clear search"
@@ -502,12 +503,14 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
               
               <div className="mode-toggle-group">
                 <button 
+                  type="button"
                   className={`mode-btn ${activeConversation.mode === 'auto' ? 'active' : ''}`}
                   onClick={() => toggleMode('auto')}
                 >
                   Auto
                 </button>
                 <button 
+                  type="button"
                   className={`mode-btn ${activeConversation.mode === 'human' ? 'active' : ''}`}
                   onClick={() => toggleMode('human')}
                 >
@@ -588,6 +591,8 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                                 {msg.metadata?.extracted_metadata?.original_name || filename}
                             </div>
                             <button 
+                              type="button"
+                              aria-label="Download Document"
                               className="doc-download-btn"
                               onClick={async () => {
                                 try {
@@ -633,6 +638,8 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
 
             <div className="chat-input-area">
               <button 
+                type="button"
+                aria-label="Upload Media"
                 className="chat-upload-btn"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingMedia || isSending}
@@ -660,6 +667,9 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
               <button 
+                type="button"
+                aria-label="Send Message"
+                title="Send Message"
                 className="chat-send-btn" 
                 onClick={sendMessage}
                 disabled={!inputText.trim() || isSending || isUploadingMedia}
