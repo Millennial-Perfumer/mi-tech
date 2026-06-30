@@ -62,3 +62,12 @@
 * **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
 * **Technical Complexity**: Medium
 * **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
+
+### [IDE-009] VIP WhatsApp Clone Concierge
+* **Added On**: 2024-06-30
+* **Target Audience**: High LTV End Customers, Store Admins
+* **3L Growth Vector**: Increase Average Order Value (AOV) & Increase Purchase Frequency (LTV Boost)
+* **Customer Value Proposition**: Delivers a hyper-personalized, white-glove shopping experience. VIP customers can interact via WhatsApp to receive curated perfume clone recommendations based on their past purchase history and stated preferences, making them feel like they have a personal fragrance consultant.
+* **Business Growth & Profit Impact**: High-LTV customers are the most likely segment to convert on premium offerings and bundles. By providing a concierge-like experience for top-tier buyers, we can significantly boost AOV through targeted bundle upsells and drive repeat purchase frequency. This highly personalized channel converts better than generic ads, dropping CAC to zero for repeat purchases and accelerating the path to the 3L/month North Star.
+* **Technical Complexity**: High
+* **Description**: Integrate the `ai` module, `order` domain, and `communication` (SMM hub) module to build an interactive WhatsApp concierge. For customers tagged as "VIP" (e.g., > 3 orders or > ₹5000 spent), the system can handle inbound WhatsApp queries asking for recommendations (e.g., "I liked X, what else would I like?"). The `ai` module will analyze their `Order` history and cross-reference the `inventory` to suggest high-margin, related products, automatically generating a WhatsApp reply with a direct draft order checkout link.
