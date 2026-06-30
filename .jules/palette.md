@@ -15,3 +15,7 @@
 ## 2026-06-22 - [Accessibility for Complex Modals and Interactive Panels]
 **Learning:** Newly introduced, complex interactive components (like Planner task/sprint boards) frequently omit baseline accessibility attributes (like `type="button"` and `aria-label`) on utility controls (Dismiss, Close, Delete). These omissions pose risks for unintended form submissions and severe usability drops for screen reader users.
 **Action:** When implementing or modifying complex panels and modals, systematically apply defensive `type="button"` attributes and ensure every icon-only or utility button possesses a descriptive `aria-label`.
+
+## 2024-05-14 - Explicit Buttons in Conversational UIs
+**Learning:** Icon-only buttons used for navigation or actions in chat UI interfaces (like a 'Clear Search' cross, an 'Upload Media' icon, or a 'Send Message' arrow) that don't submit main app logic forms often trigger unwanted default browser form submissions if their `type="button"` attribute is missing, and are completely invisible to screen readers without `aria-label` or `title` properties. In React code that isn't cleanly separated by `form` blocks, this default behavior can cause unexpected page reloads.
+**Action:** Always add explicit `type="button"` and `aria-label`/`title` attributes to all icon-only utility elements during the creation of complex interactive layouts, even outside `form` elements.
