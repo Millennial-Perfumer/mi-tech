@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 	inventoryRepo "mi-tech/internal/domain/inventory/repository"
 	orderEntity "mi-tech/internal/domain/order/entity"
@@ -96,7 +97,30 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 
 	slog.Info("AmazonOrderPoller: API Response", "orderCount", len(amazonOrders))
 
-	for _, ao := range amazonOrders {
+	// Pre-fetch items concurrently
+	type orderItemsResult struct {
+		Items []map[string]interface{}
+		Err   error
+	}
+	itemsResults := make([]orderItemsResult, len(amazonOrders))
+
+	eg, _ := errgroup.WithContext(ctx)
+	eg.SetLimit(5)
+
+	for i, ao := range amazonOrders {
+		i, ao := i, ao // Capture loop variables
+		eg.Go(func() error {
+			amazonOrderID := ao["AmazonOrderId"].(string)
+			// Pass egCtx to respect context cancellation if GetOrderItems supports it,
+			// but we keep the current signature which doesn't take context
+			items, err := p.amazonClient.GetOrderItems(amazonOrderID)
+			itemsResults[i] = orderItemsResult{Items: items, Err: err}
+			return nil // Don't fail the whole group on one error
+		})
+	}
+	eg.Wait()
+
+	for i, ao := range amazonOrders {
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
 		esStatus, _ := ao["EasyShipShipmentStatus"].(string)
@@ -108,11 +132,12 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		)
 
 		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+		res := itemsResults[i]
+		if res.Err != nil {
+			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", res.Err)
 			continue
 		}
+		items := res.Items
 
 		lineItems := []orderEntity.LineItem{}
 		for _, item := range items {
