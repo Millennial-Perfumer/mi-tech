@@ -49,3 +49,8 @@
 **Vulnerability:** The authentication and user handlers (`Login`, `VerifyOTP`, `CreateUser`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Handlers processing unauthenticated external requests MUST employ request body limits before reading or decoding. The Go standard library does not automatically limit request bodies, making this an explicit responsibility of the developer.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.
+
+## 2025-02-28 - [DoS Vulnerability in External Clients via Unbounded HTTP Timeouts]
+**Vulnerability:** The `MetaClient` service used `http.DefaultClient` to make all requests to the external Meta/Facebook Graph API. `http.DefaultClient` does not have a configured timeout. If the external server hangs, the connection remains open indefinitely, leading to a critical Resource Exhaustion / Denial-of-Service (DoS) vulnerability.
+**Learning:** Never use `http.DefaultClient` for making requests to external systems in production code. The lack of timeouts can quickly exhaust available goroutines, file descriptors, and memory if the external dependency experiences latency or an outage.
+**Prevention:** Always define a custom `http.Client` initialized with an explicit `Timeout` (e.g., `30 * time.Second`) within integration client structs (e.g., `MetaClient`) and use it for all external requests instead of relying on `http.DefaultClient`.
