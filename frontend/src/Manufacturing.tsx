@@ -29,12 +29,14 @@ interface OilStock {
   id: number;
   name: string;
   inventory_item_id?: number;
+  grams_left?: number;
 }
 
 interface Product {
   id: number;
   title: string;
   mi_sku: string;
+  current_stock?: number;
 }
 
 interface SearchableSelectProps {
@@ -579,8 +581,11 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                 </div>
                 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {formData.additions.map((a, index) => (
-                      <div key={index} style={{ 
+                    {formData.additions.map((a, index) => {
+                      const selectedOil = oils.find(o => o.id.toString() === a.oil_id);
+                      const selectedProduct = products.find(p => p.id.toString() === a.product_id);
+                      return (
+                        <div key={index} style={{ 
                         background: 'rgba(248, 250, 252, 0.6)', 
                         padding: '1.5rem', 
                         borderRadius: '20px', 
@@ -624,7 +629,19 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: '1rem', alignItems: 'end' }}>
                           <div className="input-group" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fragrance Oil</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                              <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#64748b', marginBottom: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fragrance Oil</label>
+                              {selectedOil && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b' }}>
+                                  Stock: {selectedOil.grams_left ?? 0}g
+                                  {a.deduct_inventory && a.oil_grams && !isNaN(parseFloat(a.oil_grams)) && (
+                                    <span style={{ color: '#ef4444', marginLeft: '4px', fontWeight: 800 }}>
+                                      → {Math.max(0, (selectedOil.grams_left ?? 0) - parseFloat(a.oil_grams)).toFixed(1)}g
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
                             <SearchableSelect 
                               options={oils} 
                               value={a.oil_id} 
@@ -698,7 +715,19 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: '1rem', alignItems: 'end' }}>
                           <div className="input-group" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#64748b', marginBottom: '0.4rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Produced Product</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                              <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#64748b', marginBottom: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Produced Product</label>
+                              {selectedProduct && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b' }}>
+                                  Stock: {selectedProduct.current_stock ?? 0}
+                                  {a.add_stock && a.product_qty && !isNaN(parseInt(a.product_qty)) && (
+                                    <span style={{ color: '#10b981', marginLeft: '4px', fontWeight: 800 }}>
+                                      → {(selectedProduct.current_stock ?? 0) + parseInt(a.product_qty)}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
                             <select required 
                               style={{ borderRadius: '12px', border: '1px solid #cbd5e1', padding: '0.75rem', background: a.product_id ? '#f1f5f9' : 'white', width: '100%' }}
                               value={a.product_id} onChange={e => updateAddition(index, 'product_id', e.target.value)}>
@@ -749,7 +778,8 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
                           </span>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
                   </div>
               </div>
 
