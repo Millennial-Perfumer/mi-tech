@@ -93,6 +93,7 @@ services:
       SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
       SHOPIFY_APP_URL: "https://shop-chat-agent.millennialperfumer.in"
       APP_URL: "https://shop-chat-agent.millennialperfumer.in"
+      REDIRECT_URL: "https://shop-chat-agent.millennialperfumer.in/auth/callback"
       SCOPES: "unauthenticated_read_product_listings"
     volumes:
       - shop_chat_db_data:/app/prisma

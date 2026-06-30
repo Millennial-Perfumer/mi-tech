@@ -25,5 +25,5 @@ embedded = false
 
 [customer_authentication]
 redirect_uris = [
-  "https://shop-chat-agent.millennialperfumer.in/callback"
+  "https://shop-chat-agent.millennialperfumer.in/auth/callback"
 ]
