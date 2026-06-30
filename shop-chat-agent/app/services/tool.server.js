@@ -24,6 +24,13 @@ export function createToolService() {
       console.log("Auth required for tool:", toolName);
       await addToolResultToHistory(conversationHistory, toolUseId, toolUseResponse.error.data, conversationId);
       sendMessage({ type: 'auth_required' });
+    } else if (toolUseResponse.error.type === "internal_error" && toolName === "get_order_status") {
+      // get_order_status requires customer authentication — surface an auth prompt
+      // instead of a confusing "technical issue" message.
+      console.log("get_order_status failed (likely missing customer token), prompting auth:", toolUseResponse.error);
+      const authMessage = "To look up your order, you need to log in to your customer account first. Please log in and try again.";
+      await addToolResultToHistory(conversationHistory, toolUseId, authMessage, conversationId);
+      sendMessage({ type: 'auth_required' });
     } else {
       console.log("Tool use error", toolUseResponse.error);
       await addToolResultToHistory(conversationHistory, toolUseId, toolUseResponse.error.data, conversationId);
