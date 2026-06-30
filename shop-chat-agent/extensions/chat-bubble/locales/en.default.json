@@ -1,0 +1,8 @@
+{
+  "chat": {
+    "title": "MILLS CONCIERGE",
+    "inputPlaceholder": "Type your message here...",
+    "sendButton": "Send",
+    "closeButton": "Close"
+  }
+}
