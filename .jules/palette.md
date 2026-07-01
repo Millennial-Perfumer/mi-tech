@@ -15,3 +15,7 @@
 ## 2026-06-22 - [Accessibility for Complex Modals and Interactive Panels]
 **Learning:** Newly introduced, complex interactive components (like Planner task/sprint boards) frequently omit baseline accessibility attributes (like `type="button"` and `aria-label`) on utility controls (Dismiss, Close, Delete). These omissions pose risks for unintended form submissions and severe usability drops for screen reader users.
 **Action:** When implementing or modifying complex panels and modals, systematically apply defensive `type="button"` attributes and ensure every icon-only or utility button possesses a descriptive `aria-label`.
+
+## 2026-06-27 - [Table Header Sorting Accessibility]
+**Learning:** Found table header columns (`<th>`) that allow sorting but only use visual indicators (like ↑ or ↓) for state. When an interactive trigger is used inside the `<th>`, screen readers miss the sort state if only visual characters are used.
+**Action:** Always apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) to the parent `<th>` element of sortable columns, and ensure any internal interactive button explicitly uses `type="button"` to avoid form submission side-effects and improve screen reader announcements.
