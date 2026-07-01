@@ -90,7 +90,7 @@ export async function loader({ request }) {
  * @returns {Promise<Object>} - The token response
  */
 async function exchangeCodeForToken(code, state) {
-  const clientId = process.env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID || process.env.SHOPIFY_API_KEY;
+  const clientId = process.env.SHOPIFY_API_KEY;
   const [conversationId, shopId] = state.split("-");
   if (!clientId || !shopId) {
     throw new Error("SHOPIFY_CLIENT_ID and SHOPIFY_SHOP_ID environment variables are required");
