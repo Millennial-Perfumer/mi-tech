@@ -234,7 +234,7 @@ func (r *gormAbandonedCheckoutRepository) GetByID(ctx context.Context, storeID s
 func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, storeID string, startDate, endDate string) (*acDto.AbandonedCheckoutAnalyticsResponse, error) {
 	// Build filtered queries
 	baseQuery := r.db.WithContext(ctx).Model(&entity.AbandonedCheckout{}).Where("store_id = ?", storeID)
-	
+
 	if startDate != "" {
 		if len(startDate) == 10 {
 			startDate = startDate + " 00:00:00"
@@ -426,9 +426,9 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 			Clicked:   clickedCount,
 			Failed:    failedCount,
 		},
-		RevenueTimeline:       revenueTimeline,
-		StatusBreakdown:       statusBreakdown,
-		TopLostCarts:          topLostCarts,
+		RevenueTimeline: revenueTimeline,
+		StatusBreakdown: statusBreakdown,
+		TopLostCarts:    topLostCarts,
 	}, nil
 }
 
@@ -462,4 +462,3 @@ func (r *gormAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, stor
 		Where("store_id = ? AND id = ?", storeID, id).
 		Updates(updates).Error
 }
-
