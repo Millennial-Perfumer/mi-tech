@@ -26,6 +26,7 @@ type TemplatesRepository interface {
 	GetEvents() ([]entity.AutomationEvent, error)
 	SaveEvent(e entity.AutomationEvent) error
 	DeleteEvent(id int) error
+	BulkUpdateStatuses(updates map[string]string) error
 }
 
 type sqlTemplatesRepository struct {
@@ -283,4 +284,31 @@ func (r *sqlTemplatesRepository) DeleteEvent(id int) error {
 	query := `DELETE FROM automation_events WHERE id = $1`
 	_, err := r.db.Exec(query, id)
 	return err
+}
+
+func (r *sqlTemplatesRepository) BulkUpdateStatuses(updates map[string]string) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`UPDATE automation_templates SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE template_name = $2`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for name, status := range updates {
+		_, err = stmt.Exec(status, name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }

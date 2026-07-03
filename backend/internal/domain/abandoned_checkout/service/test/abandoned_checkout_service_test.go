@@ -83,7 +83,6 @@ func (m *MockAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, stor
 	return args.Error(0)
 }
 
-
 type MockTemplatesRepository struct {
 	mock.Mock
 }
@@ -264,4 +263,9 @@ func TestAbandonedCheckoutService_ProcessRecoveryQueue_NoTriggers(t *testing.T) 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 	mockTemplatesRepo.AssertExpectations(t)
+}
+
+func (m *MockTemplatesRepository) BulkUpdateStatuses(updates map[string]string) error {
+	args := m.Called(updates)
+	return args.Error(0)
 }
