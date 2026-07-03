@@ -62,3 +62,12 @@
 * **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
 * **Technical Complexity**: Medium
 * **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
+
+### [IDE-009] Automated B2B Reorder Reminders & One-Click Invoice Generation
+* **Added On**: 2026-07-02
+* **Target Audience**: B2B Customers, Sales Leads
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV) & Reduce Operational Leakage
+* **Customer Value Proposition**: B2B clients receive timely WhatsApp reminders to restock their inventory based on historical order cycles, allowing them to approve and generate a new Proforma Invoice with a single click, saving them administrative hassle.
+* **Business Growth & Profit Impact**: Securing repeat wholesale (B2B) orders is the fastest route to massive AOV spikes. By automating the follow-up process for B2B Proforma Invoices (found in the `b2b` module) using the `communication` SMM hub, we remove the friction of manual sales follow-ups. Increasing B2B reorder rates systematically drives high-volume revenue, accelerating the timeline to hit the 3 Lakhs/month target with zero additional sales staffing costs.
+* **Technical Complexity**: Medium
+* **Description**: Implement a scheduled job that analyzes past `B2BProformaInvoice` records for B2B customers. Based on a calculated typical reorder interval, trigger a WhatsApp template via the `communication` module alerting the customer it might be time to restock. Include a secure action link that, when clicked, automatically duplicates their last invoice as a new 'DRAFT' and notifies the store admin for final approval.
