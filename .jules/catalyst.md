@@ -62,3 +62,12 @@
 * **Business Growth & Profit Impact**: By dynamically injecting a high-margin, low-cost upsell item into the checkout flow or post-purchase WhatsApp confirmation, we capture impulse buys. Even a 20% attach rate on a ₹500 high-margin add-on significantly bumps the AOV, directly accelerating the revenue run-rate toward the 3L/month target without acquiring new customers.
 * **Technical Complexity**: Medium
 * **Description**: Implement a recommendation engine leveraging the `order` module (`LineItem` tracking) and the `inventory` module (`InventoryItem.Price`). When a customer reaches the checkout step or receives a draft order link via the SMM hub, the system queries their current `LineItems`. Based on predefined `InventoryMapping` rules for hero products, it dynamically surfaces a 1-click upsell offer (e.g., a tester vial set) that automatically appends to the `Order` payload before final financial capture.
+
+### [IDE-009] Automated B2B Proforma WhatsApp Follow-up Sequence
+* **Added On**: 2024-06-28
+* **Target Audience**: Store Admins, B2B Clients
+* **3L Growth Vector**: Boost Traffic-to-Customer Conversion & Increase Average Order Value (AOV)
+* **Customer Value Proposition**: B2B clients receive timely, professional follow-ups on their draft or sent proforma invoices directly on WhatsApp. This seamless communication helps answer pending questions and facilitates faster bulk order approvals.
+* **Business Growth & Profit Impact**: B2B orders inherently have a significantly higher AOV. Proforma invoices stuck in 'DRAFT' or 'SENT' statuses represent large sums of potential revenue. By systematically following up via the SMM hub, we can increase the conversion rate of these high-value proposals into confirmed invoices. Securing even 1-2 additional B2B conversions per month through this automated pipeline creates a massive leap toward the 3L/month target with zero additional sales labor cost.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `b2b` module by implementing a background cron job (`planner/cron`) that queries for `B2BProformaInvoice` records where the `Status` has been 'SENT' for more than 48 hours without transitioning to 'ACCEPTED' or 'CONVERTED_TO_INVOICE'. For these records, the system triggers the `communication` (SMM) module to automatically send a targeted WhatsApp template to the `CustomerPhone` (e.g., "Hi [CustomerName], following up on Proforma #[ProformaNumber]. Let us know if you need any adjustments.").
