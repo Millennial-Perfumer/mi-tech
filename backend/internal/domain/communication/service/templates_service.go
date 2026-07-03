@@ -237,10 +237,16 @@ func (s *TemplatesService) SyncStatus(storeID string) error {
 		remoteStatusMap[rt.Name] = rt.Status
 	}
 
+	// Optimization: Batch update statuses instead of single queries.
+	updates := make(map[string]string)
 	for _, t := range templates {
 		if remoteStatus, exists := remoteStatusMap[t.TemplateName]; exists && remoteStatus != t.Status {
-			s.repo.UpdateStatus(t.TemplateName, remoteStatus)
+			updates[t.TemplateName] = remoteStatus
 		}
+	}
+
+	if err := s.repo.BulkUpdateStatuses(updates); err != nil {
+		return fmt.Errorf("failed to bulk update statuses: %w", err)
 	}
 
 	return nil
