@@ -15,3 +15,7 @@
 ## 2026-06-22 - [Accessibility for Complex Modals and Interactive Panels]
 **Learning:** Newly introduced, complex interactive components (like Planner task/sprint boards) frequently omit baseline accessibility attributes (like `type="button"` and `aria-label`) on utility controls (Dismiss, Close, Delete). These omissions pose risks for unintended form submissions and severe usability drops for screen reader users.
 **Action:** When implementing or modifying complex panels and modals, systematically apply defensive `type="button"` attributes and ensure every icon-only or utility button possesses a descriptive `aria-label`.
+
+## 2026-07-03 - [Table Sort Buttons Accessibility]
+**Learning:** Found table headers in `Feedback.tsx` using `aria-label` dynamically on inner buttons to indicate sorting (e.g., 'Customer ↑'). This approach visually works but can override or confuse screen reader announcements.
+**Action:** Always apply `aria-sort="ascending|descending|none"` to the parent `<th>` element instead of relying on text/aria-labels on the inner button, and guarantee the inner trigger button maintains `type="button"`.

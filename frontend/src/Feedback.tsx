@@ -244,6 +244,7 @@ const Feedback: React.FC<FeedbackProps> = ({
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button 
+            type="button"
             onClick={handleScan}
             disabled={isScanning}
             style={{
@@ -300,6 +301,7 @@ const Feedback: React.FC<FeedbackProps> = ({
               </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button 
+                  type="button"
                   onClick={() => setIsScanModalOpen(false)}
                   className="btn-secondary"
                   style={{ border: 'none', background: 'transparent', color: 'var(--text-secondary)', fontSize: '0.875rem' }}
@@ -307,6 +309,7 @@ const Feedback: React.FC<FeedbackProps> = ({
                   Cancel
                 </button>
                 <button 
+                  type="button"
                   onClick={handleBulkSend}
                   disabled={isSending || selectedIds.length === 0}
                   className="btn-primary"
@@ -332,18 +335,27 @@ const Feedback: React.FC<FeedbackProps> = ({
                         onChange={(e) => setSelectedIds(e.target.checked ? scanResults.map(c => c.id) : [])}
                       />
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th
+                      style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}
+                      aria-sort={sortConfig?.key === 'customer_name' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <button type="button" onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Customer {sortConfig?.key === 'customer_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th
+                      style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}
+                      aria-sort={sortConfig?.key === 'order_number' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <button type="button" onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Order # {sortConfig?.key === 'order_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th
+                      style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}
+                      aria-sort={sortConfig?.key === 'delivered_at' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    >
+                      <button type="button" onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Delivered {sortConfig?.key === 'delivered_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
@@ -410,6 +422,8 @@ const Feedback: React.FC<FeedbackProps> = ({
                 </p>
               </div>
               <button 
+                type="button"
+                aria-label="Close Modal"
                 onClick={() => setIsAdminModalOpen(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', padding: '4px' }}
               >
@@ -466,6 +480,7 @@ const Feedback: React.FC<FeedbackProps> = ({
 
             <div className="modal-actions" style={{ display: 'flex', gap: '1rem' }}>
               <button 
+                type="button"
                 onClick={() => setIsAdminModalOpen(false)} 
                 className="btn-secondary"
                 style={{
@@ -479,6 +494,7 @@ const Feedback: React.FC<FeedbackProps> = ({
                 Cancel
               </button>
               <button 
+                type="button"
                 onClick={handleSaveComment} 
                 disabled={isSavingComment}
                 className="btn-primary"
@@ -648,6 +664,7 @@ const Feedback: React.FC<FeedbackProps> = ({
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button 
+                type="button"
                 onClick={() => onNavigate ? onNavigate('settings') : window.location.hash = '#settings'} 
                 className="btn-primary" 
                 style={{ flex: 1, padding: '0.75rem', fontSize: '0.85rem' }}
@@ -655,6 +672,7 @@ const Feedback: React.FC<FeedbackProps> = ({
                 Go to Settings
               </button>
               <button 
+                type="button"
                 onClick={() => fetchConfigStatus()} 
                 className="btn-secondary" 
                 style={{ flex: 1, padding: '0.75rem', fontSize: '0.85rem' }}
