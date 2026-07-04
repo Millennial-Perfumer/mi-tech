@@ -28,6 +28,8 @@ func (h *ManufacturingHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *ManufacturingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var record entity.ManufacturingRecord
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -44,6 +46,8 @@ func (h *ManufacturingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *ManufacturingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var record entity.ManufacturingRecord
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
