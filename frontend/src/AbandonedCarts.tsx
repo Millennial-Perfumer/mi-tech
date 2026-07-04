@@ -259,6 +259,7 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
       {/* Modern Sub-Tab Switcher */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', background: 'var(--bg-input)', padding: '4px', borderRadius: '10px', width: 'fit-content' }}>
         <button
+          type="button"
           onClick={() => setActiveSubTab('list')}
           style={{
             background: activeSubTab === 'list' ? 'var(--bg-card)' : 'transparent',
@@ -276,6 +277,7 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
           Recovery List
         </button>
         <button
+          type="button"
           onClick={() => setActiveSubTab('analytics')}
           style={{
             background: activeSubTab === 'analytics' ? 'var(--bg-card)' : 'transparent',
@@ -320,6 +322,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
               </svg>
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Clear search"
                   className="clear-search"
                   onClick={() => { setSearchQuery(''); setPage(1); }}
                 >
@@ -354,7 +358,7 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
               </div>
             </div>
 
-            <button className="refresh-btn" onClick={() => fetchCheckouts()}>
+            <button type="button" aria-label="Refresh carts" className="refresh-btn" onClick={() => fetchCheckouts()}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
                 <path d="M21 3v5h-5"></path>
@@ -488,6 +492,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                               </a>
                             )}
                             <button
+                              type="button"
+                              aria-label={c.completed ? "Already recovered" : "Send WhatsApp recovery message"}
                               className="btn-primary"
                               style={{
                                 display: 'inline-flex',
@@ -517,6 +523,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                               )}
                             </button>
                             <button
+                              type="button"
+                              aria-label="Delete abandoned checkout"
                               className="btn-danger"
                               style={{
                                 display: 'inline-flex',
@@ -557,6 +565,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
               </div>
               <div className="pagination-controls">
                 <button
+                  type="button"
+                  aria-label="Previous page"
                   className="page-btn"
                   onClick={() => setPage((p: number) => Math.max(1, p - 1))}
                   disabled={page === 1}
@@ -567,6 +577,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                   Page {page} of {totalPages || 1}
                 </span>
                 <button
+                  type="button"
+                  aria-label="Next page"
                   className="page-btn"
                   onClick={() => setPage((p: number) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
@@ -589,6 +601,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>ID: {selectedCart.checkout_id || 'N/A'}</span>
               </div>
               <button
+                type="button"
+                aria-label="Close checkout details"
                 onClick={() => setSelectedCart(null)}
                 style={{
                   background: 'none',
@@ -767,6 +781,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
             {/* Actions in modal */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
               <button
+                type="button"
+                aria-label="Close"
                 className="btn-secondary"
                 onClick={() => setSelectedCart(null)}
                 style={{ height: '38px', borderRadius: '8px', padding: '0 1.25rem' }}
@@ -802,6 +818,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                 </a>
               )}
               <button
+                type="button"
+                aria-label="Delete checkout"
                 className="btn-danger"
                 style={{
                   display: 'inline-flex',
@@ -829,6 +847,8 @@ export function AbandonedCarts({ fetchWithAuth, startDate, endDate }: AbandonedC
                 <span>Delete</span>
               </button>
               <button
+                type="button"
+                aria-label="Send Recovery Message"
                 className="btn-primary"
                 style={{
                   display: 'inline-flex',
