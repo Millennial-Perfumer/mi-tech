@@ -146,7 +146,6 @@ func (s *abandonedCheckoutService) processSingleCheckout(ctx context.Context, ac
 		return
 	}
 
-
 	// Send message
 	log.Printf("Abandoned Checkout Recovery: Dispatching template %s to %s for checkout %d", template.TemplateName, phone, ac.ID)
 	err = s.messagesServ.SendTemplateMessage(
