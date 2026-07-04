@@ -45,6 +45,8 @@ func (h *SettingsHandler) SetDateRange(w http.ResponseWriter, r *http.Request) {
 		StartDate string `json:"start_date"`
 		EndDate   string `json:"end_date"`
 	}
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -93,6 +95,8 @@ func (h *SettingsHandler) UpdateSetting(w http.ResponseWriter, r *http.Request) 
 		Key   string `json:"key"`
 		Value string `json:"value"`
 	}
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

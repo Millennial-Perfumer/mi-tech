@@ -28,6 +28,8 @@ func (h *PurchaseOrderHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *PurchaseOrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var po entity.PurchaseOrder
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&po); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -44,6 +46,8 @@ func (h *PurchaseOrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *PurchaseOrderHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 	var pos []entity.PurchaseOrder
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&pos); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -60,6 +64,8 @@ func (h *PurchaseOrderHandler) BulkCreate(w http.ResponseWriter, r *http.Request
 
 func (h *PurchaseOrderHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var po entity.PurchaseOrder
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&po); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

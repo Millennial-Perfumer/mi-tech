@@ -46,6 +46,8 @@ func (h *ConfigsHandler) RevealConfigs(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Password string `json:"password"`
 	}
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -106,6 +108,8 @@ func (h *ConfigsHandler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		Key   string `json:"key"`
 		Value string `json:"value"`
 	}
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

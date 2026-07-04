@@ -88,6 +88,8 @@ func (h *SMMHandler) CheckHealth(w http.ResponseWriter, r *http.Request) {
 // @Router /marketing/smm/post [post]
 func (h *SMMHandler) PostContent(w http.ResponseWriter, r *http.Request) {
 	var body map[string]string
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

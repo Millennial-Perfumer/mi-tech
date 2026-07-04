@@ -62,6 +62,8 @@ func (h *FeedbackHandler) SubmitFeedback(w http.ResponseWriter, r *http.Request)
 		Phone   string `json:"phone"`
 	}
 
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
@@ -252,6 +254,8 @@ func (h *FeedbackHandler) BulkSendFeedbackRequests(w http.ResponseWriter, r *htt
 		OrderIDs []int64 `json:"order_ids"`
 	}
 
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
@@ -391,6 +395,8 @@ func (h *FeedbackHandler) UpdateFeedbackAdminComment(w http.ResponseWriter, r *h
 	var reqBody struct {
 		AdminComment string `json:"admin_comment"`
 	}
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

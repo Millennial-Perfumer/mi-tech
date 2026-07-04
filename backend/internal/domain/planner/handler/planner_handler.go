@@ -71,6 +71,8 @@ func (h *PlannerHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
 // CreateTask handles POST /api/planner/tasks
 func (h *PlannerHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateTaskRequest
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
@@ -92,6 +94,8 @@ func (h *PlannerHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 // MoveTask handles POST /api/planner/tasks/move
 func (h *PlannerHandler) MoveTask(w http.ResponseWriter, r *http.Request) {
 	var req dto.MoveTaskRequest
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
@@ -141,6 +145,8 @@ func (h *PlannerHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.UpdateTaskRequest
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
@@ -203,6 +209,8 @@ func (h *PlannerHandler) GetSprints(w http.ResponseWriter, r *http.Request) {
 // CreateSprint handles POST /api/planner/sprints
 func (h *PlannerHandler) CreateSprint(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateSprintRequest
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
@@ -230,6 +238,8 @@ func (h *PlannerHandler) UpdateSprint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req dto.UpdateSprintRequest
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
