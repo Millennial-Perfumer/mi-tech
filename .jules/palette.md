@@ -15,3 +15,7 @@
 ## 2026-06-22 - [Accessibility for Complex Modals and Interactive Panels]
 **Learning:** Newly introduced, complex interactive components (like Planner task/sprint boards) frequently omit baseline accessibility attributes (like `type="button"` and `aria-label`) on utility controls (Dismiss, Close, Delete). These omissions pose risks for unintended form submissions and severe usability drops for screen reader users.
 **Action:** When implementing or modifying complex panels and modals, systematically apply defensive `type="button"` attributes and ensure every icon-only or utility button possesses a descriptive `aria-label`.
+
+## 2026-06-25 - [AbandonedCarts Component Accessibility]
+**Learning:** Evaluated `frontend/src/AbandonedCarts.tsx` and found numerous interactive icon-only buttons (clear search, refresh, table row actions like "Send WhatsApp" and "Delete", and modal controls) lacking both `type="button"` and `aria-label` attributes.
+**Action:** Consistently enforce `type="button"` defensively to prevent accidental form submissions, and ensure every icon-only or utility button possesses a descriptive `aria-label` to maintain accessibility for screen reader users across complex sub-tabbed interfaces.
