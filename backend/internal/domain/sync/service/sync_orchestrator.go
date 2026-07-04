@@ -10,6 +10,7 @@ import (
 	"mi-tech/internal/shared/extclient/shopify"
 	"os"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -134,50 +135,58 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 
 	log.Printf("SyncOrchestrator: Triggering global sync batch for %d items", len(items))
 
-	// Discover location ID once per batch if needed
-	var shopifyLocationID string
-	var locationDiscovered bool
+	// Pre-fetch Shopify Location ID before the parallel loop to avoid race conditions and redundant calls
+	shopifyLocationID := s.shopifyClient.GetLocationID()
+	if shopifyLocationID == "" {
+		discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
+		if err == nil {
+			shopifyLocationID = discoveredID
+			log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
+		} else {
+			log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+		}
+	}
+
+	g, _ := errgroup.WithContext(ctx)
+	// Set a concurrency limit to avoid overwhelming external APIs and triggering rate limits
+	g.SetLimit(5)
 
 	for _, item := range items {
-		for _, m := range item.Mappings {
-			if m.Platform == sourcePlatform {
+		currentItem := item // capture loop variable
+		for _, m := range currentItem.Mappings {
+			currentMapping := m // capture loop variable
+			if currentMapping.Platform == sourcePlatform {
 				continue // Don't push back to the platform that triggered the change
 			}
 
-			switch m.Platform {
-			case "shopify":
-				if m.ExternalVariantID != nil {
-					log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
-
-					if shopifyLocationID == "" && !locationDiscovered {
-						shopifyLocationID = s.shopifyClient.GetLocationID()
-						if shopifyLocationID == "" {
-							discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
-							if err == nil {
-								shopifyLocationID = discoveredID
-								log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
-							} else {
-								log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
-							}
-						}
-						locationDiscovered = true
-					}
-
-					if shopifyLocationID != "" {
-						err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
+			g.Go(func() error {
+				switch currentMapping.Platform {
+				case "shopify":
+					if currentMapping.ExternalVariantID != nil && shopifyLocationID != "" {
+						log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *currentMapping.ExternalVariantID)
+						err := s.shopifyClient.AdjustInventoryLevel(*currentMapping.ExternalVariantID, shopifyLocationID, currentItem.CurrentStock)
 						if err != nil {
-							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
+							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *currentMapping.ExternalVariantID, err)
 						}
 					}
+				case "amazon":
+					log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", currentMapping.ExternalSKU)
+					err := s.amazonClient.UpdateInventory(currentMapping.ExternalSKU, currentItem.CurrentStock)
+					if err != nil {
+						log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", currentMapping.ExternalSKU, err)
+					}
 				}
-			case "amazon":
-				log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
-				err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
-				if err != nil {
-					log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
-				}
-			}
+				// We return nil even on error so that one failed push doesn't cancel the entire batch for other platforms/items
+				// The errors are logged as warnings above.
+				return nil
+			})
 		}
+	}
+
+	// Wait for all concurrent pushes to finish
+	if err := g.Wait(); err != nil {
+		// Log the error but don't fail the entire local process if some platforms couldn't be updated
+		log.Printf("SyncOrchestrator: Error during parallel sync: %v", err)
 	}
 
 	return nil
