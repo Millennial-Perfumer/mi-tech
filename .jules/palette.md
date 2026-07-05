@@ -8,7 +8,7 @@
 ## 2026-06-15 - [Icon-only Button Accessibility and Form Submission Prevention]
 **Learning:** Many interactive buttons in complex components like `AIAnalysis.tsx` missed `type="button"`, which could cause accidental form submissions if placed near forms. Additionally, utility buttons with only icons (like the send button or clear search) lacked `aria-label` attributes, impacting screen reader users.
 **Action:** Always add `type="button"` defensively to non-submit buttons and ensure explicit `aria-label` attributes on any icon-only interactive element.
-## 2026-06-25 - [Accessibility for Modals and Search Filters]
+## 2024-06-25 - [Accessibility for Modals and Search Filters]
 **Learning:** Found multiple instances where utility 'close' or 'clear' icon buttons in modals and search inputs (e.g., `&times;` or `✕`) lacked `type="button"` and `aria-label`. Without these attributes, screen readers cannot communicate the button's function, and they may inadvertently trigger parent form submissions.
 **Action:** When creating or maintaining modals, popovers, and search bars, aggressively add `type="button"` and descriptive `aria-label` attributes to any icon-only interactive controls.
 
@@ -19,3 +19,7 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+
+## 2024-06-25 - [Interactive Form Icon Buttons Accessibility]
+**Learning:** Icon-only utility buttons within production and inventory components (`Manufacturing.tsx`, `OilInventory.tsx`, `PurchaseOrders.tsx`), such as Edit, Delete, and Clear Search, were missing `type="button"` and `aria-label` attributes. Missing these attributes causes unintended form submissions and severe accessibility issues for screen readers.
+**Action:** Always add explicit `type="button"` and descriptive `aria-label` attributes to icon-only interactive controls, especially in forms or data tables.
