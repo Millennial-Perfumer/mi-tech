@@ -9,7 +9,9 @@ import (
 	"mi-tech/internal/shared/extclient/amazon"
 	"mi-tech/internal/shared/extclient/shopify"
 	"os"
+	"sync"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -136,51 +138,57 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 
 	// Discover location ID once per batch if needed
 	var shopifyLocationID string
-	var locationDiscovered bool
+	var locationOnce sync.Once
+
+	eg, _ := errgroup.WithContext(ctx)
+	eg.SetLimit(5) // Limit concurrency to avoid rate limits
 
 	for _, item := range items {
-		for _, m := range item.Mappings {
-			if m.Platform == sourcePlatform {
-				continue // Don't push back to the platform that triggered the change
-			}
+		item := item // capture loop variable
+		eg.Go(func() error {
+			for _, m := range item.Mappings {
+				if m.Platform == sourcePlatform {
+					continue // Don't push back to the platform that triggered the change
+				}
 
-			switch m.Platform {
-			case "shopify":
-				if m.ExternalVariantID != nil {
-					log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
+				switch m.Platform {
+				case "shopify":
+					if m.ExternalVariantID != nil {
+						log.Printf("SyncOrchestrator: Pushing stock update to Shopify for inventory item %s", *m.ExternalVariantID)
 
-					if shopifyLocationID == "" && !locationDiscovered {
-						shopifyLocationID = s.shopifyClient.GetLocationID()
-						if shopifyLocationID == "" {
-							discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
-							if err == nil {
-								shopifyLocationID = discoveredID
-								log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
-							} else {
-								log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+						locationOnce.Do(func() {
+							shopifyLocationID = s.shopifyClient.GetLocationID()
+							if shopifyLocationID == "" {
+								discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
+								if err == nil {
+									shopifyLocationID = discoveredID
+									log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
+								} else {
+									log.Printf("SyncOrchestrator Warning: Shopify location ID not configured and discovery failed: %v", err)
+								}
+							}
+						})
+
+						if shopifyLocationID != "" {
+							err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
+							if err != nil {
+								log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
 							}
 						}
-						locationDiscovered = true
 					}
-
-					if shopifyLocationID != "" {
-						err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
-						if err != nil {
-							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
-						}
+				case "amazon":
+					log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
+					err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
+					if err != nil {
+						log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
 					}
-				}
-			case "amazon":
-				log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
-				err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
-				if err != nil {
-					log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
 				}
 			}
-		}
+			return nil
+		})
 	}
 
-	return nil
+	return eg.Wait()
 }
 
 // AdjustStockInternal performs only the local DB updates and logging.
