@@ -286,6 +286,7 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
             <button
               type="button"
               onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+              aria-label="Clear search"
               style={{
                 position: 'absolute',
                 right: '0.75rem',
@@ -311,7 +312,6 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
                 e.currentTarget.style.color = 'var(--text-tertiary)';
                 e.currentTarget.style.background = 'transparent';
               }}
-              aria-label="Clear search"
               title="Clear search"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -440,9 +440,10 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
                   </td>
                   <td style={{ padding: '1.25rem 2rem', textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                      <button 
+                      <button type="button"
                         className="icon-btn-premium" 
                         title="Edit Oil Stock"
+                        aria-label="Edit Oil Stock"
                         onClick={() => {
                           setEditingId(o.id);
                           setFormData({
@@ -463,9 +464,10 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <button 
+                      <button type="button"
                         className="icon-btn-premium delete" 
                         title="Delete Record"
+                        aria-label="Delete Record"
                         onClick={() => handleDelete(o.id)}
                         style={{ 
                           width: '36px', height: '36px', borderRadius: '10px', 
