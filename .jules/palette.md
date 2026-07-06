@@ -19,3 +19,7 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+
+## 2026-06-25 - [Accessibility for Delete Actions]
+**Learning:** Icon-only delete and edit buttons in tables (like in `PurchaseOrders.tsx`) often miss `type="button"` and `aria-label`. Without `type="button"`, they risk triggering unintended parent form submissions, and without `aria-label`, screen readers only hear "button", providing zero context on what action will be performed or on which row.
+**Action:** When working with inline table actions or mapping over lists to render buttons, aggressively add `type="button"` and ensure explicit `aria-label` attributes provide descriptive context (e.g., "Edit Purchase Order").

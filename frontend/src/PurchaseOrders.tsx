@@ -297,10 +297,10 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
                     <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent-color)' }}>₹{po.total_price.toLocaleString()}</td>
                     <td style={{ paddingRight: '2rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button className="icon-btn" onClick={() => handleEdit(po)} title="Edit">
+                        <button type="button" aria-label="Edit Purchase Order" className="icon-btn" onClick={() => handleEdit(po)} title="Edit">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button className="icon-btn delete" onClick={() => handleDelete(po.id)} title="Delete">
+                        <button type="button" aria-label="Delete Purchase Order" className="icon-btn delete" onClick={() => handleDelete(po.id)} title="Delete">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                         </button>
                       </div>
@@ -375,7 +375,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
                       </div>
                       <div style={{ height: '44px', display: 'flex', alignItems: 'center' }}>
                         {!editingRecordId && formData.items.length > 1 && (
-                          <button type="button" className="icon-btn delete" onClick={() => handleRemoveItem(idx)} style={{ width: '36px', height: '36px' }}>
+                          <button type="button" aria-label="Remove Item" className="icon-btn delete" onClick={() => handleRemoveItem(idx)} style={{ width: '36px', height: '36px' }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                           </button>
                         )}
