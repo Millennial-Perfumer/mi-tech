@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Re-Engagement Loops for Positive Feedback
+* **Added On**: 2026-07-06
+* **Target Audience**: End Customers, Store Admins
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Customers who have recently expressed high satisfaction are seamlessly offered a personalized token of appreciation (like a discount link or a special bundle offer) via WhatsApp, thanking them for their feedback and encouraging a repeat purchase while brand affinity is highest.
+* **Business Growth & Profit Impact**: Leveraging positive feedback for immediate re-engagement captures customers at their highest point of satisfaction. By automating a WhatsApp template containing a discount or upsell link triggered by a 4 or 5-star rating, we drive a high-converting repeat purchase loop. This boosts LTV and purchase frequency directly contributing to the 3L/month target with negligible customer acquisition cost.
+* **Technical Complexity**: Medium
+* **Description**: Implement a listener or background job within the `feedback` module that monitors incoming `CustomerFeedback` records. When a rating of 4 or 5 is received, the system waits for a short delay (e.g., 2 hours), then uses the `communication` (SMM) module to dispatch a personalized WhatsApp template message (e.g., "We're so glad you loved your order! Here's 10% off your next purchase...") containing a trackable Shopify discount link to the customer's phone number.
