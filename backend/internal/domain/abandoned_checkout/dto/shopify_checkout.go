@@ -55,3 +55,20 @@ type ShopifyCheckoutItem struct {
 	Price     string `json:"price"`
 	SKU       string `json:"sku"`
 }
+
+type ShopifyWebhookCart struct {
+	ID        string            `json:"id"`
+	Token     string            `json:"token"`
+	LineItems []ShopifyCartItem `json:"line_items"`
+}
+
+type ShopifyCartItem struct {
+	ID        int64  `json:"id"`
+	ProductID int64  `json:"product_id"`
+	VariantID int64  `json:"variant_id"`
+	Title     string `json:"title"`
+	Quantity  int    `json:"quantity"`
+	Price     string `json:"price"`
+	SKU       string `json:"sku"`
+}
+

@@ -32,6 +32,7 @@ type AbandonedCheckoutService interface {
 	GetAnalytics(ctx context.Context, storeID string, startDate, endDate string) (*acDto.AbandonedCheckoutAnalyticsResponse, error)
 	DeleteCheckout(ctx context.Context, storeID string, id int) error
 	UpdateCheckoutStatus(ctx context.Context, storeID string, id int, status string, completed bool) error
+	ProcessCartWebhook(ctx context.Context, storeID string, cartToken string, lineItems []byte) error
 }
 
 type abandonedCheckoutService struct {
@@ -306,3 +307,14 @@ func (s *abandonedCheckoutService) DeleteCheckout(ctx context.Context, storeID s
 func (s *abandonedCheckoutService) UpdateCheckoutStatus(ctx context.Context, storeID string, id int, status string, completed bool) error {
 	return s.repo.UpdateStatus(ctx, storeID, id, status, completed)
 }
+
+func (s *abandonedCheckoutService) ProcessCartWebhook(ctx context.Context, storeID string, cartToken string, lineItems []byte) error {
+	raw := json.RawMessage(lineItems)
+	cart := acEntity.ShopifyCart{
+		StoreID:   storeID,
+		CartToken: cartToken,
+		LineItems: &raw,
+	}
+	return s.repo.UpsertCart(ctx, &cart)
+}
+
