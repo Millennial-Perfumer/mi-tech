@@ -88,7 +88,6 @@ func (m *MockAbandonedCheckoutRepository) UpsertCart(ctx context.Context, cart *
 	return args.Error(0)
 }
 
-
 type MockTemplatesRepository struct {
 	mock.Mock
 }
@@ -105,6 +104,11 @@ func (m *MockTemplatesRepository) GetTemplates(storeID string, startDate, endDat
 
 func (m *MockTemplatesRepository) UpdateStatus(templateName, status string) error {
 	args := m.Called(templateName, status)
+	return args.Error(0)
+}
+
+func (m *MockTemplatesRepository) BulkUpdateStatuses(updates map[string]string) error {
+	args := m.Called(updates)
 	return args.Error(0)
 }
 
@@ -290,4 +294,3 @@ func TestAbandonedCheckoutService_ProcessCartWebhook(t *testing.T) {
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
-

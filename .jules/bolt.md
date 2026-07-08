@@ -60,3 +60,7 @@
 ## 2026-06-25 - [Parallelize Abandoned Checkout Recovery]
 **Learning:** Processing abandoned checkouts sequentially within `ProcessRecoveryQueue` creates an O(N) bottleneck due to external API calls and database updates performed by `processSingleCheckout`.
 **Action:** When iterating over a batch of items that each require external API updates or DB queries in a background queue, use `golang.org/x/sync/errgroup` to parallelize the requests. Limit concurrency to `5` to prevent overloading the network and external rate limits. Always capture the loop variable for goroutines (`ac := ac`).
+
+## 2026-06-25 - [Fixing N+1 Queries in TemplatesService Syncs]
+**Learning:** Sequential template status updates within `TemplatesService.SyncStatus` and `SyncAllTemplates` iterate over a list and execute individual `UpdateStatus` DB queries. This results in an N+1 performance bottleneck due to opening/committing multiple transactions.
+**Action:** When updating multiple rows of the same entity, create a bulk update repository method (e.g., `BulkUpdateStatuses`) that uses a prepared statement inside a single `tx, _ := r.db.Begin()` transaction. Always aggregate the changes in memory first (like building a `map[string]string`) and send them to the bulk method to reduce the DB calls to O(1) transaction overhead. Ensure to update test mocks appropriately.

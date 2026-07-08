@@ -237,10 +237,17 @@ func (s *TemplatesService) SyncStatus(storeID string) error {
 		remoteStatusMap[rt.Name] = rt.Status
 	}
 
+	// Optimization: Instead of updating each template status sequentially resulting in O(N) database queries,
+	// we aggregate the changes and perform a bulk update, reducing DB calls to O(1) transaction.
+	updates := make(map[string]string)
 	for _, t := range templates {
 		if remoteStatus, exists := remoteStatusMap[t.TemplateName]; exists && remoteStatus != t.Status {
-			s.repo.UpdateStatus(t.TemplateName, remoteStatus)
+			updates[t.TemplateName] = remoteStatus
 		}
+	}
+
+	if len(updates) > 0 {
+		return s.repo.BulkUpdateStatuses(updates)
 	}
 
 	return nil
@@ -488,11 +495,17 @@ func (s *TemplatesService) SyncAllTemplates(storeID string) error {
 		}
 	}
 
+	// Optimization: Aggregate ARCHIVED status changes and update them in bulk to avoid O(N) database queries.
+	updates := make(map[string]string)
 	for _, local := range existingTemplates {
 		if !remoteNames[local.TemplateName] && local.Status != "ARCHIVED" {
 			log.Printf("Template %s not found in Meta, marking as ARCHIVED", local.TemplateName)
-			s.repo.UpdateStatus(local.TemplateName, "ARCHIVED")
+			updates[local.TemplateName] = "ARCHIVED"
 		}
+	}
+
+	if len(updates) > 0 {
+		return s.repo.BulkUpdateStatuses(updates)
 	}
 
 	return nil
