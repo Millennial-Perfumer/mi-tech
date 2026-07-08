@@ -607,6 +607,8 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
                 </div>
               </div>
               <button 
+                type="button"
+                aria-label="Close modal"
                 onClick={() => setIsModalOpen(false)}
                 style={{ background: 'var(--bg-input)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >

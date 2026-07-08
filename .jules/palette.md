@@ -19,3 +19,7 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+
+## 2026-06-25 - [Accessibility for Modals and Tables Icon-Only Buttons]
+**Learning:** Icon-only utility buttons across various components like `MarketingDashboard.tsx`, `PurchaseOrders.tsx`, `AutomationTriggers.tsx`, and `Tickets.tsx` frequently missed `type="button"` and `aria-label` attributes. Without these, they are inaccessible to screen readers and can cause accidental form submissions in nearby React components.
+**Action:** When auditing React tables and modals, ensure every icon-only or utility button (e.g., Close, Edit, Delete, Pause/Resume) has explicit `type="button"` and a descriptive `aria-label` attribute to improve accessibility and prevent unwanted form submissions.
