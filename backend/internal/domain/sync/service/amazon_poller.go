@@ -1,6 +1,9 @@
 package service
 
 import (
+	"golang.org/x/sync/errgroup"
+	"sync"
+
 	"context"
 	"fmt"
 	"log/slog"
@@ -96,6 +99,30 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 
 	slog.Info("AmazonOrderPoller: API Response", "orderCount", len(amazonOrders))
 
+	// Pre-fetch items in parallel to avoid O(N) network latency
+	var itemsMu sync.Mutex
+	prefetchedItems := make(map[string][]map[string]interface{})
+
+	eg, _ := errgroup.WithContext(ctx)
+	eg.SetLimit(5)
+
+	for _, ao := range amazonOrders {
+		ao := ao
+		eg.Go(func() error {
+			amazonOrderID := ao["AmazonOrderId"].(string)
+			items, err := p.amazonClient.GetOrderItems(amazonOrderID)
+			if err != nil {
+				slog.Error("AmazonOrderPoller: Failed to fetch items for order during pre-fetch", "orderID", amazonOrderID, "error", err)
+				return nil // Don't fail the whole group, just skip this one later
+			}
+			itemsMu.Lock()
+			prefetchedItems[amazonOrderID] = items
+			itemsMu.Unlock()
+			return nil
+		})
+	}
+	_ = eg.Wait()
+
 	maxSeq, err := p.orderRepo.GetMaxAmazonInvoiceNumber()
 	if err != nil {
 		slog.Error("AmazonOrderPoller: Failed to fetch max Amazon invoice number", "error", err)
@@ -115,9 +142,10 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		)
 
 		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+		items, ok := prefetchedItems[amazonOrderID]
+		if !ok {
+			// Item fetch failed in the errgroup, skip this order
+			slog.Error("AmazonOrderPoller: Skipping order due to missing items", "orderID", amazonOrderID)
 			continue
 		}
 
