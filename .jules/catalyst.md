@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] B2B Proforma 1-Click WhatsApp Approval Flow
+* **Added On**: 2024-06-26
+* **Target Audience**: B2B Clients, Wholesale Partners
+* **3L Growth Vector**: Increase Average Order Value (AOV)
+* **Customer Value Proposition**: Wholesale clients can review and approve high-value B2B proforma invoices instantly via WhatsApp with a single click, eliminating email friction and speeding up the purchasing process.
+* **Business Growth & Profit Impact**: High-AOV B2B orders are critical to hitting the 3L/month target. By integrating the existing `b2b` proforma module with the `communication` SMM hub, we reduce the time-to-conversion for wholesale deals. Faster approvals mean quicker payment cycles and higher throughput of large orders, directly boosting top-line revenue and net profit margins.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `b2b` module (`backend/internal/domain/b2b/service/proforma_b2b.go`) to trigger an event when a `B2BProformaInvoice` state changes to SENT. A background worker picks up this event and uses the `communication` module (SMM hub) to send a WhatsApp template to the B2B client's registered number. The message contains a summary of the proforma and a unique, secure 1-click approval link. Clicking the link updates the proforma status to ACCEPTED and triggers the next workflow step (e.g., CONVERTED_TO_INVOICE).
