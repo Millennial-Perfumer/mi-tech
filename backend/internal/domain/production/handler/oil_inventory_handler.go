@@ -30,6 +30,7 @@ func (h *OilInventoryHandler) ListOils(w http.ResponseWriter, r *http.Request) {
 
 func (h *OilInventoryHandler) CreateOil(w http.ResponseWriter, r *http.Request) {
 	var oil entity.OilInventory
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&oil); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -44,6 +45,7 @@ func (h *OilInventoryHandler) CreateOil(w http.ResponseWriter, r *http.Request) 
 
 func (h *OilInventoryHandler) UpdateOil(w http.ResponseWriter, r *http.Request) {
 	var oil entity.OilInventory
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&oil); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -74,6 +76,7 @@ func (h *OilInventoryHandler) BulkDeleteOils(w http.ResponseWriter, r *http.Requ
 	var req struct {
 		IDs []int `json:"ids"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

@@ -68,6 +68,7 @@ func (h *SyncHandler) SyncOrders(w http.ResponseWriter, r *http.Request) {
 	// Also check body for JSON (preferred for POST)
 	if r.Body != nil && r.ContentLength > 0 {
 		var body SyncRequest
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 			return

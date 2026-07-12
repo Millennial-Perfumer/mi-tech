@@ -892,4 +892,3 @@ func (r *gormOrderRepository) GetMaxAmazonInvoiceNumber() (int, error) {
 	`).Scan(&maxVal).Error
 	return maxVal, err
 }
-
