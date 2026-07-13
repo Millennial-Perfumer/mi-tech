@@ -1093,7 +1093,7 @@ func (c *MetaMarketingClient) FetchDetailedMediaInsights(mediaID string, mediaTy
 
 		u2 := fmt.Sprintf("%s/%s/%s/insights?metric=%s&breakdown=follow_type&metric_type=total_value&access_token=%s",
 			c.baseURL, c.version, mediaID, metric, token)
-		resp2, err := http.Get(u2)
+		resp2, err := c.client.Get(u2)
 		if err != nil {
 			continue
 		}

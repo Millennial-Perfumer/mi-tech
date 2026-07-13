@@ -13,17 +13,22 @@ import (
 	"net/textproto"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type MetaClient struct {
 	settings   *config.SettingsProvider
 	apiVersion string
+	client     *http.Client
 }
 
 func NewMetaClient(settings *config.SettingsProvider) *MetaClient {
 	return &MetaClient{
 		settings:   settings,
 		apiVersion: "v22.0",
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -57,7 +62,7 @@ func (c *MetaClient) CreateTemplate(req TemplateRequest) (string, error) {
 	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client.Do(httpReq)
 	if err != nil {
 		return "", err
 	}
@@ -80,7 +85,7 @@ func (c *MetaClient) CreateTemplate(req TemplateRequest) (string, error) {
 }
 
 func (c *MetaClient) UploadMediaFromURL(appID string, fileURL string) (string, error) {
-	resp, err := http.Get(fileURL)
+	resp, err := c.client.Get(fileURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to download media: %w", err)
 	}
@@ -124,7 +129,7 @@ func (c *MetaClient) UploadMediaFromBytes(appID string, body []byte, mimeType st
 	req, _ := http.NewRequest("POST", sessionURL, nil)
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-	sessionResp, err := http.DefaultClient.Do(req)
+	sessionResp, err := c.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create upload session: %w", err)
 	}
@@ -148,7 +153,7 @@ func (c *MetaClient) UploadMediaFromBytes(appID string, body []byte, mimeType st
 	reqUpload.Header.Set("Authorization", "OAuth "+c.settings.GetWhatsAppAccessToken())
 	reqUpload.Header.Set("file_offset", "0")
 
-	uploadResp, err := http.DefaultClient.Do(reqUpload)
+	uploadResp, err := c.client.Do(reqUpload)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload media: %w", err)
 	}
@@ -203,7 +208,7 @@ func (c *MetaClient) UploadWhatsAppMedia(body []byte, filename, mimeType string)
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -244,7 +249,7 @@ func (c *MetaClient) UpdateTemplate(metaTemplateID string, components []map[stri
 	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client.Do(httpReq)
 	if err != nil {
 		return err
 	}
@@ -269,7 +274,7 @@ func (c *MetaClient) DeleteTemplate(templateName string) error {
 
 	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client.Do(httpReq)
 	if err != nil {
 		return err
 	}
@@ -304,7 +309,7 @@ func (c *MetaClient) GetRemoteTemplateByName(templateName string) (*RemoteTempla
 
 	httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.client.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +348,7 @@ func (c *MetaClient) GetAllRemoteTemplates() ([]RemoteTemplate, error) {
 
 		httpReq.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-		resp, err := http.DefaultClient.Do(httpReq)
+		resp, err := c.client.Do(httpReq)
 		if err != nil {
 			return nil, err
 		}
@@ -405,7 +410,7 @@ func (c *MetaClient) SendTemplateMessage(phoneNumber, templateName, languageCode
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -460,7 +465,7 @@ func (c *MetaClient) GetTemplateAnalytics(startDate, endDate string) (map[string
 
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +542,7 @@ func (c *MetaClient) SendMediaMessage(phoneNumber, mediaID, mediaType, caption s
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -592,7 +597,7 @@ func (c *MetaClient) SendTextMessage(phoneNumber, text string) (string, error) {
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -625,7 +630,7 @@ func (c *MetaClient) GetMediaURL(mediaID string) (string, error) {
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -650,7 +655,7 @@ func (c *MetaClient) DownloadMedia(downloadURL string) ([]byte, string, error) {
 	// Some media URLs already contain tokens or require the Authorization header
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
