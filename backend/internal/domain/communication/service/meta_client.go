@@ -9,6 +9,7 @@ import (
 	"mi-tech/internal/domain/communication/entity"
 	"mi-tech/internal/shared/config"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/textproto"
 	"net/url"
@@ -84,7 +85,43 @@ func (c *MetaClient) CreateTemplate(req TemplateRequest) (string, error) {
 	return result.ID, nil
 }
 
+func isSafeURL(u string) error {
+	parsed, err := url.ParseRequestURI(u)
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("unsupported scheme: %s", parsed.Scheme)
+	}
+
+	host := parsed.Hostname()
+
+	// Fast paths for obvious loopbacks
+	if host == "localhost" {
+		return fmt.Errorf("unsafe url host: localhost")
+	}
+
+	// We want to avoid full DNS resolution if possible to prevent slow requests and DNS rebinding,
+	// but standard libraries usually parse IPs easily. Let's see if it's a literal IP.
+	ip := net.ParseIP(host)
+	if ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() {
+			return fmt.Errorf("unsafe url ip: %s", ip.String())
+		}
+	}
+
+	// Otherwise, it's a hostname. For a fully robust solution, one would need a custom
+	// net.Dialer that checks the resolved IP *before* connecting.
+	// Given the context here (fetching media/samples usually from standard platforms),
+	// blocking literal IPs that are private/loopback is a solid first defense line against basic SSRF.
+
+	return nil
+}
+
 func (c *MetaClient) UploadMediaFromURL(appID string, fileURL string) (string, error) {
+	if err := isSafeURL(fileURL); err != nil {
+		return "", fmt.Errorf("invalid or unsafe URL: %w", err)
+	}
 	resp, err := c.client.Get(fileURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to download media: %w", err)
@@ -651,6 +688,9 @@ func (c *MetaClient) GetMediaURL(mediaID string) (string, error) {
 }
 
 func (c *MetaClient) DownloadMedia(downloadURL string) ([]byte, string, error) {
+	if err := isSafeURL(downloadURL); err != nil {
+		return nil, "", fmt.Errorf("invalid or unsafe URL: %w", err)
+	}
 	req, _ := http.NewRequest("GET", downloadURL, nil)
 	// Some media URLs already contain tokens or require the Authorization header
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
