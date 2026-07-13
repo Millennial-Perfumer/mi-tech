@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Positive Feedback Re-Engagement & Upsell Loop
+* **Added On**: 2024-07-13
+* **Target Audience**: End Customers, Store Admins
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Rewards customers who had a great experience with a personalized 'Thank You' discount, making them feel valued and encouraging them to return.
+* **Business Growth & Profit Impact**: Leverages the existing `feedback` module where customers leave positive ratings. By immediately following up a 4 or 5-star rating with an automated WhatsApp message containing a limited-time upsell or discount link via the `communication` hub, we passively drive high-converting repeat purchases, directly scaling revenue toward the 3L/month target with zero additional acquisition cost.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `FeedbackService` (`backend/internal/domain/feedback/service/feedback_service.go`) to evaluate incoming customer feedback submissions. If the `Rating` is >= 4, the service triggers a payload to the `communication` module (`AgentService` or SMM hub). The hub then dispatches a pre-configured WhatsApp template message to the `CustomerPhone` containing a time-sensitive, single-use checkout or discount link to encourage an immediate follow-up purchase.
