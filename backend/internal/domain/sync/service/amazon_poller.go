@@ -11,7 +11,10 @@ import (
 	"mi-tech/internal/shared/util"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type AmazonOrderPoller struct {
@@ -103,6 +106,34 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 	}
 	nextSeq := maxSeq + 1
 
+	// Pre-fetch items concurrently to avoid O(N) network bottleneck
+	var mu sync.Mutex
+	orderItemsMap := make(map[string][]map[string]interface{})
+
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(5) // Respect API rate limits
+
+	for _, ao := range amazonOrders {
+		amazonOrderID := ao["AmazonOrderId"].(string)
+		eg.Go(func() error {
+			// Fast check if context is cancelled
+			if egCtx.Err() != nil {
+				return egCtx.Err()
+			}
+			items, err := p.amazonClient.GetOrderItems(amazonOrderID)
+			if err != nil {
+				slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+				// Don't fail the whole group, just continue. We will handle missing items in the sequential loop.
+				return nil
+			}
+			mu.Lock()
+			orderItemsMap[amazonOrderID] = items
+			mu.Unlock()
+			return nil
+		})
+	}
+	_ = eg.Wait()
+
 	for _, ao := range amazonOrders {
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
@@ -115,9 +146,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		)
 
 		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+		items, exists := orderItemsMap[amazonOrderID]
+		if !exists {
+			slog.Warn("AmazonOrderPoller: Items not pre-fetched for order, skipping", "orderID", amazonOrderID)
 			continue
 		}
 
