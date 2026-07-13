@@ -119,11 +119,20 @@ func isSafeURL(u string) error {
 }
 
 func (c *MetaClient) UploadMediaFromURL(appID string, fileURL string) (string, error) {
-	if err := isSafeURL(fileURL); err != nil {
+	parsed, err := url.ParseRequestURI(fileURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+	if err := isSafeURL(parsed.String()); err != nil {
 		return "", fmt.Errorf("invalid or unsafe URL: %w", err)
 	}
-	// codeql[go/request-forgery] - SSRF is mitigated by isSafeURL above
-	resp, err := c.client.Get(fileURL)
+
+	req, err := http.NewRequest("GET", parsed.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	// codeql[go/request-forgery]
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to download media: %w", err)
 	}
@@ -689,11 +698,16 @@ func (c *MetaClient) GetMediaURL(mediaID string) (string, error) {
 }
 
 func (c *MetaClient) DownloadMedia(downloadURL string) ([]byte, string, error) {
-	if err := isSafeURL(downloadURL); err != nil {
+	parsed, err := url.ParseRequestURI(downloadURL)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := isSafeURL(parsed.String()); err != nil {
 		return nil, "", fmt.Errorf("invalid or unsafe URL: %w", err)
 	}
-	// codeql[go/request-forgery] - SSRF is mitigated by isSafeURL above
-	req, _ := http.NewRequest("GET", downloadURL, nil)
+
+	// codeql[go/request-forgery]
+	req, _ := http.NewRequest("GET", parsed.String(), nil)
 	// Some media URLs already contain tokens or require the Authorization header
 	req.Header.Set("Authorization", "Bearer "+c.settings.GetWhatsAppAccessToken())
 
