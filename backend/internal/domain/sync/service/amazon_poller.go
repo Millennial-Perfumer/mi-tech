@@ -11,7 +11,10 @@ import (
 	"mi-tech/internal/shared/util"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type AmazonOrderPoller struct {
@@ -103,6 +106,28 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 	}
 	nextSeq := maxSeq + 1
 
+	// Pre-fetch order items concurrently to avoid O(N) network latency
+	orderItemsMap := make(map[string][]map[string]interface{})
+	var itemsMutex sync.Mutex
+	eg, _ := errgroup.WithContext(ctx)
+	eg.SetLimit(5)
+
+	for _, ao := range amazonOrders {
+		amazonOrderID := ao["AmazonOrderId"].(string)
+		eg.Go(func() error {
+			items, err := p.amazonClient.GetOrderItems(amazonOrderID)
+			if err != nil {
+				slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+				return nil // Don't fail the whole group for one order
+			}
+			itemsMutex.Lock()
+			orderItemsMap[amazonOrderID] = items
+			itemsMutex.Unlock()
+			return nil
+		})
+	}
+	eg.Wait()
+
 	for _, ao := range amazonOrders {
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
@@ -115,9 +140,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		)
 
 		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+		items, ok := orderItemsMap[amazonOrderID]
+		if !ok {
+			// Item fetch failed earlier or is missing
 			continue
 		}
 
