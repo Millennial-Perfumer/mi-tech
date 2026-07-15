@@ -66,12 +66,17 @@ func RegisterRoutes(
 ) {
 	log.Println("DEBUG: Registering API Routes...")
 	cors := middleware.CORSMiddleware
-	auth := middleware.AuthMiddleware(authService)
+	authMiddlewareFunc := middleware.AuthMiddleware(authService)
+	auth := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			middleware.MaxBytesMiddleware(1048576)(authMiddlewareFunc(next)).ServeHTTP(w, r)
+		}
+	}
 	metrics := middleware.MetricsMiddleware
 
 	// Helper to wrap handlers with both CORS, Auth, and RequireRole("admin")
 	adminProtected := func(h http.HandlerFunc) http.HandlerFunc {
-		return cors(auth(middleware.RequireRole("admin")(h)).ServeHTTP)
+		return cors(auth(func(w http.ResponseWriter, r *http.Request) { middleware.RequireRole("admin")(h).ServeHTTP(w, r) }).ServeHTTP)
 	}
 
 	// Helper to wrap handlers with both CORS and Auth (for read/admin)
