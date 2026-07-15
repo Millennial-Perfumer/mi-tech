@@ -123,11 +123,6 @@ func (m *MockOrderRepository) GetNextPOSSequence(terminalCode string) (string, e
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockOrderRepository) GetMaxAmazonInvoiceNumber() (int, error) {
-	args := m.Called()
-	return args.Int(0), args.Error(1)
-}
-
 type MockLineItemRepository struct {
 	mock.Mock
 }

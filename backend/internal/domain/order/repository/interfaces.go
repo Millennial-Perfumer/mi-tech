@@ -50,7 +50,6 @@ type OrderRepository interface {
 	GetByIDAndPhone(id int64, phone string) (entity.Order, error)
 	UpdateFeedbackStatus(id int64, statusID int) error
 	GetNextPOSSequence(terminalCode string) (string, error)
-	GetMaxAmazonInvoiceNumber() (int, error)
 }
 
 // LineItemRepository defines all data access operations for the order_line_items table.

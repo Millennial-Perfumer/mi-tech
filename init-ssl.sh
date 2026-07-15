@@ -10,7 +10,6 @@ DOMAIN="mi-tech.millennialperfumer.in"
 API_DOMAIN="mi-tech-api.millennialperfumer.in"
 MONITORING_DOMAIN="mi-tech-monitoring.millennialperfumer.in"
 FEEDBACK_DOMAIN="feedback-form.millennialperfumer.in"
-AGENT_DOMAIN="shop-chat-agent.millennialperfumer.in"
 EMAIL="${LETSENCRYPT_EMAIL:-millennialperfumer.cc@gmail.com}"
 CERT_PATH="./certbot/conf/live/$DOMAIN"
 COMPOSE_FILE="docker-compose.prod.yml"
@@ -63,8 +62,7 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   -d $DOMAIN \
   -d $API_DOMAIN \
   -d $MONITORING_DOMAIN \
-  -d $FEEDBACK_DOMAIN \
-  -d $AGENT_DOMAIN
+  -d $FEEDBACK_DOMAIN
 
 echo "==> [5/5] Reloading Nginx with real certificate..."
 docker compose -f $COMPOSE_FILE exec nginx nginx -s reload

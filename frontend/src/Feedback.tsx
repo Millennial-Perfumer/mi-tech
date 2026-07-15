@@ -332,18 +332,18 @@ const Feedback: React.FC<FeedbackProps> = ({
                         onChange={(e) => setSelectedIds(e.target.checked ? scanResults.map(c => c.id) : [])}
                       />
                     </th>
-                    <th aria-sort={sortConfig?.key === 'customer_name' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button type="button" onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Customer {sortConfig?.key === 'customer_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th aria-sort={sortConfig?.key === 'order_number' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button type="button" onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Order # {sortConfig?.key === 'order_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th aria-sort={sortConfig?.key === 'delivered_at' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button type="button" onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Delivered {sortConfig?.key === 'delivered_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>

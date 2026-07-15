@@ -20,7 +20,6 @@ type AbandonedCheckoutRepository interface {
 	CheckRecentOrders(ctx context.Context, phone, email string, since time.Time) (bool, error)
 	Delete(ctx context.Context, storeID string, id int) error
 	UpdateStatus(ctx context.Context, storeID string, id int, status string, completed bool) error
-	UpsertCart(ctx context.Context, cart *entity.ShopifyCart) error
 }
 
 type gormAbandonedCheckoutRepository struct {
@@ -273,30 +272,6 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 		recoveryRate = (float64(stats.RecoveredCartCount) / float64(stats.AbandonedCartCount)) * 100
 	}
 
-	var cartsCreatedCount int64
-	cartQuery := r.db.WithContext(ctx).Model(&entity.ShopifyCart{}).Where("store_id = ?", storeID)
-	if startDate != "" {
-		cartQuery = cartQuery.Where("created_at >= ?", startDate)
-	}
-	if endDate != "" {
-		cartQuery = cartQuery.Where("created_at <= ?", endDate)
-	}
-	if err := cartQuery.Count(&cartsCreatedCount).Error; err != nil {
-		return nil, err
-	}
-
-	if cartsCreatedCount < stats.AbandonedCartCount {
-		cartsCreatedCount = stats.AbandonedCartCount
-	}
-
-	var addCartToCheckoutRate float64
-	var addCartToOrderRate float64
-	if cartsCreatedCount > 0 {
-		addCartToCheckoutRate = (float64(stats.AbandonedCartCount) / float64(cartsCreatedCount)) * 100
-		addCartToOrderRate = (float64(stats.RecoveredCartCount) / float64(cartsCreatedCount)) * 100
-	}
-
-
 	// WhatsApp Status Aggregation
 	msgQuery := r.db.WithContext(ctx).Table("automation_messages").Where("store_id = ? AND order_id = 0", storeID)
 	if startDate != "" {
@@ -444,9 +419,6 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 		AbandonedCartCount:    stats.AbandonedCartCount,
 		RecoveredCartCount:    stats.RecoveredCartCount,
 		RecoveryRate:          recoveryRate,
-		CartsCreatedCount:     cartsCreatedCount,
-		AddCartToCheckoutRate: addCartToCheckoutRate,
-		AddCartToOrderRate:    addCartToOrderRate,
 		WhatsappStats: acDto.WhatsappStats{
 			Sent:      sentCount,
 			Delivered: deliveredCount,
@@ -454,9 +426,9 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 			Clicked:   clickedCount,
 			Failed:    failedCount,
 		},
-		RevenueTimeline: revenueTimeline,
-		StatusBreakdown: statusBreakdown,
-		TopLostCarts:    topLostCarts,
+		RevenueTimeline:       revenueTimeline,
+		StatusBreakdown:       statusBreakdown,
+		TopLostCarts:          topLostCarts,
 	}, nil
 }
 
@@ -489,20 +461,5 @@ func (r *gormAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, stor
 	return r.db.WithContext(ctx).Model(&entity.AbandonedCheckout{}).
 		Where("store_id = ? AND id = ?", storeID, id).
 		Updates(updates).Error
-}
-
-func (r *gormAbandonedCheckoutRepository) UpsertCart(ctx context.Context, cart *entity.ShopifyCart) error {
-	now := time.Now()
-	cart.UpdatedAt = now
-
-	query := `
-		INSERT INTO shopify_carts (store_id, cart_token, line_items, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT (cart_token)
-		DO UPDATE SET
-			line_items = EXCLUDED.line_items,
-			updated_at = EXCLUDED.updated_at`
-
-	return r.db.WithContext(ctx).Exec(query, cart.StoreID, cart.CartToken, cart.LineItems, now, now).Error
 }
 

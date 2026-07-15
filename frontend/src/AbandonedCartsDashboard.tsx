@@ -17,9 +17,6 @@ interface AnalyticsData {
   abandonedCartCount: number;
   recoveredCartCount: number;
   recoveryRate: number;
-  cartsCreatedCount: number;
-  addCartToCheckoutRate: number;
-  addCartToOrderRate: number;
   whatsappStats: {
     sent: number;
     delivered: number;
@@ -123,16 +120,13 @@ export const AbandonedCartsDashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  // Calculate funnel percentages based on total created carts
-  const cartsCreated = data.cartsCreatedCount || data.abandonedCartCount || 1;
-  const addedToCartPercent = 100;
-  const checkoutStartedPercent = Math.round(((data.abandonedCartCount || 0) / cartsCreated) * 100);
-  const sentPercent = Math.round(((data.whatsappStats.sent || 0) / (data.abandonedCartCount || 1)) * 100);
-  const deliveredPercent = Math.round(((data.whatsappStats.delivered || 0) / (data.whatsappStats.sent || 1)) * 100);
-  const readPercent = Math.round(((data.whatsappStats.read || 0) / (data.whatsappStats.delivered || 1)) * 100);
-  const clickPercent = Math.round(((data.whatsappStats.clicked || 0) / (data.whatsappStats.read || 1)) * 100);
-  const conversionPercent = Math.round(((data.recoveredCartCount || 0) / (data.abandonedCartCount || 1)) * 100);
-
+  // Calculate funnel percentages based on total abandoned carts
+  const totalCarts = data.abandonedCartCount || 1;
+  const sentPercent = Math.round((data.whatsappStats.sent / totalCarts) * 100);
+  const deliveredPercent = Math.round((data.whatsappStats.delivered / (data.whatsappStats.sent || 1)) * 100);
+  const readPercent = Math.round((data.whatsappStats.read / (data.whatsappStats.delivered || 1)) * 100);
+  const clickPercent = Math.round((data.whatsappStats.clicked / (data.whatsappStats.read || 1)) * 100);
+  const conversionPercent = Math.round((data.recoveredCartCount / totalCarts) * 100);
 
   // Group timeline dates to weekday/trend if timeline is small, otherwise formatted directly
   const barChartData = (data.revenueTimeline || []).map((t) => {
@@ -158,14 +152,12 @@ export const AbandonedCartsDashboard: React.FC<DashboardProps> = ({
     <div className="tab-content-fade" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', animation: 'fadeIn 0.5s ease-out' }}>
       
       {/* 1. TOP KPI SUMMARY CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
         {[
           { label: 'Abandoned Revenue', value: formatCurrency(data.totalAbandonedRevenue), desc: 'Total lost sales value', color: 'var(--status-danger)' },
           { label: 'Recovered Revenue', value: formatCurrency(data.recoveredRevenue), desc: `${data.recoveryRate.toFixed(1)}% recovery rate`, color: 'var(--status-active)' },
-          { label: 'Carts Created', value: data.cartsCreatedCount || 0, desc: 'Add to Cart count', color: 'var(--accent-color)' },
-          { label: 'Add-to-Cart -> Checkout', value: `${(data.addCartToCheckoutRate || 0).toFixed(1)}%`, desc: 'Cart to checkout rate', color: 'var(--status-warning)' },
-          { label: 'Add-to-Cart -> Order', value: `${(data.addCartToOrderRate || 0).toFixed(1)}%`, desc: 'Overall cart conversion', color: 'var(--status-active)' },
-          { label: 'Abandoned Carts', value: data.abandonedCartCount, desc: 'Checkout drop-offs', color: 'var(--text-secondary)' },
+          { label: 'Pending Value', value: formatCurrency(data.pendingRevenue), desc: 'Still possible to recover', color: 'var(--status-warning)' },
+          { label: 'Abandoned Carts', value: data.abandonedCartCount, desc: 'Total cart abandonments', color: 'var(--text-secondary)' },
           { label: 'Recovered Carts', value: data.recoveredCartCount, desc: 'Converted back to order', color: 'var(--status-active)' },
           { label: 'Avg Cart Value', value: formatCurrency(averageCartValue), desc: 'Per checkout average value', color: 'var(--accent-color)' },
         ].map((kpi, idx) => (
@@ -258,7 +250,7 @@ export const AbandonedCartsDashboard: React.FC<DashboardProps> = ({
                 </ResponsiveContainer>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '45%' }}>
                   {pieData.map((entry, index) => {
-                    const percent = ((entry.value / cartsCreated) * 100).toFixed(0);
+                    const percent = ((entry.value / totalCarts) * 100).toFixed(0);
                     const color = COLORS[entry.name as keyof typeof COLORS] || '#888888';
                     return (
                       <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
@@ -283,18 +275,17 @@ export const AbandonedCartsDashboard: React.FC<DashboardProps> = ({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
         {/* Funnel Chart */}
         <div className="glass-card-premium" style={{ padding: '2rem' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.2rem' }}>Cart & Recovery Conversion Funnel</h3>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2rem' }}>Add-to-cart journey to final WhatsApp-recovered order completion</p>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.2rem' }}>WhatsApp Recovery Performance</h3>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2rem' }}>Campaign message metrics & click-to-recovery conversion funnel</p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {[
-              { label: 'Added to Cart', value: data.cartsCreatedCount || data.abandonedCartCount, percent: addedToCartPercent, desc: 'Base baseline (Add to Cart)' },
-              { label: 'Checkout Started', value: data.abandonedCartCount, percent: checkoutStartedPercent, desc: 'Proceeded to checkout' },
-              { label: 'WhatsApp Sent', value: data.whatsappStats.sent, percent: sentPercent, desc: 'Recovery campaign triggered' },
-              { label: 'Message Delivered', value: data.whatsappStats.delivered, percent: deliveredPercent, desc: 'Successful deliveries' },
-              { label: 'Message Opened (Read)', value: data.whatsappStats.read, percent: readPercent, desc: 'WhatsApp delivery read rate' },
+              { label: 'Abandoned Cart', value: data.abandonedCartCount, percent: 100, desc: 'Base baseline' },
+              { label: 'WhatsApp Sent', value: data.whatsappStats.sent, percent: sentPercent, desc: 'Trigger rate' },
+              { label: 'Message Delivered', value: data.whatsappStats.delivered, percent: deliveredPercent, desc: 'Delivery success' },
+              { label: 'Message Opened (Read)', value: data.whatsappStats.read, percent: readPercent, desc: 'Open rate' },
               { label: 'Checkout Link Clicked', value: data.whatsappStats.clicked, percent: clickPercent, desc: 'Click-through rate (CTR)' },
-              { label: 'Order Completed', value: data.recoveredCartCount, percent: conversionPercent, desc: 'Converted/recovered checkout rate' },
+              { label: 'Order Completed', value: data.recoveredCartCount, percent: conversionPercent, desc: 'Final conversion' },
             ].map((step, idx) => (
               <div key={idx} style={{ position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
