@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Positive Feedback Referral Loop via WhatsApp
+* **Added On**: 2024-07-18
+* **Target Audience**: End Customers, Affiliates
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Delivers unexpected value by instantly rewarding highly satisfied customers with an exclusive, shareable discount code immediately after they leave a 5-star review, turning their positive sentiment into actionable value.
+* **Business Growth & Profit Impact**: Customers who just left positive feedback are at peak brand affinity. By automatically capturing this sentiment via the existing `feedback` module and integrating it with the `communication` (SMM) module, we can trigger an immediate WhatsApp message with a referral/discount link. This creates a viral loop and directly drives repeat purchases with zero additional ad spend, significantly accelerating our path to the 3 Lakhs/month revenue target while maximizing net profit margins.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `feedback` module (`FeedbackService`) to emit an event when a customer submits a 4 or 5-star rating. Implement a listener in the `communication` module that receives this event and automatically dispatches a personalized WhatsApp template message (e.g., "Thanks for the 5 stars! Here is a 15% off code for your next order, or share it with a friend: [Link]").
