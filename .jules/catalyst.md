@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Post-Positive Feedback Upsell Loop
+* **Added On**: 2024-07-01
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: After having a great experience and leaving a positive review, customers are immediately rewarded with an exclusive, time-sensitive discount for their next purchase, making them feel valued and appreciated.
+* **Business Growth & Profit Impact**: By converting a positive interaction directly into another sale, we increase the customer LTV with zero additional acquisition cost. This leverages existing positive sentiment to drive repeat purchases, accelerating the path to the 3L/month target.
+* **Technical Complexity**: Low
+* **Description**: Extend the `feedback` module (`feedback_service.go`). When a customer submits a 4 or 5-star review, trigger an event to the `communication` (SMM) module. The system will automatically dispatch a WhatsApp template thanking them for the review and providing a personalized, one-time discount code and checkout link for their next order.
