@@ -160,6 +160,22 @@ func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
 	}
 }
 
+// MaxBytesMiddleware limits the size of request bodies to prevent DoS attacks.
+func MaxBytesMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+			path := r.URL.Path
+			// Exclude routes that legitimately handle large file uploads
+			if !strings.HasPrefix(path, "/api/customers/import") &&
+				!strings.HasPrefix(path, "/api/automation/whatsapp/templates/upload") &&
+				!strings.HasPrefix(path, "/api/automation/whatsapp/chat/upload") {
+				r.Body = http.MaxBytesReader(w, r.Body, 1048576) // 1MB limit
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // MetricsMiddleware tracks HTTP requests with Prometheus.
 func MetricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

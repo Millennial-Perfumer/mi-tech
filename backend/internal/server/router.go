@@ -68,15 +68,21 @@ func RegisterRoutes(
 	cors := middleware.CORSMiddleware
 	auth := middleware.AuthMiddleware(authService)
 	metrics := middleware.MetricsMiddleware
+	maxBytes := middleware.MaxBytesMiddleware
 
-	// Helper to wrap handlers with both CORS, Auth, and RequireRole("admin")
+	// Helper to wrap handlers with both CORS, Auth, MaxBytes, and RequireRole("admin")
 	adminProtected := func(h http.HandlerFunc) http.HandlerFunc {
-		return cors(auth(middleware.RequireRole("admin")(h)).ServeHTTP)
+		return cors(maxBytes(auth(middleware.RequireRole("admin")(h))).ServeHTTP)
 	}
 
-	// Helper to wrap handlers with both CORS and Auth (for read/admin)
+	// Helper to wrap handlers with both CORS, Auth, and MaxBytes (for read/admin)
 	protected := func(h http.HandlerFunc) http.HandlerFunc {
-		return cors(auth(h).ServeHTTP)
+		return cors(maxBytes(auth(h)).ServeHTTP)
+	}
+
+	// Helper to wrap public handlers with MaxBytes
+	publicWrapped := func(h http.HandlerFunc) http.HandlerFunc {
+		return metrics(cors(maxBytes(h).ServeHTTP)).ServeHTTP
 	}
 
 	// Force-register marketing routes early to prevent potential shadowing
@@ -115,8 +121,8 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
 
 	// --- Auth Routes ---
-	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)
-	mux.HandleFunc("/api/auth/verify-otp", metrics(cors(authHandler.VerifyOTP)).ServeHTTP)
+	mux.HandleFunc("/api/auth/login", publicWrapped(authHandler.Login))
+	mux.HandleFunc("/api/auth/verify-otp", publicWrapped(authHandler.VerifyOTP))
 	mux.HandleFunc("/api/auth/verify", metrics(protected(authHandler.VerifyAuth)).ServeHTTP)
 
 	// --- User Routes ---
