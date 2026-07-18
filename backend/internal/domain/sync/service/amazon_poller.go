@@ -11,7 +11,10 @@ import (
 	"mi-tech/internal/shared/util"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type AmazonOrderPoller struct {
@@ -103,6 +106,40 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 	}
 	nextSeq := maxSeq + 1
 
+	// Pre-fetch all order items concurrently to eliminate O(N) network bottleneck
+	slog.Info("AmazonOrderPoller: Pre-fetching items for orders concurrently", "orderCount", len(amazonOrders))
+	itemsMap := make(map[string][]map[string]interface{})
+	var itemsMutex sync.Mutex
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(5)
+
+	for _, ao := range amazonOrders {
+		amazonOrderID := ao["AmazonOrderId"].(string)
+		eg.Go(func() error {
+			// Check if context is cancelled
+			select {
+			case <-egCtx.Done():
+				return egCtx.Err()
+			default:
+			}
+
+			items, fetchErr := p.amazonClient.GetOrderItems(amazonOrderID)
+			if fetchErr != nil {
+				slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", fetchErr)
+				return nil // Don't fail the whole group for one order
+			}
+
+			itemsMutex.Lock()
+			itemsMap[amazonOrderID] = items
+			itemsMutex.Unlock()
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		slog.Error("AmazonOrderPoller: Error during concurrent item fetch", "error", err)
+	}
+
 	for _, ao := range amazonOrders {
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
@@ -115,9 +152,9 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		)
 
 		// 1. Sync the order to our DB first (Upsert)
-		items, err := p.amazonClient.GetOrderItems(amazonOrderID)
-		if err != nil {
-			slog.Error("AmazonOrderPoller: Failed to fetch items for order", "orderID", amazonOrderID, "error", err)
+		items, ok := itemsMap[amazonOrderID]
+		if !ok {
+			slog.Warn("AmazonOrderPoller: No items fetched for order (or fetch failed), skipping", "orderID", amazonOrderID)
 			continue
 		}
 
