@@ -408,6 +408,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
             <svg className="chat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search"
                 title="Clear search"
@@ -502,14 +503,20 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
               
               <div className="mode-toggle-group">
                 <button 
+                  type="button"
                   className={`mode-btn ${activeConversation.mode === 'auto' ? 'active' : ''}`}
                   onClick={() => toggleMode('auto')}
+                  aria-pressed={activeConversation.mode === 'auto'}
+                  aria-label="Toggle Auto mode"
                 >
                   Auto
                 </button>
                 <button 
+                  type="button"
                   className={`mode-btn ${activeConversation.mode === 'human' ? 'active' : ''}`}
                   onClick={() => toggleMode('human')}
+                  aria-pressed={activeConversation.mode === 'human'}
+                  aria-label="Toggle Human mode"
                 >
                   Human
                 </button>
@@ -588,6 +595,9 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                                 {msg.metadata?.extracted_metadata?.original_name || filename}
                             </div>
                             <button 
+                              type="button"
+                              aria-label="Download document"
+                              title="Download document"
                               className="doc-download-btn"
                               onClick={async () => {
                                 try {
@@ -633,15 +643,17 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
 
             <div className="chat-input-area">
               <button 
+                type="button"
                 className="chat-upload-btn"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingMedia || isSending}
                 title="Upload media"
+                aria-label="Upload media"
               >
                 {isUploadingMedia ? (
                   <div className="mini-spinner"></div>
                 ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                 )}
               </button>
               <input 
@@ -660,11 +672,13 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
               <button 
+                type="button"
                 className="chat-send-btn" 
                 onClick={sendMessage}
                 disabled={!inputText.trim() || isSending || isUploadingMedia}
+                aria-label="Send message"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               </button>
             </div>
           </>
