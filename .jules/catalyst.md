@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated WhatsApp Re-Engagement Loop for Positive Feedback
+* **Added On**: 2026-07-18
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Rewards highly satisfied customers with a surprise discount or exclusive offer immediately after they submit a positive review, making them feel valued and encouraging their next purchase.
+* **Business Growth & Profit Impact**: Customers who just left a 5-star review are in a peak state of satisfaction. Sending an automated, time-sensitive incentive right at this moment captures high intent and significantly increases repeat purchase frequency (LTV) with minimal customer acquisition cost. This recurring revenue stream accelerates the path to 3L/month.
+* **Technical Complexity**: Low
+* **Description**: Enhance the `feedback` module to emit an event or trigger the `communication` service when a customer submits a 4 or 5-star rating. The `communication` service will immediately dispatch a pre-configured WhatsApp template message containing a dynamic discount code (e.g., generated via the Shopify integration) and a direct link to the storefront to encourage an immediate repeat purchase.
