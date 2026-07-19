@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Post-Purchase Feedback-Driven Upsell Loop
+* **Added On**: 2024-06-26
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Customers who leave positive feedback are immediately rewarded with an exclusive, limited-time discount or complimentary product offer, thanking them for their loyalty and enhancing their experience.
+* **Business Growth & Profit Impact**: By capitalizing on positive sentiment immediately following a 4 or 5-star review, we can drive high-converting repeat purchases. This automated feedback-loop marketing significantly boosts LTV and purchase frequency, efficiently accelerating revenue toward the 3L/month target with zero new acquisition costs.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `feedback` module (`FeedbackService.SaveCustomerFeedback`) to evaluate the rating of incoming customer feedback. If the rating is 4 or 5 stars, emit a `PositiveFeedbackReceived` event. A new handler in the `communication` (SMM) module will listen to this event, querying the `order` module for the customer's purchase history, and automatically dispatch a personalized WhatsApp template containing a "Thank You" message and a customized, 1-click Shopify discount link for a complementary product.
