@@ -407,7 +407,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
             />
             <svg className="chat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             {searchQuery && (
-              <button
+              <button type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search"
                 title="Clear search"
@@ -501,15 +501,15 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
               </div>
               
               <div className="mode-toggle-group">
-                <button 
+                <button type="button"
                   className={`mode-btn ${activeConversation.mode === 'auto' ? 'active' : ''}`}
-                  onClick={() => toggleMode('auto')}
+                  onClick={() => toggleMode('auto')} aria-pressed={activeConversation.mode === 'auto'}
                 >
                   Auto
                 </button>
-                <button 
+                <button type="button"
                   className={`mode-btn ${activeConversation.mode === 'human' ? 'active' : ''}`}
-                  onClick={() => toggleMode('human')}
+                  onClick={() => toggleMode('human')} aria-pressed={activeConversation.mode === 'human'}
                 >
                   Human
                 </button>
@@ -587,8 +587,8 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                             <div className="doc-name" title={msg.metadata?.extracted_metadata?.original_name || filename}>
                                 {msg.metadata?.extracted_metadata?.original_name || filename}
                             </div>
-                            <button 
-                              className="doc-download-btn"
+                            <button type="button"
+                              className="doc-download-btn" aria-label={`Open document ${msg.metadata?.extracted_metadata?.original_name || filename}`}
                               onClick={async () => {
                                 try {
                                   const resp = await fetchWithAuth(`${API_BASE}/api/automation/whatsapp/media?filename=${filename}`);
@@ -632,8 +632,8 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
             </div>
 
             <div className="chat-input-area">
-              <button 
-                className="chat-upload-btn"
+              <button type="button"
+                className="chat-upload-btn" aria-label="Upload media"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingMedia || isSending}
                 title="Upload media"
@@ -641,7 +641,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                 {isUploadingMedia ? (
                   <div className="mini-spinner"></div>
                 ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                 )}
               </button>
               <input 
@@ -659,12 +659,12 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
-              <button 
-                className="chat-send-btn" 
+              <button type="button"
+                className="chat-send-btn" aria-label="Send message"
                 onClick={sendMessage}
                 disabled={!inputText.trim() || isSending || isUploadingMedia}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               </button>
             </div>
           </>
