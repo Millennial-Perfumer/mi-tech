@@ -19,3 +19,7 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+
+## 2024-03-24 - Missing Accessibility in Action/Modal Close Buttons
+**Learning:** Many icon-only buttons (like Edit/Delete row actions and Modal Close buttons) across secondary views (PurchaseOrders) were implemented without `aria-label` or `type="button"`. This degrades screen reader accessibility and risks unexpected form submissions within complex layered UIs.
+**Action:** Systematically audit and ensure `type="button"`, `aria-label`, and `aria-hidden="true"` on internal SVGs are present on all icon-only interactions.
