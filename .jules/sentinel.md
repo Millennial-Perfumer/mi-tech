@@ -49,3 +49,7 @@
 **Vulnerability:** The authentication and user handlers (`Login`, `VerifyOTP`, `CreateUser`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Handlers processing unauthenticated external requests MUST employ request body limits before reading or decoding. The Go standard library does not automatically limit request bodies, making this an explicit responsibility of the developer.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.
+## 2025-02-24 - [Fix XSS in Products.tsx]
+**Vulnerability:** XSS vulnerability in Products.tsx caused by unsanitized input to dangerouslySetInnerHTML.
+**Learning:** Even internal formatting functions like parseShopifyRichText can return unsafe HTML if the underlying data contains it.
+**Prevention:** Always use DOMPurify when passing dynamically generated or user-provided content to dangerouslySetInnerHTML.
