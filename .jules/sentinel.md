@@ -49,3 +49,8 @@
 **Vulnerability:** The authentication and user handlers (`Login`, `VerifyOTP`, `CreateUser`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Handlers processing unauthenticated external requests MUST employ request body limits before reading or decoding. The Go standard library does not automatically limit request bodies, making this an explicit responsibility of the developer.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.
+
+## 2025-02-28 - [Cross-Site Scripting (XSS) via Unsanitized Rich Text]
+**Vulnerability:** `Products.tsx` used `dangerouslySetInnerHTML` to render Shopify rich text product descriptions and specifications without any sanitization.
+**Learning:** `dangerouslySetInnerHTML` is extremely risky when handling data originating from external systems (like Shopify), as it directly executes any embedded `<script>` tags or malicious attributes. Even if the data source is ostensibly "trusted," compromised accounts or internal systems can still be vectors for stored XSS.
+**Prevention:** Never use `dangerouslySetInnerHTML` with dynamic or external content without first sanitizing the HTML string using a robust library like `DOMPurify`.
