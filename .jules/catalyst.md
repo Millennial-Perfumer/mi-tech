@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated B2B Bulk Order Quote Generator
+* **Added On**: 2024-07-25
+* **Target Audience**: Store Admins, B2B Wholesalers
+* **3L Growth Vector**: Increase Average Order Value (AOV)
+* **Customer Value Proposition**: Allows wholesale customers to quickly generate a tailored PDF quote with tiered volume discounts and accurate GST breakdowns directly via WhatsApp or the SMM hub, reducing friction in placing high-value B2B orders.
+* **Business Growth & Profit Impact**: Securing large bulk orders is the fastest way to drive massive spikes in AOV and overall revenue. By automating the quoting process, we eliminate manual negotiation bottlenecks, enabling faster conversions on wholesale deals, which are essential for scaling monthly revenue to the 3L target.
+* **Technical Complexity**: Medium
+* **Description**: Implement a new backend service within the `b2b` and `gst` domains to process bulk quotation requests via the `communication` module. When a B2B client requests a quote for a list of SKUs and quantities, the system dynamically calculates volume-based tiered pricing, applies relevant GST rules, generates a PDF quote, and dispatches it via a WhatsApp template with a unique payment link.
