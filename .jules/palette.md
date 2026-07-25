@@ -19,3 +19,6 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+## 2024-07-25 - [Accessibility] Fix missing ARIA attributes on custom toggles and icon buttons
+**Learning:** Found a recurring pattern in the app's components (`App.tsx`) where custom toggle controls (like the theme toggle) lacked the `aria-pressed` attribute, preventing screen readers from conveying their selected state. Additionally, internal `svg` icons inside icon-only buttons lacked `aria-hidden="true"`, causing unnecessary noise.
+**Action:** Always verify that stateful toggles implement `aria-pressed`, and apply `aria-hidden="true"` to purely decorative SVGs within buttons that already have an explicit `aria-label`.
