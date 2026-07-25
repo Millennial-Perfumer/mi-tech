@@ -49,3 +49,8 @@
 **Vulnerability:** The authentication and user handlers (`Login`, `VerifyOTP`, `CreateUser`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Handlers processing unauthenticated external requests MUST employ request body limits before reading or decoding. The Go standard library does not automatically limit request bodies, making this an explicit responsibility of the developer.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.
+
+## 2026-06-25 - [XSS Vulnerability in Shopify Rich Text Parsing]
+**Vulnerability:** `parseShopifyRichText` in `frontend/src/Products.tsx` parses user-controlled Shopify descriptions into HTML, which is then rendered using `dangerouslySetInnerHTML` without proper sanitization.
+**Learning:** Any dynamic HTML generation, even if constructed from structured JSON like Shopify's rich text, can contain malicious payloads (e.g. if the source JSON contains `<script>` or `javascript:` links that are blindly concatenated or inserted into the DOM). Relying on the structural representation alone is not a guarantee of safety when the output is raw HTML.
+**Prevention:** Always sanitize the resulting HTML output using a trusted library like `DOMPurify` before passing it to React's `dangerouslySetInnerHTML`.
