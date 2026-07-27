@@ -49,3 +49,8 @@
 **Vulnerability:** The authentication and user handlers (`Login`, `VerifyOTP`, `CreateUser`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Handlers processing unauthenticated external requests MUST employ request body limits before reading or decoding. The Go standard library does not automatically limit request bodies, making this an explicit responsibility of the developer.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.
+
+## 2026-07-27 - [Cross-Site Scripting (XSS) via dangerouslySetInnerHTML]
+**Vulnerability:** The Products.tsx component used React's dangerouslySetInnerHTML to render dynamic HTML (from parseShopifyRichText) without prior sanitization.
+**Learning:** When rendering dynamic HTML, especially from external sources or parsed complex structures, using dangerouslySetInnerHTML directly exposes the application to XSS attacks if the content contains malicious scripts.
+**Prevention:** Always sanitize dynamic HTML content using DOMPurify.sanitize() before passing it to dangerouslySetInnerHTML to prevent XSS vulnerabilities.
