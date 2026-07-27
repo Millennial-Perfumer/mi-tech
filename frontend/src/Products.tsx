@@ -65,7 +65,7 @@ const getSKUForPlatform = (mappings: InventoryMapping[] | undefined, platform: s
   return mapping ? mapping.external_sku : '—';
 };
 
-export const Products: React.FC<{ token: string | null, userRole?: string, appConfigs?: any }> = ({ token, userRole, appConfigs }) => {
+export const Products: React.FC<{ token: string | null, userRole?: string, appConfigs?: any }> = ({ token, userRole = 'admin', appConfigs = {} }) => {
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -559,7 +559,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Manage physical products and SKU mappings.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+          {appConfigs?.show_sync_button !== 'false' && (userRole === 'admin' || !userRole) && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncShopify}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -1406,7 +1406,7 @@ function App() {
                       Create Order
                     </button>
                   )}
-                  {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+                  {appConfigs?.show_sync_button !== 'false' && (userRole === 'admin' || !userRole) && (
                     <button
                       className="btn-secondary"
                       onClick={handleSyncAmazon}
@@ -1428,7 +1428,7 @@ function App() {
                       {isSyncing && syncMode === 'amazon' ? 'Polling Amazon...' : 'Sync Amazon'}
                     </button>
                   )}
-                  {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+                  {appConfigs?.show_sync_button !== 'false' && (userRole === 'admin' || !userRole) && (
                     <button
                       className="btn-primary"
                       title="Manually fetch orders from Shopify"
