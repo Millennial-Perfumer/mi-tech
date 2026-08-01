@@ -25,10 +25,14 @@ interface Supplier {
   name: string;
 }
 
+const PURCHASE_DATE_PAGE_SIZE = 5;
+
 export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
   const { confirm } = useConfirm();
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
+	const [purchaseDateTotal, setPurchaseDateTotal] = useState(0);
+	const [purchasePage, setPurchasePage] = useState(1);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,12 +55,16 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
     setIsLoading(true);
     try {
       const [posRes, oilsRes, suppRes] = await Promise.all([
-        fetchWithAuth(`${API_BASE}/api/inventory/po?days=5`),
+        fetchWithAuth(`${API_BASE}/api/inventory/po?days=${PURCHASE_DATE_PAGE_SIZE}&page=${purchasePage}`),
         fetchWithAuth(`${API_BASE}/api/inventory/oil`),
         fetchWithAuth(`${API_BASE}/api/inventory/suppliers`)
       ]);
 
-      if (posRes.ok) setPOs(await posRes.json());
+      if (posRes.ok) {
+        const data = await posRes.json();
+        setPOs(data.items || []);
+        setPurchaseDateTotal(data.total_dates || 0);
+      }
       if (oilsRes.ok) setOils(await oilsRes.json());
       if (suppRes.ok) setSuppliers(await suppRes.json());
     } catch (err) {
@@ -66,7 +74,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [purchasePage]);
 
   const handleAddItem = () => {
     setFormData({
@@ -311,6 +319,13 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
             )}
           </tbody>
         </table>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1rem 2rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Showing purchase dates {purchaseDateTotal === 0 ? '0' : `${(purchasePage - 1) * PURCHASE_DATE_PAGE_SIZE + 1}-${Math.min(purchasePage * PURCHASE_DATE_PAGE_SIZE, purchaseDateTotal)}`} of {purchaseDateTotal}</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" type="button" onClick={() => setPurchasePage(page => Math.max(1, page - 1))} disabled={purchasePage === 1}>Previous</button>
+            <button className="btn-secondary" type="button" onClick={() => setPurchasePage(page => page + 1)} disabled={purchasePage * PURCHASE_DATE_PAGE_SIZE >= purchaseDateTotal}>Next</button>
+          </div>
+        </div>
       </div>
 
       {showAddModal && (

@@ -10,7 +10,7 @@ import (
 type PurchaseOrderRepository interface {
 	List() ([]entity.PurchaseOrder, error)
 	ListRecent(limit int) ([]entity.PurchaseOrder, error)
-	ListRecentDays(days int) ([]entity.PurchaseOrder, error)
+	ListRecentDays(days, page int) ([]entity.PurchaseOrder, int64, error)
 	GetByID(id int) (*entity.PurchaseOrder, error)
 	Create(po *entity.PurchaseOrder) error
 	Update(po *entity.PurchaseOrder) error
@@ -39,11 +39,17 @@ func (r *pgPurchaseOrderRepository) ListRecent(limit int) ([]entity.PurchaseOrde
 
 // ListRecentDays returns every purchase order from the most recent distinct purchase dates.
 // A single bill date can contain multiple oil line items, so it must not be truncated by row count.
-func (r *pgPurchaseOrderRepository) ListRecentDays(days int) ([]entity.PurchaseOrder, error) {
+func (r *pgPurchaseOrderRepository) ListRecentDays(days, page int) ([]entity.PurchaseOrder, int64, error) {
 	var pos []entity.PurchaseOrder
+	var totalDates int64
+	if err := r.db.Model(&entity.PurchaseOrder{}).Select("COUNT(DISTINCT DATE(purchase_date))").Scan(&totalDates).Error; err != nil {
+		return nil, 0, err
+	}
+
 	recentDates := r.db.Model(&entity.PurchaseOrder{}).
 		Select("DISTINCT DATE(purchase_date)").
 		Order("DATE(purchase_date) DESC").
+		Offset((page - 1) * days).
 		Limit(days)
 
 	err := r.db.
@@ -52,7 +58,7 @@ func (r *pgPurchaseOrderRepository) ListRecentDays(days int) ([]entity.PurchaseO
 		Where("DATE(purchase_date) IN (?)", recentDates).
 		Order("purchase_date DESC, id DESC").
 		Find(&pos).Error
-	return pos, err
+	return pos, totalDates, err
 }
 
 func (r *pgPurchaseOrderRepository) GetByID(id int) (*entity.PurchaseOrder, error) {

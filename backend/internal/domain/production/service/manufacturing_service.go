@@ -39,6 +39,16 @@ func (s *ManufacturingService) ListRecent(limit int) ([]entity.ManufacturingReco
 	return s.mfgRepo.ListRecent(limit)
 }
 
+func (s *ManufacturingService) ListPage(page, limit int) ([]entity.ManufacturingRecord, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 5
+	}
+	return s.mfgRepo.ListPage(page, limit)
+}
+
 func (s *ManufacturingService) Create(ctx context.Context, record *entity.ManufacturingRecord) error {
 	// 0. Ensure date is set
 	if record.ManufacturingDate.IsZero() {

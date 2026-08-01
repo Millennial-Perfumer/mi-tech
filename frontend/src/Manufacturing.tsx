@@ -46,6 +46,8 @@ interface SearchableSelectProps {
   placeholder: string;
 }
 
+const MANUFACTURING_PAGE_SIZE = 5;
+
 const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, placeholder }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -136,6 +138,8 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
   const { success: toastSuccess, error: toastError } = useToast();
   const { confirm } = useConfirm();
   const [records, setRecords] = useState<ManufacturingRecord[]>([]);
+	const [manufacturingTotal, setManufacturingTotal] = useState(0);
+	const [manufacturingPage, setManufacturingPage] = useState(1);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -165,12 +169,16 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     setIsLoading(true);
     try {
       const [mfgRes, oilsRes, prodRes] = await Promise.all([
-        fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?limit=5`),
+        fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?page=${manufacturingPage}&limit=${MANUFACTURING_PAGE_SIZE}`),
         fetchWithAuth(`${API_BASE}/api/inventory/oil`),
         fetchWithAuth(`${API_BASE}/api/inventory`)
       ]);
 
-      if (mfgRes.ok) setRecords(await mfgRes.json());
+      if (mfgRes.ok) {
+        const data = await mfgRes.json();
+        setRecords(data.items || []);
+        setManufacturingTotal(data.total || 0);
+      }
       if (oilsRes.ok) setOils(await oilsRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
     } catch (err) {
@@ -180,7 +188,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [manufacturingPage]);
 
   const addAddition = () => {
     setFormData({
@@ -478,6 +486,13 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
             )}
           </tbody>
         </table>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1rem 2rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Showing {records.length} of {manufacturingTotal} production records</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" type="button" onClick={() => setManufacturingPage(page => Math.max(1, page - 1))} disabled={manufacturingPage === 1}>Previous</button>
+            <button className="btn-secondary" type="button" onClick={() => setManufacturingPage(page => page + 1)} disabled={manufacturingPage * MANUFACTURING_PAGE_SIZE >= manufacturingTotal}>Next</button>
+          </div>
+        </div>
       </div>
 
       {showAddModal && (

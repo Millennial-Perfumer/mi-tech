@@ -30,11 +30,14 @@ func (s *PurchaseOrderService) ListRecent(limit int) ([]entity.PurchaseOrder, er
 	return s.poRepo.ListRecent(limit)
 }
 
-func (s *PurchaseOrderService) ListRecentDays(days int) ([]entity.PurchaseOrder, error) {
+func (s *PurchaseOrderService) ListRecentDays(days, page int) ([]entity.PurchaseOrder, int64, error) {
 	if days < 1 || days > 31 {
 		days = 5
 	}
-	return s.poRepo.ListRecentDays(days)
+	if page < 1 {
+		page = 1
+	}
+	return s.poRepo.ListRecentDays(days, page)
 }
 
 func (s *PurchaseOrderService) Create(po *entity.PurchaseOrder) error {

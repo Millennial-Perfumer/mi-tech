@@ -11,6 +11,7 @@ type ManufacturingRepository interface {
 	WithTx(tx *gorm.DB) ManufacturingRepository
 	List() ([]entity.ManufacturingRecord, error)
 	ListRecent(limit int) ([]entity.ManufacturingRecord, error)
+	ListPage(page, limit int) ([]entity.ManufacturingRecord, int64, error)
 	GetByID(id int) (*entity.ManufacturingRecord, error)
 	Create(record *entity.ManufacturingRecord) error
 	Update(record *entity.ManufacturingRecord) error
@@ -42,6 +43,16 @@ func (r *pgManufacturingRepository) ListRecent(limit int) ([]entity.Manufacturin
 	var records []entity.ManufacturingRecord
 	err := r.db.Preload("Oils.OilInventory").Preload("Products.InventoryItem").Order("manufacturing_date DESC").Limit(limit).Find(&records).Error
 	return records, err
+}
+
+func (r *pgManufacturingRepository) ListPage(page, limit int) ([]entity.ManufacturingRecord, int64, error) {
+	var records []entity.ManufacturingRecord
+	var total int64
+	if err := r.db.Model(&entity.ManufacturingRecord{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.Preload("Oils.OilInventory").Preload("Products.InventoryItem").Order("manufacturing_date DESC").Offset((page - 1) * limit).Limit(limit).Find(&records).Error
+	return records, total, err
 }
 
 func (r *pgManufacturingRepository) GetByID(id int) (*entity.ManufacturingRecord, error) {
