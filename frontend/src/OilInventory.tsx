@@ -112,6 +112,10 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
         const data = await oilsRes.json();
         setOils(data.items || []);
         setOilTotal(data.total || 0);
+      } else {
+        setOils([]);
+        setOilTotal(0);
+        toastError('Failed to load oil inventory');
       }
       if (prodRes.ok) setProducts(await prodRes.json());
       if (suppRes.ok) setSuppliers(await suppRes.json());

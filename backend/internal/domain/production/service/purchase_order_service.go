@@ -30,6 +30,13 @@ func (s *PurchaseOrderService) ListRecent(limit int) ([]entity.PurchaseOrder, er
 	return s.poRepo.ListRecent(limit)
 }
 
+func (s *PurchaseOrderService) ListRecentDays(days int) ([]entity.PurchaseOrder, error) {
+	if days < 1 || days > 31 {
+		days = 5
+	}
+	return s.poRepo.ListRecentDays(days)
+}
+
 func (s *PurchaseOrderService) Create(po *entity.PurchaseOrder) error {
 	// 0. Ensure date is set
 	if po.PurchaseDate.IsZero() {

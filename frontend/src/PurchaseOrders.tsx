@@ -51,7 +51,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
     setIsLoading(true);
     try {
       const [posRes, oilsRes, suppRes] = await Promise.all([
-        fetchWithAuth(`${API_BASE}/api/inventory/po?limit=5`),
+        fetchWithAuth(`${API_BASE}/api/inventory/po?days=5`),
         fetchWithAuth(`${API_BASE}/api/inventory/oil`),
         fetchWithAuth(`${API_BASE}/api/inventory/suppliers`)
       ]);
