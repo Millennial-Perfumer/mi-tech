@@ -23,11 +23,21 @@ func TestAuthService_Login(t *testing.T) {
 	repo := repository.NewUserRepository(db)
 	svc := service.NewAuthService(repo, nil, nil)
 
-	_, _, err = svc.Login("admin@millennialperfumer.in", "admin123")
+	username := fmt.Sprintf("test_login_%d@example.com", time.Now().UnixNano())
+	err = svc.Register(username, "password123")
+	assert.NoError(t, err)
 
-	if err != nil {
-		assert.Contains(t, err.Error(), "2FA enabled but no phone number configured")
-	}
+	// Disable 2FA for test user to verify standard JWT token generation
+	user, err := repo.GetByUsername(username)
+	assert.NoError(t, err)
+	user.TwoFactorEnabled = false
+	err = repo.Update(&user)
+	assert.NoError(t, err)
+
+	token, requires2FA, err := svc.Login(username, "password123")
+	assert.NoError(t, err)
+	assert.False(t, requires2FA)
+	assert.NotEmpty(t, token)
 }
 
 func TestAuthService_Register(t *testing.T) {

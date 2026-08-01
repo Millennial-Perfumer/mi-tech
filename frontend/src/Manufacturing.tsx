@@ -165,7 +165,7 @@ export const Manufacturing: React.FC<{ token: string | null }> = ({ token }) => 
     setIsLoading(true);
     try {
       const [mfgRes, oilsRes, prodRes] = await Promise.all([
-        fetchWithAuth(`${API_BASE}/api/inventory/manufacturing`),
+        fetchWithAuth(`${API_BASE}/api/inventory/manufacturing?limit=5`),
         fetchWithAuth(`${API_BASE}/api/inventory/oil`),
         fetchWithAuth(`${API_BASE}/api/inventory`)
       ]);

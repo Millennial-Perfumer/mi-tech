@@ -9,6 +9,7 @@ import (
 // PurchaseOrderRepository defines all data access for raw material purchases.
 type PurchaseOrderRepository interface {
 	List() ([]entity.PurchaseOrder, error)
+	ListRecent(limit int) ([]entity.PurchaseOrder, error)
 	GetByID(id int) (*entity.PurchaseOrder, error)
 	Create(po *entity.PurchaseOrder) error
 	Update(po *entity.PurchaseOrder) error
@@ -26,6 +27,12 @@ func NewPurchaseOrderRepository(db *gorm.DB) PurchaseOrderRepository {
 func (r *pgPurchaseOrderRepository) List() ([]entity.PurchaseOrder, error) {
 	var pos []entity.PurchaseOrder
 	err := r.db.Preload("OilInventory").Preload("Supplier").Order("purchase_date desc").Find(&pos).Error
+	return pos, err
+}
+
+func (r *pgPurchaseOrderRepository) ListRecent(limit int) ([]entity.PurchaseOrder, error) {
+	var pos []entity.PurchaseOrder
+	err := r.db.Preload("OilInventory").Preload("Supplier").Order("purchase_date DESC").Limit(limit).Find(&pos).Error
 	return pos, err
 }
 

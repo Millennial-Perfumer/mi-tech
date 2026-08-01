@@ -10,6 +10,7 @@ import (
 type ManufacturingRepository interface {
 	WithTx(tx *gorm.DB) ManufacturingRepository
 	List() ([]entity.ManufacturingRecord, error)
+	ListRecent(limit int) ([]entity.ManufacturingRecord, error)
 	GetByID(id int) (*entity.ManufacturingRecord, error)
 	Create(record *entity.ManufacturingRecord) error
 	Update(record *entity.ManufacturingRecord) error
@@ -34,6 +35,12 @@ func (r *pgManufacturingRepository) WithTx(tx *gorm.DB) ManufacturingRepository 
 func (r *pgManufacturingRepository) List() ([]entity.ManufacturingRecord, error) {
 	var records []entity.ManufacturingRecord
 	err := r.db.Preload("Oils.OilInventory").Preload("Products.InventoryItem").Order("manufacturing_date desc").Find(&records).Error
+	return records, err
+}
+
+func (r *pgManufacturingRepository) ListRecent(limit int) ([]entity.ManufacturingRecord, error) {
+	var records []entity.ManufacturingRecord
+	err := r.db.Preload("Oils.OilInventory").Preload("Products.InventoryItem").Order("manufacturing_date DESC").Limit(limit).Find(&records).Error
 	return records, err
 }
 

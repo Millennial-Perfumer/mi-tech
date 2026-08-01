@@ -56,7 +56,7 @@ build-frontend-feedback:
 	cd frontend-feedback && npm run build
 
 build-backend:
-	cd backend && go build -o bin/api cmd/main.go
+	cd backend && go build -o bin/api ./cmd/main.go
 
 # Clean build artifacts
 clean:

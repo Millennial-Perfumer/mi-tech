@@ -62,6 +62,7 @@ func RegisterRoutes(
 	aiHandler *aiHandlerPkg.AIHandler,
 	b2bHandler *b2bHandlerPkg.B2BHandler,
 	acHandler *abandonedCheckoutHandlerPkg.AbandonedCheckoutHandler,
+	judgeMeHandler *marketingHandlerPkg.JudgeMeHandler,
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -93,7 +94,14 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
 	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
 
-	log.Println("DEBUG: Marketing & SMM Routes Registered")
+	// Judge.me Review Generator Routes
+	if judgeMeHandler != nil {
+		mux.HandleFunc("/api/marketing/judgeme/generate", protected(judgeMeHandler.GenerateReviews))
+		mux.HandleFunc("/api/marketing/judgeme/submit", protected(judgeMeHandler.SubmitReviews))
+		mux.HandleFunc("/api/marketing/judgeme/published", protected(judgeMeHandler.GetPublishedReviews))
+	}
+
+	log.Println("DEBUG: Marketing, SMM & Judge.me Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
 	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))

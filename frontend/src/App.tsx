@@ -26,6 +26,7 @@ import { AIAnalysis } from './AIAnalysis';
 import { CreateOrderModal } from './CreateOrderModal';
 import { DashboardOrdersModal } from './DashboardOrdersModal';
 import { AbandonedCarts } from './AbandonedCarts';
+import { JudgeMeReviews } from './JudgeMeReviews';
 
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -876,6 +877,10 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
             <span>Social Media</span>
           </a>
+          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'judgeme' ? 'active' : ''}`} onClick={() => setActiveTab('judgeme')} title={isSidebarCollapsed ? "Judge.me Reviews" : ""} style={{ animationDelay: '460ms' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <span>Judge.me Reviews</span>
+          </a>
 
           {(appConfigs['kanban_enabled'] === 'true' || userRole === 'admin') && (
             <div className="nav-group-label" style={{ animationDelay: '475ms' }}>SYSTEM</div>
@@ -1034,6 +1039,7 @@ function App() {
           </div>
         )}
 
+        {activeTab !== 'judgeme' && (
         <header className="page-header">
           <div>
             <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'b2b' ? 'B2B Billing' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : activeTab === 'abandoned-carts' ? 'Abandoned Carts' : 'Settings'}</h1>
@@ -1042,8 +1048,9 @@ function App() {
             </p>
           </div>
         </header>
+        )}
 
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && activeTab !== 'b2b' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && activeTab !== 'b2b' && activeTab !== 'judgeme' && (
           <div className="date-range-header-bar" style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -2081,6 +2088,10 @@ function App() {
 
           {activeTab === 'ai-analysis' && (
             <AIAnalysis fetchWithAuth={fetchWithAuth} API_BASE={API_BASE} />
+          )}
+
+          {activeTab === 'judgeme' && (
+            <JudgeMeReviews token={token} />
           )}
         </div>
       </main>

@@ -190,6 +190,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
 	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
 	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
+	judgeMeService := marketingServicePkg.NewJudgeMeService(db)
+	judgeMeHandler := marketingHandlerPkg.NewJudgeMeHandler(judgeMeService)
 
 	RegisterRoutes(
 		mux,
@@ -220,6 +222,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		aiHandler,
 		b2bHandler,
 		acHandler,
+		judgeMeHandler,
 		authService,
 	)
 

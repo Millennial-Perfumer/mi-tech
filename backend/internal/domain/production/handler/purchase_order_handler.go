@@ -18,6 +18,18 @@ func NewPurchaseOrderHandler(svc *service.PurchaseOrderService) *PurchaseOrderHa
 }
 
 func (h *PurchaseOrderHandler) List(w http.ResponseWriter, r *http.Request) {
+	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+		limit, _ := strconv.Atoi(limitParam)
+		pos, err := h.svc.ListRecent(limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pos)
+		return
+	}
+
 	pos, err := h.svc.List()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

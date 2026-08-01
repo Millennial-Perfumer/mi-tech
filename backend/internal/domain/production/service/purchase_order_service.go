@@ -23,6 +23,13 @@ func (s *PurchaseOrderService) List() ([]entity.PurchaseOrder, error) {
 	return s.poRepo.List()
 }
 
+func (s *PurchaseOrderService) ListRecent(limit int) ([]entity.PurchaseOrder, error) {
+	if limit < 1 || limit > 100 {
+		limit = 5
+	}
+	return s.poRepo.ListRecent(limit)
+}
+
 func (s *PurchaseOrderService) Create(po *entity.PurchaseOrder) error {
 	// 0. Ensure date is set
 	if po.PurchaseDate.IsZero() {
