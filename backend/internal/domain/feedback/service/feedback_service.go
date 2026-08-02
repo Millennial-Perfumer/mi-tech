@@ -100,17 +100,8 @@ func (s *FeedbackService) PostJudgeMeReviewsForFeedback(ctx context.Context, fee
 		reviewerEmail = "hari.crze.101@gmail.com"
 	}
 
-	reviewTitle := "Verified Customer Feedback"
-	if feedback.Rating == 5 {
-		reviewTitle = "Excellent quality & scent!"
-	} else if feedback.Rating == 4 {
-		reviewTitle = "Great performance and fragrance"
-	}
-
+	reviewTitle := ""
 	reviewBody := feedback.Message
-	if reviewBody == "" {
-		reviewBody = "Really happy with this purchase. Scent and projection are great!"
-	}
 
 	var reviewsToSubmit []marketingDto.GeneratedReviewDTO
 	for idx, item := range order.LineItems {
