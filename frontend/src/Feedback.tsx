@@ -664,18 +664,16 @@ const Feedback: React.FC<FeedbackProps> = ({
                           style={{ 
                             display: 'inline-flex', 
                             alignItems: 'center', 
-                            gap: '3px', 
-                            background: 'rgba(16, 185, 129, 0.12)', 
+                            justifyContent: 'center', 
+                            width: '18px',
+                            height: '18px',
+                            background: 'rgba(16, 185, 129, 0.15)', 
                             color: '#10b981', 
-                            border: '1px solid rgba(16, 185, 129, 0.25)', 
-                            borderRadius: '12px', 
-                            padding: '2px 7px', 
-                            fontSize: '0.7rem', 
-                            fontWeight: 700 
+                            border: '1px solid rgba(16, 185, 129, 0.3)', 
+                            borderRadius: '50%'
                           }}
                         >
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          Posted
                         </span>
                       )}
                     </div>
