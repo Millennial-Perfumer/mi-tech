@@ -105,9 +105,13 @@ func (s *FeedbackService) PostJudgeMeReviewsForFeedback(ctx context.Context, fee
 
 	var reviewsToSubmit []marketingDto.GeneratedReviewDTO
 	for idx, item := range order.LineItems {
+		prodID := item.ProductID
+		if prodID == "" {
+			prodID = item.Title
+		}
 		reviewsToSubmit = append(reviewsToSubmit, marketingDto.GeneratedReviewDTO{
 			ID:           fmt.Sprintf("feedback_%d_item_%d", feedbackID, idx+1),
-			ProductID:    item.Title,
+			ProductID:    prodID,
 			ProductTitle: item.Title,
 			ReviewerName: reviewerName,
 			Email:        reviewerEmail,
