@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -15,18 +16,21 @@ import (
 	"mi-tech/internal/domain/inventory/entity"
 	"mi-tech/internal/domain/marketing/dto"
 	marketingEntity "mi-tech/internal/domain/marketing/entity"
+	"mi-tech/internal/shared/extclient/shopify"
 
 	"gorm.io/gorm"
 )
 
 type JudgeMeService struct {
-	db         *gorm.DB
-	httpClient *http.Client
+	db            *gorm.DB
+	shopifyClient *shopify.Client
+	httpClient    *http.Client
 }
 
-func NewJudgeMeService(db *gorm.DB) *JudgeMeService {
+func NewJudgeMeService(db *gorm.DB, shopifyClient *shopify.Client) *JudgeMeService {
 	return &JudgeMeService{
-		db: db,
+		db:            db,
+		shopifyClient: shopifyClient,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -177,21 +181,131 @@ func generateRating() int {
 	return 4
 }
 
+func (s *JudgeMeService) buildShopifyProductMap() (map[string]string, error) {
+	if s.shopifyClient == nil {
+		return nil, fmt.Errorf("shopify client is not initialized")
+	}
+
+	products, err := s.shopifyClient.FetchProducts()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch products from shopify: %w", err)
+	}
+
+	if len(products) == 0 {
+		return nil, fmt.Errorf("no products returned from shopify store")
+	}
+
+	res := make(map[string]string)
+	for _, sp := range products {
+		numID := sp.ID
+		if idx := strings.LastIndex(numID, "/"); idx != -1 {
+			numID = numID[idx+1:]
+		}
+
+		cleanTitle := strings.ToLower(strings.TrimSpace(sp.Title))
+		if cleanTitle != "" {
+			res[cleanTitle] = numID
+
+			// Index individual distinct title tokens (e.g. "aeros", "tygar", "allure", "aqua")
+			for _, rawToken := range strings.Split(cleanTitle, " ") {
+				token := strings.Trim(strings.ToLower(rawToken), " \t\n\r-|(),™:;")
+				if len(token) >= 3 && token != "millennial" && token != "perfumer" && token != "extrait" && token != "parfum" && token != "type" && token != "match" && token != "profile" {
+					res[token] = numID
+				}
+			}
+		}
+
+		cleanHandle := strings.ToLower(strings.TrimSpace(sp.Handle))
+		if cleanHandle != "" {
+			res[cleanHandle] = numID
+		}
+
+		for _, v := range sp.Variants.Edges {
+			if v.Node.SKU != "" {
+				res[strings.ToLower(strings.TrimSpace(v.Node.SKU))] = numID
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func (s *JudgeMeService) resolveShopifyProductID(productID, productTitle string, item *entity.InventoryItem, shopifyMap map[string]string) (string, error) {
+	cleanTitle := strings.ToLower(strings.TrimSpace(productTitle))
+	if item != nil && cleanTitle == "" {
+		cleanTitle = strings.ToLower(strings.TrimSpace(item.Title))
+	}
+
+	// 1. Try title matching in shopifyMap (highest priority for accurate Product ID)
+	if cleanTitle != "" {
+		if id, ok := shopifyMap[cleanTitle]; ok {
+			return id, nil
+		}
+		for k, v := range shopifyMap {
+			if strings.Contains(cleanTitle, k) || strings.Contains(k, cleanTitle) {
+				return v, nil
+			}
+		}
+	}
+
+	// 2. Try SKU matching in shopifyMap
+	if item != nil {
+		if item.MISKU != "" {
+			if id, ok := shopifyMap[strings.ToLower(strings.TrimSpace(item.MISKU))]; ok {
+				return id, nil
+			}
+		}
+		for _, m := range item.Mappings {
+			if m.Platform == "shopify" && m.ExternalSKU != "" {
+				if id, ok := shopifyMap[strings.ToLower(strings.TrimSpace(m.ExternalSKU))]; ok {
+					return id, nil
+				}
+			}
+		}
+	}
+
+	// 3. If productID passed is a verified Shopify Product ID present in shopifyMap values
+	if len(productID) >= 10 {
+		for _, validPid := range shopifyMap {
+			if validPid == productID {
+				return productID, nil
+			}
+		}
+	}
+
+	// 4. Try title keyword token matching in shopifyMap
+	if cleanTitle != "" {
+		for token, validPid := range shopifyMap {
+			if len(token) >= 3 && strings.Contains(cleanTitle, token) {
+				return validPid, nil
+			}
+		}
+	}
+
+	// Strict No-Fallback Rule: Return explicit error if Shopify Product ID cannot be resolved
+	return "", fmt.Errorf("unable to resolve Shopify Product ID for product '%s' (ID: %s)", productTitle, productID)
+}
+
 // GenerateReviews creates draft review objects capped at max 10 total reviews.
 func (s *JudgeMeService) GenerateReviews(ctx context.Context, req dto.GenerateReviewsRequest) ([]dto.GeneratedReviewDTO, error) {
 	if req.ShopDomain == "" {
 		req.ShopDomain = "4296fb-8e.myshopify.com"
 	}
 	if req.Email == "" {
-		req.Email = "aboobakersiddiq2000@gmail.com"
+		req.Email = "hari.crze.101@gmail.com"
 	}
 	if req.ReviewsPerProduct <= 0 {
 		req.ReviewsPerProduct = 1
 	}
 
+	shopifyMap, err := s.buildShopifyProductMap()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch shopify products: %w", err)
+	}
+
 	// Fetch target products from database
 	var items []entity.InventoryItem
-	query := s.db.WithContext(ctx)
+	query := s.db.WithContext(ctx).Preload("Mappings")
 	if len(req.ProductIDs) > 0 {
 		query = query.Where("id IN ?", req.ProductIDs)
 	}
@@ -199,23 +313,20 @@ func (s *JudgeMeService) GenerateReviews(ctx context.Context, req dto.GenerateRe
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
 	}
 
-	// Fallback to sample products if DB returns 0 items
-	var targetProducts []dto.GeneratedReviewDTO
 	if len(items) == 0 {
-		targetProducts = []dto.GeneratedReviewDTO{
-			{ProductID: "10094054015266", ProductTitle: "Aeros"},
-			{ProductID: "10094054048034", ProductTitle: "All Of Me"},
-			{ProductID: "10094054080802", ProductTitle: "Allure"},
-			{ProductID: "10094054113570", ProductTitle: "Angel Share"},
-			{ProductID: "10094054146338", ProductTitle: "Aqua"},
+		return nil, fmt.Errorf("no inventory products found to generate reviews for")
+	}
+
+	var targetProducts []dto.GeneratedReviewDTO
+	for _, item := range items {
+		resolvedProductID, err := s.resolveShopifyProductID(strconv.Itoa(item.ID), item.Title, &item, shopifyMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve shopify product id for '%s': %w", item.Title, err)
 		}
-	} else {
-		for _, item := range items {
-			targetProducts = append(targetProducts, dto.GeneratedReviewDTO{
-				ProductID:    strconv.Itoa(item.ID),
-				ProductTitle: item.Title,
-			})
-		}
+		targetProducts = append(targetProducts, dto.GeneratedReviewDTO{
+			ProductID:    resolvedProductID,
+			ProductTitle: item.Title,
+		})
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -273,6 +384,11 @@ func (s *JudgeMeService) SubmitReviews(ctx context.Context, req dto.SubmitReview
 		req.DelayMs = 1200
 	}
 
+	shopifyMap, err := s.buildShopifyProductMap()
+	if err != nil {
+		return nil, fmt.Errorf("cannot submit reviews because shopify product fetching failed: %w", err)
+	}
+
 	res := &dto.SubmitReviewsResponse{
 		TotalProcessed: len(req.Reviews),
 		Results:        make([]dto.SubmissionResultDTO, 0, len(req.Reviews)),
@@ -283,6 +399,24 @@ func (s *JudgeMeService) SubmitReviews(ctx context.Context, req dto.SubmitReview
 		if shopDomain == "" {
 			shopDomain = "4296fb-8e.myshopify.com"
 		}
+
+		// Ensure ProductID sent to Judge.me is a valid numeric Shopify Product ID
+		resolvedProductID, err := s.resolveShopifyProductID(rev.ProductID, rev.ProductTitle, nil, shopifyMap)
+		if err != nil {
+			res.Failed++
+			res.Results = append(res.Results, dto.SubmissionResultDTO{
+				Index:        idx + 1,
+				ProductID:    rev.ProductID,
+				ProductTitle: rev.ProductTitle,
+				ReviewerName: rev.ReviewerName,
+				Email:        rev.Email,
+				Status:       "MISSING_SHOPIFY_ID",
+				StatusCode:   400,
+				ResponseBody: fmt.Sprintf("Shopify Product ID lookup failed: %v", err),
+			})
+			continue
+		}
+		rev.ProductID = resolvedProductID
 
 		status := "SUCCESS"
 		statusCode := 200
@@ -306,6 +440,9 @@ func (s *JudgeMeService) SubmitReviews(ctx context.Context, req dto.SubmitReview
 			_ = mw.WriteField("title", rev.Title)
 			_ = mw.WriteField("body", rev.Body)
 			_ = mw.WriteField("id", rev.ProductID)
+			_ = mw.WriteField("platform_product_id", rev.ProductID)
+			_ = mw.WriteField("product_id", rev.ProductID)
+			_ = mw.WriteField("product_title", rev.ProductTitle)
 			_ = mw.Close()
 
 			httpReq, err := http.NewRequestWithContext(ctx, "POST", "https://api.judge.me/api/v1/reviews", bodyBuf)
@@ -349,6 +486,8 @@ func (s *JudgeMeService) SubmitReviews(ctx context.Context, req dto.SubmitReview
 				resp.Body.Close()
 				responseBody = string(respBodyBytes)
 				statusCode = resp.StatusCode
+
+				log.Printf("[JUDGEME SUBMIT RESPONSE] ProductID=%s Title=%s Status=%d Body=%s", rev.ProductID, rev.ProductTitle, resp.StatusCode, responseBody)
 
 				if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 					status = "SUCCESS"

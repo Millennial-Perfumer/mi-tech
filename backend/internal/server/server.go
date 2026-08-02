@@ -190,7 +190,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
 	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
 	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
-	judgeMeService := marketingServicePkg.NewJudgeMeService(db)
+	judgeMeService := marketingServicePkg.NewJudgeMeService(db, shopifyClient)
 	judgeMeHandler := marketingHandlerPkg.NewJudgeMeHandler(judgeMeService)
 
 	RegisterRoutes(

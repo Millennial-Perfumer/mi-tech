@@ -72,7 +72,7 @@ export const JudgeMeReviews: React.FC<{ token: string | null }> = ({ token }) =>
 
   // Configuration state
   const [shopDomain, setShopDomain] = useState('4296fb-8e.myshopify.com');
-  const [email, setEmail] = useState('aboobakersiddiq2000@gmail.com');
+  const [email, setEmail] = useState('hari.crze.101@gmail.com');
   const [aliasEmail, setAliasEmail] = useState(false);
   const [reviewsPerProduct, setReviewsPerProduct] = useState(1);
   const [selectedProductIDs, setSelectedProductIDs] = useState<string[]>([]);
@@ -261,10 +261,14 @@ export const JudgeMeReviews: React.FC<{ token: string | null }> = ({ token }) =>
       toastError('Maximum 10 draft reviews allowed in approval queue at a time');
       return;
     }
+    const firstProduct = products.length > 0 ? products[0] : null;
+    const shopifyMapping = (firstProduct as any)?.mappings?.find((m: any) => m.platform === 'shopify');
+    const defaultProductID = shopifyMapping?.external_variant_id || '';
+
     const newDraft: DraftReview = {
       id: `custom_${Date.now()}`,
-      product_id: products.length > 0 ? products[0].id.toString() : '10094054015266',
-      product_title: products.length > 0 ? products[0].title : 'Aeros',
+      product_id: defaultProductID,
+      product_title: firstProduct ? firstProduct.title : 'Aeros',
       reviewer_name: 'Hemanth Kumar',
       gender: 'male',
       email: email,
