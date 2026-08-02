@@ -670,10 +670,13 @@ const Feedback: React.FC<FeedbackProps> = ({
                             background: 'rgba(16, 185, 129, 0.15)', 
                             color: '#10b981', 
                             border: '1px solid rgba(16, 185, 129, 0.3)', 
-                            borderRadius: '50%'
+                            borderRadius: '50%',
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            fontFamily: 'system-ui, sans-serif'
                           }}
                         >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          J
                         </span>
                       )}
                     </div>
