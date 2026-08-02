@@ -11,6 +11,8 @@ interface CustomerFeedback {
   message?: string;
   customer_phone?: string;
   admin_comment?: string;
+  judgeme_posted?: boolean;
+  judgeme_posted_at?: string;
   created_at: string;
 }
 
@@ -47,11 +49,40 @@ const Feedback: React.FC<FeedbackProps> = ({
   const [selectedFeedback, setSelectedFeedback] = useState<CustomerFeedback | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [adminCommentText, setAdminCommentText] = useState('');
+  const [judgeMeEmail, setJudgeMeEmail] = useState('hari.crze.101@gmail.com');
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [postingId, setPostingId] = useState<number | null>(null);
+
+  const handlePostJudgeMe = async (feedbackId: number) => {
+    setPostingId(feedbackId);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/feedback/post-judgeme?id=${feedbackId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: judgeMeEmail }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        success(data.message || 'Judge.me review created successfully');
+        if (selectedFeedback && selectedFeedback.id === feedbackId) {
+          setSelectedFeedback({ ...selectedFeedback, judgeme_posted: true });
+        }
+        fetchFeedbacks();
+      } else {
+        error(data.message || 'Failed to post review to Judge.me');
+      }
+    } catch (err) {
+      console.error('Failed to post Judge.me review:', err);
+      error('Network error creating Judge.me review');
+    } finally {
+      setPostingId(null);
+    }
+  };
 
   const handleOpenCommentModal = (feedback: CustomerFeedback) => {
     setSelectedFeedback(feedback);
     setAdminCommentText(feedback.admin_comment || '');
+    setJudgeMeEmail('hari.crze.101@gmail.com');
     setIsAdminModalOpen(true);
   };
 
@@ -441,6 +472,88 @@ const Feedback: React.FC<FeedbackProps> = ({
             </div>
 
             <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.6rem' }}>Judge.me Integration</label>
+              
+              {!selectedFeedback.judgeme_posted && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.35rem' }}>
+                    Reviewer Email Address:
+                  </label>
+                  <input 
+                    type="email"
+                    value={judgeMeEmail}
+                    onChange={e => setJudgeMeEmail(e.target.value)}
+                    placeholder="hari.crze.101@gmail.com"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1.5px solid var(--border-color)',
+                      borderRadius: '10px',
+                      padding: '0.6rem 0.85rem',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              )}
+
+              {selectedFeedback.judgeme_posted ? (
+                <div style={{ 
+                  padding: '0.75rem 1rem', 
+                  borderRadius: '12px', 
+                  background: 'rgba(16, 185, 129, 0.15)', 
+                  color: '#10b981', 
+                  fontWeight: 600, 
+                  fontSize: '0.85rem', 
+                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem' 
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Review Already Posted to Judge.me
+                </div>
+              ) : (
+                <button 
+                  onClick={() => handlePostJudgeMe(selectedFeedback.id)}
+                  disabled={postingId === selectedFeedback.id}
+                  type="button"
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.85rem 1rem', 
+                    borderRadius: '12px', 
+                    fontSize: '0.9rem', 
+                    fontWeight: 700, 
+                    cursor: postingId === selectedFeedback.id ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    background: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {postingId === selectedFeedback.id ? (
+                    <>
+                      <span className="dot-flashing" style={{ scale: '0.7' }}></span>
+                      Creating Judge.me Review...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                      Create Judge.me Review
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.6rem' }}>Admin Comment / Note</label>
               <textarea
                 value={adminCommentText}
@@ -490,7 +603,7 @@ const Feedback: React.FC<FeedbackProps> = ({
                   cursor: isSavingComment ? 'not-allowed' : 'pointer'
                 }}
               >
-                {isSavingComment ? 'Saving...' : 'Save Comment'}
+                {isSavingComment ? 'Saving Note...' : 'Save Note'}
               </button>
             </div>
           </div>

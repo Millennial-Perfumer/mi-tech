@@ -136,7 +136,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	customerService := orderServicePkg.NewCustomerService(customerRepo, orderRepo, shopifyClient)
 	invoiceService := orderServicePkg.NewInvoiceService(settingsRepo)
 	orderService := orderServicePkg.NewOrderService(orderRepo, lineItemRepo, customerService, shopifyClient, syncOrchestrator)
-	feedbackService := feedbackServicePkg.NewFeedbackService(feedbackRepo, orderService)
+	judgeMeService := marketingServicePkg.NewJudgeMeService(db, shopifyClient)
+	feedbackService := feedbackServicePkg.NewFeedbackService(feedbackRepo, orderService, judgeMeService)
 	syncService := syncServicePkg.NewSyncService(shopifyClient, orderRepo, customerService, syncOrchestrator)
 	webhookService := webhookServicePkg.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	amazonOrderPoller := syncServicePkg.NewAmazonOrderPoller(amazonClient, orderRepo, inventoryRepo, syncOrchestrator)
@@ -190,7 +191,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
 	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
 	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
-	judgeMeService := marketingServicePkg.NewJudgeMeService(db, shopifyClient)
 	judgeMeHandler := marketingHandlerPkg.NewJudgeMeHandler(judgeMeService)
 
 	RegisterRoutes(
