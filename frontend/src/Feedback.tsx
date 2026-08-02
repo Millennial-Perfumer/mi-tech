@@ -52,6 +52,11 @@ const Feedback: React.FC<FeedbackProps> = ({
   const [judgeMeEmail, setJudgeMeEmail] = useState('hari.crze.101@gmail.com');
   const [isSavingComment, setIsSavingComment] = useState(false);
   const [postingId, setPostingId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 15;
+  const totalPages = Math.ceil(feedbacks.length / itemsPerPage) || 1;
+  const paginatedFeedbacks = feedbacks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handlePostJudgeMe = async (feedbackId: number) => {
     setPostingId(feedbackId);
@@ -637,10 +642,10 @@ const Feedback: React.FC<FeedbackProps> = ({
                 <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>Send feedback requests to start gathering customer insights.</p>
               </td></tr>
             ) : (
-              feedbacks.map((item, idx) => (
+              paginatedFeedbacks.map((item, idx) => (
                 <tr 
                   key={item.id} 
-                  style={{ borderBottom: idx === feedbacks.length - 1 ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s', cursor: 'pointer' }} 
+                  style={{ borderBottom: idx === paginatedFeedbacks.length - 1 ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s', cursor: 'pointer' }} 
                   className="hover-row"
                   onClick={() => handleOpenCommentModal(item)}
                 >
@@ -649,8 +654,30 @@ const Feedback: React.FC<FeedbackProps> = ({
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>{item.customer_phone}</div>
                   </td>
                   <td style={{ padding: '1.5rem' }}>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--accent-color)', fontWeight: 700, background: 'var(--accent-subtle)', display: 'inline-block', padding: '2px 8px', borderRadius: '6px' }}>
-                      {item.order_number}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--accent-color)', fontWeight: 700, background: 'var(--accent-subtle)', display: 'inline-block', padding: '2px 8px', borderRadius: '6px' }}>
+                        {item.order_number}
+                      </div>
+                      {item.judgeme_posted && (
+                        <span 
+                          title="Judge.me Review Submitted" 
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '3px', 
+                            background: 'rgba(16, 185, 129, 0.12)', 
+                            color: '#10b981', 
+                            border: '1px solid rgba(16, 185, 129, 0.25)', 
+                            borderRadius: '12px', 
+                            padding: '2px 7px', 
+                            fontSize: '0.7rem', 
+                            fontWeight: 700 
+                          }}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          Posted
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td style={{ padding: '1.5rem' }}>
@@ -699,6 +726,35 @@ const Feedback: React.FC<FeedbackProps> = ({
             )}
           </tbody>
         </table>
+
+        {feedbacks.length > itemsPerPage && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Showing <strong style={{ color: 'var(--text-primary)' }}>{(currentPage - 1) * itemsPerPage + 1}</strong> - <strong style={{ color: 'var(--text-primary)' }}>{Math.min(currentPage * itemsPerPage, feedbacks.length)}</strong> of <strong style={{ color: 'var(--text-primary)' }}>{feedbacks.length}</strong> reviews
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} 
+                disabled={currentPage === 1}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                ← Previous
+              </button>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', padding: '0 0.5rem' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} 
+                disabled={currentPage >= totalPages}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', opacity: currentPage >= totalPages ? 0.5 : 1, cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* --- SETUP WIZARD / ONBOARDING --- */}
