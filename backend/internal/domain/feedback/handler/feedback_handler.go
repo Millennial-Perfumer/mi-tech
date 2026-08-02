@@ -455,3 +455,45 @@ func (h *FeedbackHandler) PostJudgeMeReview(w http.ResponseWriter, r *http.Reque
 		"message": "Judge.me review created successfully for all order products",
 	})
 }
+
+// RequestGoogleReview handles POST /api/orders/feedback/request-google-review?id={feedback_id}.
+func (h *FeedbackHandler) RequestGoogleReview(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodOptions {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "Missing feedback id", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid feedback id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.RequestGoogleReviewViaWhatsApp(r.Context(), id); err != nil {
+		log.Printf("Error processing Google Review request for feedback %d: %v", id, err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Google review request recorded successfully",
+	})
+}

@@ -151,3 +151,17 @@ func (s *FeedbackService) PostJudgeMeReviewsForFeedback(ctx context.Context, fee
 
 	return nil
 }
+
+// RequestGoogleReviewViaWhatsApp marks feedback as having a Google Review request sent.
+func (s *FeedbackService) RequestGoogleReviewViaWhatsApp(ctx context.Context, feedbackID int) error {
+	_, err := s.repo.GetFeedbackByID(feedbackID)
+	if err != nil {
+		return fmt.Errorf("feedback record not found: %w", err)
+	}
+
+	if err := s.repo.MarkGoogleReviewRequested(feedbackID); err != nil {
+		return fmt.Errorf("failed to mark Google review as requested: %w", err)
+	}
+
+	return nil
+}

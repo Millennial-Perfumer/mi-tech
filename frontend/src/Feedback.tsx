@@ -13,6 +13,8 @@ interface CustomerFeedback {
   admin_comment?: string;
   judgeme_posted?: boolean;
   judgeme_posted_at?: string;
+  google_review_requested?: boolean;
+  google_review_requested_at?: string;
   created_at: string;
 }
 
@@ -58,6 +60,8 @@ const Feedback: React.FC<FeedbackProps> = ({
   const totalPages = Math.ceil(feedbacks.length / itemsPerPage) || 1;
   const paginatedFeedbacks = feedbacks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('https://search.google.com/local/writereview?placeid=ChIJ-3J013P2DzkRyH0142-b1y0');
+
   const handlePostJudgeMe = async (feedbackId: number) => {
     setPostingId(feedbackId);
     try {
@@ -82,6 +86,34 @@ const Feedback: React.FC<FeedbackProps> = ({
     } finally {
       setPostingId(null);
     }
+  };
+
+  const handleRequestGoogleReview = async (feedback: CustomerFeedback) => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/feedback/request-google-review?id=${feedback.id}`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.success) {
+        success('Google review request recorded');
+        if (selectedFeedback && selectedFeedback.id === feedback.id) {
+          setSelectedFeedback({ ...selectedFeedback, google_review_requested: true });
+        }
+        fetchFeedbacks();
+      }
+    } catch (err) {
+      console.error('Failed to record Google review request:', err);
+    }
+  };
+
+  const getGoogleReviewWhatsAppUrl = (feedback: CustomerFeedback) => {
+    const rawPhone = (feedback.customer_phone || '').replace(/[^0-9]/g, '');
+    const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+    const reviewText = feedback.message ? `"${feedback.message}"` : `${feedback.rating}/5 Stars Rating`;
+    
+    const message = `Hi ${feedback.customer_name}! 🌟 Thank you so much for your ${feedback.rating}-star review for Millennial Perfumer!\n\nCould you please take 30 seconds to share your review on Google?\n\nHere is your review:\n${reviewText}\n\nTap here to post on Google:\n${googleReviewUrl}\n\nThank you for your support! ❤️`;
+    
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
   const handleOpenCommentModal = (feedback: CustomerFeedback) => {
@@ -558,6 +590,83 @@ const Feedback: React.FC<FeedbackProps> = ({
               )}
             </div>
 
+            <div className="sync-form-group" style={{ marginBottom: '1.5rem', background: 'rgba(37, 211, 102, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(37, 211, 102, 0.15)' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#25D366', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.097-4.001l.436.259c1.472.873 3.16 1.334 4.887 1.335 5.201.001 9.434-4.232 9.436-9.435.001-2.521-.979-4.894-2.763-6.678-1.783-1.784-4.156-2.765-6.677-2.766-5.204-.001-9.438 4.232-9.439 9.435-.001 1.796.514 3.548 1.488 5.078l.284.446-1.002 3.66 3.75-1.001z"/></svg>
+                Google Review WhatsApp Request
+              </label>
+
+              <div style={{ marginBottom: '0.75rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.35rem' }}>
+                  Google Review Target URL:
+                </label>
+                <input 
+                  type="text"
+                  value={googleReviewUrl}
+                  onChange={e => setGoogleReviewUrl(e.target.value)}
+                  placeholder="https://g.page/r/.../review"
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1.5px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '0.6rem 0.85rem',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <a 
+                  href={getGoogleReviewWhatsAppUrl(selectedFeedback)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handleRequestGoogleReview(selectedFeedback)}
+                  style={{
+                    width: '100%',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '12px',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    background: '#25D366',
+                    color: '#ffffff',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 14px rgba(37, 211, 102, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.097-4.001l.436.259c1.472.873 3.16 1.334 4.887 1.335 5.201.001 9.434-4.232 9.436-9.435.001-2.521-.979-4.894-2.763-6.678-1.783-1.784-4.156-2.765-6.677-2.766-5.204-.001-9.438 4.232-9.439 9.435-.001 1.796.514 3.548 1.488 5.078l.284.446-1.002 3.66 3.75-1.001z"/></svg>
+                  Send Google Review Request via WhatsApp (1-Click)
+                </a>
+              </div>
+
+              {selectedFeedback.google_review_requested && (
+                <div style={{ 
+                  marginTop: '0.75rem',
+                  padding: '0.6rem 0.85rem', 
+                  borderRadius: '10px', 
+                  background: 'rgba(59, 130, 246, 0.12)', 
+                  color: '#3b82f6', 
+                  fontWeight: 600, 
+                  fontSize: '0.8rem', 
+                  border: '1px solid rgba(59, 130, 246, 0.25)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.4rem' 
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Google Review Request Sent Previously
+                </div>
+              )}
+            </div>
+
             <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.6rem' }}>Admin Comment / Note</label>
               <textarea
@@ -677,6 +786,27 @@ const Feedback: React.FC<FeedbackProps> = ({
                           }}
                         >
                           J
+                        </span>
+                      )}
+                      {item.google_review_requested && (
+                        <span 
+                          title="Google Review Requested via WhatsApp" 
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            width: '18px',
+                            height: '18px',
+                            background: 'rgba(66, 133, 244, 0.15)', 
+                            color: '#4285F4', 
+                            border: '1px solid rgba(66, 133, 244, 0.3)', 
+                            borderRadius: '50%',
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            fontFamily: 'system-ui, sans-serif'
+                          }}
+                        >
+                          G
                         </span>
                       )}
                     </div>

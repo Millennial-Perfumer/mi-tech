@@ -122,6 +122,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/feedback/config-status", protected(feedbackHandler.GetConfigStatus))
 	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
 	mux.HandleFunc("/api/orders/feedback/post-judgeme", protected(feedbackHandler.PostJudgeMeReview))
+	mux.HandleFunc("/api/orders/feedback/request-google-review", protected(feedbackHandler.RequestGoogleReview))
 
 	// --- Auth Routes ---
 	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)
