@@ -39,7 +39,7 @@ func (r *gormFeedbackRepository) SaveCustomerFeedback(feedback entity.CustomerFe
 func (r *gormFeedbackRepository) GetCustomerFeedback() ([]dto.FeedbackResponse, error) {
 	var results []dto.FeedbackResponse
 	err := r.db.Table("customer_feedback").
-		Select("customer_feedback.id, customer_feedback.order_id, orders.order_number, orders.customer_name, customer_feedback.rating, customer_feedback.message as comment, customer_feedback.admin_comment, customer_feedback.judgeme_posted, customer_feedback.judgeme_posted_at, customer_feedback.google_review_requested, customer_feedback.google_review_requested_at, customer_feedback.created_at").
+		Select("customer_feedback.id, customer_feedback.order_id, orders.order_number, orders.customer_name, orders.customer_phone, customer_feedback.rating, customer_feedback.message as comment, customer_feedback.admin_comment, customer_feedback.judgeme_posted, customer_feedback.judgeme_posted_at, customer_feedback.google_review_requested, customer_feedback.google_review_requested_at, customer_feedback.created_at").
 		Joins("JOIN orders ON orders.id = customer_feedback.order_id").
 		Order("customer_feedback.created_at DESC").
 		Scan(&results).Error
