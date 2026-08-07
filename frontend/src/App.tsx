@@ -1150,7 +1150,7 @@ function App() {
             </div>
 
             {/* Hero Row: Revenue + GST */}
-            <div className="metrics-hero-grid stagger-grid">
+            <div className="metrics-hero-grid">
               <div className="metric-card metric-card-hero">
                 <div className="metric-icon metric-icon-1">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
@@ -1177,40 +1177,72 @@ function App() {
             </div>
 
             {/* Order Metrics Grid */}
-            <div className="metrics-grid stagger-grid">
-              <div className="metric-card hover-lift" style={{ cursor: 'pointer' }}
-                onClick={() => setDashboardMetricModalLabel('Total')}>
+            <div className="metrics-grid">
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Total')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-1">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
                 </div>
                 <div className="metric-label">Total Orders</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{metrics?.total_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card hover-lift" style={{ cursor: 'pointer' }}
-                onClick={() => setDashboardMetricModalLabel('Fulfilled')}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Fulfilled')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-2">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                 </div>
                 <div className="metric-label">Fulfilled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: 'var(--status-active)' }}>{metrics?.fulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card hover-lift" style={{ cursor: 'pointer' }}
-                onClick={() => setDashboardMetricModalLabel('Unfulfilled')}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Unfulfilled')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-3">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                 </div>
                 <div className="metric-label">Unfulfilled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: '#f59e0b' }}>{metrics?.unfulfilled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card hover-lift" style={{ cursor: 'pointer' }}
-                onClick={() => setDashboardMetricModalLabel('Cancelled')}>
+              <div className="metric-card" style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onClick={() => setDashboardMetricModalLabel('Cancelled')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}>
                 <div className="metric-icon metric-icon-4">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
                 </div>
                 <div className="metric-label">Cancelled</div>
                 <div className="metric-value" style={{ fontSize: '1.5rem', color: '#ef4444' }}>{metrics?.cancelled_orders?.toLocaleString() || '0'}</div>
               </div>
-              <div className="metric-card hover-lift">
+              <div className="metric-card">
                 <div className="metric-icon metric-icon-5">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
                 </div>

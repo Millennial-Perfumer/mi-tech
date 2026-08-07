@@ -882,14 +882,3 @@ func (r *gormOrderRepository) GetNextPOSSequence(terminalCode string) (string, e
 	}
 	return fmt.Sprintf("%s-%03d", result.Code, result.Seq), nil
 }
-
-func (r *gormOrderRepository) GetMaxAmazonInvoiceNumber() (int, error) {
-	var maxVal int
-	err := r.db.Raw(`
-		SELECT COALESCE(MAX(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '')::integer), 0)
-		FROM orders
-		WHERE source_id = 'amazon' AND invoice_number LIKE 'AMZ-%'
-	`).Scan(&maxVal).Error
-	return maxVal, err
-}
-
