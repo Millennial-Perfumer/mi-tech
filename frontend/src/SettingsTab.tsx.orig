@@ -29,57 +29,57 @@ interface SettingsTabProps {
 const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; color: string }> = {
   meta_shared: {
     title: 'Meta Shared Details',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>,
     color: '#0ea5e9'
   },
   shopify: {
     title: 'Shopify',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>,
     color: 'var(--status-active)'
   },
   whatsapp: {
     title: 'WhatsApp',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
     color: 'var(--status-active)'
   },
   system: {
     title: 'System',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
     color: 'var(--accent-color)'
   },
   business: {
     title: 'Business',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
     color: 'var(--status-warning)'
   },
   marketing: {
     title: 'Marketing',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
     color: '#0ea5e9'
   },
   social_media: {
     title: 'Social Media',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>,
     color: '#E4405F'
   },
   feedback: {
     title: 'Feedback',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10L11 12L15 8"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10L11 12L15 8"></path></svg>,
     color: '#f59e0b'
   },
   amazon: {
     title: 'Amazon SP-API',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
     color: '#FF9900'
   },
   inventory: {
     title: 'Inventory',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>,
     color: '#10b981'
   },
   abandoned_cart: {
     title: 'Abandoned Cart',
-    icon: <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><circle cx="16" cy="11" r="3"></circle><path d="M16 10v2h2"></path></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><circle cx="16" cy="11" r="3"></circle><path d="M16 10v2h2"></path></svg>,
     color: '#f43f5e'
   }
 };
@@ -118,7 +118,7 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
   const [hours24, minutesStr] = (value || "10:00").split(':');
   let initialHour = parseInt(hours24 || "10", 10);
   const initialMinute = parseInt(minutesStr || "00", 10);
-  
+
   const initialPeriod = initialHour >= 12 ? 'PM' : 'AM';
   let initialHour12 = initialHour % 12;
   if (initialHour12 === 0) initialHour12 = 12;
@@ -218,7 +218,7 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
           -ms-overflow-style: none;
         }
       `}</style>
-      
+
       {/* Header display */}
       <div style={{
         display: 'flex',
@@ -259,7 +259,6 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
               <button
                 key={h}
                 data-selected={isSelected}
-                aria-pressed={isSelected}
                 onClick={() => setSelectedHour(h)}
                 style={{
                   width: '100%',
@@ -297,7 +296,6 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
               <button
                 key={m}
                 data-selected={isSelected}
-                aria-pressed={isSelected}
                 onClick={() => setSelectedMinute(m)}
                 style={{
                   width: '100%',
@@ -332,7 +330,6 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
             return (
               <button
                 key={p}
-                aria-pressed={isSelected}
                 onClick={() => setSelectedPeriod(p)}
                 style={{
                   width: '100%',
@@ -539,7 +536,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
               API Keys & Configuration
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -548,7 +545,6 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
           </div>
           <button
             className={isRevealed ? 'btn-secondary' : 'btn-primary'}
-            aria-pressed={isRevealed}
             onClick={() => {
               if (isRevealed) {
                 handleHide();
@@ -562,12 +558,12 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
           >
             {isRevealed ? (
               <>
-                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
                 Hide Secrets
               </>
             ) : (
               <>
-                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                 Reveal Secrets
               </>
             )}
@@ -662,14 +658,12 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{cfg.key}</div>
                         </div>
-                        
+
                         <div style={{ flex: 1, minWidth: 0 }}>
                           {(cfg.value === 'true' || cfg.value === 'false') && editingKey !== cfg.key ? (
-                            <button 
+                            <button
                               onClick={() => handleToggleConfig(cfg)}
                               disabled={isSavingConfig}
-                              aria-label={`Toggle ${cfg.key}`}
-                              aria-pressed={cfg.value === 'true'}
                               style={{
                                 position: 'relative',
                                 width: '42px',
@@ -712,7 +706,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                     width: 'fit-content'
                                   }}
                                 >
-                                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                   <span style={{ fontWeight: 600 }}>{formatTime12h(editValue) || "Select Time"}</span>
                                 </div>
                                 <CustomTimePicker
@@ -777,12 +771,12 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                             }}>
                               {cfg.key.endsWith('_time') && !cfg.is_secret ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                   <span>{formatTime12h(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
                                 </div>
                               ) : cfg.key.endsWith('_date') && !cfg.is_secret ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                                   <span>{formatDateNice(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
                                 </div>
                               ) : (
@@ -808,27 +802,25 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                               Secret
                             </span>
                           )}
-                          
+
                           {editingKey === cfg.key ? (
                             <>
                               <button
                                 className="toolbar-btn"
                                 title="Save"
-                                aria-label={`Save ${cfg.key}`}
                                 disabled={isSavingConfig}
                                 onClick={() => handleSaveConfig(cfg.key, editValue)}
                                 style={{ color: 'var(--status-active)' }}
                               >
-                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                               </button>
                               <button
                                 className="toolbar-btn"
                                 title="Cancel"
-                                aria-label={`Cancel editing ${cfg.key}`}
                                 onClick={handleCancelEdit}
                                 style={{ color: 'var(--status-error)' }}
                               >
-                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                               </button>
                             </>
                           ) : (
@@ -836,7 +828,6 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                               <button
                                 className="toolbar-btn"
                                 title="Edit"
-                                aria-label={`Edit ${cfg.key}`}
                                 onClick={() => {
                                   if (cfg.is_secret && !isRevealed) {
                                     setShowPasswordModal(true);
@@ -847,7 +838,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                   }
                                 }}
                               >
-                                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                               </button>
                             )
                           )}
@@ -870,25 +861,25 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{ 
-                            width: '40px', 
-                            height: '40px', 
-                            borderRadius: '10px', 
-                            background: 'var(--status-active)', 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            background: 'var(--status-active)',
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'center',
                             color: 'var(--text-primary)'
                           }}>
-                            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                           </div>
                           <div>
                             <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--status-active)' }}>Manual Order Synchronization</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
                           </div>
                         </div>
-                        <button 
-                          className="btn-primary" 
+                        <button
+                          className="btn-primary"
                           onClick={() => {
                             // Trigger the global manual sync button logic
                             const syncBtn = document.querySelector('button[title*="Manually fetch orders"]') as HTMLButtonElement;
@@ -915,18 +906,18 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{ 
-                            width: '40px', 
-                            height: '40px', 
-                            borderRadius: '10px', 
-                            background: '#ef4444', 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            background: '#ef4444',
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'center',
                             color: 'white',
                             boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
                           }}>
-                            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                           </div>
                           <div>
                             <div style={{ fontSize: '1rem', fontWeight: 700, color: '#b91c1c' }}>Danger Zone</div>
@@ -938,8 +929,8 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
                             <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Inventory Wipe</h5>
                             <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all physical products and SKUs. This will break all current mapping authority.</p>
-                            <button 
-                              className="btn-secondary" 
+                            <button
+                              className="btn-secondary"
                               onClick={handleResetInventory}
                               style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
                             >
@@ -950,8 +941,8 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
                             <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Orders Wipe</h5>
                             <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all synced orders and customers. Data must be re-synced manually.</p>
-                            <button 
-                              className="btn-secondary" 
+                            <button
+                              className="btn-secondary"
                               onClick={handleResetOrders}
                               style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
                             >
@@ -975,11 +966,11 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
           <div className="premium-modal" style={{ maxWidth: '380px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header-icon" style={{ background: 'linear-gradient(135deg, var(--status-error), var(--status-warning))' }}>
-              <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             </div>
             <h2 style={{ fontSize: '1.25rem' }}>Enter Password</h2>
             <p style={{ fontSize: '0.85rem' }}>Enter your admin password to reveal secret values.</p>
-            
+
             <input
               type="password"
               value={password}
@@ -994,7 +985,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                 {passwordError}
               </div>
             )}
-            
+
             <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
               <button className="btn-secondary" onClick={() => setShowPasswordModal(false)}>Cancel</button>
               <button className="btn-primary" onClick={handleReveal} disabled={!password}>Unlock</button>
