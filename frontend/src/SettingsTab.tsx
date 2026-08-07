@@ -257,8 +257,10 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
             const isSelected = selectedHour === h;
             return (
               <button
+                type="button"
                 key={h}
                 data-selected={isSelected}
+                aria-pressed={isSelected}
                 onClick={() => setSelectedHour(h)}
                 style={{
                   width: '100%',
@@ -294,8 +296,10 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
             const isSelected = selectedMinute === m;
             return (
               <button
+                type="button"
                 key={m}
                 data-selected={isSelected}
+                aria-pressed={isSelected}
                 onClick={() => setSelectedMinute(m)}
                 style={{
                   width: '100%',
@@ -329,7 +333,9 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
             const isSelected = selectedPeriod === p;
             return (
               <button
+                type="button"
                 key={p}
+                aria-pressed={isSelected}
                 onClick={() => setSelectedPeriod(p)}
                 style={{
                   width: '100%',
@@ -662,6 +668,9 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           {(cfg.value === 'true' || cfg.value === 'false') && editingKey !== cfg.key ? (
                             <button 
+                              type="button"
+                              aria-label={`Toggle configuration ${cfg.key}`}
+                              aria-pressed={cfg.value === 'true'}
                               onClick={() => handleToggleConfig(cfg)}
                               disabled={isSavingConfig}
                               style={{
@@ -806,26 +815,32 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                           {editingKey === cfg.key ? (
                             <>
                               <button
+                                type="button"
+                                aria-label="Save configuration"
                                 className="toolbar-btn"
                                 title="Save"
                                 disabled={isSavingConfig}
                                 onClick={() => handleSaveConfig(cfg.key, editValue)}
                                 style={{ color: 'var(--status-active)' }}
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                               </button>
                               <button
+                                type="button"
+                                aria-label="Cancel editing"
                                 className="toolbar-btn"
                                 title="Cancel"
                                 onClick={handleCancelEdit}
                                 style={{ color: 'var(--status-error)' }}
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                               </button>
                             </>
                           ) : (
                             cfg.value !== 'true' && cfg.value !== 'false' && (
                               <button
+                                type="button"
+                                aria-label="Edit configuration"
                                 className="toolbar-btn"
                                 title="Edit"
                                 onClick={() => {
@@ -838,7 +853,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                                   }
                                 }}
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                               </button>
                             )
                           )}

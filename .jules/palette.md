@@ -19,3 +19,7 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+
+## 2026-06-25 - [Accessibility for Time Selectors and Chat Modals]
+**Learning:** Many interactive utility buttons in elements like `SettingsTab.tsx` time selectors and toggle switches, or `WhatsAppChat.tsx` action buttons, were missing explicit `type="button"` attributes. This leads to accidental form submissions. Many custom toggle UI elements were also missing the `aria-pressed` attribute, preventing screen readers from understanding the current state. Icon-only buttons lacked `aria-label`s, and SVGs inside lacked `aria-hidden="true"`.
+**Action:** Always add `type="button"` to non-submit buttons, apply `aria-pressed` to toggle buttons based on their selected state, add explicit `aria-label`s to icon-only buttons, and use `aria-hidden="true"` on non-semantic SVG icons.
