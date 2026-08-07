@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import DOMPurify from 'dompurify';
 
 interface InventoryItem {
   id: number;
@@ -899,7 +900,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                     maxHeight: '160px',
                     overflowY: 'auto'
                   }}
-                  dangerouslySetInnerHTML={{ __html: parseShopifyRichText(selectedProduct.description) || '<i>No marketing description available.</i>' }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseShopifyRichText(selectedProduct.description)) || '<i>No marketing description available.</i>' }}
                 />
               </div>
 
@@ -921,7 +922,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                       overflowY: 'auto',
                       fontFamily: 'monospace'
                     }}
-                    dangerouslySetInnerHTML={{ __html: parseShopifyRichText(selectedProduct.specification) }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseShopifyRichText(selectedProduct.specification)) }}
                   />
                 </div>
               )}
