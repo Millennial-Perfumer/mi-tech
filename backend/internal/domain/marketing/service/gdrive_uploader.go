@@ -23,16 +23,23 @@ import (
 
 // GetAccessTokenFromRefreshToken uses a Google OAuth Refresh Token to generate a fresh Access Token automatically
 func GetAccessTokenFromRefreshToken(clientID, clientSecret, refreshToken string) (string, error) {
-	if strings.TrimSpace(refreshToken) == "" {
+	cleanToken := strings.TrimSpace(refreshToken)
+	if cleanToken == "" {
 		return "", fmt.Errorf("refresh token is empty")
+	}
+
+	// Default to Google OAuth Playground Client ID & Secret if not explicitly provided
+	if clientID == "" {
+		clientID = "407408718192-eac5e18t4b4p971d60v6gl5ad27t9u5c.apps.googleusercontent.com"
+	}
+	if clientSecret == "" {
+		clientSecret = "d-VT3BPlvL_Ew_2p5Fz-j2vM"
 	}
 
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
-	data.Set("refresh_token", strings.TrimSpace(refreshToken))
-	if clientID != "" {
-		data.Set("client_id", strings.TrimSpace(clientID))
-	}
+	data.Set("refresh_token", cleanToken)
+	data.Set("client_id", strings.TrimSpace(clientID))
 	if clientSecret != "" {
 		data.Set("client_secret", strings.TrimSpace(clientSecret))
 	}
@@ -51,6 +58,10 @@ func GetAccessTokenFromRefreshToken(clientID, clientSecret, refreshToken string)
 		ErrorDesc   string `json:"error_description"`
 	}
 	_ = json.Unmarshal(respBody, &tokenResp)
+
+	if tokenResp.AccessToken == "" {
+		return "", fmt.Errorf("refresh token exchange failed (%s): %s", tokenResp.Error, tokenResp.ErrorDesc)
+	}
 
 	return tokenResp.AccessToken, nil
 }
