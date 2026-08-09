@@ -34,17 +34,6 @@ export const SocialQueueDashboard: React.FC<SocialQueueDashboardProps> = ({
   const videoCount = queuePosts.filter(p => p.post_type === 'VIDEO').length;
   const singlePhotoCount = queuePosts.filter(p => p.post_type === 'SINGLE_PHOTO').length;
 
-  const downloadCaptionFile = (folderName: string, captionText: string, hashtagsText: string) => {
-    const content = `${captionText}\n\n${hashtagsText}`.trim();
-    const element = document.createElement('a');
-    const file = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    element.href = URL.createObjectURL(file);
-    element.download = `${folderName}_caption.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
   return (
     <div className="social-queue-dashboard" style={{ animation: 'fadeIn 0.4s ease-out' }}>
       {/* Top Controls & Overview Island */}

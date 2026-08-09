@@ -12,7 +12,6 @@ interface SocialQueueUploaderModalProps {
 
 export const SocialQueueUploaderModal: React.FC<SocialQueueUploaderModalProps> = ({
   isOpen,
-  gdriveFolderUrl,
   onClose,
   onSuccess,
   fetchWithAuth,
