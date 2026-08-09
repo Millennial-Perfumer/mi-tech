@@ -93,6 +93,14 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
 	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
 	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
+	mux.HandleFunc("/api/marketing/smm/queue", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			smmHandler.QueuePost(w, r)
+		default:
+			smmHandler.GetQueue(w, r)
+		}
+	}))
 
 	// Judge.me Review Generator Routes
 	if judgeMeHandler != nil {

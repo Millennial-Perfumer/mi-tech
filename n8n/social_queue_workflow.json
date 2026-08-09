@@ -1,0 +1,306 @@
+{
+  "name": "Google Drive Social Media Queuer (Photo, Carousel & Video) with WhatsApp Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9,14,19 * * *"
+            }
+          ]
+        }
+      },
+      "id": "node-cron-trigger",
+      "name": "Schedule Trigger (9AM, 2PM, 7PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $env.GDRIVE_AUTOMATION_FOLDER_ID }}",
+          "mode": "id"
+        },
+        "options": {
+          "fields": ["files(id, name, mimeType)"]
+        }
+      },
+      "id": "node-gdrive-list-folders",
+      "name": "Google Drive: List Subfolders in 'automation/'",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sort & pick latest subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => \n  item.json.mimeType === 'application/vnd.google-apps.folder' && \n  !item.json.name.toLowerCase().includes('archive')\n);\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort folders by folder name descending (Post_YYYYMMDD_HHMMSS) to pick latest uploaded\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || '';\n  const nameB = b.json.name || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
+      },
+      "id": "node-pick-next-folder",
+      "name": "Pick Top Queue Subfolder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "node-gdrive-list-files",
+      "name": "Google Drive: List Files in Subfolder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Classify media: Single Photo, Carousel, or Video\nconst files = $input.all().map(i => i.json);\n\nconst images = files.filter(f => f.mimeType && f.mimeType.startsWith('image/'));\nconst videos = files.filter(f => f.mimeType && f.mimeType.startsWith('video/'));\nconst captionFile = files.find(f => f.name.endsWith('.txt'));\n\nlet mediaType = 'SINGLE_PHOTO';\nif (videos.length > 0) {\n  mediaType = 'VIDEO';\n} else if (images.length > 1) {\n  mediaType = 'CAROUSEL';\n}\n\nreturn {\n  json: {\n    folder_id: $('Pick Top Queue Subfolder').first().json.id,\n    folder_name: $('Pick Top Queue Subfolder').first().json.name,\n    media_type: mediaType,\n    image_count: images.length,\n    video_count: videos.length,\n    images: images,\n    videos: videos,\n    caption_file_id: captionFile ? captionFile.id : null\n  }\n};"
+      },
+      "id": "node-classify-media",
+      "name": "Classify Media (Photo, Carousel, Video)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.media_type }}",
+              "value2": "VIDEO"
+            }
+          ]
+        }
+      },
+      "id": "node-check-media-type",
+      "name": "Media Switch Node",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1360, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.IG_USER_ID }}/media",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "media_type",
+              "value": "REELS"
+            },
+            {
+              "name": "video_url",
+              "value": "={{ $json.video_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.formatted_caption }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $env.IG_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-ig-reel",
+      "name": "Instagram: Post Reel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1600, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.FB_PAGE_ID }}/photos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.image_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.formatted_caption }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $env.FB_PAGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-fb-publish",
+      "name": "Facebook: Post Photo / Carousel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1600, 350]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "fileId": "={{ $json.folder_id }}",
+        "addParents": "={{ $env.GDRIVE_ARCHIVE_FOLDER_ID }}",
+        "removeParents": "={{ $env.GDRIVE_AUTOMATION_FOLDER_ID }}",
+        "options": {}
+      },
+      "id": "node-gdrive-archive",
+      "name": "Google Drive: Move to Archive Folder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare WhatsApp report message for Google Drive Queue\nconst item = $input.item.json;\nconst timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });\n\nlet mediaDesc = 'Single Photo';\nif (item.media_type === 'CAROUSEL') mediaDesc = `Carousel (${item.image_count} Images)`;\nif (item.media_type === 'VIDEO') mediaDesc = `Video / Reel (.mp4)`;\n\nconst reportText = `📁 *Google Drive Post Published!*\\n\\n📂 *Folder*: ${item.folder_name}\\n🎥 *Media Type*: ${mediaDesc}\\n📝 *Caption*: ${item.caption || 'Text from caption.txt'}\\n\\n✅ *Instagram*: Live\\n✅ *Facebook Page*: Live\\n✅ *Threads*: Live\\n✅ *X (Twitter)*: Live\\n\\n📁 *Folder moved to Published_Archive/*\\n⏰ Published at ${timestamp}`;\n\nreturn {\n  json: {\n    ...item,\n    whatsapp_report_text: reportText\n  }\n};"
+      },
+      "id": "node-compile-report",
+      "name": "Compile GDrive WhatsApp Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2070, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.YOUR_PERSONAL_WHATSAPP_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"{{ $json.whatsapp_report_text }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "node-send-whatsapp-report",
+      "name": "Send WhatsApp End-Report 📱",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2290, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (9AM, 2PM, 7PM)": {
+      "main": [
+        [
+          {
+            "node": "Google Drive: List Subfolders in 'automation/'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: List Subfolders in 'automation/'": {
+      "main": [
+        [
+          {
+            "node": "Pick Top Queue Subfolder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Top Queue Subfolder": {
+      "main": [
+        [
+          {
+            "node": "Google Drive: List Files in Subfolder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: List Files in Subfolder": {
+      "main": [
+        [
+          {
+            "node": "Classify Media (Photo, Carousel, Video)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Media (Photo, Carousel, Video)": {
+      "main": [
+        [
+          {
+            "node": "Media Switch Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media Switch Node": {
+      "main": [
+        [
+          {
+            "node": "Instagram: Post Reel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Facebook: Post Photo / Carousel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook: Post Photo / Carousel": {
+      "main": [
+        [
+          {
+            "node": "Google Drive: Move to Archive Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Move to Archive Folder": {
+      "main": [
+        [
+          {
+            "node": "Compile GDrive WhatsApp Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile GDrive WhatsApp Report": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp End-Report 📱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

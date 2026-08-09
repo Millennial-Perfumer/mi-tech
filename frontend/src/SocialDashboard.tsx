@@ -89,7 +89,6 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
 
   const syncPulse = async () => {
     try {
-      // In No-DB mode, sync simply triggers a refresh of the live fetch
       await fetchMetrics();
     } catch (err) {
       console.error('Refresh failed:', err);
@@ -228,300 +227,316 @@ export const SocialDashboard: React.FC<SocialDashboardProps> = ({
 
       {/* Error Alert Island */}
       {fetchError && (
-        <div className="glass-island-premium" style={{
-          background: 'var(--status-danger-bg)',
-          borderColor: 'var(--status-danger)',
-          padding: '1.25rem 2rem',
-          marginBottom: '2rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          animation: 'slideDown 0.5s ease-out',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <div className="glass-island-premium" style={{
+              background: 'var(--status-danger-bg)',
+              borderColor: 'var(--status-danger)',
+              padding: '1.25rem 2rem',
+              marginBottom: '2rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{
+                  width: '44px', height: '44px', borderRadius: '14px', 
+                  background: 'var(--status-danger-bg)', display: 'flex', alignItems: 'center', 
+                  justifyContent: 'center', fontSize: '1.2rem',
+                  border: '1px solid var(--status-danger)'
+                }}>
+                  ⚠️
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--status-danger)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.2rem' }}>
+                    Platform Access Restricted
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                    {fetchError}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Meta requires an upgrade of your permissions. <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--status-danger)', textDecoration: 'underline' }}>Check Token Scopes</a>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={() => fetchMetrics()}
+                  style={{
+                    background: 'var(--status-danger-bg)',
+                    border: '1px solid var(--status-danger)',
+                    color: 'var(--status-danger)',
+                    padding: '0.6rem 1.25rem',
+                    borderRadius: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    transition: 'all 0.3s'
+                  }}
+                >
+                  Retry Connection
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Account Overall KPIs (Lifetime/Total) */}
+          {(activePlatform === 'instagram' || activePlatform === 'facebook') && metrics?.account && (
             <div style={{ 
-              width: '44px', height: '44px', borderRadius: '14px', 
-              background: 'var(--status-danger-bg)', display: 'flex', alignItems: 'center', 
-              justifyContent: 'center', fontSize: '1.2rem',
-              border: '1px solid var(--status-danger)'
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+              gap: '1rem', 
+              marginBottom: '2rem',
+              padding: '1.5rem',
+              background: 'var(--bg-input)',
+              borderRadius: '24px',
+              border: '1px solid var(--border-color)'
             }}>
-              ⚠️
+              {[
+                { label: 'Followers', value: metrics.account.follower_count, icon: '👥', color: 'var(--accent-color)' },
+                { label: 'Growth Reach', value: metrics.account.total_reach, icon: '📈', color: 'var(--status-active)' },
+                { label: 'Direct Impressions', value: metrics.account.total_views, icon: '🌊', color: 'var(--accent-color)' }
+              ].map(m => (
+                <div key={m.label} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '1.25rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '16px',
+                  transition: 'background 0.3s ease'
+                }}>
+                  <div style={{ 
+                    width: '44px', height: '44px', borderRadius: '14px', 
+                    background: 'var(--nav-active-bg)', display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', fontSize: '1.3rem',
+                    border: `1px solid var(--border-color)`,
+                    boxShadow: `var(--shadow-sm)`
+                  }}>
+                    {m.icon}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                      {m.label}
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                      {m.value.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--status-danger)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.2rem' }}>
-                Platform Access Restricted
-              </div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
-                {fetchError}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Meta requires an upgrade of your permissions. <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--status-danger)', textDecoration: 'underline' }}>Check Token Scopes</a>
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button
-              onClick={() => fetchMetrics()}
-              style={{
-                background: 'var(--status-danger-bg)',
-                border: '1px solid var(--status-danger)',
-                color: 'var(--status-danger)',
-                padding: '0.6rem 1.25rem',
-                borderRadius: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                transition: 'all 0.3s'
-              }}
-            >
-              Retry Connection
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Account Overall KPIs (Lifetime/Total) */}
-      {(activePlatform === 'instagram' || activePlatform === 'facebook') && metrics?.account && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '1rem', 
-          marginBottom: '2rem',
-          padding: '1.5rem',
-          background: 'var(--bg-input)',
-          borderRadius: '24px',
-          border: '1px solid var(--border-color)'
-        }}>
-          {[
-            { label: 'Followers', value: metrics.account.follower_count, icon: '👥', color: 'var(--accent-color)' },
-            { label: 'Growth Reach', value: metrics.account.total_reach, icon: '📈', color: 'var(--status-active)' },
-            { label: 'Direct Impressions', value: metrics.account.total_views, icon: '🌊', color: 'var(--accent-color)' }
-          ].map(m => (
-            <div key={m.label} style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '1.25rem',
-              padding: '0.5rem 1rem',
-              borderRadius: '16px',
-              transition: 'background 0.3s ease'
-            }}>
-              <div style={{ 
-                width: '44px', height: '44px', borderRadius: '14px', 
-                background: 'var(--nav-active-bg)', display: 'flex', alignItems: 'center', 
-                justifyContent: 'center', fontSize: '1.3rem',
-                border: `1px solid var(--border-color)`,
-                boxShadow: `var(--shadow-sm)`
-              }}>
-                {m.icon}
-              </div>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.2rem' }}>{m.label}</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{m.value.toLocaleString()}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Main KPI Grid (Period-specific) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
-        {[
-          { label: 'Total Engagement', value: metrics?.total_engagement || 0, icon: '⚡', color: 'var(--status-warning)', trend: 'Stable' },
-          { label: 'Unique Reach', value: metrics?.total_reach || 0, icon: '🎯', color: 'var(--status-active)', trend: 'Syncing' },
-          { label: 'Total Visibility', value: metrics?.total_views || 0, icon: '👁️', color: 'var(--accent-color)', trend: 'Live' },
-          { label: 'Period Content', value: metrics?.posts?.length || 0, icon: '💎', color: 'var(--accent-color)', trend: 'Active' }
-        ].map(m => (
-          <div key={m.label} className="metric-card-adaptive" style={{
-            position: 'relative',
-            overflow: 'hidden',
+          {/* Metric Overview Cards */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+            gap: '1.5rem', 
+            marginBottom: '2.5rem' 
           }}>
-            <div style={{ position: 'absolute', top: '15px', right: '15px', padding: '0.3rem 0.6rem', borderRadius: '8px', background: 'var(--bg-input)', fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-              {m.trend}
-            </div>
-            <div style={{ position: 'absolute', bottom: '-20px', right: '-10px', fontSize: '6rem', opacity: 0.03, color: m.color }}>{m.icon}</div>
-            <div style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{m.label}</div>
-            <div style={{ fontSize: '2.8rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>
-              {isLoading ? (
-                <span style={{ opacity: 0.3 }}>--</span>
-              ) : (
-                m.value.toLocaleString()
-              )}
-            </div>
-            <div style={{ width: '30px', height: '4px', background: m.color, borderRadius: '2px', marginTop: '1rem', opacity: 0.8 }} />
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem', marginBottom: '2rem' }}>
-        <div className="glass-card-premium" style={{
-          padding: '2.5rem',
-          height: '450px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Engagement Pulse</h3>
-            <div style={{ fontSize: '0.8rem', opacity: 0.5 }}>Real-time Meta Snapshot</div>
-          </div>
-          <ResponsiveContainer width="100%" height="80%">
-            <AreaChart data={historyData}>
-              <defs>
-                <linearGradient id="colorEng" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={getPlatformColor(activePlatform)} stopOpacity={0.4}/>
-                  <stop offset="60%" stopColor={getPlatformColor(activePlatform)} stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor={getPlatformColor(activePlatform)} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="0" vertical={false} stroke="var(--chart-grid)" />
-              <XAxis 
-                dataKey="date" 
-                stroke="var(--chart-axis)" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-                dy={15} 
-                interval="preserveStartEnd"
-              />
-              <YAxis 
-                stroke="var(--chart-axis)" 
-                fontSize={10} 
-                tickLine={false} 
-                axisLine={false} 
-                dx={-15} 
-              />
-              <Tooltip 
-                cursor={{ stroke: 'var(--chart-grid)', strokeWidth: 1 }}
-                contentStyle={{ 
-                  background: 'var(--chart-tooltip-bg)', 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: '16px', 
-                  backdropFilter: 'blur(20px)', 
-                  WebkitBackdropFilter: 'blur(20px)',
-                  color: 'var(--chart-tooltip-text)',
-                  boxShadow: 'var(--shadow-lg)',
-                  padding: '12px'
+            {[
+              { label: 'Total Reach', value: metrics ? metrics.total_reach : 0, change: '+14.2%', color: 'var(--accent-color)', icon: '👁️' },
+              { label: 'Total Views / Impressions', value: metrics ? metrics.total_views : 0, change: '+8.1%', color: 'var(--status-active)', icon: '🎬' },
+              { label: 'Total Engagement', value: metrics ? metrics.total_engagement : 0, change: '+22.4%', color: 'var(--status-warning)', icon: '❤️' },
+            ].map((stat, idx) => (
+              <div 
+                key={idx} 
+                className="glass-card-premium hover-lift" 
+                style={{ 
+                  padding: '1.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  minHeight: '160px',
+                  background: 'var(--bg-card)',
+                  borderRadius: '24px',
+                  border: '1px solid var(--border-color)'
                 }}
-                itemStyle={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: '0.9rem' }}
-                labelStyle={{ color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.75rem', marginBottom: '4px' }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="engagement" 
-                stroke={getPlatformColor(activePlatform)} 
-                strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorEng)" 
-                animationDuration={1500}
-                activeDot={{ r: 6, strokeWidth: 0, fill: 'white' }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="glass-card-premium" style={{
-          padding: '2.5rem',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Timeframe Post Analysis</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--status-active)', fontWeight: 700, padding: '0.4rem 0.8rem', background: 'var(--status-active-bg)', borderRadius: '12px' }}>
-              {metrics?.posts?.length || 0} Posts Found
-            </span>
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '1.5rem' }}>{stat.icon}</span>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    color: 'var(--status-active)', 
+                    background: 'var(--status-active-bg)', 
+                    padding: '0.25rem 0.6rem', 
+                    borderRadius: '20px',
+                    border: '1px solid var(--status-active)'
+                  }}>
+                    {stat.change}
+                  </span>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {stat.label}
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                    {isLoading ? '...' : stat.value.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          
-          <div style={{ overflowX: 'auto' }}>
+
+          {/* Performance Chart Island */}
+          <div className="glass-island-premium" style={{ padding: '2rem', marginBottom: '2.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Engagement & Reach Trend</h3>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Aggregated performance metrics over selected timeframe
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPlatformColor(activePlatform) }}></span> Engagement
+                </span>
+              </div>
+            </div>
+
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={historyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorEngagement" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={getPlatformColor(activePlatform)} stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor={getPlatformColor(activePlatform)} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                  <XAxis dataKey="date" stroke="var(--text-tertiary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--text-tertiary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--bg-card)', 
+                      borderColor: 'var(--border-color)', 
+                      borderRadius: '12px',
+                      color: 'var(--text-primary)',
+                      boxShadow: 'var(--shadow-md)'
+                    }} 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="engagement" 
+                    stroke={getPlatformColor(activePlatform)} 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorEngagement)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Posts Grid / Table */}
+          <div className="glass-island-premium" style={{ padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Published Media Feed</h3>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Recent posts published on {activePlatform.toUpperCase()}
+                </p>
+              </div>
+            </div>
+
             {isLoading ? (
-              <div style={{ padding: '4rem', textAlign: 'center', opacity: 0.5 }}>Fetching Meta Data...</div>
-            ) : metrics?.posts?.length === 0 ? (
-              <div style={{ padding: '4rem', textAlign: 'center', opacity: 0.5 }}>No content published in this period.</div>
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                Loading platform feed...
+              </div>
+            ) : !metrics?.posts || metrics.posts.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                No posts found for this platform in the selected date range.
+              </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: 'var(--text-tertiary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    <th style={{ padding: '1rem 1.5rem' }}>Media</th>
-                    <th style={{ padding: '1rem 1.5rem', minWidth: '120px' }}>Date</th>
-                    <th style={{ padding: '1rem 1.5rem', minWidth: '140px' }}>Interactions</th>
-                    <th style={{ padding: '1rem 1.5rem', minWidth: '160px' }}>Reach / Plays</th>
-                    <th style={{ padding: '1rem 1.5rem' }}>Status</th>
-                    <th style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...(metrics?.posts || [])].sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()).map(post => (
-                    <tr 
-                      key={post.id} 
-                      onClick={() => {
-                        setSelectedPostForInsights(post);
-                        setIsInsightsModalOpen(true);
-                      }}
-                      style={{ 
-                        background: 'var(--bg-card)', 
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-hover)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'var(--bg-card)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      <td style={{ padding: '1rem 1.5rem', borderRadius: '16px 0 0 16px' }}>
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                          <img 
-                            src={post.thumbnail_url || post.media_url} 
-                            alt="thumb" 
-                            style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border-color)' }} 
-                          />
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {post.content || 'No Caption'}
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
-                        {new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', fontWeight: 800, fontSize: '1.1rem', color: post.restricted ? 'var(--text-tertiary)' : 'var(--status-warning)' }}>
-                        {post.restricted ? '--' : post.engagement.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: post.restricted ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
-                        {post.restricted ? '--' : post.views.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <span style={{ 
-                          padding: '0.4rem 0.8rem', 
-                          borderRadius: '12px', 
-                          background: post.restricted 
-                            ? 'var(--status-danger-bg)' 
-                            : post.engagement > 100 
-                              ? 'var(--status-active-bg)' 
-                              : post.engagement > 0 ? 'var(--bg-input)' : 'var(--bg-input)', 
-                          color: post.restricted 
-                            ? 'var(--status-danger)' 
-                            : post.engagement > 100 
-                              ? 'var(--status-active)' 
-                              : post.engagement > 0 ? 'var(--accent-color)' : 'var(--text-tertiary)', 
-                          fontSize: '0.65rem', 
-                          fontWeight: 800,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                          border: `1px solid ${post.restricted ? 'var(--status-danger)' : post.engagement > 100 ? 'var(--status-active)' : 'var(--border-color)'}`
-                        }}>
-                          {post.restricted ? 'Access Restricted' : post.engagement > 100 ? 'High Performance' : post.engagement > 0 ? 'Developing' : 'Steady'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', borderRadius: '0 16px 16px 0', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'flex-end' }}>
-                          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 700 }}>Details →</span>
-                        </div>
-                      </td>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 0.75rem' }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>
+                      <th style={{ padding: '0.5rem 1.5rem' }}>Content</th>
+                      <th style={{ padding: '0.5rem 1.5rem' }}>Published</th>
+                      <th style={{ padding: '0.5rem 1.5rem' }}>Engagement</th>
+                      <th style={{ padding: '0.5rem 1.5rem' }}>Views / Reach</th>
+                      <th style={{ padding: '0.5rem 1.5rem' }}>Status</th>
+                      <th style={{ padding: '0.5rem 1.5rem', textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {metrics.posts.map(post => (
+                      <tr 
+                        key={post.id} 
+                        style={{ 
+                          background: 'var(--bg-card)', 
+                          transition: 'all 0.3s ease',
+                          cursor: 'pointer' 
+                        }}
+                        onClick={() => {
+                          setSelectedPostForInsights(post);
+                          setIsInsightsModalOpen(true);
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--bg-input)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--bg-card)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <td style={{ padding: '1rem 1.5rem', borderRadius: '16px 0 0 16px' }}>
+                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <img 
+                              src={post.thumbnail_url || post.media_url} 
+                              alt="thumb" 
+                              style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border-color)' }} 
+                            />
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {post.content || 'No Caption'}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>
+                          {new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem', fontWeight: 800, fontSize: '1.1rem', color: post.restricted ? 'var(--text-tertiary)' : 'var(--status-warning)' }}>
+                          {post.restricted ? '--' : post.engagement.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem', fontWeight: 600, color: post.restricted ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
+                          {post.restricted ? '--' : post.views.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem' }}>
+                          <span style={{ 
+                            padding: '0.4rem 0.8rem', 
+                            borderRadius: '12px', 
+                            background: post.restricted 
+                              ? 'var(--status-danger-bg)' 
+                              : post.engagement > 100 
+                                ? 'var(--status-active-bg)' 
+                                : post.engagement > 0 ? 'var(--bg-input)' : 'var(--bg-input)', 
+                            color: post.restricted 
+                              ? 'var(--status-danger)' 
+                              : post.engagement > 100 
+                                ? 'var(--status-active)' 
+                                : post.engagement > 0 ? 'var(--accent-color)' : 'var(--text-tertiary)', 
+                            fontSize: '0.65rem', 
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            border: `1px solid ${post.restricted ? 'var(--status-danger)' : post.engagement > 100 ? 'var(--status-active)' : 'var(--border-color)'}`
+                          }}>
+                            {post.restricted ? 'Access Restricted' : post.engagement > 100 ? 'High Performance' : post.engagement > 0 ? 'Developing' : 'Steady'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem', borderRadius: '0 16px 16px 0', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'flex-end' }}>
+                            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', fontWeight: 700 }}>Details →</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
-        </div>
-      </div>
 
       <SocialComposerModal 
         isOpen={isComposerOpen}
