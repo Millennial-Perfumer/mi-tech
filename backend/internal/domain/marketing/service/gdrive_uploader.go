@@ -45,7 +45,15 @@ func GetAccessTokenFromRefreshToken(clientID, clientSecret, refreshToken string)
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Post("https://oauth2.googleapis.com/token", "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	var resp *http.Response
+	var err error
+	for attempt := 1; attempt <= 3; attempt++ {
+		resp, err = client.Post("https://oauth2.googleapis.com/token", "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 	if err != nil {
 		return "", fmt.Errorf("refresh token exchange network error: %v", err)
 	}
