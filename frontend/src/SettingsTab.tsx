@@ -531,6 +531,22 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
       label: 'Google Drive Refresh Token (24/7 Direct Auto-Upload Token)',
       category: 'auto_queue',
       sort_order: 11
+    },
+    {
+      key: 'gdrive_client_id',
+      value: '',
+      is_secret: false,
+      label: 'Google OAuth Client ID',
+      category: 'auto_queue',
+      sort_order: 12
+    },
+    {
+      key: 'gdrive_client_secret',
+      value: '',
+      is_secret: true,
+      label: 'Google OAuth Client Secret',
+      category: 'auto_queue',
+      sort_order: 13
     }
   ];
 
@@ -543,7 +559,9 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
       if (def?.is_secret !== undefined && updated.is_secret === undefined) updated.is_secret = def.is_secret;
       if (
         c.key === 'gdrive_automation_folder_url' ||
-        c.key === 'gdrive_refresh_token'
+        c.key === 'gdrive_refresh_token' ||
+        c.key === 'gdrive_client_id' ||
+        c.key === 'gdrive_client_secret'
       ) {
         updated.category = 'auto_queue';
       }
