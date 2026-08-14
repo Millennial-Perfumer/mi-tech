@@ -22,9 +22,8 @@
       "parameters": {
         "resource": "fileFolder",
         "operation": "search",
-        "filter": {
-          "folderId": "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
-        },
+        "searchMethod": "advanced",
+        "queryString": "'1djXkok8cuP3efyurTd2nOwoKRo-HpEC3' in parents and trashed = false",
         "options": {}
       },
       "id": "node-gdrive-list-folders",
@@ -35,7 +34,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Sort & pick latest queue subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => \n  (item.json.mimeType === 'application/vnd.google-apps.folder' || item.json.kind === 'drive#file') && \n  !item.json.name.toLowerCase().includes('archive')\n);\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort folders by folder name descending (Post_YYYYMMDD_HHMMSS) to pick top queue item\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || '';\n  const nameB = b.json.name || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
+        "jsCode": "// Sort & pick latest queue subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => {\n  const name = item.json.name || '';\n  const mime = item.json.mimeType || item.json.mime_type || '';\n  return (name.startsWith('Post_') || mime === 'application/vnd.google-apps.folder') && !name.toLowerCase().includes('archive');\n});\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort folders by folder name descending (Post_YYYYMMDD_HHMMSS) to pick top queue item\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || '';\n  const nameB = b.json.name || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
       },
       "id": "node-pick-next-folder",
       "name": "Pick Top Queue Subfolder",
@@ -47,9 +46,8 @@
       "parameters": {
         "resource": "fileFolder",
         "operation": "search",
-        "filter": {
-          "folderId": "={{ $json.id }}"
-        },
+        "searchMethod": "advanced",
+        "queryString": "='{{ $json.id }}' in parents and trashed = false",
         "options": {}
       },
       "id": "node-gdrive-list-files",
