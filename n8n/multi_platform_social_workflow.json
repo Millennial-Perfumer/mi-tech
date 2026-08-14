@@ -20,17 +20,12 @@
     },
     {
       "parameters": {
-        "operation": "list",
-        "folderId": {
-          "__rl": true,
-          "value": "={{ $env.GDRIVE_AUTOMATION_FOLDER_ID }}",
-          "mode": "id"
+        "resource": "fileFolder",
+        "operation": "search",
+        "filter": {
+          "folderId": "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
         },
-        "options": {
-          "fields": [
-            "files(id, name, mimeType)"
-          ]
-        }
+        "options": {}
       },
       "id": "node-gdrive-list-folders",
       "name": "Google Drive: List Queue Folders",
@@ -40,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Sort & pick latest queue subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => \n  item.json.mimeType === 'application/vnd.google-apps.folder' && \n  !item.json.name.toLowerCase().includes('archive')\n);\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort folders by folder name descending (Post_YYYYMMDD_HHMMSS) to pick top queue item\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || '';\n  const nameB = b.json.name || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
+        "jsCode": "// Sort & pick latest queue subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => \n  (item.json.mimeType === 'application/vnd.google-apps.folder' || item.json.kind === 'drive#file') && \n  !item.json.name.toLowerCase().includes('archive')\n);\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort folders by folder name descending (Post_YYYYMMDD_HHMMSS) to pick top queue item\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || '';\n  const nameB = b.json.name || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
       },
       "id": "node-pick-next-folder",
       "name": "Pick Top Queue Subfolder",
@@ -50,11 +45,10 @@
     },
     {
       "parameters": {
-        "operation": "list",
-        "folderId": {
-          "__rl": true,
-          "value": "={{ $json.id }}",
-          "mode": "id"
+        "resource": "fileFolder",
+        "operation": "search",
+        "filter": {
+          "folderId": "={{ $json.id }}"
         },
         "options": {}
       },
@@ -245,11 +239,10 @@
     },
     {
       "parameters": {
-        "operation": "update",
+        "resource": "fileFolder",
+        "operation": "move",
         "fileId": "={{ $('Classify Media & Files').first().json.folder_id }}",
-        "addParents": "={{ $env.GDRIVE_ARCHIVE_FOLDER_ID }}",
-        "removeParents": "={{ $env.GDRIVE_AUTOMATION_FOLDER_ID }}",
-        "options": {}
+        "parentFolderId": "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
       },
       "id": "node-gdrive-archive",
       "name": "Google Drive: Move to Archive Folder",
@@ -259,7 +252,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare WhatsApp report message\nconst item = $('Classify Media & Files').first().json;\nconst timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });\n\nconst reportText = `🚀 *Social Media Post Published!*\\n\\n📂 *Folder*: ${item.folder_name}\\n📝 *Caption*: ${item.caption || 'Published'}\\n#️⃣ *Hashtags*: ${item.hashtags || ''}\\n\\n✅ *Instagram*: Published Live\\n✅ *Facebook*: Published Live\\n✅ *Threads*: Published Live\\n✅ *X (Twitter)*: Published Live\\n\\n📁 *Folder moved to Archive/*\\n⏰ Published at ${timestamp}`;\n\nreturn {\n  json: {\n    ...item,\n    whatsapp_report_text: reportText\n  }\n};"
+        "jsCode": "// Prepare WhatsApp report message\nconst item = $('Classify Media & Files').first().json;\nconst timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });\n\nconst reportText = `🚀 *Social Media Post Published!*\\n\\n📂 *Folder*: ${item.folder_name}\\n📝 *Caption*: ${item.caption || 'Published'}\\n#️⃣ *Hashtags*: ${item.hashtags || ''}\\n\\n✅ *Instagram*: Published Live\\n✅ *Facebook*: Published Live\\n✅ *Threads*: Published Live\\n✅ *X (Twitter)*: Published Live\\n\\n⏰ Published at ${timestamp}`;\n\nreturn {\n  json: {\n    ...item,\n    whatsapp_report_text: reportText\n  }\n};"
       },
       "id": "node-compile-report",
       "name": "Compile WhatsApp Report",
