@@ -1,0 +1,481 @@
+{
+  "name": "Perfume AI Studio - Telegram Inspiration to Poster & Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "node-tg-trigger",
+      "name": "Telegram Trigger (Photo or Button)",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "OPENAI_API_KEY",
+              "value": "PASTE_YOUR_OPENAI_API_KEY_HERE"
+            },
+            {
+              "name": "REPLICATE_API_TOKEN",
+              "value": "PASTE_YOUR_REPLICATE_API_TOKEN_HERE"
+            },
+            {
+              "name": "PRODUCT_NAME",
+              "value": "Aura Privée Extrait de Parfum"
+            },
+            {
+              "name": "PRODUCT_DESCRIPTION",
+              "value": "a luxury minimalist rectangular heavy glass perfume bottle with crystal-clear amber liquid inside, sleek cylindrical matte gold cap, labeled with embossed black serif typography 'AURA PRIVÉE' on a textured cream paper label"
+            },
+            {
+              "name": "IMAGE_GENERATOR_ENGINE",
+              "value": "replicate_flux"
+            },
+            {
+              "name": "GDRIVE_APPROVED_POSTS_FOLDER_ID",
+              "value": "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-global-config",
+      "name": "⚙️ Workflow Configurations & Brand Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.message?.photo ? 'photo_received' : ($json.callback_query ? 'callback_action' : ($json.message?.text ? 'text_feedback' : 'other')) }}",
+              "operation": "equals",
+              "value2": "photo_received"
+            }
+          ]
+        }
+      },
+      "id": "node-route-input-type",
+      "name": "Is Inspiration Photo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "fileId": "={{ $json.message.photo[$json.message.photo.length - 1].file_id }}",
+        "additionalFields": {}
+      },
+      "id": "node-get-tg-photo-file",
+      "name": "Get Telegram Photo Info",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [920, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot{{ $credentials.telegramApi.accessToken }}/{{ $json.result.file_path }}",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "node-download-photo-binary",
+      "name": "Download Photo Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1140, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger (Photo or Button)').item.json.message.chat.id }}",
+        "text": "🎨 *Inspiration Received!*\n\nAnalyzing lighting, composition, textures, and luxury vibes...\nGenerating tailored prompt for your perfume bottle...",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-tg-status-analyzing",
+      "name": "Telegram: Status 'Analyzing'",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1360, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('⚙️ Workflow Configurations & Brand Settings').item.json.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an elite commercial perfume photographer and AI prompt engineer for Flux.1 and DALL-E 3. Deconstruct the user's inspiration image (lighting, textures, mood, camera settings, angles, background elements). Then substitute their specific perfume: '\" + $('⚙️ Workflow Configurations & Brand Settings').item.json.PRODUCT_DESCRIPTION + \"'. Output a JSON object containing: aesthetic_summary (string), lighting_style (string), props_and_environment (string), product_prompt_flux (string: ultra-detailed text-to-image prompt), and suggested_caption (string).\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Analyze this perfume photography inspiration and generate an ultra-realistic commercial poster prompt for my perfume bottle.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,\" + $binary.data.data\n          }\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "node-gpt4o-vision-analysis",
+      "name": "Vision AI (GPT-4o)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1580, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = JSON.parse($input.item.json.choices[0].message.content);\nconst config = $('⚙️ Workflow Configurations & Brand Settings').item.json;\nconst chatId = $('Telegram Trigger (Photo or Button)').item.json.message.chat.id;\n\nreturn {\n  json: {\n    chatId: chatId,\n    aesthetic_summary: response.aesthetic_summary,\n    lighting_style: response.lighting_style,\n    props_and_environment: response.props_and_environment,\n    prompt_flux: response.product_prompt_flux,\n    suggested_caption: response.suggested_caption,\n    engine: config.IMAGE_GENERATOR_ENGINE,\n    productName: config.PRODUCT_NAME\n  }\n};"
+      },
+      "id": "node-parse-vision-output",
+      "name": "Parse Vision & Format Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=✨ *Concept Deconstructed!*\n\n🌟 *Aesthetic*: {{ $json.aesthetic_summary }}\n\n🚀 *Generating poster variation 1... Please wait ~10 seconds.*",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-tg-status-generating",
+      "name": "Telegram: Status 'Generating'",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [2020, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('⚙️ Workflow Configurations & Brand Settings').item.json.REPLICATE_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "wait"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"prompt\": \"{{ $('Parse Vision & Format Prompt').item.json.prompt_flux }}\",\n    \"aspect_ratio\": \"4:5\",\n    \"output_format\": \"jpg\",\n    \"output_quality\": 95\n  }\n}",
+        "options": {}
+      },
+      "id": "node-generate-image-replicate",
+      "name": "Generate Poster (Flux.1 Schnell/Dev)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2240, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const replicateData = $input.item.json;\nconst visionData = $('Parse Vision & Format Prompt').item.json;\nconst imageUrl = Array.isArray(replicateData.output) ? replicateData.output[0] : replicateData.output;\n\nreturn {\n  json: {\n    chatId: visionData.chatId,\n    imageUrl: imageUrl,\n    caption: visionData.suggested_caption,\n    aesthetic: visionData.aesthetic_summary,\n    prompt: visionData.prompt_flux\n  }\n};"
+      },
+      "id": "node-format-preview-payload",
+      "name": "Prepare Preview Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2460, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "file": "={{ $json.imageUrl }}",
+        "additionalFields": {
+          "caption": "=✨ *AI Perfume Poster Generated!*\n\n🌟 *Concept*: {{ $json.aesthetic }}\n\n📝 *Suggested Caption*:\n{{ $json.caption }}\n\n_What would you like to do?_",
+          "parse_mode": "Markdown",
+          "reply_markup": {
+            "inline_keyboard": [
+              [
+                {
+                  "text": "✅ Approve & Queue Post",
+                  "callback_data": "approve_poster"
+                },
+                {
+                  "text": "🔄 Re-roll Variation",
+                  "callback_data": "reroll_poster"
+                }
+              ],
+              [
+                {
+                  "text": "✏️ Adjust Prompt / Feedback",
+                  "callback_data": "edit_prompt"
+                }
+              ]
+            ]
+          }
+        }
+      },
+      "id": "node-tg-send-generated-card",
+      "name": "Telegram: Send Poster + Buttons",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [2680, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.callback_query?.data }}",
+              "operation": "equals",
+              "value2": "approve_poster"
+            }
+          ]
+        }
+      },
+      "id": "node-handle-approval-callback",
+      "name": "Is Approve Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [920, 500]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.callback_query.message.chat.id }}",
+        "text": "🎉 *Poster Approved!*\n\n📁 Assets packaged and queued for multi-platform publishing.\nYour social scheduler will publish according to your schedule.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-tg-confirm-approval",
+      "name": "Telegram: Confirm Approved",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1160, 440],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.callback_query.message.chat.id }}",
+        "text": "💬 *Feedback Mode Active*\n\nReply with what you want to adjust (e.g. _'Add more golden morning light, make droplets larger, add marble podium'_), and I will generate a new refined poster for you!",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-tg-ask-feedback",
+      "name": "Telegram: Prompt for Changes",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1160, 600],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_bot_creds",
+          "name": "Telegram Bot Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger (Photo or Button)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Workflow Configurations & Brand Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Workflow Configurations & Brand Settings": {
+      "main": [
+        [
+          {
+            "node": "Is Inspiration Photo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Inspiration Photo?": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram Photo Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Approve Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Telegram Photo Info": {
+      "main": [
+        [
+          {
+            "node": "Download Photo Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Photo Binary": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Status 'Analyzing'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: Status 'Analyzing'": {
+      "main": [
+        [
+          {
+            "node": "Vision AI (GPT-4o)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision AI (GPT-4o)": {
+      "main": [
+        [
+          {
+            "node": "Parse Vision & Format Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Vision & Format Prompt": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Status 'Generating'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: Status 'Generating'": {
+      "main": [
+        [
+          {
+            "node": "Generate Poster (Flux.1 Schnell/Dev)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Poster (Flux.1 Schnell/Dev)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Preview Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Preview Card": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Send Poster + Buttons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Approve Callback?": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Confirm Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram: Prompt for Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

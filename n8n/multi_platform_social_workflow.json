@@ -1,5 +1,5 @@
 {
-  "name": "Google Drive Auto-Publisher (Instagram, Facebook, Threads & X)",
+  "name": "Google Drive Multi-Platform Auto-Publisher (Instagram, Facebook, Threads & X)",
   "nodes": [
     {
       "parameters": {
@@ -16,38 +16,80 @@
       "name": "Schedule Trigger (9AM, 2PM, 7PM)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [250, 300]
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "GDRIVE_AUTOMATION_FOLDER_ID",
+              "value": "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
+            },
+            {
+              "name": "IG_USER_ID",
+              "value": "17841470059720061"
+            },
+            {
+              "name": "FB_PAGE_ID",
+              "value": "443524902176861"
+            },
+            {
+              "name": "IG_ACCESS_TOKEN",
+              "value": "PASTE_YOUR_META_SYSTEM_USER_TOKEN"
+            },
+            {
+              "name": "FB_PAGE_ACCESS_TOKEN",
+              "value": "PASTE_YOUR_PAGE_ACCESS_TOKEN"
+            },
+            {
+              "name": "THREADS_ACCESS_TOKEN",
+              "value": "PASTE_YOUR_THREADS_TOKEN"
+            },
+            {
+              "name": "X_BEARER_TOKEN",
+              "value": "PASTE_YOUR_X_BEARER_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-set-configs",
+      "name": "⚙️ FREE Social Configs & Credentials",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [380, 300]
     },
     {
       "parameters": {
         "resource": "fileFolder",
         "operation": "search",
         "searchMethod": "advanced",
-        "queryString": "'1djXkok8cuP3efyurTd2nOwoKRo-HpEC3' in parents and trashed = false",
+        "queryString": "='{{ $('⚙️ FREE Social Configs & Credentials').first().json.GDRIVE_AUTOMATION_FOLDER_ID }}' in parents and trashed = false",
         "options": {}
       },
       "id": "node-gdrive-list-folders",
       "name": "Google Drive: List Queue Folders",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [480, 300]
+      "position": [560, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Sort & pick latest queue subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => {\n  const name = item.json.name || '';\n  const mime = item.json.mimeType || item.json.mime_type || '';\n  return (name.startsWith('Post_') || mime === 'application/vnd.google-apps.folder') && !name.toLowerCase().includes('archive');\n});\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort folders by folder name descending (Post_YYYYMMDD_HHMMSS) to pick top queue item\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || '';\n  const nameB = b.json.name || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
+        "jsCode": "// Sort & pick latest queue subfolder (excluding Archive)\nconst items = $input.all();\nconst validFolders = items.filter(item => {\n  const name = (item.json.name || item.json.title || '').toLowerCase();\n  return name.startsWith('post_') && !name.includes('archive');\n});\n\nif (validFolders.length === 0) {\n  return [];\n}\n\n// Sort descending to get top queue item\nvalidFolders.sort((a, b) => {\n  const nameA = a.json.name || a.json.title || '';\n  const nameB = b.json.name || b.json.title || '';\n  return nameB.localeCompare(nameA);\n});\n\nreturn [validFolders[0]];"
       },
       "id": "node-pick-next-folder",
       "name": "Pick Top Queue Subfolder",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 300]
+      "position": [740, 300]
     },
     {
       "parameters": {
         "resource": "fileFolder",
         "operation": "search",
         "searchMethod": "advanced",
-        "queryString": "='{{ $json.id }}' in parents and trashed = false",
+        "queryString": "='{{ $('Pick Top Queue Subfolder').first().json.id }}' in parents and trashed = false",
         "options": {}
       },
       "id": "node-gdrive-list-files",
@@ -58,24 +100,70 @@
     },
     {
       "parameters": {
-        "jsCode": "// Classify media and find caption.txt and hashtags.txt\nconst files = $input.all().map(i => i.json);\n\nconst images = files.filter(f => f.mimeType && f.mimeType.startsWith('image/'));\nconst videos = files.filter(f => f.mimeType && f.mimeType.startsWith('video/'));\nconst captionFile = files.find(f => f.name === 'caption.txt' || f.name.endsWith('.txt'));\nconst hashtagsFile = files.find(f => f.name === 'hashtags.txt');\n\nlet mediaType = 'SINGLE_PHOTO';\nif (videos.length > 0) {\n  mediaType = 'VIDEO';\n} else if (images.length > 1) {\n  mediaType = 'CAROUSEL';\n}\n\nreturn {\n  json: {\n    folder_id: $('Pick Top Queue Subfolder').first().json.id,\n    folder_name: $('Pick Top Queue Subfolder').first().json.name,\n    media_type: mediaType,\n    images: images,\n    videos: videos,\n    caption_file_id: captionFile ? captionFile.id : null,\n    hashtags_file_id: hashtagsFile ? hashtagsFile.id : null\n  }\n};"
+        "jsCode": "// Classify media and find caption.txt and hashtags.txt\nconst files = $('Google Drive: List Files in Subfolder').all().map(i => i.json);\n\n// Check mimeType AND file extension (.png, .jpg, .jpeg, .webp)\nconst images = files.filter(f => {\n  const name = (f.name || f.title || '').toLowerCase();\n  const mime = (f.mimeType || f.mime_type || '').toLowerCase();\n  return mime.startsWith('image/') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp');\n});\n\n// Check mimeType AND file extension (.mp4, .mov, .avi)\nconst videos = files.filter(f => {\n  const name = (f.name || f.title || '').toLowerCase();\n  const mime = (f.mimeType || f.mime_type || '').toLowerCase();\n  return mime.startsWith('video/') || name.endsWith('.mp4') || name.endsWith('.mov') || name.endsWith('.avi');\n});\n\nconst captionFile = files.find(f => (f.name || f.title || '').toLowerCase() === 'caption.txt');\nconst hashtagsFile = files.find(f => (f.name || f.title || '').toLowerCase() === 'hashtags.txt');\n\nconst topFolder = $('Pick Top Queue Subfolder').first().json;\n\nreturn {\n  json: {\n    folder_id: topFolder.id,\n    folder_name: topFolder.name || topFolder.title,\n    media_type: videos.length > 0 ? 'VIDEO' : (images.length > 1 ? 'CAROUSEL' : 'SINGLE_PHOTO'),\n    images: images,\n    videos: videos,\n    caption_file_id: captionFile ? captionFile.id : null,\n    hashtags_file_id: hashtagsFile ? hashtagsFile.id : null,\n    primary_image_url: images.length > 0 ? 'https://lh3.googleusercontent.com/d/' + images[0].id : '',\n    primary_image_id: images.length > 0 ? images[0].id : null\n  }\n};"
       },
       "id": "node-classify-media",
       "name": "Classify Media & Files",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1140, 300]
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": "={{ $json.caption_file_id }}"
+      },
+      "id": "node-download-caption",
+      "name": "Google Drive: Download caption.txt",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1280, 180]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": "={{ $('Classify Media & Files').first().json.hashtags_file_id }}"
+      },
+      "id": "node-download-hashtags",
+      "name": "Google Drive: Download hashtags.txt",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1280, 340]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": "={{ $('Classify Media & Files').first().json.primary_image_id }}"
+      },
+      "id": "node-download-image-binary",
+      "name": "Google Drive: Download Image File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1280, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read caption & hashtags text from binary downloads\nconst meta = $('Classify Media & Files').first().json;\nlet captionText = '';\nlet hashtagsText = '';\n\ntry {\n  const capItem = $('Google Drive: Download caption.txt').first();\n  if (capItem && capItem.binary && capItem.binary.data) {\n    captionText = Buffer.from(capItem.binary.data.data, 'base64').toString('utf8').trim();\n  }\n} catch (e) {}\n\ntry {\n  const hashItem = $('Google Drive: Download hashtags.txt').first();\n  if (hashItem && hashItem.binary && hashItem.binary.data) {\n    hashtagsText = Buffer.from(hashItem.binary.data.data, 'base64').toString('utf8').trim();\n  }\n} catch (e) {}\n\n// Default fallback if caption.txt was empty\nif (!captionText) {\n  captionText = meta.folder_name;\n}\n\nlet fullCaption = captionText;\nif (hashtagsText) {\n  fullCaption += '\\n\\n' + hashtagsText;\n}\n\nreturn {\n  json: {\n    ...meta,\n    caption: captionText,\n    hashtags: hashtagsText,\n    full_caption: fullCaption\n  }\n};"
+      },
+      "id": "node-assemble-post-content",
+      "name": "Assemble Post Content & Caption",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v20.0/{{ $env.IG_USER_ID }}/media",
+        "url": "=https://graph.facebook.com/v20.0/{{ $('⚙️ FREE Social Configs & Credentials').first().json.IG_USER_ID }}/media",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "image_url",
-              "value": "={{ $json.images[0] ? 'https://lh3.googleusercontent.com/d/' + $json.images[0].id : '' }}"
+              "value": "={{ $json.primary_image_url }}"
             },
             {
               "name": "caption",
@@ -83,7 +171,7 @@
             },
             {
               "name": "access_token",
-              "value": "={{ $env.IG_ACCESS_TOKEN }}"
+              "value": "={{ $('⚙️ FREE Social Configs & Credentials').first().json.IG_ACCESS_TOKEN }}"
             }
           ]
         },
@@ -93,12 +181,12 @@
       "name": "1. Instagram: Create Media Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1400, 150]
+      "position": [1780, 100]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v20.0/{{ $env.IG_USER_ID }}/media_publish",
+        "url": "=https://graph.facebook.com/v20.0/{{ $('⚙️ FREE Social Configs & Credentials').first().json.IG_USER_ID }}/media_publish",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -108,7 +196,7 @@
             },
             {
               "name": "access_token",
-              "value": "={{ $env.IG_ACCESS_TOKEN }}"
+              "value": "={{ $('⚙️ FREE Social Configs & Credentials').first().json.IG_ACCESS_TOKEN }}"
             }
           ]
         },
@@ -118,26 +206,27 @@
       "name": "1b. Instagram: Publish Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1620, 150]
+      "position": [2000, 100]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v20.0/{{ $env.FB_PAGE_ID }}/photos",
-        "sendQuery": true,
-        "queryParameters": {
+        "url": "=https://graph.facebook.com/v20.0/{{ $('⚙️ FREE Social Configs & Credentials').first().json.FB_PAGE_ID }}/photos",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
           "parameters": [
             {
               "name": "url",
-              "value": "={{ $('Classify Media & Files').first().json.images[0] ? 'https://lh3.googleusercontent.com/d/' + $('Classify Media & Files').first().json.images[0].id : '' }}"
+              "value": "={{ $json.primary_image_url }}"
             },
             {
               "name": "caption",
-              "value": "={{ $('Classify Media & Files').first().json.full_caption }}"
+              "value": "={{ $json.full_caption }}"
             },
             {
               "name": "access_token",
-              "value": "={{ $env.FB_PAGE_ACCESS_TOKEN }}"
+              "value": "={{ $('⚙️ FREE Social Configs & Credentials').first().json.FB_PAGE_ACCESS_TOKEN }}"
             }
           ]
         },
@@ -147,12 +236,12 @@
       "name": "2. Facebook: Post Photo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1400, 350]
+      "position": [1780, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.threads.net/v1.0/me/threads",
+        "url": "https://graph.threads.net/v1.0/me/threads",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -162,15 +251,15 @@
             },
             {
               "name": "image_url",
-              "value": "={{ $('Classify Media & Files').first().json.images[0] ? 'https://lh3.googleusercontent.com/d/' + $('Classify Media & Files').first().json.images[0].id : '' }}"
+              "value": "={{ $json.primary_image_url }}"
             },
             {
               "name": "text",
-              "value": "={{ $('Classify Media & Files').first().json.full_caption }}"
+              "value": "={{ $json.full_caption }}"
             },
             {
               "name": "access_token",
-              "value": "={{ $env.THREADS_ACCESS_TOKEN }}"
+              "value": "={{ $('⚙️ FREE Social Configs & Credentials').first().json.THREADS_ACCESS_TOKEN }}"
             }
           ]
         },
@@ -180,12 +269,12 @@
       "name": "3. Threads: Create Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1400, 550]
+      "position": [1780, 500]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.threads.net/v1.0/me/threads_publish",
+        "url": "https://graph.threads.net/v1.0/me/threads_publish",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -195,7 +284,7 @@
             },
             {
               "name": "access_token",
-              "value": "={{ $env.THREADS_ACCESS_TOKEN }}"
+              "value": "={{ $('⚙️ FREE Social Configs & Credentials').first().json.THREADS_ACCESS_TOKEN }}"
             }
           ]
         },
@@ -205,35 +294,21 @@
       "name": "3b. Threads: Publish Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1620, 550]
+      "position": [2000, 500]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.twitter.com/2/tweets",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.X_BEARER_TOKEN }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"text\": \"{{ $('Classify Media & Files').first().json.full_caption.substring(0, 280) }}\"\n}",
-        "options": {}
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twitterOAuth2Api",
+        "resource": "tweet",
+        "operation": "create",
+        "text": "={{ $('Assemble Post Content & Caption').first().json.full_caption.substring(0, 280) }}"
       },
-      "id": "node-x-publish",
-      "name": "4. X (Twitter): Publish Tweet",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1400, 750]
+      "id": "node-x-tweet",
+      "name": "4. X (Twitter): Post Tweet with Caption",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [1780, 700]
     },
     {
       "parameters": {
@@ -246,36 +321,22 @@
       "name": "Google Drive: Move to Archive Folder",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [1850, 450]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Prepare WhatsApp report message\nconst item = $('Classify Media & Files').first().json;\nconst timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });\n\nconst reportText = `🚀 *Social Media Post Published!*\\n\\n📂 *Folder*: ${item.folder_name}\\n📝 *Caption*: ${item.caption || 'Published'}\\n#️⃣ *Hashtags*: ${item.hashtags || ''}\\n\\n✅ *Instagram*: Published Live\\n✅ *Facebook*: Published Live\\n✅ *Threads*: Published Live\\n✅ *X (Twitter)*: Published Live\\n\\n⏰ Published at ${timestamp}`;\n\nreturn {\n  json: {\n    ...item,\n    whatsapp_report_text: reportText\n  }\n};"
-      },
-      "id": "node-compile-report",
-      "name": "Compile WhatsApp Report",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2070, 450]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://graph.facebook.com/v20.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.YOUR_PERSONAL_WHATSAPP_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"{{ $json.whatsapp_report_text }}\"\n  }\n}",
-        "options": {}
-      },
-      "id": "node-send-whatsapp-report",
-      "name": "Send WhatsApp Confirmation 📱",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [2290, 450]
+      "position": [2300, 300]
     }
   ],
   "connections": {
     "Schedule Trigger (9AM, 2PM, 7PM)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ FREE Social Configs & Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ FREE Social Configs & Credentials": {
       "main": [
         [
           {
@@ -323,6 +384,60 @@
       "main": [
         [
           {
+            "node": "Google Drive: Download caption.txt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Drive: Download hashtags.txt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Drive: Download Image File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Download caption.txt": {
+      "main": [
+        [
+          {
+            "node": "Assemble Post Content & Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Download hashtags.txt": {
+      "main": [
+        [
+          {
+            "node": "Assemble Post Content & Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive: Download Image File": {
+      "main": [
+        [
+          {
+            "node": "Assemble Post Content & Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Post Content & Caption": {
+      "main": [
+        [
+          {
             "node": "1. Instagram: Create Media Container",
             "type": "main",
             "index": 0
@@ -338,7 +453,7 @@
             "index": 0
           },
           {
-            "node": "4. X (Twitter): Publish Tweet",
+            "node": "4. X (Twitter): Post Tweet with Caption",
             "type": "main",
             "index": 0
           }
@@ -372,28 +487,6 @@
         [
           {
             "node": "3b. Threads: Publish Post",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google Drive: Move to Archive Folder": {
-      "main": [
-        [
-          {
-            "node": "Compile WhatsApp Report",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Compile WhatsApp Report": {
-      "main": [
-        [
-          {
-            "node": "Send WhatsApp Confirmation 📱",
             "type": "main",
             "index": 0
           }
