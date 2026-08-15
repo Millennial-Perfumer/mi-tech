@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -225,14 +226,18 @@ func UploadInMemoryPackageToDrive(accessToken string, parentFolderID string, fol
 	createdFolderID := folderResp.ID
 	log.Printf("[GDrive Direct Stream] Created Drive subfolder %s (ID: %s)", folderName, createdFolderID)
 
+	// Clean caption and hashtags to remove accidental LLM prefixes like 'Caption:', 'Hook:', etc.
+	cleanCap := sanitizeCaptionText(caption)
+	cleanHash := sanitizeHashtagsText(hashtags)
+
 	// 2. Upload caption.txt in-memory
-	if strings.TrimSpace(caption) != "" {
-		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "caption.txt", []byte(strings.TrimSpace(caption)), "text/plain; charset=utf-8")
+	if cleanCap != "" {
+		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "caption.txt", []byte(cleanCap), "text/plain; charset=utf-8")
 	}
 
 	// 3. Upload hashtags.txt in-memory
-	if strings.TrimSpace(hashtags) != "" {
-		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "hashtags.txt", []byte(strings.TrimSpace(hashtags)), "text/plain; charset=utf-8")
+	if cleanHash != "" {
+		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "hashtags.txt", []byte(cleanHash), "text/plain; charset=utf-8")
 	}
 
 	// 4. Upload binary media files directly from RAM
@@ -462,4 +467,38 @@ func uploadSingleFileToDrive(client *http.Client, token string, parentID string,
 
 	log.Printf("[GDrive Direct Upload Success] Successfully uploaded %s (%d bytes) to Drive subfolder %s (File ID: %s)", fileName, len(fileData), parentID, uploadResp.ID)
 	return nil
+}
+
+func sanitizeCaptionText(text string) string {
+	s := strings.TrimSpace(text)
+	if s == "" {
+		return ""
+	}
+
+	// Strip common surrounding quotes
+	s = strings.TrimPrefix(s, "\"")
+	s = strings.TrimSuffix(s, "\"")
+	s = strings.TrimPrefix(s, "'")
+	s = strings.TrimSuffix(s, "'")
+
+	// Strip common LLM artifact prefixes (e.g. "Caption:", "Post Caption:", "Hook:", "Copy:")
+	rePrefix := regexp.MustCompile(`(?i)^(caption|post\s+caption|copy|hook|text|title)\s*:\s*`)
+	s = rePrefix.ReplaceAllString(s, "")
+
+	return strings.TrimSpace(s)
+}
+
+func sanitizeHashtagsText(text string) string {
+	s := strings.TrimSpace(text)
+	if s == "" {
+		return ""
+	}
+
+	s = strings.TrimPrefix(s, "\"")
+	s = strings.TrimSuffix(s, "\"")
+
+	rePrefix := regexp.MustCompile(`(?i)^(hashtags|tags|keywords)\s*:\s*`)
+	s = rePrefix.ReplaceAllString(s, "")
+
+	return strings.TrimSpace(s)
 }
