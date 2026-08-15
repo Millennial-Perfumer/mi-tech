@@ -5,22 +5,41 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Converts repository name to lowercase for GHCR
-  IMAGE_NAME: ${{ github.repository }}
   REPO_OWNER: ${{ github.repository_owner }}
 
 jobs:
-  build-and-push-images:
+  build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - service: backend
+            context: ./backend
+            image_name: mi-tech-backend
+            build_args: ""
+          - service: frontend
+            context: ./frontend
+            image_name: mi-tech-frontend
+            build_args: "VITE_API_URL=https://mi-tech-api.millennialperfumer.in"
+          - service: frontend-feedback
+            context: ./frontend-feedback
+            image_name: mi-tech-frontend-feedback
+            build_args: "VITE_API_URL=https://mi-tech-api.millennialperfumer.in"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        env:
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+      - name: Lowercase Repository Owner
+        run: |
+          echo "REPO_OWNER=${REPO_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -29,77 +48,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.MITECH_DOCKER_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Lowercase Repository Owner
-        run: |
-          echo "REPO_OWNER=${REPO_OWNER,,}" >> $GITHUB_ENV
-
-      # Backend Image
-      - name: Extract metadata (tags, labels) for Backend
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-backend
-
-      - name: Build and push Backend Docker image
+      - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: ${{ matrix.context }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-backend:latest
-          labels: ${{ steps.meta-backend.outputs.labels }}
-
-      # Frontend Image
-      - name: Extract metadata (tags, labels) for Frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend
-
-      - name: Build and push Frontend Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          build-args: VITE_API_URL=https://mi-tech-api.millennialperfumer.in
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend:latest
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-
-      # Frontend Feedback Image
-      - name: Extract metadata (tags, labels) for Frontend Feedback
-        id: meta-frontend-feedback
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend-feedback
-
-      - name: Build and push Frontend Feedback Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend-feedback
-          push: true
-          build-args: VITE_API_URL=https://mi-tech-api.millennialperfumer.in
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-frontend-feedback:latest
-          labels: ${{ steps.meta-frontend-feedback.outputs.labels }}
-
-      # Shop Chat Agent Image
-      - name: Extract metadata (tags, labels) for Shop Chat Agent
-        id: meta-shop-chat-agent
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-shop-chat-agent
-
-      - name: Build and push Shop Chat Agent Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./shop-chat-agent
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mi-tech-shop-chat-agent:latest
-          labels: ${{ steps.meta-shop-chat-agent.outputs.labels }}
+          build-args: ${{ matrix.build_args }}
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/${{ matrix.image_name }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   deploy-to-vm:
-    needs: build-and-push-images
+    needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
@@ -147,14 +107,17 @@ jobs:
             # Export GITHUB_REPOSITORY_OWNER for docker-compose.prod.yml
             export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
 
-            # Pull new images
-            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml pull
+            # Fast targeted pull of custom app images
+            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback
 
-            # Recreate containers with new images
-            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
+            # Recreate containers with zero unnecessary downtime
+            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback nginx
 
-            # Reload Nginx to pick up configuration changes (e.g. new subdomains)
-            docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml exec -T nginx nginx -s reload
+            # Ensure n8n is linked to app network for reverse proxying
+            docker network connect mi-tech-app_app-network n8n 2>/dev/null || true
 
-            # Remove old dangling images to save space
-            docker image prune -af
+            # Reload Nginx configuration
+            docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload 2>/dev/null || true
+
+            # Remove only dangling (untagged) images without wiping layer cache
+            docker image prune -f
