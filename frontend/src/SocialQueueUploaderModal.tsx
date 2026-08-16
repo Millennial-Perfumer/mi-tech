@@ -87,20 +87,9 @@ export const SocialQueueUploaderModal: React.FC<SocialQueueUploaderModalProps> =
     setIsSubmitting(true);
     try {
       const postType = getDetectedPostType();
-      const cleanCaption = caption
-        .replace(/^["']/, '')
-        .replace(/["']$/, '')
-        .replace(/^(Caption|Post Caption|Copy|Hook|Text|Title)\s*:\s*/i, '')
-        .trim();
-      const cleanHashtags = hashtags
-        .replace(/^["']/, '')
-        .replace(/["']$/, '')
-        .replace(/^(Hashtags|Tags|Keywords)\s*:\s*/i, '')
-        .trim();
-
       const formData = new FormData();
-      formData.append('caption', cleanCaption);
-      formData.append('hashtags', cleanHashtags);
+      formData.append('caption', caption);
+      formData.append('hashtags', hashtags);
       formData.append('post_type', postType);
       formData.append('target_platforms', JSON.stringify(selectedPlatforms));
 
