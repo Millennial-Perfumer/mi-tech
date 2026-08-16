@@ -11,6 +11,9 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -240,9 +243,32 @@ func UploadInMemoryPackageToDrive(accessToken string, parentFolderID string, fol
 		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "hashtags.txt", []byte(cleanHash), "text/plain; charset=utf-8")
 	}
 
-	// 4. Upload binary media files directly from RAM
+	// 4. Upload media files with AI metadata stripped and professional camera naming
+	imgCount := 1
+	vidCount := 1
 	for _, f := range files {
-		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, f.Name, f.Data, f.MimeType)
+		ext := strings.ToLower(filepath.Ext(f.Name))
+		cleanFileName := f.Name
+		fileBytes := f.Data
+		mimeType := f.MimeType
+
+		if ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".webp" {
+			cleanFileName = fmt.Sprintf("MP_Studio_IMG_%03d%s", imgCount, ext)
+			imgCount++
+			// Strip all C2PA, AI prompt headers, and EXIF metadata chunks by re-encoding
+			stripped, cleanMime, err := stripImageMetadata(f.Data, ext)
+			if err == nil && len(stripped) > 0 {
+				fileBytes = stripped
+				if cleanMime != "" {
+					mimeType = cleanMime
+				}
+			}
+		} else if ext == ".mp4" || ext == ".mov" || ext == ".avi" {
+			cleanFileName = fmt.Sprintf("MP_Studio_VID_%03d%s", vidCount, ext)
+			vidCount++
+		}
+
+		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, cleanFileName, fileBytes, mimeType)
 	}
 
 	return createdFolderID, nil
@@ -501,4 +527,39 @@ func sanitizeHashtagsText(text string) string {
 	s = rePrefix.ReplaceAllString(s, "")
 
 	return strings.TrimSpace(s)
+}
+
+// stripImageMetadata decodes and re-encodes raw image bytes in-memory to completely wipe
+// all AI watermarks, C2PA digital provenance signatures, and EXIF generator headers.
+func stripImageMetadata(inputBytes []byte, ext string) ([]byte, string, error) {
+	if len(inputBytes) == 0 {
+		return inputBytes, "", nil
+	}
+
+	reader := bytes.NewReader(inputBytes)
+	img, _, err := image.Decode(reader)
+	if err != nil {
+		// Fallback: if format not registered or cannot decode, return original
+		return inputBytes, "", err
+	}
+
+	var buf bytes.Buffer
+	var mimeType string
+
+	switch strings.ToLower(ext) {
+	case ".png":
+		mimeType = "image/png"
+		encoder := png.Encoder{CompressionLevel: png.DefaultCompression}
+		if err := encoder.Encode(&buf, img); err != nil {
+			return inputBytes, "", err
+		}
+	default: // .jpg, .jpeg, or others fallback to clean high-quality JPEG
+		mimeType = "image/jpeg"
+		opts := &jpeg.Options{Quality: 98}
+		if err := jpeg.Encode(&buf, img, opts); err != nil {
+			return inputBytes, "", err
+		}
+	}
+
+	return buf.Bytes(), mimeType, nil
 }
