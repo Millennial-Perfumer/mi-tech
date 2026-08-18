@@ -96,6 +96,13 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 
 	slog.Info("AmazonOrderPoller: API Response", "orderCount", len(amazonOrders))
 
+	maxSeq, err := p.orderRepo.GetMaxAmazonInvoiceNumber()
+	if err != nil {
+		slog.Error("AmazonOrderPoller: Failed to fetch max Amazon invoice number", "error", err)
+		maxSeq = 0
+	}
+	nextSeq := maxSeq + 1
+
 	for _, ao := range amazonOrders {
 		amazonOrderID := ao["AmazonOrderId"].(string)
 		amazonStatus := ao["OrderStatus"].(string)
@@ -145,6 +152,16 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			})
 		}
 
+		var assignedInvoiceNumber *string
+		existing, errExist := p.orderRepo.GetByExternalID(amazonOrderID)
+		if errExist == nil && existing.InvoiceNumber != nil && *existing.InvoiceNumber != "" {
+			assignedInvoiceNumber = existing.InvoiceNumber
+		} else {
+			inv := fmt.Sprintf("AMZ-%d", nextSeq)
+			assignedInvoiceNumber = &inv
+			nextSeq++
+		}
+
 		order := orderEntity.Order{
 			SourceID:          "amazon",
 			ExternalOrderID:   amazonOrderID,
@@ -152,6 +169,7 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 			Status:            &amazonStatus,
 			FinancialStatus:   util.StrPtr("paid"), // Usually paid on Amazon
 			FulfillmentStatus: util.StrPtr("unfulfilled"),
+			InvoiceNumber:     assignedInvoiceNumber,
 			LineItems:         lineItems,
 			CreatedAt:         p.parseAmazonDate(ao["PurchaseDate"].(string)),
 		}
@@ -253,8 +271,7 @@ func (p *AmazonOrderPoller) SyncOrders(ctx context.Context, start, end *time.Tim
 		}
 
 		// Check if we already have this order to preserve internal state
-		existing, err := p.orderRepo.GetByExternalID(amazonOrderID)
-		if err == nil {
+		if errExist == nil {
 			order.ID = existing.ID
 			order.InventoryDeducted = existing.InventoryDeducted
 

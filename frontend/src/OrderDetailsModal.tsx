@@ -34,6 +34,7 @@ interface Order {
   customer_zip: string;
   customer_country: string;
   line_items?: LineItem[];
+  source_id?: string;
   tracking_number?: string;
   shipping_company?: string;
   tracking_url?: string;
@@ -60,6 +61,7 @@ interface OrderDetailsModalProps {
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
   userRole?: string;
   onOrderUpdated?: () => void;
+  onConvertToB2B?: (orderId: string | number) => void;
 }
 
 const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
@@ -68,7 +70,8 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   orderId,
   fetchWithAuth,
   userRole,
-  onOrderUpdated
+  onOrderUpdated,
+  onConvertToB2B
 }) => {
   const { success, error } = useToast();
   const [order, setOrder] = useState<Order | null>(null);
@@ -210,14 +213,14 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
 
-        <div className="modal-header-icon" style={{ 
+        <div className="modal-header-icon" style={{
           background: 'linear-gradient(135deg, var(--accent-color), var(--status-active))',
           width: '45px',
           height: '45px',
           top: '-22px'
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" />
           </svg>
         </div>
 
@@ -231,26 +234,41 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             </p>
           </div>
           {!isLoading && order && (
-             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                <span className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : 'warning'}`}>
-                  <span className="dot"></span> {order.financial_status?.toUpperCase()}
-                </span>
-                <span className={`badge-pill badge-pill-${order.status === 'CANCELLED' ? 'danger' : (order.fulfillment_status === 'fulfilled' ? 'gray' : 'yellow')}`}>
-                  <span className="dot"></span> {order.status === 'CANCELLED' ? 'CANCELLED' : (order.fulfillment_status || 'UNFULFILLED').toUpperCase()}
-                </span>
-             </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <span 
+                className="badge-pill"
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  background: order.source_id?.toLowerCase() === 'b2b' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+                  color: order.source_id?.toLowerCase() === 'b2b' ? '#10b981' : '#6366f1',
+                  border: order.source_id?.toLowerCase() === 'b2b' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(99, 102, 241, 0.3)'
+                }}
+              >
+                {order.source_id?.toLowerCase() === 'b2b' ? 'B2B' : 'B2C'}
+              </span>
+              <span className={`badge-pill badge-pill-${order.financial_status === 'paid' ? 'success' : 'warning'}`}>
+                <span className="dot"></span> {order.financial_status?.toUpperCase()}
+              </span>
+              <span className={`badge-pill badge-pill-${order.status === 'CANCELLED' ? 'danger' : (order.fulfillment_status === 'fulfilled' ? 'gray' : 'yellow')}`}>
+                <span className="dot"></span> {order.status === 'CANCELLED' ? 'CANCELLED' : (order.fulfillment_status || 'UNFULFILLED').toUpperCase()}
+              </span>
+            </div>
           )}
         </div>
 
         {/* Tab Navigation */}
         <div className="modal-tabs" style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
-          <button 
+          <button
             className={`tab-btn ${activeTab === 'details' ? 'active' : ''}`}
             onClick={() => setActiveTab('details')}
           >
             Details
           </button>
-          <button 
+          <button
             className={`tab-btn ${activeTab === 'messages' ? 'active' : ''}`}
             onClick={() => setActiveTab('messages')}
           >
@@ -258,7 +276,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             {messages.length > 0 && <span className="tab-count">{messages.length}</span>}
           </button>
         </div>
-        
+
         {isLoading ? (
 
           <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -273,7 +291,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '1.25rem' }}>
 
 
-                
+
                 {/* Customer Info Section */}
                 <div className="details-section">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
@@ -281,15 +299,15 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
 
                     {(userRole === 'admin' || isStateNA) && (
-                      <button 
+                      <button
                         type="button"
-                        className="btn-icon-minimal" 
+                        className="btn-icon-minimal"
                         onClick={() => setIsEditing(!isEditing)}
                         aria-label={isEditing ? "Cancel Edit" : "Edit Customer Details"}
                         title={isEditing ? "Cancel Edit" : "Edit Customer Details"}
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          {isEditing ? <path d="M18 6L6 18M6 6l12 12"/> : <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>}
+                          {isEditing ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />}
                         </svg>
                       </button>
                     )}
@@ -300,20 +318,20 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div className="input-group">
                         <label>First Name</label>
-                        <input 
-                          name="customer_first_name" 
-                          value={formData.customer_first_name || ''} 
-                          onChange={handleInputChange} 
+                        <input
+                          name="customer_first_name"
+                          value={formData.customer_first_name || ''}
+                          onChange={handleInputChange}
                           disabled={!isEditing || userRole !== 'admin'}
                           className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                       <div className="input-group">
                         <label>Last Name</label>
-                        <input 
-                          name="customer_last_name" 
-                          value={formData.customer_last_name || ''} 
-                          onChange={handleInputChange} 
+                        <input
+                          name="customer_last_name"
+                          value={formData.customer_last_name || ''}
+                          onChange={handleInputChange}
                           disabled={!isEditing || userRole !== 'admin'}
                           className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
@@ -322,10 +340,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
                     <div className="input-group">
                       <label>Email Address</label>
-                      <input 
-                        name="customer_email" 
-                        value={formData.customer_email || ''} 
-                        onChange={handleInputChange} 
+                      <input
+                        name="customer_email"
+                        value={formData.customer_email || ''}
+                        onChange={handleInputChange}
                         disabled={!isEditing || userRole !== 'admin'}
                         className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
@@ -333,10 +351,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
                     <div className="input-group">
                       <label>Phone Number</label>
-                      <input 
-                        name="customer_phone" 
-                        value={formData.customer_phone || ''} 
-                        onChange={handleInputChange} 
+                      <input
+                        name="customer_phone"
+                        value={formData.customer_phone || ''}
+                        onChange={handleInputChange}
                         disabled={!isEditing || userRole !== 'admin'}
                         className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
@@ -344,10 +362,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
                     <div className="input-group">
                       <label>Address Line 1</label>
-                      <input 
-                        name="customer_address1" 
-                        value={formData.customer_address1 || ''} 
-                        onChange={handleInputChange} 
+                      <input
+                        name="customer_address1"
+                        value={formData.customer_address1 || ''}
+                        onChange={handleInputChange}
                         disabled={!isEditing || userRole !== 'admin'}
                         className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
@@ -355,10 +373,10 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
 
                     <div className="input-group">
                       <label>Address Line 2 (Optional)</label>
-                      <input 
-                        name="customer_address2" 
-                        value={formData.customer_address2 || ''} 
-                        onChange={handleInputChange} 
+                      <input
+                        name="customer_address2"
+                        value={formData.customer_address2 || ''}
+                        onChange={handleInputChange}
                         disabled={!isEditing || userRole !== 'admin'}
                         className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                       />
@@ -367,20 +385,20 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
                       <div className="input-group">
                         <label>City</label>
-                        <input 
-                          name="customer_city" 
-                          value={formData.customer_city || ''} 
-                          onChange={handleInputChange} 
+                        <input
+                          name="customer_city"
+                          value={formData.customer_city || ''}
+                          onChange={handleInputChange}
                           disabled={!isEditing || userRole !== 'admin'}
                           className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
                       </div>
                       <div className="input-group">
                         <label>Zip/Pincode</label>
-                        <input 
-                          name="customer_zip" 
-                          value={formData.customer_zip || ''} 
-                          onChange={handleInputChange} 
+                        <input
+                          name="customer_zip"
+                          value={formData.customer_zip || ''}
+                          onChange={handleInputChange}
                           disabled={!isEditing || userRole !== 'admin'}
                           className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
@@ -390,20 +408,20 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                     <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div className="input-group">
                         <label>State</label>
-                        <input 
-                          name="customer_state" 
-                          value={formData.customer_state || ''} 
-                          onChange={handleInputChange} 
+                        <input
+                          name="customer_state"
+                          value={formData.customer_state || ''}
+                          onChange={handleInputChange}
                           disabled={!isEditing}
                           className={!isEditing ? 'input-readonly' : ''}
                         />
                       </div>
                       <div className="input-group">
                         <label>Country</label>
-                        <input 
-                          name="customer_country" 
-                          value={formData.customer_country || ''} 
-                          onChange={handleInputChange} 
+                        <input
+                          name="customer_country"
+                          value={formData.customer_country || ''}
+                          onChange={handleInputChange}
                           disabled={!isEditing || userRole !== 'admin'}
                           className={(!isEditing || userRole !== 'admin') ? 'input-readonly' : ''}
                         />
@@ -440,16 +458,16 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                   <div style={{ marginTop: '1rem', padding: '1rem 0.5rem 0', borderTop: '2px dashed var(--border-color)' }}>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
-                        <span>₹{order.subtotal_price}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
+                      <span>₹{order.subtotal_price}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Tax</span>
-                        <span>₹{order.total_tax}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Tax</span>
+                      <span>₹{order.total_tax}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1.1rem', marginTop: '1rem', color: 'var(--text-primary)' }}>
-                        <span>Total</span>
-                        <span>₹{order.total_price}</span>
+                      <span>Total</span>
+                      <span>₹{order.total_price}</span>
                     </div>
                   </div>
 
@@ -465,7 +483,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                         {order.tracking_url && (
                           <a href={order.tracking_url} target="_blank" rel="noreferrer" className="btn-icon-minimal" aria-label="Open tracking URL">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
                             </svg>
                           </a>
                         )}
@@ -488,7 +506,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 ) : messages.length === 0 ? (
                   <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-tertiary)', background: 'var(--bg-input)', borderRadius: '12px' }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1rem', opacity: 0.5 }}>
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                     <p>No messages have been sent for this order yet.</p>
                   </div>
@@ -506,7 +524,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                             {msg.status.toUpperCase()}
                           </span>
                         </div>
-                        
+
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
 
                           <div>
@@ -526,7 +544,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                             </div>
                           )}
                         </div>
-                        
+
                         {msg.error_message && (
                           <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid var(--status-danger)', borderRadius: '4px', fontSize: '0.8rem', color: 'var(--status-danger)' }}>
                             {msg.error_message}
@@ -542,45 +560,148 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
         )}
 
 
-        <div className="modal-actions" style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+        <div className="modal-actions" style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.25rem',
+          borderTop: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.75rem'
+        }}>
+          <button 
+            type="button" 
+            className="btn-secondary" 
+            onClick={onClose} 
+            disabled={isSaving || isDownloading}
+            style={{ 
+              height: '40px', 
+              padding: '0 1.25rem', 
+              borderRadius: '10px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            Close
+          </button>
 
-
-          <button type="button" className="btn-secondary" onClick={onClose} disabled={isSaving || isDownloading}>Close</button>
-          {isEditing && (
-            <button 
-              type="button"
-              className="btn-primary" 
-              onClick={handleSave} 
-              disabled={isSaving}
-              style={{ minWidth: '160px' }}
-            >
-              {isSaving ? (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div className="loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }}></div>
-                  Saving...
-                </span>
-              ) : 'Save Changes'}
-            </button>
-          )}
-          {!isEditing && !isLoading && (
-             <button 
-               type="button"
-               className="btn-primary" 
-               onClick={handleDownloadInvoice}
-               disabled={isDownloading}
-               style={{ minWidth: '180px' }}
-             >
-                {isDownloading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {isEditing && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSave}
+                disabled={isSaving}
+                style={{ 
+                  height: '40px', 
+                  padding: '0 1.25rem', 
+                  borderRadius: '10px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {isSaving ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
                     <div className="loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', marginBottom: 0 }}></div>
-                    Downloading...
+                    Saving...
                   </span>
-                ) : 'Download GST Invoice'}
-             </button>
-          )}
+                ) : 'Save Changes'}
+              </button>
+            )}
+
+            {!isEditing && !isLoading && (
+              <>
+                {onConvertToB2B && order?.source_id?.toLowerCase() !== 'b2b' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onConvertToB2B(order!.id);
+                    }}
+                    style={{
+                      height: '40px',
+                      padding: '0 1.15rem',
+                      borderRadius: '10px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.45rem',
+                      color: '#10b981',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      whiteSpace: 'nowrap',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#10b981';
+                      e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.borderColor = '#10b981';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)';
+                      e.currentTarget.style.color = '#10b981';
+                      e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                    Convert to B2B
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleDownloadInvoice}
+                  disabled={isDownloading}
+                  style={{ 
+                    height: '40px', 
+                    padding: '0 1.25rem', 
+                    borderRadius: '10px',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.45rem'
+                  }}
+                >
+                  {isDownloading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                      <div className="loading-spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', marginBottom: 0 }}></div>
+                      Downloading...
+                    </span>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Download Invoice
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      
+
       <style>{`
         .order-details-modal .input-group {
           display: flex;

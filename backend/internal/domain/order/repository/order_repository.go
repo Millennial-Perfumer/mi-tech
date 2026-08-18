@@ -299,12 +299,25 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
-		err := tx.Where("source_id = ? AND external_order_id = ?", order.SourceID, order.ExternalOrderID).
-			Select("id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
+		err := tx.Where("external_order_id = ?", order.ExternalOrderID).
+			Select("id", "source_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
 				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
 			First(&existing).Error
 
 		if err == nil {
+			// If this order has already been converted to B2B, do not overwrite B2B invoice data with retail sync data
+			if existing.SourceID == "b2b" {
+				// Only update delivery & tracking status if Amazon provides shipment updates
+				return tx.Model(&existing).Updates(map[string]interface{}{
+					"fulfillment_status": order.FulfillmentStatus,
+					"delivery_status":    order.DeliveryStatus,
+					"tracking_number":    order.TrackingNumber,
+					"shipping_company":   order.ShippingCompany,
+					"tracking_url":       order.TrackingUrl,
+					"updated_at":         time.Now(),
+				}).Error
+			}
+
 			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
 			r.mergePII(&existing, &order)
 
@@ -437,7 +450,7 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		}
 
 		var existingOrders []entity.Order
-		err := tx.Where("source_id IN ? AND external_order_id IN ?", uniqueSources, externalIDs).
+		err := tx.Where("external_order_id IN ?", externalIDs).
 			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
 				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
 			Find(&existingOrders).Error
@@ -446,20 +459,21 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			return fmt.Errorf("failed to fetch existing orders for merge: %w", err)
 		}
 
-		// Create a map for O(1) lookup: key = source_id:external_order_id
-		// This protects against map collisions if multiple sources use same external IDs
+		// Create a map for O(1) lookup: key = external_order_id
 		existingMap := make(map[string]entity.Order)
 		for _, e := range existingOrders {
-			key := fmt.Sprintf("%s:%s", e.SourceID, e.ExternalOrderID)
-			existingMap[key] = e
+			existingMap[e.ExternalOrderID] = e
 		}
 
 		for i := range orders {
-			key := fmt.Sprintf("%s:%s", orders[i].SourceID, orders[i].ExternalOrderID)
 			// Merge PII if existing order found
-			if existing, found := existingMap[key]; found {
+			if existing, found := existingMap[orders[i].ExternalOrderID]; found {
 				orders[i].ID = existing.ID // Crucial to link line items correctly
-				r.mergePII(&existing, &orders[i])
+				if existing.SourceID == "b2b" {
+					orders[i].SourceID = "b2b"
+				} else {
+					r.mergePII(&existing, &orders[i])
+				}
 
 				// Preserve delivered_at if already set
 				if existing.DeliveredAt != nil {
@@ -480,9 +494,27 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			}
 		}
 
-		// 1.5 Fetch all existing line items for these orders to calculate deltas
-		orderIDs := make([]int64, 0)
+		// 1.5 Separate normal orders from converted B2B orders
+		var ordersToUpsert []entity.Order
 		for _, o := range orders {
+			if existing, found := existingMap[o.ExternalOrderID]; found && existing.SourceID == "b2b" {
+				// Only update delivery & tracking status for B2B converted orders
+				_ = tx.Model(&entity.Order{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
+					"fulfillment_status": o.FulfillmentStatus,
+					"delivery_status":    o.DeliveryStatus,
+					"tracking_number":    o.TrackingNumber,
+					"shipping_company":   o.ShippingCompany,
+					"tracking_url":       o.TrackingUrl,
+					"updated_at":         time.Now(),
+				}).Error
+			} else {
+				ordersToUpsert = append(ordersToUpsert, o)
+			}
+		}
+
+		// 1.6 Fetch all existing line items for these orders to calculate deltas
+		orderIDs := make([]int64, 0)
+		for _, o := range ordersToUpsert {
 			if o.ID != 0 {
 				orderIDs = append(orderIDs, o.ID)
 			}
@@ -505,34 +537,36 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		}
 
 		// 1.8 Recalculate totals from line items to prevent discrepancies / doubling
-		for i := range orders {
-			if orders[i].SourceID == "shopify" && len(orders[i].LineItems) > 0 {
-				r.recalculateOrderTotals(&orders[i])
+		for i := range ordersToUpsert {
+			if ordersToUpsert[i].SourceID == "shopify" && len(ordersToUpsert[i].LineItems) > 0 {
+				r.recalculateOrderTotals(&ordersToUpsert[i])
 			}
 		}
 
 		// 2. Batch Upsert Orders (Omit LineItems to handle them separately)
-		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "external_order_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"order_number", "total_price", "subtotal_price", "total_tax",
-				"updated_at", "customer_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "status",
-				"financial_status", "fulfillment_status", "delivery_status",
-				"tracking_number", "shipping_company", "tracking_url",
-				"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
-				"raw_payload", "customer_external_id", "total_discount", "delivered_at", "inventory_deducted",
-			}),
-		}).Omit("LineItems").Create(&orders).Error; err != nil {
-			return fmt.Errorf("failed to batch upsert orders: %w", err)
+		if len(ordersToUpsert) > 0 {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns: []clause.Column{{Name: "external_order_id"}},
+				DoUpdates: clause.AssignmentColumns([]string{
+					"order_number", "total_price", "subtotal_price", "total_tax",
+					"updated_at", "customer_name", "customer_email", "customer_phone",
+					"customer_city", "customer_state", "customer_country", "status",
+					"financial_status", "fulfillment_status", "delivery_status",
+					"tracking_number", "shipping_company", "tracking_url",
+					"customer_first_name", "customer_last_name", "customer_address1", "customer_address2", "customer_zip",
+					"raw_payload", "customer_external_id", "total_discount", "delivered_at", "inventory_deducted",
+				}),
+			}).Omit("LineItems").Create(&ordersToUpsert).Error; err != nil {
+				return fmt.Errorf("failed to batch upsert orders: %w", err)
+			}
 		}
 
 		// 3. Flatten and Batch Upsert Line Items
 		var allLineItems []entity.LineItem
-		for i := range orders {
-			for j := range orders[i].LineItems {
-				orders[i].LineItems[j].OrderID = orders[i].ID
-				allLineItems = append(allLineItems, orders[i].LineItems[j])
+		for i := range ordersToUpsert {
+			for j := range ordersToUpsert[i].LineItems {
+				ordersToUpsert[i].LineItems[j].OrderID = ordersToUpsert[i].ID
+				allLineItems = append(allLineItems, ordersToUpsert[i].LineItems[j])
 			}
 		}
 
@@ -882,3 +916,14 @@ func (r *gormOrderRepository) GetNextPOSSequence(terminalCode string) (string, e
 	}
 	return fmt.Sprintf("%s-%03d", result.Code, result.Seq), nil
 }
+
+func (r *gormOrderRepository) GetMaxAmazonInvoiceNumber() (int, error) {
+	var maxVal int
+	err := r.db.Raw(`
+		SELECT COALESCE(MAX(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '')::integer), 0)
+		FROM orders
+		WHERE source_id = 'amazon' AND invoice_number LIKE 'AMZ-%'
+	`).Scan(&maxVal).Error
+	return maxVal, err
+}
+

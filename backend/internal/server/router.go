@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
@@ -22,7 +23,6 @@ import (
 	userServicePkg "mi-tech/internal/domain/user/service"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
-	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 
@@ -62,6 +62,7 @@ func RegisterRoutes(
 	aiHandler *aiHandlerPkg.AIHandler,
 	b2bHandler *b2bHandlerPkg.B2BHandler,
 	acHandler *abandonedCheckoutHandlerPkg.AbandonedCheckoutHandler,
+	judgeMeHandler *marketingHandlerPkg.JudgeMeHandler,
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -92,8 +93,23 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
 	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
 	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
+	mux.HandleFunc("/api/marketing/smm/queue", protected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			smmHandler.QueuePost(w, r)
+		default:
+			smmHandler.GetQueue(w, r)
+		}
+	}))
 
-	log.Println("DEBUG: Marketing & SMM Routes Registered")
+	// Judge.me Review Generator Routes
+	if judgeMeHandler != nil {
+		mux.HandleFunc("/api/marketing/judgeme/generate", protected(judgeMeHandler.GenerateReviews))
+		mux.HandleFunc("/api/marketing/judgeme/submit", protected(judgeMeHandler.SubmitReviews))
+		mux.HandleFunc("/api/marketing/judgeme/published", protected(judgeMeHandler.GetPublishedReviews))
+	}
+
+	log.Println("DEBUG: Marketing, SMM & Judge.me Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
 	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))
@@ -113,6 +129,8 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/feedback/validate", metrics(cors(feedbackHandler.ValidateFeedback)).ServeHTTP)
 	mux.HandleFunc("/api/feedback/config-status", protected(feedbackHandler.GetConfigStatus))
 	mux.HandleFunc("/api/feedback", protected(feedbackHandler.GetFeedback))
+	mux.HandleFunc("/api/orders/feedback/post-judgeme", protected(feedbackHandler.PostJudgeMeReview))
+	mux.HandleFunc("/api/orders/feedback/request-google-review", protected(feedbackHandler.RequestGoogleReview))
 
 	// --- Auth Routes ---
 	mux.HandleFunc("/api/auth/login", metrics(cors(authHandler.Login)).ServeHTTP)

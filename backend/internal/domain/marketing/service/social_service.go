@@ -1,11 +1,21 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"mi-tech/internal/domain/marketing/entity"
 	repository "mi-tech/internal/domain/marketing/repository"
 	"time"
 )
+
+type CreateQueueInput struct {
+	Caption         string   `json:"caption"`
+	Hashtags        string   `json:"hashtags"`
+	PostType        string   `json:"post_type"` // 'SINGLE_PHOTO', 'CAROUSEL', 'VIDEO'
+	TargetPlatforms []string `json:"target_platforms"`
+	MediaFilenames  []string `json:"media_filenames"`
+}
 
 type SocialService interface {
 	SyncPlatformMetrics(platform string) error
@@ -14,6 +24,9 @@ type SocialService interface {
 	SyncHistoricalInsights(platform string) error
 	GetPostInsights(postID string, mediaType string) (*DetailedInsights, error)
 	CheckAssetHealth() (*AssetHealth, error)
+	CreateQueueItem(input CreateQueueInput) (*entity.SocialQueuePost, error)
+	GetQueueItems(limit int) ([]entity.SocialQueuePost, error)
+	GetAppConfig(key string) (string, error)
 }
 
 type socialService struct {
@@ -358,6 +371,48 @@ func (s *socialService) PostContent(platform string, content map[string]string) 
 	return "", nil
 }
 
+func (s *socialService) CreateQueueItem(input CreateQueueInput) (*entity.SocialQueuePost, error) {
+	// Auto generate strictly time-based folder name: Post_YYYYMMDD_HHMMSS
+	folderName := fmt.Sprintf("Post_%s", time.Now().Format("20060102_150405"))
+
+	targetPlatformsJSON, _ := json.Marshal(input.TargetPlatforms)
+	mediaFilenamesJSON, _ := json.Marshal(input.MediaFilenames)
+
+	postType := input.PostType
+	if postType == "" {
+		if len(input.MediaFilenames) > 1 {
+			postType = "CAROUSEL"
+		} else {
+			postType = "SINGLE_PHOTO"
+		}
+	}
+
+	queuePost := entity.SocialQueuePost{
+		FolderName:      folderName,
+		PostType:        postType,
+		Caption:         input.Caption,
+		Hashtags:        input.Hashtags,
+		MediaFilenames:  string(mediaFilenamesJSON),
+		TargetPlatforms: string(targetPlatformsJSON),
+		Status:          "QUEUED",
+	}
+
+	res, err := s.repo.CreateQueuePost(queuePost)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (s *socialService) GetQueueItems(limit int) ([]entity.SocialQueuePost, error) {
+	return s.repo.ListQueuePosts(limit)
+}
+
+
 func (s *socialService) CheckAssetHealth() (*AssetHealth, error) {
 	return s.metaClient.CheckAssetAlignment()
+}
+
+func (s *socialService) GetAppConfig(key string) (string, error) {
+	return s.repo.GetAppConfig(key)
 }

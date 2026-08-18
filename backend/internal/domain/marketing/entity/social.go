@@ -52,3 +52,24 @@ func (SocialMetricHistory) TableName() string {
 func (SocialPost) TableName() string {
 	return "social_post_history"
 }
+
+// SocialQueuePost tracks posts queued for Google Drive / n8n auto-publishing.
+type SocialQueuePost struct {
+	ID              int       `gorm:"primaryKey" json:"id"`
+	FolderName      string    `gorm:"uniqueIndex;not null" json:"folder_name"`
+	GDriveFolderID  string    `gorm:"column:gdrive_folder_id" json:"gdrive_folder_id"`
+	PostType        string    `gorm:"not null" json:"post_type"` // 'SINGLE_PHOTO', 'CAROUSEL', 'VIDEO'
+	Caption         string    `json:"caption"`
+	Hashtags        string    `json:"hashtags"`
+	MediaFilenames  string    `json:"media_filenames"`  // JSON array string
+	TargetPlatforms string    `json:"target_platforms"` // JSON array string e.g. ["facebook","instagram","threads","x"]
+	Status          string    `gorm:"default:'QUEUED'" json:"status"` // 'QUEUED', 'PUBLISHING', 'PUBLISHED', 'FAILED'
+	ErrorMessage    string    `json:"error_message,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+func (SocialQueuePost) TableName() string {
+	return "social_queue_posts"
+}
+

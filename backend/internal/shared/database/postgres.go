@@ -43,9 +43,10 @@ func SeedDefaultUsers(db *gorm.DB) error {
 		Email string
 		Role  string
 		Pass  string
+		Phone string
 	}{
-		{"admin@millennialperfumer.in", "admin", "admin123"},
-		{"mi-agents@millennialperfumer.in", "read", "agent123"},
+		{"admin@millennialperfumer.in", "admin", "admin123", "6383173716"},
+		{"mi-agents@millennialperfumer.in", "read", "agent123", ""},
 	}
 
 	for _, u := range users {
@@ -57,11 +58,11 @@ func SeedDefaultUsers(db *gorm.DB) error {
 		}
 
 		err := db.Exec(`
-			INSERT INTO users (username, password_hash, role, created_at, updated_at) 
-			VALUES (?, ?, ?, NOW(), NOW())
+			INSERT INTO users (username, password_hash, role, phone_number, created_at, updated_at)
+			VALUES (?, ?, ?, ?, NOW(), NOW())
 			ON CONFLICT (username) DO UPDATE 
-			SET role = EXCLUDED.role, password_hash = EXCLUDED.password_hash, updated_at = NOW()
-		`, u.Email, hash, u.Role).Error
+			SET role = EXCLUDED.role, password_hash = EXCLUDED.password_hash, phone_number = COALESCE(NULLIF(EXCLUDED.phone_number, ''), users.phone_number), updated_at = NOW()
+		`, u.Email, hash, u.Role, u.Phone).Error
 
 		if err != nil {
 			return err

@@ -17,6 +17,9 @@ type SocialRepository interface {
 	UpsertMetricSnapshot(metric entity.SocialMetricHistory) error
 	GetHistoricalMetrics(platform string, postID string, days int) ([]entity.SocialMetricHistory, error)
 	GetPlatformSummary(platform string, startDate, endDate string) (map[string]interface{}, error)
+	CreateQueuePost(post entity.SocialQueuePost) (entity.SocialQueuePost, error)
+	ListQueuePosts(limit int) ([]entity.SocialQueuePost, error)
+	GetAppConfig(key string) (string, error)
 }
 
 type gormSocialRepository struct {
@@ -25,6 +28,9 @@ type gormSocialRepository struct {
 
 // NewSocialRepository creates a new GORM-backed SocialRepository.
 func NewSocialRepository(db *gorm.DB) SocialRepository {
+	if db != nil {
+		_ = db.AutoMigrate(&entity.SocialQueuePost{})
+	}
 	return &gormSocialRepository{db: db}
 }
 
@@ -111,3 +117,40 @@ func (r *gormSocialRepository) GetPlatformSummary(platform string, startDate, en
 		"top_posts": topPosts,
 	}, nil
 }
+
+func (r *gormSocialRepository) CreateQueuePost(post entity.SocialQueuePost) (entity.SocialQueuePost, error) {
+	post.CreatedAt = time.Now()
+	post.UpdatedAt = time.Now()
+	if r.db == nil {
+		return post, nil
+	}
+	err := r.db.Create(&post).Error
+	return post, err
+}
+
+func (r *gormSocialRepository) ListQueuePosts(limit int) ([]entity.SocialQueuePost, error) {
+	var posts []entity.SocialQueuePost
+	if r.db == nil {
+		return posts, nil
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	err := r.db.Order("created_at DESC").Limit(limit).Find(&posts).Error
+	return posts, err
+}
+
+func (r *gormSocialRepository) GetAppConfig(key string) (string, error) {
+	if r.db == nil {
+		return "", nil
+	}
+	var cfg struct {
+		Value string `gorm:"column:value"`
+	}
+	err := r.db.Table("app_configs").Select("value").Where("key = ?", key).First(&cfg).Error
+	if err != nil {
+		return "", err
+	}
+	return cfg.Value, nil
+}
+

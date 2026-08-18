@@ -13,11 +13,46 @@ type PurchaseOrderHandler struct {
 	svc *service.PurchaseOrderService
 }
 
+type purchaseOrderPageResponse struct {
+	Items      []entity.PurchaseOrder `json:"items"`
+	TotalDates int64                  `json:"total_dates"`
+	Page       int                    `json:"page"`
+	Days       int                    `json:"days"`
+}
+
 func NewPurchaseOrderHandler(svc *service.PurchaseOrderService) *PurchaseOrderHandler {
 	return &PurchaseOrderHandler{svc: svc}
 }
 
 func (h *PurchaseOrderHandler) List(w http.ResponseWriter, r *http.Request) {
+	if daysParam := r.URL.Query().Get("days"); daysParam != "" {
+		days, _ := strconv.Atoi(daysParam)
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		if page < 1 {
+			page = 1
+		}
+		pos, totalDates, err := h.svc.ListRecentDays(days, page)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(purchaseOrderPageResponse{Items: pos, TotalDates: totalDates, Page: page, Days: days})
+		return
+	}
+
+	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+		limit, _ := strconv.Atoi(limitParam)
+		pos, err := h.svc.ListRecent(limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(pos)
+		return
+	}
+
 	pos, err := h.svc.List()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

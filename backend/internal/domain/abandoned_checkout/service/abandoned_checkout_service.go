@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var templateParamRegex = regexp.MustCompile(`\{\{(\d+)\}\}`)
@@ -30,6 +32,7 @@ type AbandonedCheckoutService interface {
 	GetAnalytics(ctx context.Context, storeID string, startDate, endDate string) (*acDto.AbandonedCheckoutAnalyticsResponse, error)
 	DeleteCheckout(ctx context.Context, storeID string, id int) error
 	UpdateCheckoutStatus(ctx context.Context, storeID string, id int, status string, completed bool) error
+	ProcessCartWebhook(ctx context.Context, storeID string, cartToken string, lineItems []byte) error
 }
 
 type abandonedCheckoutService struct {
@@ -98,11 +101,18 @@ func (s *abandonedCheckoutService) ProcessRecoveryQueue(ctx context.Context) err
 
 	log.Printf("Abandoned Checkout Recovery: Found %d checkouts to process", len(checkouts))
 
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(5)
+
 	for _, ac := range checkouts {
-		s.processSingleCheckout(ctx, ac)
+		ac := ac // Capture variable for goroutine
+		eg.Go(func() error {
+			s.processSingleCheckout(egCtx, ac)
+			return nil
+		})
 	}
 
-	return nil
+	return eg.Wait()
 }
 
 func (s *abandonedCheckoutService) processSingleCheckout(ctx context.Context, ac acEntity.AbandonedCheckout) {
@@ -145,7 +155,6 @@ func (s *abandonedCheckoutService) processSingleCheckout(ctx context.Context, ac
 		_ = s.repo.UpdateRecoveryStatus(ctx, ac.ID, "CANCELLED", ac.RecoveryAttempts, "Customer completed purchase recently", nil)
 		return
 	}
-
 
 	// Send message
 	log.Printf("Abandoned Checkout Recovery: Dispatching template %s to %s for checkout %d", template.TemplateName, phone, ac.ID)
@@ -298,3 +307,14 @@ func (s *abandonedCheckoutService) DeleteCheckout(ctx context.Context, storeID s
 func (s *abandonedCheckoutService) UpdateCheckoutStatus(ctx context.Context, storeID string, id int, status string, completed bool) error {
 	return s.repo.UpdateStatus(ctx, storeID, id, status, completed)
 }
+
+func (s *abandonedCheckoutService) ProcessCartWebhook(ctx context.Context, storeID string, cartToken string, lineItems []byte) error {
+	raw := json.RawMessage(lineItems)
+	cart := acEntity.ShopifyCart{
+		StoreID:   storeID,
+		CartToken: cartToken,
+		LineItems: &raw,
+	}
+	return s.repo.UpsertCart(ctx, &cart)
+}
+

@@ -9,6 +9,7 @@ import (
 type OilInventoryRepository interface {
 	WithTx(tx *gorm.DB) OilInventoryRepository
 	List(search string) ([]entity.OilInventory, error)
+	ListPage(search, sort string, page, limit int) ([]entity.OilInventory, int64, error)
 	GetByID(id int) (entity.OilInventory, error)
 	Create(item *entity.OilInventory) error
 	Update(item *entity.OilInventory) error
@@ -39,6 +40,46 @@ func (r *pgOilInventoryRepository) List(search string) ([]entity.OilInventory, e
 	}
 	err := query.Find(&items).Error
 	return items, err
+}
+
+func (r *pgOilInventoryRepository) ListPage(search, sort string, page, limit int) ([]entity.OilInventory, int64, error) {
+	var items []entity.OilInventory
+	query := r.db.Model(&entity.OilInventory{})
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where(
+			"oil_inventory.name ILIKE ? OR oil_inventory.inventory_item_id IN (SELECT id FROM inventory_items WHERE title ILIKE ? OR mi_sku ILIKE ?) OR oil_inventory.supplier_id IN (SELECT id FROM suppliers WHERE name ILIKE ?)",
+			searchTerm, searchTerm, searchTerm, searchTerm,
+		)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	orderBy := map[string]string{
+		"name-asc":                   "oil_inventory.name ASC",
+		"name-desc":                  "oil_inventory.name DESC",
+		"inventory_item.mi_sku-asc":  "inventory_items.mi_sku ASC",
+		"inventory_item.mi_sku-desc": "inventory_items.mi_sku DESC",
+		"inventory_item.title-asc":   "inventory_items.title ASC",
+		"inventory_item.title-desc":  "inventory_items.title DESC",
+		"supplier.name-asc":          "suppliers.name ASC",
+		"supplier.name-desc":         "suppliers.name DESC",
+		"purchase_price_per_kg-asc":  "oil_inventory.purchase_price_per_kg ASC",
+		"purchase_price_per_kg-desc": "oil_inventory.purchase_price_per_kg DESC",
+		"grams_left-asc":             "oil_inventory.grams_left ASC",
+		"grams_left-desc":            "oil_inventory.grams_left DESC",
+	}[sort]
+	if orderBy == "" {
+		orderBy = "oil_inventory.name ASC"
+	}
+
+	query = query.Joins("LEFT JOIN inventory_items ON inventory_items.id = oil_inventory.inventory_item_id").Joins("LEFT JOIN suppliers ON suppliers.id = oil_inventory.supplier_id")
+	err := query.Preload("InventoryItem").Preload("Supplier").Order(orderBy).Offset((page - 1) * limit).Limit(limit).Find(&items).Error
+	return items, total, err
 }
 
 func (r *pgOilInventoryRepository) GetByID(id int) (entity.OilInventory, error) {

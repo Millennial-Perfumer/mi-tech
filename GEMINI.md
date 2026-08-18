@@ -17,6 +17,12 @@ Use the root `Makefile` for the main local workflow:
 ## Coding Style & Naming Conventions
 Follow the language defaults already in the repo: Go should stay `gofmt`-formatted with package names in lowercase and tests in `*_test.go`. In React/TypeScript, keep components and screens in `PascalCase` files such as `Customers.tsx`; utility modules and APIs may use lowercase names like `api.ts`. Use 2-space indentation in frontend code and tabs/default Go formatting in backend code. ESLint is configured in both frontends; run it before opening a PR.
 
+## UI Branding & CSS Guidelines
+Maintain a premium, cohesive aesthetic across the application surfaces. All UI adjustments and stylesheet edits must conform to the brand rules defined in [.agent/skills/brand-manager/SKILL.md](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/.agent/skills/brand-manager/SKILL.md):
+- **Token Usage**: Never hardcode colors or spacing. Always use the CSS variables defined in [index.css](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/frontend/src/index.css) (e.g. `var(--accent-color)`, `var(--bg-color)`).
+- **Motion & Transitions**: Utilize premium micro-animations and entry effects (like fadeInUp and `.hover-lift` classes) to elevate the user experience.
+- **Glassmorphism**: Apply glassmorphism details for overlays and stats cards with adaptive dark theme styling.
+
 ## Testing Guidelines
 Backend tests use Go’s `testing` package with `stretchr/testify`. 
 
@@ -24,6 +30,12 @@ Backend tests use Go’s `testing` package with `stretchr/testify`.
 > **Strict Test Directory Rule:** All backend test files (ending in `_test.go`) MUST reside only within a nested `test/` subdirectory inside the package directory they are covering (e.g., `internal/shared/middleware/test/middleware_test.go`). They must use a separate `package test` declaration and import the parent package. Under no circumstances should test files be placed in the parent package's root directory.
 
 There is no established frontend test suite yet, so changes there should at minimum pass `npm run build` and `npm run lint`.
+
+## Backend Concurrency & Performance
+- **Queue & Batch Processing**: When iterating over a batch of items that each require external API updates or DB queries in a background queue, use `golang.org/x/sync/errgroup` to parallelize the requests.
+- **Rate-Limiting Guards**: Limit concurrency to a maximum of `5` (rather than 10) to remain consistent with established rate-limiting guards and prevent overloading external API rate limits (e.g. Meta Cloud or Shopify).
+- **Goroutine Safe Closures**: Always capture the loop iteration variable explicitly for goroutines inside concurrent loops (e.g. `ac := ac`).
+
 
 
 ## Documentation Maintenance

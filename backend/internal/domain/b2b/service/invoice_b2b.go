@@ -44,8 +44,9 @@ func (s *B2BService) GetNextInvoiceNumber(invoiceDate string) (string, error) {
 
 func (s *B2BService) CreateInvoice(inv *entity.B2BInvoice) error {
 	inv.Status = "DRAFT"
-	inv.PaymentStatus = "UNPAID"
-	inv.PaidAmount = 0.00
+	if inv.PaymentStatus == "" {
+		inv.PaymentStatus = "UNPAID"
+	}
 
 	locked, err := s.IsPeriodLocked(inv.InvoiceDate)
 	if err == nil && locked {
@@ -55,6 +56,15 @@ func (s *B2BService) CreateInvoice(inv *entity.B2BInvoice) error {
 	if err := s.calculateInvoiceTotals(inv); err != nil {
 		return err
 	}
+
+	if inv.PaymentStatus == "PAID" {
+		inv.PaidAmount = inv.TotalPrice
+		inv.BalanceAmount = 0
+	} else if inv.PaymentStatus == "UNPAID" {
+		inv.PaidAmount = 0.00
+		inv.BalanceAmount = inv.TotalPrice
+	}
+
 	return s.repo.CreateInvoice(inv)
 }
 
@@ -126,6 +136,11 @@ func (s *B2BService) IssueInvoice(id int64) (*entity.B2BInvoice, error) {
 		// Recalculate totals to be absolutely sure
 		if err := s.calculateInvoiceTotals(&invoice); err != nil {
 			return err
+		}
+
+		if invoice.PaymentStatus == "PAID" {
+			invoice.PaidAmount = invoice.TotalPrice
+			invoice.BalanceAmount = 0
 		}
 
 		if err := txRepo.UpdateInvoice(&invoice); err != nil {

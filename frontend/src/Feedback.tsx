@@ -11,6 +11,10 @@ interface CustomerFeedback {
   message?: string;
   customer_phone?: string;
   admin_comment?: string;
+  judgeme_posted?: boolean;
+  judgeme_posted_at?: string;
+  google_review_requested?: boolean;
+  google_review_requested_at?: string;
   created_at: string;
 }
 
@@ -47,11 +51,137 @@ const Feedback: React.FC<FeedbackProps> = ({
   const [selectedFeedback, setSelectedFeedback] = useState<CustomerFeedback | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [adminCommentText, setAdminCommentText] = useState('');
+  const [judgeMeEmail, setJudgeMeEmail] = useState('hari.crze.101@gmail.com');
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [postingId, setPostingId] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 15;
+  const totalPages = Math.ceil(feedbacks.length / itemsPerPage) || 1;
+  const paginatedFeedbacks = feedbacks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const [googleReviewUrl] = useState('https://search.google.com/local/writereview?placeid=ChIJ-3J013P2DzkRyH0142-b1y0');
+
+  const handlePostJudgeMe = async (feedbackId: number) => {
+    setPostingId(feedbackId);
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/feedback/post-judgeme?id=${feedbackId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: judgeMeEmail }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        success(data.message || 'Judge.me review created successfully');
+        if (selectedFeedback && selectedFeedback.id === feedbackId) {
+          setSelectedFeedback({ ...selectedFeedback, judgeme_posted: true });
+        }
+        fetchFeedbacks();
+      } else {
+        error(data.message || 'Failed to post review to Judge.me');
+      }
+    } catch (err) {
+      console.error('Failed to post Judge.me review:', err);
+      error('Network error creating Judge.me review');
+    } finally {
+      setPostingId(null);
+    }
+  };
+
+  const handleRequestGoogleReview = async (feedback: CustomerFeedback) => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE}/api/orders/feedback/request-google-review?id=${feedback.id}`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.success) {
+        success('Google review request recorded');
+        if (selectedFeedback && selectedFeedback.id === feedback.id) {
+          setSelectedFeedback({ ...selectedFeedback, google_review_requested: true });
+        }
+        fetchFeedbacks();
+      }
+    } catch (err) {
+      console.error('Failed to record Google review request:', err);
+    }
+  };
+
+  const fallbackCopyTextToClipboard = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      success('Review text copied to clipboard!');
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+    }
+    document.body.removeChild(textArea);
+  };
+
+  const handleCopyReviewText = (text: string) => {
+    if (!text) return;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        success('Review text copied to clipboard!');
+      }).catch(() => {
+        fallbackCopyTextToClipboard(text);
+      });
+    } else {
+      fallbackCopyTextToClipboard(text);
+    }
+  };
+
+  const formatWhatsAppPhone = (phoneStr?: string): string => {
+    if (!phoneStr) return '';
+    let digits = phoneStr.replace(/[^0-9]/g, '');
+    if (digits.length === 10) {
+      digits = `91${digits}`;
+    } else if (digits.length === 11 && digits.startsWith('0')) {
+      digits = `91${digits.slice(1)}`;
+    }
+    return digits;
+  };
+
+  const [customerPhoneInput, setCustomerPhoneInput] = useState('');
+
+  const getGoogleReviewWhatsAppUrl = (feedback: CustomerFeedback) => {
+    const phoneToUse = customerPhoneInput || feedback.customer_phone;
+    const cleanPhone = formatWhatsAppPhone(phoneToUse);
+    const cleanReviewText = (feedback.message || '').trim();
+    
+    const formattedReview = cleanReviewText 
+      ? `"${cleanReviewText}"` 
+      : `${feedback.rating}/5 Stars Rating`;
+
+    const message = `Hi ${feedback.customer_name}!\n\nThank you so much for your ${feedback.rating}-star review for Millennial Perfumer!\n\nCould you please take 30 seconds to share your review on Google?\n\nHere is your review:\n${formattedReview}\n\nTap here to post on Google:\n${googleReviewUrl}\n\nThank you for your support!`;
+    
+    if (!cleanPhone) {
+      return `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    }
+    return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+  };
+
+  const getReviewTextOnlyWhatsAppUrl = (feedback: CustomerFeedback) => {
+    const phoneToUse = customerPhoneInput || feedback.customer_phone;
+    const cleanPhone = formatWhatsAppPhone(phoneToUse);
+    const cleanReviewText = (feedback.message || '').trim() || `${feedback.rating}/5 Stars Rating`;
+    
+    if (!cleanPhone) {
+      return `https://api.whatsapp.com/send?text=${encodeURIComponent(cleanReviewText)}`;
+    }
+    return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(cleanReviewText)}`;
+  };
 
   const handleOpenCommentModal = (feedback: CustomerFeedback) => {
     setSelectedFeedback(feedback);
     setAdminCommentText(feedback.admin_comment || '');
+    setJudgeMeEmail('hari.crze.101@gmail.com');
+    setCustomerPhoneInput(feedback.customer_phone || '');
     setIsAdminModalOpen(true);
   };
 
@@ -332,18 +462,18 @@ const Feedback: React.FC<FeedbackProps> = ({
                         onChange={(e) => setSelectedIds(e.target.checked ? scanResults.map(c => c.id) : [])}
                       />
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th aria-sort={sortConfig?.key === 'customer_name' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button type="button" onClick={() => handleSort('customer_name')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Customer {sortConfig?.key === 'customer_name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th aria-sort={sortConfig?.key === 'order_number' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button type="button" onClick={() => handleSort('order_number')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Order # {sortConfig?.key === 'order_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
-                    <th style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
-                      <button onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <th aria-sort={sortConfig?.key === 'delivered_at' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ padding: '1rem 2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                      <button type="button" onClick={() => handleSort('delivered_at')} style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         Delivered {sortConfig?.key === 'delivered_at' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                       </button>
                     </th>
@@ -401,13 +531,23 @@ const Feedback: React.FC<FeedbackProps> = ({
       {/* --- ADMIN COMMENT MODAL --- */}
       {isAdminModalOpen && selectedFeedback && (
         <div className="modal-overlay" onClick={() => setIsAdminModalOpen(false)}>
-          <div className="premium-modal" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+          <div 
+            className="premium-modal" 
+            style={{ 
+              maxWidth: '540px', 
+              width: '92%',
+              maxHeight: '85vh', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              overflow: 'hidden', 
+              padding: '1.25rem' 
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexShrink: 0 }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Feedback Admin Note</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '4px', marginBottom: 0 }}>
-                  Add an internal note or action taken for this customer review
-                </p>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Feedback Details & Actions</h2>
               </div>
               <button 
                 onClick={() => setIsAdminModalOpen(false)}
@@ -417,62 +557,291 @@ const Feedback: React.FC<FeedbackProps> = ({
               </button>
             </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Customer:</span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedFeedback.customer_name}</span>
+            {/* Scrollable Body Content */}
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {/* Customer Comment Summary */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Customer:</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{selectedFeedback.customer_name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order:</span>
+                  <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{selectedFeedback.order_number}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Rating:</span>
+                  <span style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                    {renderStars(selectedFeedback.rating)}
+                  </span>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Customer Comment:</span>
+                    <p style={{ color: 'var(--text-primary)', fontSize: '0.85rem', fontStyle: selectedFeedback.message ? 'normal' : 'italic', margin: 0, lineHeight: '1.4' }}>
+                      {selectedFeedback.message || "No comment left."}
+                    </p>
+                  </div>
+                  {selectedFeedback.message && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyReviewText(selectedFeedback.message || '')}
+                      title="Copy Customer Review Text"
+                      style={{
+                        background: 'var(--accent-subtle)',
+                        border: '1px solid var(--accent-color)',
+                        color: 'var(--accent-color)',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        flexShrink: 0
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      Copy Text
+                    </button>
+                  )}
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Order:</span>
-                <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{selectedFeedback.order_number}</span>
+
+              {/* Judge.me Integration */}
+              <div className="sync-form-group" style={{ background: 'rgba(255,255,255,0.02)', padding: '0.85rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.5rem' }}>Judge.me Integration</label>
+                
+                {!selectedFeedback.judgeme_posted && (
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.25rem' }}>
+                      Reviewer Email Address:
+                    </label>
+                    <input 
+                      type="email"
+                      value={judgeMeEmail}
+                      onChange={e => setJudgeMeEmail(e.target.value)}
+                      placeholder="hari.crze.101@gmail.com"
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-input)',
+                        border: '1.5px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '0.5rem 0.75rem',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.825rem',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {selectedFeedback.judgeme_posted ? (
+                  <div style={{ 
+                    padding: '0.6rem 0.85rem', 
+                    borderRadius: '10px', 
+                    background: 'rgba(16, 185, 129, 0.15)', 
+                    color: '#10b981', 
+                    fontWeight: 600, 
+                    fontSize: '0.8rem', 
+                    border: '1px solid rgba(16, 185, 129, 0.3)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.4rem' 
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Review Already Posted to Judge.me
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handlePostJudgeMe(selectedFeedback.id)}
+                    disabled={postingId === selectedFeedback.id}
+                    type="button"
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.65rem 0.85rem', 
+                      borderRadius: '10px', 
+                      fontSize: '0.85rem', 
+                      fontWeight: 700, 
+                      cursor: postingId === selectedFeedback.id ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      background: '#10b981',
+                      color: '#ffffff',
+                      border: 'none',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {postingId === selectedFeedback.id ? (
+                      <>
+                        <span className="dot-flashing" style={{ scale: '0.7' }}></span>
+                        Creating Judge.me Review...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        Create Judge.me Review
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Rating:</span>
-                <span style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                  {renderStars(selectedFeedback.rating)}
-                </span>
+
+              {/* Google Review Request */}
+              <div className="sync-form-group" style={{ background: 'rgba(37, 211, 102, 0.03)', padding: '0.85rem', borderRadius: '12px', border: '1px solid rgba(37, 211, 102, 0.15)' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#25D366', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.097-4.001l.436.259c1.472.873 3.16 1.334 4.887 1.335 5.201.001 9.434-4.232 9.436-9.435.001-2.521-.979-4.894-2.763-6.678-1.783-1.784-4.156-2.765-6.677-2.766-5.204-.001-9.438 4.232-9.439 9.435-.001 1.796.514 3.548 1.488 5.078l.284.446-1.002 3.66 3.75-1.001z"/></svg>
+                  Google Review WhatsApp Request
+                </label>
+
+                <div style={{ marginBottom: '0.65rem' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.25rem' }}>
+                    Customer WhatsApp Phone Number:
+                  </label>
+                  <input 
+                    type="text"
+                    value={customerPhoneInput}
+                    onChange={e => setCustomerPhoneInput(e.target.value)}
+                    placeholder="e.g. 7904769823"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input)',
+                      border: '1.5px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '0.45rem 0.65rem',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.825rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
+                  <a 
+                    href={getGoogleReviewWhatsAppUrl(selectedFeedback)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (selectedFeedback.message) {
+                        handleCopyReviewText(selectedFeedback.message);
+                      }
+                      handleRequestGoogleReview(selectedFeedback);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '10px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      background: '#25D366',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 14px rgba(37, 211, 102, 0.3)',
+                      transition: 'all 0.2s ease',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.705 1.754zm6.097-4.001l.436.259c1.472.873 3.16 1.334 4.887 1.335 5.201.001 9.434-4.232 9.436-9.435.001-2.521-.979-4.894-2.763-6.678-1.783-1.784-4.156-2.765-6.677-2.766-5.204-.001-9.438 4.232-9.439 9.435-.001 1.796.514 3.548 1.488 5.078l.284.446-1.002 3.66 3.75-1.001z"/></svg>
+                    Send Full Request & Google Link
+                  </a>
+
+                  {selectedFeedback.message && (
+                    <a 
+                      href={getReviewTextOnlyWhatsAppUrl(selectedFeedback)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => handleCopyReviewText(selectedFeedback.message || '')}
+                      style={{
+                        width: '100%',
+                        padding: '0.55rem 0.85rem',
+                        borderRadius: '10px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        background: 'rgba(37, 211, 102, 0.12)',
+                        color: '#25D366',
+                        border: '1px solid rgba(37, 211, 102, 0.3)',
+                        textDecoration: 'none',
+                        transition: 'all 0.2s ease',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      Send Review Text Only (for 1-Tap Copy on WhatsApp)
+                    </a>
+                  )}
+                </div>
+
+                {selectedFeedback.google_review_requested && (
+                  <div style={{ 
+                    marginTop: '0.5rem',
+                    padding: '0.5rem 0.75rem', 
+                    borderRadius: '8px', 
+                    background: 'rgba(59, 130, 246, 0.12)', 
+                    color: '#3b82f6', 
+                    fontWeight: 600, 
+                    fontSize: '0.75rem', 
+                    border: '1px solid rgba(59, 130, 246, 0.25)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.35rem' 
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Google Review Request Sent Previously
+                  </div>
+                )}
               </div>
-              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Customer Comment:</span>
-                <p style={{ color: 'var(--text-primary)', fontSize: '0.9rem', fontStyle: selectedFeedback.message ? 'normal' : 'italic', margin: 0, lineHeight: '1.5' }}>
-                  {selectedFeedback.message || "No comment left."}
-                </p>
+
+              {/* Admin Note Textarea */}
+              <div className="sync-form-group">
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>Admin Comment / Note</label>
+                <textarea
+                  value={adminCommentText}
+                  onChange={e => setAdminCommentText(e.target.value)}
+                  placeholder="Add internal follow-up comment, resolution notes, or private remarks..."
+                  rows={2}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1.5px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '0.5rem 0.75rem',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'inherit',
+                    fontSize: '0.85rem',
+                    lineHeight: '1.4',
+                    resize: 'vertical',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
               </div>
             </div>
 
-            <div className="sync-form-group" style={{ marginBottom: '1.5rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '0.6rem' }}>Admin Comment / Note</label>
-              <textarea
-                value={adminCommentText}
-                onChange={e => setAdminCommentText(e.target.value)}
-                placeholder="Add an internal follow-up comment, resolution notes, or private remarks..."
-                rows={4}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input)',
-                  border: '2px solid var(--border-color)',
-                  borderRadius: '12px',
-                  padding: '0.75rem 1rem',
-                  color: 'var(--text-primary)',
-                  fontFamily: 'inherit',
-                  fontSize: '0.95rem',
-                  lineHeight: '1.5',
-                  resize: 'vertical',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div className="modal-actions" style={{ display: 'flex', gap: '1rem' }}>
+            {/* Modal Footer Actions */}
+            <div className="modal-actions" style={{ display: 'flex', gap: '0.75rem', marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color)', flexShrink: 0 }}>
               <button 
                 onClick={() => setIsAdminModalOpen(false)} 
                 className="btn-secondary"
                 style={{
                   flex: 1,
-                  padding: '0.75rem',
-                  borderRadius: '12px',
+                  padding: '0.65rem',
+                  borderRadius: '10px',
                   fontWeight: 600,
+                  fontSize: '0.85rem',
                   cursor: 'pointer'
                 }}
               >
@@ -484,13 +853,14 @@ const Feedback: React.FC<FeedbackProps> = ({
                 className="btn-primary"
                 style={{
                   flex: 1,
-                  padding: '0.75rem',
-                  borderRadius: '12px',
+                  padding: '0.65rem',
+                  borderRadius: '10px',
                   fontWeight: 600,
+                  fontSize: '0.85rem',
                   cursor: isSavingComment ? 'not-allowed' : 'pointer'
                 }}
               >
-                {isSavingComment ? 'Saving...' : 'Save Comment'}
+                {isSavingComment ? 'Saving Note...' : 'Save Note'}
               </button>
             </div>
           </div>
@@ -524,10 +894,10 @@ const Feedback: React.FC<FeedbackProps> = ({
                 <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>Send feedback requests to start gathering customer insights.</p>
               </td></tr>
             ) : (
-              feedbacks.map((item, idx) => (
+              paginatedFeedbacks.map((item, idx) => (
                 <tr 
                   key={item.id} 
-                  style={{ borderBottom: idx === feedbacks.length - 1 ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s', cursor: 'pointer' }} 
+                  style={{ borderBottom: idx === paginatedFeedbacks.length - 1 ? 'none' : '1px solid var(--border-color)', transition: 'background 0.2s', cursor: 'pointer' }} 
                   className="hover-row"
                   onClick={() => handleOpenCommentModal(item)}
                 >
@@ -536,8 +906,52 @@ const Feedback: React.FC<FeedbackProps> = ({
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>{item.customer_phone}</div>
                   </td>
                   <td style={{ padding: '1.5rem' }}>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--accent-color)', fontWeight: 700, background: 'var(--accent-subtle)', display: 'inline-block', padding: '2px 8px', borderRadius: '6px' }}>
-                      {item.order_number}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--accent-color)', fontWeight: 700, background: 'var(--accent-subtle)', display: 'inline-block', padding: '2px 8px', borderRadius: '6px' }}>
+                        {item.order_number}
+                      </div>
+                      {item.judgeme_posted && (
+                        <span 
+                          title="Judge.me Review Submitted" 
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            width: '18px',
+                            height: '18px',
+                            background: 'rgba(16, 185, 129, 0.15)', 
+                            color: '#10b981', 
+                            border: '1px solid rgba(16, 185, 129, 0.3)', 
+                            borderRadius: '50%',
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            fontFamily: 'system-ui, sans-serif'
+                          }}
+                        >
+                          J
+                        </span>
+                      )}
+                      {item.google_review_requested && (
+                        <span 
+                          title="Google Review Requested via WhatsApp" 
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            width: '18px',
+                            height: '18px',
+                            background: 'rgba(66, 133, 244, 0.15)', 
+                            color: '#4285F4', 
+                            border: '1px solid rgba(66, 133, 244, 0.3)', 
+                            borderRadius: '50%',
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            fontFamily: 'system-ui, sans-serif'
+                          }}
+                        >
+                          G
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td style={{ padding: '1.5rem' }}>
@@ -586,6 +1000,35 @@ const Feedback: React.FC<FeedbackProps> = ({
             )}
           </tbody>
         </table>
+
+        {feedbacks.length > itemsPerPage && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.01)' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Showing <strong style={{ color: 'var(--text-primary)' }}>{(currentPage - 1) * itemsPerPage + 1}</strong> - <strong style={{ color: 'var(--text-primary)' }}>{Math.min(currentPage * itemsPerPage, feedbacks.length)}</strong> of <strong style={{ color: 'var(--text-primary)' }}>{feedbacks.length}</strong> reviews
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} 
+                disabled={currentPage === 1}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                ← Previous
+              </button>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', padding: '0 0.5rem' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} 
+                disabled={currentPage >= totalPages}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', opacity: currentPage >= totalPages ? 0.5 : 1, cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* --- SETUP WIZARD / ONBOARDING --- */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 
@@ -29,6 +29,8 @@ interface InventoryLog {
   external_order_id: string;
   created_at: string;
 }
+
+const INVENTORY_PAGE_SIZE = 10;
 
 // Helper to parse Shopify Rich Text JSON into HTML
 const parseShopifyRichText = (input: string) => {
@@ -65,9 +67,11 @@ const getSKUForPlatform = (mappings: InventoryMapping[] | undefined, platform: s
   return mapping ? mapping.external_sku : '—';
 };
 
-export const Products: React.FC<{ token: string | null, userRole?: string, appConfigs?: any }> = ({ token, userRole, appConfigs }) => {
+export const Products: React.FC<{ token: string | null, userRole?: string, appConfigs?: any }> = ({ token, userRole = 'admin', appConfigs = {} }) => {
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [inventoryTotal, setInventoryTotal] = useState(0);
+  const [inventoryPage, setInventoryPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
@@ -288,11 +292,19 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
   const fetchInventory = async () => {
     setIsLoading(true);
     try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/inventory`);
+      const queryParams = new URLSearchParams({
+        page: inventoryPage.toString(),
+        limit: INVENTORY_PAGE_SIZE.toString(),
+        search: searchQuery,
+        sort: sortBy
+      });
+      const resp = await fetchWithAuth(`${API_BASE}/api/inventory?${queryParams.toString()}`);
       const data = await resp.json();
-      setItems(data);
+      const pageItems: InventoryItem[] = data.items || [];
+      setItems(pageItems);
+      setInventoryTotal(data.total || 0);
       if (selectedProduct) {
-        const updated = data.find((item: InventoryItem) => item.id === selectedProduct.id);
+        const updated = pageItems.find((item: InventoryItem) => item.id === selectedProduct.id);
         if (updated) {
           setSelectedProduct(updated);
         }
@@ -516,40 +528,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
 
   useEffect(() => {
     fetchInventory();
-  }, []);
-
-  const sortedAndFilteredItems = useMemo(() => {
-    let result = [...items];
-
-    // Filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(item => 
-        item.title.toLowerCase().includes(q) || 
-        item.mi_sku.toLowerCase().includes(q) ||
-        getSKUForPlatform(item.mappings, 'shopify').toLowerCase().includes(q) ||
-        getSKUForPlatform(item.mappings, 'amazon').toLowerCase().includes(q)
-      );
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'name-asc') {
-        return a.title.localeCompare(b.title);
-      } else if (sortBy === 'stock-desc') {
-        return b.current_stock - a.current_stock;
-      } else if (sortBy === 'stock-asc') {
-        return a.current_stock - b.current_stock;
-      } else if (sortBy === 'mi-sku-asc') {
-        return a.mi_sku.localeCompare(b.mi_sku, undefined, { numeric: true });
-      } else if (sortBy === 'mi-sku-desc') {
-        return b.mi_sku.localeCompare(a.mi_sku, undefined, { numeric: true });
-      }
-      return 0;
-    });
-
-    return result;
-  }, [items, searchQuery, sortBy]);
+  }, [inventoryPage, searchQuery, sortBy]);
 
   return (
     <div className="tab-content staggered-fade-in">
@@ -559,7 +538,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Manage physical products and SKU mappings.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          {appConfigs?.show_sync_button === 'true' && userRole === 'admin' && (
+          {appConfigs?.show_sync_button !== 'false' && (userRole === 'admin' || !userRole) && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleSyncShopify}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -633,7 +612,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
             ref={searchInputRef}
             placeholder="Search by name, MI SKU, or platform SKU..." 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setInventoryPage(1);
+            }}
             style={{ 
               paddingLeft: '2.5rem',
               paddingRight: searchQuery ? '2.5rem' : '1rem',
@@ -649,6 +631,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
               type="button"
               onClick={() => {
                 setSearchQuery('');
+                setInventoryPage(1);
                 searchInputRef.current?.focus();
               }}
               aria-label="Clear search"
@@ -703,7 +686,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Sort By:</span>
           <select 
             value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setInventoryPage(1);
+            }}
             style={{ 
               height: '42px', 
               fontSize: '0.85rem', 
@@ -729,7 +715,10 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
               <th style={{ paddingLeft: '2rem' }}>Product</th>
               <th 
                 style={{ cursor: 'pointer' }} 
-                onClick={() => setSortBy(sortBy === 'mi-sku-asc' ? 'mi-sku-desc' : 'mi-sku-asc')}
+                onClick={() => {
+                  setSortBy(sortBy === 'mi-sku-asc' ? 'mi-sku-desc' : 'mi-sku-asc');
+                  setInventoryPage(1);
+                }}
               >
                 MI SKU 
                 {sortBy.startsWith('mi-sku') && (
@@ -756,7 +745,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                 </td>
               </tr>
             ) : (
-              sortedAndFilteredItems.map(item => (
+              items.map(item => (
                 <tr key={item.id} className="hover-row" style={{ cursor: 'pointer' }} onClick={() => handleSetSelected(item)}>
                   <td style={{ paddingLeft: '2rem' }}>
                     <div style={{ fontWeight: 700, color: 'var(--text-primary)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -788,6 +777,15 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
             )}
           </tbody>
         </table>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1rem 2rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+            Showing {items.length} of {inventoryTotal} products
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" type="button" onClick={() => setInventoryPage(current => Math.max(1, current - 1))} disabled={inventoryPage === 1} style={{ height: '34px', padding: '0 0.85rem', fontSize: '0.8rem' }}>Previous</button>
+            <button className="btn-secondary" type="button" onClick={() => setInventoryPage(current => current + 1)} disabled={inventoryPage * INVENTORY_PAGE_SIZE >= inventoryTotal} style={{ height: '34px', padding: '0 0.85rem', fontSize: '0.8rem' }}>Next</button>
+          </div>
+        </div>
       </div>
 
       {/* Add Product Modal */}

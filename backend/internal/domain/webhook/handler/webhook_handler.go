@@ -133,6 +133,22 @@ func (h *WebhookHandler) ShopifyWebhookHandler(w http.ResponseWriter, r *http.Re
 					processErr = h.acService.ProcessCheckoutWebhook(context.Background(), config.StoreIDShopify, checkoutEntity)
 				}
 			}
+		} else if strings.HasPrefix(topic, "carts/") {
+			var payload checkoutDto.ShopifyWebhookCart
+			if err := json.Unmarshal(body, &payload); err != nil {
+				log.Printf("Webhook Error: Failed to parse %s payload: %v", topic, err)
+				return
+			}
+			externalID = payload.ID
+			log.Printf("Webhook Processing: Handling topic %s for Cart Token %s", topic, payload.Token)
+
+			switch topic {
+			case "carts/create", "carts/update":
+				if h.acService != nil {
+					lineItemsJSON, _ := json.Marshal(payload.LineItems)
+					processErr = h.acService.ProcessCartWebhook(context.Background(), config.StoreIDShopify, payload.Token, lineItemsJSON)
+				}
+			}
 		} else if strings.HasPrefix(topic, "fulfillments/") {
 			var payload orderDto.ShopifyWebhookFulfillment
 			if err := json.Unmarshal(body, &payload); err != nil {

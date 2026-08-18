@@ -83,6 +83,11 @@ func (m *MockAbandonedCheckoutRepository) UpdateStatus(ctx context.Context, stor
 	return args.Error(0)
 }
 
+func (m *MockAbandonedCheckoutRepository) UpsertCart(ctx context.Context, cart *entityPkg.ShopifyCart) error {
+	args := m.Called(ctx, cart)
+	return args.Error(0)
+}
+
 
 type MockTemplatesRepository struct {
 	mock.Mock
@@ -265,3 +270,24 @@ func TestAbandonedCheckoutService_ProcessRecoveryQueue_NoTriggers(t *testing.T) 
 	mockRepo.AssertExpectations(t)
 	mockTemplatesRepo.AssertExpectations(t)
 }
+
+func TestAbandonedCheckoutService_ProcessCartWebhook(t *testing.T) {
+	mockRepo := new(MockAbandonedCheckoutRepository)
+	mockTemplatesRepo := new(MockTemplatesRepository)
+	dummySettings := &configPkg.SettingsProvider{}
+
+	srv := servicePkg.NewAbandonedCheckoutService(mockRepo, mockTemplatesRepo, nil, dummySettings)
+
+	mockRepo.On("UpsertCart", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		cart := args.Get(1).(*entityPkg.ShopifyCart)
+		assert.Equal(t, "default", cart.StoreID)
+		assert.Equal(t, "cart_token_abc", cart.CartToken)
+		assert.Contains(t, string(*cart.LineItems), "variant_id")
+	})
+
+	lineItemsJSON := []byte(`[{"variant_id": 9999, "quantity": 1}]`)
+	err := srv.ProcessCartWebhook(context.Background(), "default", "cart_token_abc", lineItemsJSON)
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+

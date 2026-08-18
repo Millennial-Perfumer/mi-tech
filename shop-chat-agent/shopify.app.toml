@@ -1,0 +1,34 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "5e3d8f1d3f37682aa3941e2c7043ee97"
+name = "shop-chat-agent"
+handle = "shop-chat-agent"
+application_url = "https://shop-chat-agent.millennialperfumer.in"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2025-04"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# Add following additional scopes when configuring customer accounts authentication: customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts
+scopes = "unauthenticated_read_product_listings,customer_read_customers,customer_read_orders,customer_read_store_credit_account_transactions,customer_read_store_credit_accounts"
+
+[auth]
+redirect_urls = [ "https://shop-chat-agent.millennialperfumer.in/api/auth" ]
+
+[pos]
+embedded = false
+
+[customer_authentication]
+redirect_uris = [
+  "https://shop-chat-agent.millennialperfumer.in/auth/callback"
+]
+javascript_origins = [
+  "https://shop-chat-agent.millennialperfumer.in",
+  "https://millennialperfumer.in",
+  "https://millennialperfumer.myshopify.com"
+]

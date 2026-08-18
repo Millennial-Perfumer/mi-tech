@@ -37,8 +37,12 @@ type AbandonedCheckoutAnalyticsResponse struct {
 	AbandonedCartCount    int64                 `json:"abandonedCartCount"`
 	RecoveredCartCount    int64                 `json:"recoveredCartCount"`
 	RecoveryRate          float64               `json:"recoveryRate"`
+	CartsCreatedCount     int64                 `json:"cartsCreatedCount"`
+	AddCartToCheckoutRate float64               `json:"addCartToCheckoutRate"`
+	AddCartToOrderRate    float64               `json:"addCartToOrderRate"`
 	WhatsappStats         WhatsappStats         `json:"whatsappStats"`
 	RevenueTimeline       []RevenueTimelineItem `json:"revenueTimeline"`
 	StatusBreakdown       []StatusBreakdownItem `json:"statusBreakdown"`
 	TopLostCarts          []TopLostCartItem     `json:"topLostCarts"`
 }
+

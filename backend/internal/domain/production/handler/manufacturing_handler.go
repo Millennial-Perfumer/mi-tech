@@ -13,11 +13,43 @@ type ManufacturingHandler struct {
 	svc *service.ManufacturingService
 }
 
+type manufacturingPageResponse struct {
+	Items []entity.ManufacturingRecord `json:"items"`
+	Total int64                        `json:"total"`
+	Page  int                          `json:"page"`
+	Limit int                          `json:"limit"`
+}
+
 func NewManufacturingHandler(svc *service.ManufacturingService) *ManufacturingHandler {
 	return &ManufacturingHandler{svc: svc}
 }
 
 func (h *ManufacturingHandler) List(w http.ResponseWriter, r *http.Request) {
+	if pageParam := r.URL.Query().Get("page"); pageParam != "" {
+		page, _ := strconv.Atoi(pageParam)
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		records, total, err := h.svc.ListPage(page, limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(manufacturingPageResponse{Items: records, Total: total, Page: page, Limit: limit})
+		return
+	}
+
+	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
+		limit, _ := strconv.Atoi(limitParam)
+		records, err := h.svc.ListRecent(limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+		return
+	}
+
 	records, err := h.svc.List()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

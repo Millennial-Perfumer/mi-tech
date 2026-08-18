@@ -13,12 +13,41 @@ type OilInventoryHandler struct {
 	service *service.OilInventoryService
 }
 
+type oilPageResponse struct {
+	Items []entity.OilInventory `json:"items"`
+	Total int64                 `json:"total"`
+	Page  int                   `json:"page"`
+	Limit int                   `json:"limit"`
+}
+
 func NewOilInventoryHandler(service *service.OilInventoryService) *OilInventoryHandler {
 	return &OilInventoryHandler{service: service}
 }
 
 func (h *OilInventoryHandler) ListOils(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
+	pageParam := r.URL.Query().Get("page")
+	limitParam := r.URL.Query().Get("limit")
+	if pageParam != "" || limitParam != "" {
+		page, _ := strconv.Atoi(pageParam)
+		limit, _ := strconv.Atoi(limitParam)
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 10
+		}
+
+		oils, total, err := h.service.ListOilsPage(search, r.URL.Query().Get("sort"), page, limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(oilPageResponse{Items: oils, Total: total, Page: page, Limit: limit})
+		return
+	}
+
 	oils, err := h.service.ListOils(search)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

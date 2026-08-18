@@ -447,9 +447,20 @@ func (s *InventoryService) BulkImport(ctx context.Context, items []entity.Invent
 	return nil
 }
 
-// GetInventoryDashboard returns all items for the UI.
+// GetInventoryDashboard returns all items for consumers that need the full catalog.
 func (s *InventoryService) GetInventoryDashboard(search string) ([]entity.InventoryItem, error) {
 	return s.repo.ListItems(search)
+}
+
+// GetInventoryDashboardPage returns a bounded, sorted inventory page for the Warehouse Authority table.
+func (s *InventoryService) GetInventoryDashboardPage(search, sort string, page, limit int) ([]entity.InventoryItem, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	return s.repo.ListItemsPage(search, sort, page, limit)
 }
 
 // AdjustStock handles manual stock updates and triggers sync.

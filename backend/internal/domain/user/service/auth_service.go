@@ -135,6 +135,13 @@ func (s *AuthService) VerifyOTP(username, otp string) (string, error) {
 	return s.GenerateToken(user)
 }
 
+func (s *AuthService) getJWTSecret() []byte {
+	if s.settings != nil {
+		return []byte(s.settings.GetJWTSecret())
+	}
+	return []byte("default-jwt-secret")
+}
+
 func (s *AuthService) GenerateToken(user entity.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
@@ -144,7 +151,7 @@ func (s *AuthService) GenerateToken(user entity.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.settings.GetJWTSecret()))
+	return token.SignedString(s.getJWTSecret())
 }
 
 func (s *AuthService) Register(username, password string) error {
@@ -166,6 +173,6 @@ func (s *AuthService) ValidateToken(tokenString string) (*jwt.Token, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(s.settings.GetJWTSecret()), nil
+		return s.getJWTSecret(), nil
 	})
 }

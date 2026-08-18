@@ -17,9 +17,13 @@ type CustomerFeedback struct {
 	CustomerPhone string    `gorm:"column:customer_phone"`
 	Rating        int       `gorm:"column:rating"`
 	Message       string    `gorm:"column:message"`
-	AdminComment  *string   `gorm:"column:admin_comment"`
-	CreatedAt     time.Time `gorm:"column:created_at"`
-	UpdatedAt     time.Time `gorm:"column:updated_at"`
+	AdminComment    *string    `gorm:"column:admin_comment"`
+	JudgeMePosted           bool       `gorm:"column:judgeme_posted;default:false"`
+	JudgeMePostedAt         *time.Time `gorm:"column:judgeme_posted_at"`
+	GoogleReviewRequested   bool       `gorm:"column:google_review_requested;default:false"`
+	GoogleReviewRequestedAt *time.Time `gorm:"column:google_review_requested_at"`
+	CreatedAt               time.Time  `gorm:"column:created_at"`
+	UpdatedAt       time.Time  `gorm:"column:updated_at"`
 }
 
 func (CustomerFeedback) TableName() string { return "customer_feedback" }

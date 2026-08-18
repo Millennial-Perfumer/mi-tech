@@ -21,6 +21,11 @@ func (m *MockInventoryRepository) ListItems(search string) ([]entity.InventoryIt
 	return args.Get(0).([]entity.InventoryItem), args.Error(1)
 }
 
+func (m *MockInventoryRepository) ListItemsPage(search, sort string, page, limit int) ([]entity.InventoryItem, int64, error) {
+	args := m.Called(search, sort, page, limit)
+	return args.Get(0).([]entity.InventoryItem), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *MockInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {
 	args := m.Called(id)
 	return args.Get(0).(entity.InventoryItem), args.Error(1)

@@ -1,0 +1,61 @@
+{
+  "tableName": "social_media_queue",
+  "description": "Database schema for queuing single photos and carousel multi-photo posts",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "description": "Unique identifier (UUID or Auto-increment ID)"
+    },
+    {
+      "name": "post_type",
+      "type": "enum",
+      "values": ["SINGLE_PHOTO", "CAROUSEL"],
+      "default": "SINGLE_PHOTO"
+    },
+    {
+      "name": "photo_urls",
+      "type": "array",
+      "items": "url",
+      "description": "List of public HTTPS photo URLs (1 for Single Photo, 2-10 for Carousel)"
+    },
+    {
+      "name": "caption_raw",
+      "type": "text",
+      "description": "Raw description or story for the post"
+    },
+    {
+      "name": "hashtags",
+      "type": "string",
+      "description": "Hashtags (e.g. #tech #carousel #growth)"
+    },
+    {
+      "name": "platforms",
+      "type": "array",
+      "items": ["facebook", "instagram", "threads", "x", "linkedin"],
+      "description": "Platforms where this post should be published"
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "values": ["QUEUED", "PUBLISHING", "PUBLISHED", "FAILED"],
+      "default": "QUEUED"
+    },
+    {
+      "name": "scheduled_at",
+      "type": "datetime"
+    },
+    {
+      "name": "created_at",
+      "type": "datetime"
+    },
+    {
+      "name": "published_at",
+      "type": "datetime"
+    },
+    {
+      "name": "error_log",
+      "type": "text"
+    }
+  ]
+}

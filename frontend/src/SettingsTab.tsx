@@ -54,7 +54,7 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
   },
   marketing: {
     title: 'Marketing',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
     color: '#0ea5e9'
   },
   social_media: {
@@ -81,6 +81,11 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
     title: 'Abandoned Cart',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><circle cx="16" cy="11" r="3"></circle><path d="M16 10v2h2"></path></svg>,
     color: '#f43f5e'
+  },
+  auto_queue: {
+    title: 'Auto Queue',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
+    color: '#10b981'
   }
 };
 
@@ -118,7 +123,7 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
   const [hours24, minutesStr] = (value || "10:00").split(':');
   let initialHour = parseInt(hours24 || "10", 10);
   const initialMinute = parseInt(minutesStr || "00", 10);
-  
+
   const initialPeriod = initialHour >= 12 ? 'PM' : 'AM';
   let initialHour12 = initialHour % 12;
   if (initialHour12 === 0) initialHour12 = 12;
@@ -218,7 +223,7 @@ function CustomTimePicker({ value, onChange, triggerRef }: CustomTimePickerProps
           -ms-overflow-style: none;
         }
       `}</style>
-      
+
       {/* Header display */}
       <div style={{
         display: 'flex',
@@ -509,15 +514,75 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
     }));
   };
 
+  // Ensure default fallback configs exist if not present in DB
+  const defaultAppConfigs: AppConfig[] = [
+    {
+      key: 'gdrive_automation_folder_url',
+      value: 'https://drive.google.com/drive/folders/1djXkok8cuP3efyurTd2nOwoKRo-HpEC3',
+      is_secret: false,
+      label: 'Google Drive Automation Folder URL',
+      category: 'auto_queue',
+      sort_order: 10
+    },
+    {
+      key: 'gdrive_refresh_token',
+      value: '',
+      is_secret: true,
+      label: 'Google Drive Refresh Token (24/7 Direct Auto-Upload Token)',
+      category: 'auto_queue',
+      sort_order: 11
+    },
+    {
+      key: 'gdrive_client_id',
+      value: '',
+      is_secret: false,
+      label: 'Google OAuth Client ID',
+      category: 'auto_queue',
+      sort_order: 12
+    },
+    {
+      key: 'gdrive_client_secret',
+      value: '',
+      is_secret: true,
+      label: 'Google OAuth Client Secret',
+      category: 'auto_queue',
+      sort_order: 13
+    }
+  ];
+
+  const mergedConfigs = configs
+    .filter(c => c.key !== 'gdrive_service_account_json' && c.key !== 'gdrive_access_token' && c.key !== 'n8n_webhook_url')
+    .map(c => {
+      const def = defaultAppConfigs.find(d => d.key === c.key);
+      const updated = { ...c };
+      if (!updated.label && def?.label) updated.label = def.label;
+      if (def?.is_secret !== undefined && updated.is_secret === undefined) updated.is_secret = def.is_secret;
+      if (
+        c.key === 'gdrive_automation_folder_url' ||
+        c.key === 'gdrive_refresh_token' ||
+        c.key === 'gdrive_client_id' ||
+        c.key === 'gdrive_client_secret'
+      ) {
+        updated.category = 'auto_queue';
+      }
+      return updated;
+    });
+
+  defaultAppConfigs.forEach(def => {
+    if (!mergedConfigs.some(c => c.key === def.key)) {
+      mergedConfigs.push(def);
+    }
+  });
+
   // Group configs by category
   const groupedConfigs: Record<string, AppConfig[]> = {};
-  configs.forEach(cfg => {
+  mergedConfigs.forEach(cfg => {
     if (!groupedConfigs[cfg.category]) groupedConfigs[cfg.category] = [];
     groupedConfigs[cfg.category].push(cfg);
   });
 
-  // Sort categories: Business > Shopify > Amazon > Inventory > Meta Shared > Marketing > Social Media > WhatsApp > System
-  const categoryOrder = ['business', 'shopify', 'amazon', 'inventory', 'meta_shared', 'marketing', 'social_media', 'whatsapp', 'abandoned_cart', 'feedback', 'system'];
+  // Sort categories: Business > Shopify > Amazon > Inventory > Meta Shared > Marketing > Social Media > Auto Queue > WhatsApp > System
+  const categoryOrder = ['business', 'shopify', 'amazon', 'inventory', 'meta_shared', 'marketing', 'social_media', 'auto_queue', 'whatsapp', 'abandoned_cart', 'feedback', 'system'];
   const sortedCategories = Object.keys(groupedConfigs).sort((a, b) => {
     const idxA = categoryOrder.indexOf(a);
     const idxB = categoryOrder.indexOf(b);
@@ -639,322 +704,322 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                       borderTop: '1px solid var(--border-color)',
                       animation: 'slideIn 0.2s ease-out'
                     }}>
-                    {items.map(cfg => (
-                      <div
-                        key={cfg.key}
-                        className="config-row"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '1rem',
-                          padding: '0.75rem 1rem',
-                          background: editingKey === cfg.key ? 'var(--accent-subtle)' : 'var(--bg-input)',
-                          borderRadius: '10px',
-                          border: editingKey === cfg.key ? '1px solid var(--accent-color)' : '1px solid var(--border-color)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ minWidth: '160px', flexShrink: 0 }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{cfg.key}</div>
-                        </div>
-                        
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {(cfg.value === 'true' || cfg.value === 'false') && editingKey !== cfg.key ? (
-                            <button 
-                              onClick={() => handleToggleConfig(cfg)}
-                              disabled={isSavingConfig}
-                              style={{
-                                position: 'relative',
-                                width: '42px',
-                                height: '22px',
-                                borderRadius: '11px',
-                                backgroundColor: cfg.value === 'true' ? 'var(--accent-color)' : 'var(--border-color)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                padding: '2px'
-                              }}
-                            >
-                              <div style={{
-                                width: '18px',
-                                height: '18px',
-                                borderRadius: '50%',
-                                backgroundColor: 'var(--text-primary)',
-                                transform: cfg.value === 'true' ? 'translateX(20px)' : 'translateX(0)',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: 'var(--shadow-sm)'
-                              }} />
-                            </button>
-                          ) : editingKey === cfg.key ? (
-                            cfg.key.endsWith('_time') ? (
-                              <div style={{ position: 'relative' }}>
-                                <div
-                                  ref={timeTriggerRef}
+                      {items.map(cfg => (
+                        <div
+                          key={cfg.key}
+                          className="config-row"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            padding: '0.75rem 1rem',
+                            background: editingKey === cfg.key ? 'var(--accent-subtle)' : 'var(--bg-input)',
+                            borderRadius: '10px',
+                            border: editingKey === cfg.key ? '1px solid var(--accent-color)' : '1px solid var(--border-color)',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{ minWidth: '160px', flexShrink: 0 }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{cfg.label}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{cfg.key}</div>
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {(cfg.value === 'true' || cfg.value === 'false') && editingKey !== cfg.key ? (
+                              <button
+                                onClick={() => handleToggleConfig(cfg)}
+                                disabled={isSavingConfig}
+                                style={{
+                                  position: 'relative',
+                                  width: '42px',
+                                  height: '22px',
+                                  borderRadius: '11px',
+                                  backgroundColor: cfg.value === 'true' ? 'var(--accent-color)' : 'var(--border-color)',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.3s ease',
+                                  padding: '2px'
+                                }}
+                              >
+                                <div style={{
+                                  width: '18px',
+                                  height: '18px',
+                                  borderRadius: '50%',
+                                  backgroundColor: 'var(--text-primary)',
+                                  transform: cfg.value === 'true' ? 'translateX(20px)' : 'translateX(0)',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  boxShadow: 'var(--shadow-sm)'
+                                }} />
+                              </button>
+                            ) : editingKey === cfg.key ? (
+                              cfg.key.endsWith('_time') ? (
+                                <div style={{ position: 'relative' }}>
+                                  <div
+                                    ref={timeTriggerRef}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem',
+                                      padding: '0.5rem 0.75rem',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--accent-color)',
+                                      fontSize: '0.85rem',
+                                      fontFamily: 'monospace',
+                                      background: 'var(--bg-input)',
+                                      color: 'var(--text-primary)',
+                                      boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.15)',
+                                      width: 'fit-content'
+                                    }}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    <span style={{ fontWeight: 600 }}>{formatTime12h(editValue) || "Select Time"}</span>
+                                  </div>
+                                  <CustomTimePicker
+                                    value={editValue}
+                                    onChange={setEditValue}
+                                    triggerRef={timeTriggerRef}
+                                  />
+                                </div>
+                              ) : cfg.key.endsWith('_date') ? (
+                                <input
+                                  type="date"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  autoFocus
                                   style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
                                     padding: '0.5rem 0.75rem',
                                     borderRadius: '6px',
                                     border: '1px solid var(--accent-color)',
                                     fontSize: '0.85rem',
                                     fontFamily: 'monospace',
-                                    background: 'var(--bg-input)',
+                                    outline: 'none',
+                                    boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
                                     color: 'var(--text-primary)',
-                                    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.15)',
-                                    width: 'fit-content'
+                                    backgroundColor: 'var(--bg-input)'
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                  }}
+                                />
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  autoFocus
+                                  style={{
+                                    width: '100%',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--accent-color)',
+                                    fontSize: '0.85rem',
+                                    fontFamily: 'monospace',
+                                    outline: 'none',
+                                    boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)'
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                  }}
+                                />
+                              )
+                            ) : (
+                              <div style={{
+                                fontSize: '0.85rem',
+                                fontFamily: 'monospace',
+                                color: cfg.is_secret && !isRevealed ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                letterSpacing: cfg.is_secret && !isRevealed ? '0.1em' : 'normal'
+                              }}>
+                                {cfg.key.endsWith('_time') && !cfg.is_secret ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    <span>{formatTime12h(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
+                                  </div>
+                                ) : cfg.key.endsWith('_date') && !cfg.is_secret ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    <span>{formatDateNice(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
+                                  </div>
+                                ) : (
+                                  cfg.value || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                            {cfg.is_secret && (
+                              <span style={{
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                color: 'var(--status-error)',
+                                background: 'var(--status-error-bg)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--status-error)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
+                              }}>
+                                Secret
+                              </span>
+                            )}
+
+                            {editingKey === cfg.key ? (
+                              <>
+                                <button
+                                  className="toolbar-btn"
+                                  title="Save"
+                                  disabled={isSavingConfig}
+                                  onClick={() => handleSaveConfig(cfg.key, editValue)}
+                                  style={{ color: 'var(--status-active)' }}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button
+                                  className="toolbar-btn"
+                                  title="Cancel"
+                                  onClick={handleCancelEdit}
+                                  style={{ color: 'var(--status-error)' }}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                              </>
+                            ) : (
+                              cfg.value !== 'true' && cfg.value !== 'false' && (
+                                <button
+                                  className="toolbar-btn"
+                                  title="Edit"
+                                  onClick={() => {
+                                    if (cfg.is_secret && !isRevealed) {
+                                      setShowPasswordModal(true);
+                                      setPassword('');
+                                      setPasswordError('');
+                                    } else {
+                                      handleStartEdit(cfg);
+                                    }
                                   }}
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                  <span style={{ fontWeight: 600 }}>{formatTime12h(editValue) || "Select Time"}</span>
-                                </div>
-                                <CustomTimePicker
-                                  value={editValue}
-                                  onChange={setEditValue}
-                                  triggerRef={timeTriggerRef}
-                                />
-                              </div>
-                            ) : cfg.key.endsWith('_date') ? (
-                              <input
-                                type="date"
-                                value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                autoFocus
-                                style={{
-                                  padding: '0.5rem 0.75rem',
-                                  borderRadius: '6px',
-                                  border: '1px solid var(--accent-color)',
-                                  fontSize: '0.85rem',
-                                  fontFamily: 'monospace',
-                                  outline: 'none',
-                                  boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
-                                  color: 'var(--text-primary)',
-                                  backgroundColor: 'var(--bg-input)'
-                                }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
-                                  if (e.key === 'Escape') handleCancelEdit();
-                                }}
-                              />
-                            ) : (
-                              <input
-                                type="text"
-                                value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                autoFocus
-                                style={{
-                                  width: '100%',
-                                  padding: '0.5rem 0.75rem',
-                                  borderRadius: '6px',
-                                  border: '1px solid var(--accent-color)',
-                                  fontSize: '0.85rem',
-                                  fontFamily: 'monospace',
-                                  outline: 'none',
-                                  boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)'
-                                }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
-                                  if (e.key === 'Escape') handleCancelEdit();
-                                }}
-                              />
-                            )
-                          ) : (
-                            <div style={{
-                              fontSize: '0.85rem',
-                              fontFamily: 'monospace',
-                              color: cfg.is_secret && !isRevealed ? 'var(--text-tertiary)' : 'var(--text-secondary)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              letterSpacing: cfg.is_secret && !isRevealed ? '0.1em' : 'normal'
-                            }}>
-                              {cfg.key.endsWith('_time') && !cfg.is_secret ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                  <span>{formatTime12h(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
-                                </div>
-                              ) : cfg.key.endsWith('_date') && !cfg.is_secret ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                  <span>{formatDateNice(cfg.value) || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>}</span>
-                                </div>
-                              ) : (
-                                cfg.value || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Not set</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                          {cfg.is_secret && (
-                            <span style={{
-                              fontSize: '0.65rem',
-                              fontWeight: 700,
-                              color: 'var(--status-error)',
-                              background: 'var(--status-error-bg)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              border: '1px solid var(--status-error)',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em'
-                            }}>
-                              Secret
-                            </span>
-                          )}
-                          
-                          {editingKey === cfg.key ? (
-                            <>
-                              <button
-                                className="toolbar-btn"
-                                title="Save"
-                                disabled={isSavingConfig}
-                                onClick={() => handleSaveConfig(cfg.key, editValue)}
-                                style={{ color: 'var(--status-active)' }}
-                              >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                              </button>
-                              <button
-                                className="toolbar-btn"
-                                title="Cancel"
-                                onClick={handleCancelEdit}
-                                style={{ color: 'var(--status-error)' }}
-                              >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                              </button>
-                            </>
-                          ) : (
-                            cfg.value !== 'true' && cfg.value !== 'false' && (
-                              <button
-                                className="toolbar-btn"
-                                title="Edit"
-                                onClick={() => {
-                                  if (cfg.is_secret && !isRevealed) {
-                                    setShowPasswordModal(true);
-                                    setPassword('');
-                                    setPasswordError('');
-                                  } else {
-                                    handleStartEdit(cfg);
-                                  }
-                                }}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {category === 'shopify' && (
-                      <div
-                        className="config-row"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '1rem',
-                          padding: '1rem',
-                          background: 'var(--status-active-bg)',
-                          borderRadius: '10px',
-                          border: '1px dashed var(--status-active)',
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{ 
-                            width: '40px', 
-                            height: '40px', 
-                            borderRadius: '10px', 
-                            background: 'var(--status-active)', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            color: 'var(--text-primary)'
-                          }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--status-active)' }}>Manual Order Synchronization</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                              )
+                            )}
                           </div>
                         </div>
-                        <button 
-                          className="btn-primary" 
-                          onClick={() => {
-                            // Trigger the global manual sync button logic
-                            const syncBtn = document.querySelector('button[title*="Manually fetch orders"]') as HTMLButtonElement;
-                            if (syncBtn) syncBtn.click();
+                      ))}
+                      {category === 'shopify' && (
+                        <div
+                          className="config-row"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '1rem',
+                            padding: '1rem',
+                            background: 'var(--status-active-bg)',
+                            borderRadius: '10px',
+                            border: '1px dashed var(--status-active)',
+                            marginTop: '0.5rem'
                           }}
-                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                         >
-                          Launch Sync
-                        </button>
-                      </div>
-                    )}
-                    {category === 'system' && configs.some(c => c.key === 'enable_danger_zone' && c.value === 'true') && (
-                      <div
-                        className="config-row"
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '1.5rem',
-                          padding: '1.5rem',
-                          background: 'rgba(239, 68, 68, 0.05)',
-                          borderRadius: '16px',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          marginTop: '2rem'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{ 
-                            width: '40px', 
-                            height: '40px', 
-                            borderRadius: '10px', 
-                            background: '#ef4444', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            color: 'white',
-                            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
-                          }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '10px',
+                              background: 'var(--status-active)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--text-primary)'
+                            }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--status-active)' }}>Manual Order Synchronization</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fetch missing orders or update existing ones directly from Shopify.</div>
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#b91c1c' }}>Danger Zone</div>
-                            <div style={{ fontSize: '0.8rem', color: '#dc2626', opacity: 0.8 }}>Consolidated destructive actions. Use with extreme caution.</div>
+                          <button
+                            className="btn-primary"
+                            onClick={() => {
+                              // Trigger the global manual sync button logic
+                              const syncBtn = document.querySelector('button[title*="Manually fetch orders"]') as HTMLButtonElement;
+                              if (syncBtn) syncBtn.click();
+                            }}
+                            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                          >
+                            Launch Sync
+                          </button>
+                        </div>
+                      )}
+                      {category === 'system' && configs.some(c => c.key === 'enable_danger_zone' && c.value === 'true') && (
+                        <div
+                          className="config-row"
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1.5rem',
+                            padding: '1.5rem',
+                            background: 'rgba(239, 68, 68, 0.05)',
+                            borderRadius: '16px',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            marginTop: '2rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '10px',
+                              background: '#ef4444',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                            }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#b91c1c' }}>Danger Zone</div>
+                              <div style={{ fontSize: '0.8rem', color: '#dc2626', opacity: 0.8 }}>Consolidated destructive actions. Use with extreme caution.</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+                            <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
+                              <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Inventory Wipe</h5>
+                              <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all physical products and SKUs. This will break all current mapping authority.</p>
+                              <button
+                                className="btn-secondary"
+                                onClick={handleResetInventory}
+                                style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
+                              >
+                                Wipe Warehouse
+                              </button>
+                            </div>
+
+                            <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
+                              <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Orders Wipe</h5>
+                              <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all synced orders and customers. Data must be re-synced manually.</p>
+                              <button
+                                className="btn-secondary"
+                                onClick={handleResetOrders}
+                                style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
+                              >
+                                Wipe Shopify Orders
+                              </button>
+                            </div>
                           </div>
                         </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                          <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
-                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Inventory Wipe</h5>
-                            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all physical products and SKUs. This will break all current mapping authority.</p>
-                            <button 
-                              className="btn-secondary" 
-                              onClick={handleResetInventory}
-                              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
-                            >
-                              Wipe Warehouse
-                            </button>
-                          </div>
-
-                          <div style={{ padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2' }}>
-                            <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#991b1b' }}>Orders Wipe</h5>
-                            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>Wipe all synced orders and customers. Data must be re-synced manually.</p>
-                            <button 
-                              className="btn-secondary" 
-                              onClick={handleResetOrders}
-                              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', borderColor: '#ef4444', color: '#ef4444', background: 'white' }}
-                            >
-                              Wipe Shopify Orders
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -970,14 +1035,14 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
             </div>
             <h2 style={{ fontSize: '1.25rem' }}>Enter Password</h2>
             <p style={{ fontSize: '0.85rem' }}>Enter your admin password to reveal secret values.</p>
-            
+
             <input
               type="password"
               value={password}
               onChange={e => { setPassword(e.target.value); setPasswordError(''); }}
               placeholder="Admin password"
               autoFocus
-             style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid var(--status-error)' : '2px solid var(--border-color)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '10px', border: passwordError ? '2px solid var(--status-error)' : '2px solid var(--border-color)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
               onKeyDown={e => { if (e.key === 'Enter') handleReveal(); }}
             />
             {passwordError && (
@@ -985,7 +1050,7 @@ export function SettingsTab({ fetchWithAuth }: SettingsTabProps) {
                 {passwordError}
               </div>
             )}
-            
+
             <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
               <button className="btn-secondary" onClick={() => setShowPasswordModal(false)}>Cancel</button>
               <button className="btn-primary" onClick={handleReveal} disabled={!password}>Unlock</button>

@@ -19,9 +19,42 @@ func NewInventoryHandler(service *service.InventoryService) *InventoryHandler {
 	return &InventoryHandler{service: service}
 }
 
-// GetDashboard returns all inventory items with their mappings.
+type inventoryPageResponse struct {
+	Items []entity.InventoryItem `json:"items"`
+	Total int64                  `json:"total"`
+	Page  int                    `json:"page"`
+	Limit int                    `json:"limit"`
+}
+
+// GetDashboard returns a paginated inventory page when page or limit is supplied.
+// It keeps the legacy array response for consumers that request the full catalog.
 func (h *InventoryHandler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
+	pageParam := r.URL.Query().Get("page")
+	limitParam := r.URL.Query().Get("limit")
+
+	if pageParam != "" || limitParam != "" {
+		page, _ := strconv.Atoi(pageParam)
+		limit, _ := strconv.Atoi(limitParam)
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 10
+		}
+
+		items, total, err := h.service.GetInventoryDashboardPage(search, r.URL.Query().Get("sort"), page, limit)
+		if err != nil {
+			log.Printf("InventoryHandler.GetDashboardPage error: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(inventoryPageResponse{Items: items, Total: total, Page: page, Limit: limit})
+		return
+	}
+
 	items, err := h.service.GetInventoryDashboard(search)
 	if err != nil {
 		log.Printf("InventoryHandler.GetDashboard error: %v", err)

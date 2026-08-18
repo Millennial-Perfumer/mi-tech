@@ -11,6 +11,7 @@ type InventoryRepository interface {
 	WithTx(tx *gorm.DB) InventoryRepository
 	// Items
 	ListItems(search string) ([]entity.InventoryItem, error)
+	ListItemsPage(search, sort string, page, limit int) ([]entity.InventoryItem, int64, error)
 	GetItemByID(id int) (entity.InventoryItem, error)
 	GetItemsByIDs(ids []int) ([]entity.InventoryItem, error)
 	CreateItem(item *entity.InventoryItem) error
@@ -61,6 +62,38 @@ func (r *gormInventoryRepository) ListItems(search string) ([]entity.InventoryIt
 	}
 	err := query.Order("mi_sku ASC").Find(&items).Error
 	return items, err
+}
+
+func (r *gormInventoryRepository) ListItemsPage(search, sort string, page, limit int) ([]entity.InventoryItem, int64, error) {
+	var items []entity.InventoryItem
+	query := r.db.Model(&entity.InventoryItem{})
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where(
+			"mi_sku ILIKE ? OR title ILIKE ? OR id IN (SELECT inventory_item_id FROM inventory_mappings WHERE external_sku ILIKE ?)",
+			searchTerm, searchTerm, searchTerm,
+		)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	orderBy := map[string]string{
+		"mi-sku-asc":  "mi_sku ASC",
+		"mi-sku-desc": "mi_sku DESC",
+		"name-asc":    "title ASC",
+		"stock-desc":  "current_stock DESC",
+		"stock-asc":   "current_stock ASC",
+	}[sort]
+	if orderBy == "" {
+		orderBy = "mi_sku ASC"
+	}
+
+	err := query.Preload("Mappings").Order(orderBy).Offset((page - 1) * limit).Limit(limit).Find(&items).Error
+	return items, total, err
 }
 
 func (r *gormInventoryRepository) GetItemByID(id int) (entity.InventoryItem, error) {

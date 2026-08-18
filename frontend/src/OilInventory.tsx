@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -24,6 +24,8 @@ interface Supplier {
   id: number;
   name: string;
 }
+
+const OIL_PAGE_SIZE = 10;
 
 const getInitials = (name: string) => {
   if (!name) return '??';
@@ -60,6 +62,8 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
   const { confirm } = useConfirm();
   const [oils, setOils] = useState<OilStock[]>([]);
+  const [oilTotal, setOilTotal] = useState(0);
+  const [oilPage, setOilPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,13 +95,28 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      const sort = sortConfig ? `${sortConfig.key}-${sortConfig.direction}` : 'name-asc';
+      const oilQuery = new URLSearchParams({
+        page: oilPage.toString(),
+        limit: OIL_PAGE_SIZE.toString(),
+        search: searchQuery,
+        sort
+      });
       const [oilsRes, prodRes, suppRes] = await Promise.all([
-        fetchWithAuth(`${API_BASE}/api/inventory/oil`),
+        fetchWithAuth(`${API_BASE}/api/inventory/oil?${oilQuery.toString()}`),
         fetchWithAuth(`${API_BASE}/api/inventory`),
         fetchWithAuth(`${API_BASE}/api/inventory/suppliers`)
       ]);
 
-      if (oilsRes.ok) setOils(await oilsRes.json());
+      if (oilsRes.ok) {
+        const data = await oilsRes.json();
+        setOils(data.items || []);
+        setOilTotal(data.total || 0);
+      } else {
+        setOils([]);
+        setOilTotal(0);
+        toastError('Failed to load oil inventory');
+      }
       if (prodRes.ok) setProducts(await prodRes.json());
       if (suppRes.ok) setSuppliers(await suppRes.json());
     } catch (err) {
@@ -160,6 +179,8 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   };
 
   const toggleSort = (key: any) => {
+    setOilPage(1);
+    setSelectedIds(new Set());
     setSortConfig(current => {
       if (current && current.key === key) {
         return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
@@ -169,10 +190,10 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredOils.length) {
+    if (selectedIds.size === oils.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredOils.map(o => o.id)));
+      setSelectedIds(new Set(oils.map(o => o.id)));
     }
   };
 
@@ -218,42 +239,7 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
 
   useEffect(() => {
     fetchData();
-  }, []);
-
-  const filteredOils = useMemo(() => {
-    let result = [...oils];
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(o => 
-        o.name.toLowerCase().includes(q) || 
-        o.inventory_item?.title.toLowerCase().includes(q) ||
-        o.supplier?.name.toLowerCase().includes(q)
-      );
-    }
-
-    if (sortConfig) {
-      result.sort((a, b) => {
-        let aVal: any = a[sortConfig.key as keyof OilStock];
-        let bVal: any = b[sortConfig.key as keyof OilStock];
-
-        if (sortConfig.key === 'supplier.name') {
-          aVal = a.supplier?.name || '';
-          bVal = b.supplier?.name || '';
-        } else if (sortConfig.key === 'inventory_item.title') {
-          aVal = a.inventory_item?.title || '';
-          bVal = b.inventory_item?.title || '';
-        } else if (sortConfig.key === 'inventory_item.mi_sku') {
-          aVal = a.inventory_item?.mi_sku || '';
-          bVal = b.inventory_item?.mi_sku || '';
-        }
-
-        if (aVal === bVal) return 0;
-        const comparison = (aVal || '') < (bVal || '') ? -1 : 1;
-        return sortConfig.direction === 'asc' ? comparison : -comparison;
-      });
-    }
-    return result;
-  }, [oils, searchQuery, sortConfig]);
+  }, [oilPage, searchQuery, sortConfig]);
 
   return (
     <div className="tab-content staggered-fade-in">
@@ -279,13 +265,22 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
             placeholder="Search by oil name, product, or supplier..."
             className="search-input"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => {
+              setSearchQuery(e.target.value);
+              setOilPage(1);
+              setSelectedIds(new Set());
+            }}
             style={{ width: '100%', paddingRight: searchQuery ? '2.5rem' : '1rem' }}
           />
           {searchQuery && (
             <button
               type="button"
-              onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+              onClick={() => {
+                setSearchQuery('');
+                setOilPage(1);
+                setSelectedIds(new Set());
+                searchInputRef.current?.focus();
+              }}
               style={{
                 position: 'absolute',
                 right: '0.75rem',
@@ -329,7 +324,7 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
               <th style={{ width: '50px', paddingLeft: '2rem' }}>
                 <input 
                   type="checkbox" 
-                  checked={selectedIds.size === filteredOils.length && filteredOils.length > 0} 
+                  checked={selectedIds.size === oils.length && oils.length > 0}
                   onChange={toggleSelectAll} 
                 />
               </th>
@@ -355,12 +350,12 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredOils.length === 0 && !isLoading ? (
+            {oils.length === 0 && !isLoading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>No oil inventory found.</td>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>No oil inventory found.</td>
               </tr>
             ) : (
-              filteredOils.map(o => (
+              oils.map(o => (
                 <tr key={o.id} className={`hover-row ${selectedIds.has(o.id) ? 'selected-row' : ''}`}>
                   <td style={{ paddingLeft: '2rem' }}>
                     <input 
@@ -483,6 +478,13 @@ export const OilInventory: React.FC<{ token: string | null }> = ({ token }) => {
             )}
           </tbody>
         </table>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1rem 2rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Showing {oils.length} of {oilTotal} oil records</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" type="button" onClick={() => { setOilPage(current => Math.max(1, current - 1)); setSelectedIds(new Set()); }} disabled={oilPage === 1} style={{ height: '34px', padding: '0 0.85rem', fontSize: '0.8rem' }}>Previous</button>
+            <button className="btn-secondary" type="button" onClick={() => { setOilPage(current => current + 1); setSelectedIds(new Set()); }} disabled={oilPage * OIL_PAGE_SIZE >= oilTotal} style={{ height: '34px', padding: '0 0.85rem', fontSize: '0.8rem' }}>Next</button>
+          </div>
+        </div>
       </div>
 
       {selectedIds.size > 0 && (

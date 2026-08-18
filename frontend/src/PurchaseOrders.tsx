@@ -25,10 +25,14 @@ interface Supplier {
   name: string;
 }
 
+const PURCHASE_DATE_PAGE_SIZE = 5;
+
 export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) => {
   const { success: toastSuccess, error: toastError } = useToast();
   const { confirm } = useConfirm();
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
+	const [purchaseDateTotal, setPurchaseDateTotal] = useState(0);
+	const [purchasePage, setPurchasePage] = useState(1);
   const [oils, setOils] = useState<OilStock[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,12 +55,16 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
     setIsLoading(true);
     try {
       const [posRes, oilsRes, suppRes] = await Promise.all([
-        fetchWithAuth(`${API_BASE}/api/inventory/po`),
+        fetchWithAuth(`${API_BASE}/api/inventory/po?days=${PURCHASE_DATE_PAGE_SIZE}&page=${purchasePage}`),
         fetchWithAuth(`${API_BASE}/api/inventory/oil`),
         fetchWithAuth(`${API_BASE}/api/inventory/suppliers`)
       ]);
 
-      if (posRes.ok) setPOs(await posRes.json());
+      if (posRes.ok) {
+        const data = await posRes.json();
+        setPOs(data.items || []);
+        setPurchaseDateTotal(data.total_dates || 0);
+      }
       if (oilsRes.ok) setOils(await oilsRes.json());
       if (suppRes.ok) setSuppliers(await suppRes.json());
     } catch (err) {
@@ -66,7 +74,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [purchasePage]);
 
   const handleAddItem = () => {
     setFormData({
@@ -201,6 +209,38 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
     return acc + (qty / 1000) * price;
   }, 0);
 
+  const sortedPOs = [...pos].sort((a, b) => {
+    const dateA = new Date(a.purchase_date).getTime();
+    const dateB = new Date(b.purchase_date).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    const suppA = a.supplier?.name || '';
+    const suppB = b.supplier?.name || '';
+    return suppA.localeCompare(suppB);
+  });
+
+  const spanMap: { [key: number]: { dateSpan: number; supplierSpan: number } } = {};
+  let i = 0;
+  while (i < sortedPOs.length) {
+    const currentPO = sortedPOs[i];
+    const currentDate = currentPO.purchase_date.split('T')[0];
+    const currentSupplierId = currentPO.supplier_id;
+    
+    let count = 1;
+    while (
+      i + count < sortedPOs.length &&
+      sortedPOs[i + count].purchase_date.split('T')[0] === currentDate &&
+      sortedPOs[i + count].supplier_id === currentSupplierId
+    ) {
+      count++;
+    }
+    
+    spanMap[i] = { dateSpan: count, supplierSpan: count };
+    for (let j = 1; j < count; j++) {
+      spanMap[i + j] = { dateSpan: 0, supplierSpan: 0 };
+    }
+    i += count;
+  }
+
   return (
     <div className="tab-content staggered-fade-in">
       <div className="section-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -235,23 +275,31 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
             </tr>
           </thead>
           <tbody>
-            {pos.length === 0 && !isLoading ? (
+            {sortedPOs.length === 0 && !isLoading ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>No purchase orders found.</td>
               </tr>
             ) : (
-              pos.map(po => {
+              sortedPOs.map((po, index) => {
                 const isZeroDate = po.purchase_date.startsWith('0001');
+                const spans = spanMap[index] || { dateSpan: 1, supplierSpan: 1 };
+                
                 return (
                   <tr key={po.id} className="hover-row">
-                    <td style={{ paddingLeft: '2rem', fontSize: '0.85rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {isZeroDate && <span title="Corrupted Date" style={{ color: '#ef4444' }}>⚠️</span>}
-                        {isZeroDate ? 'N/A' : new Date(po.purchase_date).toLocaleDateString('en-GB')}
-                      </div>
-                    </td>
+                    {spans.dateSpan > 0 && (
+                      <td rowSpan={spans.dateSpan} style={{ paddingLeft: '2rem', fontSize: '0.85rem', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {isZeroDate && <span title="Corrupted Date" style={{ color: '#ef4444' }}>⚠️</span>}
+                          {isZeroDate ? 'N/A' : new Date(po.purchase_date).toLocaleDateString('en-GB')}
+                        </div>
+                      </td>
+                    )}
                     <td style={{ fontWeight: 700 }}>{po.oil_inventory?.name}</td>
-                    <td><span className="badge-pill badge-pill-gray">{po.supplier?.name}</span></td>
+                    {spans.supplierSpan > 0 && (
+                      <td rowSpan={spans.supplierSpan} style={{ verticalAlign: 'middle', borderRight: '1px solid #f1f5f9' }}>
+                        <span className="badge-pill badge-pill-gray">{po.supplier?.name}</span>
+                      </td>
+                    )}
                     <td style={{ fontWeight: 600 }}>{po.quantity_grams.toLocaleString()} g</td>
                     <td style={{ color: 'var(--text-secondary)' }}>₹{po.unit_price_per_kg.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent-color)' }}>₹{po.total_price.toLocaleString()}</td>
@@ -261,7 +309,7 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
                         <button className="icon-btn delete" onClick={() => handleDelete(po.id)} title="Delete">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                         </button>
                       </div>
                     </td>
@@ -271,6 +319,13 @@ export const PurchaseOrders: React.FC<{ token: string | null }> = ({ token }) =>
             )}
           </tbody>
         </table>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', padding: '1rem 2rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Showing purchase dates {purchaseDateTotal === 0 ? '0' : `${(purchasePage - 1) * PURCHASE_DATE_PAGE_SIZE + 1}-${Math.min(purchasePage * PURCHASE_DATE_PAGE_SIZE, purchaseDateTotal)}`} of {purchaseDateTotal}</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn-secondary" type="button" onClick={() => setPurchasePage(page => Math.max(1, page - 1))} disabled={purchasePage === 1}>Previous</button>
+            <button className="btn-secondary" type="button" onClick={() => setPurchasePage(page => page + 1)} disabled={purchasePage * PURCHASE_DATE_PAGE_SIZE >= purchaseDateTotal}>Next</button>
+          </div>
+        </div>
       </div>
 
       {showAddModal && (
