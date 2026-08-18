@@ -21,6 +21,7 @@ import { Tickets } from './Tickets';
 import { WhatsAppChat } from './WhatsAppChat';
 import Feedback from './Feedback';
 import OrderDetailsModal from './OrderDetailsModal';
+import { ConvertToB2BModal } from './ConvertToB2BModal';
 import { InventoryHub } from './InventoryHub';
 import { AIAnalysis } from './AIAnalysis';
 import { CreateOrderModal } from './CreateOrderModal';
@@ -241,6 +242,7 @@ function App() {
   const limit = 25;
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [selectedOrderDetailsId, setSelectedOrderDetailsId] = useState<string | number | null>(null);
+  const [b2bConvertOrderId, setB2bConvertOrderId] = useState<string | number | null>(null);
   const [editingStatusId, setEditingStatusId] = useState<string | number | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [editingPaymentStatusId, setEditingPaymentStatusId] = useState<string | number | null>(null);
@@ -2200,6 +2202,23 @@ function App() {
           fetchWithAuth={fetchWithAuth}
           userRole={userRole}
           onOrderUpdated={() => fetchDashboardData(true)}
+          onConvertToB2B={(id) => setB2bConvertOrderId(id)}
+        />
+      )}
+
+      {/* Convert to B2B Invoice Modal */}
+      {b2bConvertOrderId && (
+        <ConvertToB2BModal
+          isOpen={!!b2bConvertOrderId}
+          onClose={() => setB2bConvertOrderId(null)}
+          orderId={b2bConvertOrderId}
+          fetchWithAuth={fetchWithAuth}
+          onSuccess={() => {
+            fetchDashboardData(true);
+          }}
+          onNavigateToB2B={() => {
+            setActiveTab('b2b');
+          }}
         />
       )}
 

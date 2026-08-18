@@ -1,0 +1,389 @@
+{
+  "name": "Perfume Studio - Inspiration to Image & GDrive Upload (OpenAI)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "✨ Perfume AI Studio - Create & Queue Post",
+        "formDescription": "Upload an inspiration screenshot along with your product images. GPT-4o Vision will reverse-engineer the prompt, DALL-E 3 will generate the scene, GPT-4o will write copy + 5 hashtags, and upon approval it streams directly to Google Drive via your API.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "1. Reference / Inspiration Image (Screenshot)",
+              "fieldType": "file",
+              "requiredField": true,
+              "acceptFileTypes": "image/*"
+            },
+            {
+              "fieldLabel": "2. Product Bottle Images (Upload 1 or more)",
+              "fieldType": "file",
+              "multipleFiles": true,
+              "requiredField": true,
+              "acceptFileTypes": "image/*"
+            },
+            {
+              "fieldLabel": "Optional Extra Instructions / Fragrance Name",
+              "fieldType": "string",
+              "placeholder": "e.g. Aura Privée Extrait de Parfum, summer sunset vibe"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-form-trigger",
+      "name": "n8n Form: Upload Inspiration & Products",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [220, 300],
+      "webhookId": "perfume-ai-generator-form"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "OPENAI_API_KEY",
+              "value": "YOUR_OPENAI_API_KEY_HERE"
+            },
+            {
+              "name": "BACKEND_API_BASE_URL",
+              "value": "https://api.millennialperfumer.in"
+            },
+            {
+              "name": "BACKEND_AUTH_TOKEN",
+              "value": ""
+            },
+            {
+              "name": "TARGET_GDRIVE_FOLDER_ID",
+              "value": "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-global-config",
+      "name": "⚙️ Workflow Configurations",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const binary = $input.item.binary || {};\nconst binaryKeys = Object.keys(binary);\nlet refKey = null;\nlet prodKeys = [];\n\nfor (const k of binaryKeys) {\n  if (k.toLowerCase().includes('reference') || k.toLowerCase().includes('1.') || k.toLowerCase().includes('inspiration') || k === 'file_0') {\n    if (!refKey) {\n      refKey = k;\n      continue;\n    }\n  }\n  prodKeys.push(k);\n}\n\nif (!refKey && binaryKeys.length > 0) {\n  refKey = binaryKeys[0];\n  prodKeys = binaryKeys.slice(1);\n}\n\nconst newBinary = {};\n\n// 1. Rename Reference Image to inspired.png\nif (refKey && binary[refKey]) {\n  const orig = binary[refKey];\n  const ext = orig.fileExtension || 'png';\n  newBinary['inspired'] = {\n    ...orig,\n    fileName: `inspired.${ext}`\n  };\n}\n\n// 2. Rename Product Images to product_1.ext, product_2.ext, etc.\nprodKeys.forEach((k, idx) => {\n  if (binary[k]) {\n    const orig = binary[k];\n    const ext = orig.fileExtension || (orig.mimeType ? orig.mimeType.split('/')[1] : 'png');\n    const keyName = `product_${idx + 1}`;\n    newBinary[keyName] = {\n      ...orig,\n      fileName: `product_${idx + 1}.${ext}`\n    };\n  }\n});\n\nconst refBinary = newBinary['inspired'];\nconst refBase64 = refBinary ? refBinary.data : '';\nconst refMime = refBinary ? (refBinary.mimeType || 'image/png') : 'image/png';\nconst userNotes = $input.item.json['Optional Extra Instructions / Fragrance Name'] || '';\n\nreturn {\n  json: {\n    refMime: refMime,\n    refBase64: refBase64,\n    userNotes: userNotes,\n    totalProductImages: prodKeys.length\n  },\n  binary: newBinary\n};"
+      },
+      "id": "node-extract-inputs",
+      "name": "Extract & Prepare Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('⚙️ Workflow Configurations').item.json.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Generate me a prompt to create a similar kind of image with Millennial Perfumer fragrance. The typography in the label shouldnt be changed it should be ultra realistic aesthetic natural. bottle color and cap color shouldnt be changed strictly glossy black. The image should look as it is taken in a high end camera. Photo angle should be clearly mentioned in prompt from the reference image uploaded.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:{{ $json.refMime }};base64,{{ $json.refBase64 }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"temperature\": 0.7\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "node-gpt4o-vision-prompt",
+      "name": "1. Vision AI: Generate Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const choices = $input.item.json.choices;\nif (!choices || choices.length === 0) {\n  throw new Error('OpenAI returned empty response');\n}\n\nconst generatedPrompt = choices[0].message.content;\n\nreturn {\n  json: {\n    dalle3_prompt: generatedPrompt,\n    caption: 'Discover timeless elegance with Millennial Perfumer.',\n    hashtags: '#MillennialPerfumer #LuxuryFragrance #NichePerfume #ExtraitDeParfum #ScentOfTheDay'\n  }\n};"
+      },
+      "id": "node-parse-vision",
+      "name": "Extract Generated Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('⚙️ Workflow Configurations').item.json.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"dall-e-3\",\n  \"prompt\": \"{{ $json.dalle3_prompt }}\",\n  \"n\": 1,\n  \"size\": \"1024x1024\",\n  \"quality\": \"hd\",\n  \"response_format\": \"url\"\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "node-generate-dalle3-image",
+      "name": "2. DALL-E 3: Generate Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1380, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.data[0].url }}",
+        "options": {}
+      },
+      "id": "node-download-generated-image",
+      "name": "Download Generated Image Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resume": "form",
+        "formTitle": "🎨 Approve AI Perfume Poster & Trigger Upload",
+        "formDescription": "=### 🌟 Concept: {{ $('Parse Prompt & Copy').item.json.visual_concept }}\n\n**Camera Angle**: {{ $('Parse Prompt & Copy').item.json.photo_angle }}\n\n---\n### 📝 Suggested Caption:\n{{ $('Parse Prompt & Copy').item.json.caption }}\n\n**Hashtags**: {{ $('Parse Prompt & Copy').item.json.hashtags }}\n\n---\n**Image Preview URL**: [Click to view full image]({{ $('2. DALL-E 3: Generate Image').item.json.data[0].url }})",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Approve this image for Google Drive upload?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Approve & Upload to Google Drive"
+                  },
+                  {
+                    "option": "Reject / Discard"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Custom Caption Override (Leave empty to keep AI caption)",
+              "fieldType": "string"
+            },
+            {
+              "fieldLabel": "Custom Hashtags Override (Leave empty to keep 5 hashtags)",
+              "fieldType": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-wait-approval",
+      "name": "3. Human Approval Step",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.1,
+      "position": [1820, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json['Approve this image for Google Drive upload?'] }}",
+              "operation": "contains",
+              "value2": "Approve"
+            }
+          ]
+        }
+      },
+      "id": "node-check-approved",
+      "name": "Is Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2040, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const visionData = $('Parse Prompt & Copy').item.json;\nconst approvalData = $input.item.json;\n\nconst caption = approvalData['Custom Caption Override (Leave empty to keep AI caption)'] || visionData.caption;\nconst hashtags = approvalData['Custom Hashtags Override (Leave empty to keep 5 hashtags)'] || visionData.hashtags;\n\nreturn {\n  json: {\n    caption: caption,\n    hashtags: hashtags,\n    post_type: 'photo'\n  },\n  binary: $('Download Generated Image Binary').item.binary\n};"
+      },
+      "id": "node-prepare-api-payload",
+      "name": "Prepare API Form Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2280, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('⚙️ Workflow Configurations').item.json.BACKEND_API_BASE_URL }}/api/v1/marketing/smm/queue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $('⚙️ Workflow Configurations').item.json.BACKEND_AUTH_TOKEN ? 'Bearer ' + $('⚙️ Workflow Configurations').item.json.BACKEND_AUTH_TOKEN : '' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "caption",
+              "value": "={{ $json.caption }}"
+            },
+            {
+              "name": "hashtags",
+              "value": "={{ $json.hashtags }}"
+            },
+            {
+              "name": "post_type",
+              "value": "photo"
+            },
+            {
+              "name": "files",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-upload-to-server-gdrive",
+      "name": "4. Send to Backend API & Upload to GDrive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2500, 200]
+    }
+  ],
+  "connections": {
+    "n8n Form: Upload Inspiration & Products": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Workflow Configurations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Workflow Configurations": {
+      "main": [
+        [
+          {
+            "node": "Extract & Prepare Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Prepare Images": {
+      "main": [
+        [
+          {
+            "node": "1. Vision AI: Generate Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Vision AI: Generate Prompt": {
+      "main": [
+        [
+          {
+            "node": "Extract Generated Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Generated Prompt": {
+      "main": [
+        [
+          {
+            "node": "2. DALL-E 3: Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. DALL-E 3: Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Download Generated Image Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Generated Image Binary": {
+      "main": [
+        [
+          {
+            "node": "3. Human Approval Step",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Human Approval Step": {
+      "main": [
+        [
+          {
+            "node": "Is Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Approved?": {
+      "main": [
+        [
+          {
+            "node": "Prepare API Form Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare API Form Data": {
+      "main": [
+        [
+          {
+            "node": "4. Send to Backend API & Upload to GDrive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

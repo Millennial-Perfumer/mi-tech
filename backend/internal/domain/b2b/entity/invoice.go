@@ -13,6 +13,7 @@ type B2BInvoice struct {
 	InvoiceSequence *int       `gorm:"column:invoice_sequence" json:"invoice_sequence"`
 	FinancialYear   *string    `gorm:"column:financial_year" json:"financial_year"`
 	OrderNumber     *string    `gorm:"column:order_number" json:"order_number"`
+	OriginOrderID   *string    `gorm:"column:origin_order_id" json:"origin_order_id,omitempty"`
 	InvoiceDate     time.Time  `gorm:"column:invoice_date" json:"invoice_date"`
 	Terms           *string    `gorm:"column:terms" json:"terms"`
 	DueDate         *time.Time `gorm:"column:due_date" json:"due_date"`
@@ -102,9 +103,10 @@ func (B2BInvoiceItem) TableName() string {
 func (inv *B2BInvoice) UnmarshalJSON(data []byte) error {
 	type Alias B2BInvoice
 	aux := &struct {
-		InvoiceDate string  `json:"invoice_date"`
-		DueDate     *string `json:"due_date"`
-		PaymentDate *string `json:"payment_date"`
+		InvoiceDate   string  `json:"invoice_date"`
+		DueDate       *string `json:"due_date"`
+		PaymentDate   *string `json:"payment_date"`
+		OriginOrderID *string `json:"origin_order_id"`
 		*Alias
 	}{
 		Alias: (*Alias)(inv),
@@ -112,6 +114,10 @@ func (inv *B2BInvoice) UnmarshalJSON(data []byte) error {
 
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
+	}
+
+	if aux.OriginOrderID != nil {
+		inv.OriginOrderID = aux.OriginOrderID
 	}
 
 	// Parse InvoiceDate

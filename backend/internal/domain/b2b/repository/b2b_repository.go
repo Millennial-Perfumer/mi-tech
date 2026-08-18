@@ -148,9 +148,16 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 
 	// Check if order already exists
 	var orderID int64
-	err := tx.Table("orders").Where("source_id = ? AND external_order_id = ?", "b2b", extID).Pluck("id", &orderID).Error
-	if err != nil {
-		return err
+	// 1. If OriginOrderID was supplied (converted from an existing order), update that specific order directly
+	if inv.OriginOrderID != nil && *inv.OriginOrderID != "" {
+		_ = tx.Table("orders").Where("id = ? OR external_order_id = ?", *inv.OriginOrderID, *inv.OriginOrderID).Pluck("id", &orderID).Error
+	}
+
+	if orderID == 0 {
+		err := tx.Table("orders").Where("source_id = ? AND external_order_id = ?", "b2b", extID).Pluck("id", &orderID).Error
+		if err != nil {
+			return err
+		}
 	}
 
 	// Prepare order data
@@ -176,7 +183,6 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 
 	orderData := map[string]interface{}{
 		"source_id":          "b2b",
-		"external_order_id":  extID,
 		"order_number":       orderNumber,
 		"invoice_number":     invoiceNumber,
 		"total_price":        inv.TotalPrice,
@@ -196,18 +202,19 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 	}
 
 	if orderID == 0 {
-		// Insert order
+		// New B2B order (created from scratch)
+		orderData["external_order_id"] = extID
 		orderData["created_at"] = inv.InvoiceDate
 		if err := tx.Table("orders").Create(&orderData).Error; err != nil {
 			return err
 		}
 		// Fetch generated ID
-		err = tx.Table("orders").Where("source_id = ? AND external_order_id = ?", "b2b", extID).Pluck("id", &orderID).Error
+		err := tx.Table("orders").Where("source_id = ? AND external_order_id = ?", "b2b", extID).Pluck("id", &orderID).Error
 		if err != nil {
 			return err
 		}
 	} else {
-		// Update order
+		// Update original converted order in place without mutating its original external_order_id
 		if err := tx.Table("orders").Where("id = ?", orderID).Updates(orderData).Error; err != nil {
 			return err
 		}
