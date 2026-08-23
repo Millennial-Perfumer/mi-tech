@@ -158,6 +158,10 @@ func (s *abandonedCheckoutService) processSingleCheckout(ctx context.Context, ac
 
 	// Send message
 	log.Printf("Abandoned Checkout Recovery: Dispatching template %s to %s for checkout %d", template.TemplateName, phone, ac.ID)
+
+	payloadJSON, _ := json.Marshal(components)
+	messageText := communicationService.RenderTemplateMessageText(template.Body, "", components)
+
 	err = s.messagesServ.SendTemplateMessage(
 		ac.StoreID,
 		template.ID,
@@ -166,6 +170,8 @@ func (s *abandonedCheckoutService) processSingleCheckout(ctx context.Context, ac
 		template.TemplateName,
 		template.Language,
 		components,
+		messageText,
+		payloadJSON,
 	)
 
 	now := time.Now()

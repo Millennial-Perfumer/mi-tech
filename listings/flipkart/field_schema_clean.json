@@ -1,0 +1,1167 @@
+{
+  "tabs": [
+    {
+      "key": "product_images",
+      "label": "Image addition (0/10)"
+    },
+    {
+      "key": "selling_info",
+      "label": "Price, Stock and Shipping Information (0/23)"
+    },
+    {
+      "key": "product_info",
+      "label": "Product Description (0/5)"
+    },
+    {
+      "key": "optional_product_info",
+      "label": "Additional Description (Optional) (0/27)"
+    },
+    {
+      "key": "variants",
+      "label": "Variant addition (optional)"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "sku_id",
+      "displayName": "Seller SKU ID",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Listing information",
+      "order": "2",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "listing_status",
+      "displayName": "Listing Status",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "ACTIVE||INACTIVE",
+      "valueLabels": "{\"ACTIVE\":\"Active\",\"INACTIVE\":\"Inactive\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Status Details",
+      "order": "4",
+      "maxAllowed": null,
+      "dependency": "{\"internal_state\":[{\"INACTIVATED_BY_FLIPKART\":{\"attributePriority\":\"read_only\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "mrp",
+      "displayName": "MRP",
+      "type": "POSITIVE_INTEGER",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "INR",
+      "qualifierLabels": "{\"INR\":\"INR\"}",
+      "section": "Price details",
+      "order": "7",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "flipkart_selling_price",
+      "displayName": "Your selling price",
+      "type": "POSITIVE_INTEGER",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "INR",
+      "qualifierLabels": "{\"INR\":\"INR\"}",
+      "section": "Price details",
+      "order": "8",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "minimum_order_quantity",
+      "displayName": "Minimum Order Quantity (MinOQ)",
+      "type": "POSITIVE_INTEGER",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "1||2",
+      "valueLabels": "{\"1\":\"1\",\"2\":\"2\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Price details",
+      "order": "39",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "service_profile",
+      "displayName": "Fullfilment by",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "NON_FBF",
+      "valueLabels": "{\"FBF\":\"Flipkart\",\"FBF_AND_NON_FBF\":\"Flipkart and Seller\",\"FBF_AND_FBF_LITE\":\"Flipkart and Seller Smart\",\"NON_FBF\":\"Seller\",\"FBF_LITE\":\"Seller Smart\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Inventory details",
+      "order": "9",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "procurement_type",
+      "displayName": "Procurement type",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "REGULAR||EXPRESS",
+      "valueLabels": "{\"DOMESTIC\":\"domestic procurement\",\"EXPRESS\":\"express\",\"REGULAR\":\"instock\",\"INTERNATIONAL\":\"international\",\"MADE_TO_ORDER\":\"made to order\",\"QUICK\":\"quick\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Inventory details",
+      "order": "10",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "shipping_days",
+      "displayName": "Procurement SLA",
+      "type": "NUMBER",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Inventory details",
+      "order": "11",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "stock_size",
+      "displayName": "Stock",
+      "type": "NON_NEGATIVE_INTEGER",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Inventory details",
+      "order": "12",
+      "maxAllowed": "1000.0",
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "shipping_provider",
+      "displayName": "Shipping provider",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "FLIPKART",
+      "valueLabels": "{\"FLIPKART\":\"Flipkart\",\"FLIPKART_SELLER\":\"Flipkart preferred to self ship\",\"SELLER\":\"Self ship\",\"SELLER_FLIPKART\":\"Self ship preferred to Flipkart\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Shipping provider",
+      "order": "14",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_LITE\":{\"attributePriority\":\"mandatory\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"mandatory\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "local_shipping_fee_from_buyer",
+      "displayName": "Local handling fee",
+      "type": "NON_NEGATIVE_INTEGER",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "INR",
+      "qualifierLabels": "{\"INR\":\"INR\"}",
+      "section": "Handling Fee Charged To Customer",
+      "order": "15",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "zonal_shipping_fee_from_buyer",
+      "displayName": "Zonal handling fee",
+      "type": "NON_NEGATIVE_INTEGER",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "INR",
+      "qualifierLabels": "{\"INR\":\"INR\"}",
+      "section": "Handling Fee Charged To Customer",
+      "order": "16",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "national_shipping_fee_from_buyer",
+      "displayName": "National handling fee",
+      "type": "NON_NEGATIVE_INTEGER",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "INR",
+      "qualifierLabels": "{\"INR\":\"INR\"}",
+      "section": "Handling Fee Charged To Customer",
+      "order": "17",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "packages",
+      "displayName": "Package details",
+      "type": "ENTITY",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Package details",
+      "order": "20",
+      "maxAllowed": null,
+      "dependency": "{\"service_profile\":[{\"FBF\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FBF_LITE\":{\"attributePriority\":\"mandatory\"}},{\"FBF_AND_FBF_LITE\":{\"attributePriority\":\"mandatory\"}},{\"NON_FBF\":{\"attributePriority\":\"mandatory\"}},{\"FBF_AND_NON_FBF\":{\"attributePriority\":\"mandatory\"}}],\"shipping_provider\":[{\"SELLER\":{\"attributePriority\":\"not_applicable_for_seller\"}},{\"FLIPKART\":{\"attributePriority\":\"mandatory\"}},{\"FLIPKART_SELLER\":{\"attributePriority\":\"mandatory\"}},{\"SELLER_FLIPKART\":{\"attributePriority\":\"mandatory\"}}]}",
+      "tabs": []
+    },
+    {
+      "name": "length",
+      "displayName": "Length",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"CM\"]",
+      "qualifierLabels": "{\"CM\":\"cms\"}",
+      "section": "Packaging details",
+      "order": 3,
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "breadth",
+      "displayName": "Breadth",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"CM\"]",
+      "qualifierLabels": "{\"CM\":\"cms\"}",
+      "section": "Packaging details",
+      "order": 4,
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "height",
+      "displayName": "Height",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"CM\"]",
+      "qualifierLabels": "{\"CM\":\"cms\"}",
+      "section": "Packaging details",
+      "order": 5,
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "weight",
+      "displayName": "Weight",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"KG\"]",
+      "qualifierLabels": "{\"KG\":\"Kgs\"}",
+      "section": "Packaging details",
+      "order": 6,
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "hsn",
+      "displayName": "HSN",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Tax details",
+      "order": "24",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "luxury_cess",
+      "displayName": "Luxury Cess",
+      "type": "DECIMAL",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "PERCENTAGE",
+      "qualifierLabels": "{\"PERCENTAGE\":\"Percentage\"}",
+      "section": "Tax details",
+      "order": "26",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "tax_code",
+      "displayName": "Tax Code",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "GST_0||GST_0.25||GST_18||GST_3||GST_40||GST_5||GST_APPAREL||GST_Footwear||GST_Old_12_New_0||GST_Old_12_New_5||GST_Old_12_new_18||GST_Old_18_New_0||GST_Old_18_New_40||GST_Old_18_New_5||GST_Old_28_New_18||GST_Old_28_New_40||GST_Old_28_New_5||GST_Old_5_New_0||GST_Old_5_New_18",
+      "valueLabels": "{\"GST_0\":\"GST_0\",\"GST_0.25\":\"GST_0.25\",\"GST_18\":\"GST_18\",\"GST_3\":\"GST_3\",\"GST_40\":\"GST_40\",\"GST_5\":\"GST_5\",\"GST_APPAREL\":\"GST_APPAREL\",\"GST_Footwear\":\"GST_Footwear\",\"GST_Old_12_New_0\":\"GST_Old_12_New_0\",\"GST_Old_12_New_5\":\"GST_Old_12_New_5\",\"GST_Old_12_new_18\":\"GST_Old_12_new_18\",\"GST_Old_18_New_0\":\"GST_Old_18_New_0\",\"GST_Old_18_New_40\":\"GST_Old_18_New_40\",\"GST_Old_18_New_5\":\"GST_Old_18_New_5\",\"GST_Old_28_New_18\":\"GST_Old_28_New_18\",\"GST_Old_28_New_40\":\"GST_Old_28_New_40\",\"GST_Old_28_New_5\":\"GST_Old_28_New_5\",\"GST_Old_5_New_0\":\"GST_Old_5_New_0\",\"GST_Old_5_New_18\":\"GST_Old_5_New_18\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Tax details",
+      "order": "33",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "country_of_origin",
+      "displayName": "Country Of Origin",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "AF||AX||AL||DZ||AS||AD||AO||AI||AQ||AG||AR||AM||AW||AU||AT||AZ||BS||BH||BD||BB||BY||BE||BZ||BJ||BM||BT||BO||BA||BW||BV||BR||IO||VG||BN||BG||BF||BI||KH||CM||CA||CV||KY||CF||TD||CL||CN||CX||CC||CO||KM||CG||CD||CK||CR||HR||CU||CY||CZ||CI||DK||DJ||DM||DO||EC||EG||SV||GQ||ER||EE||ET||FK||FO||FJ||FI||FR||GF||PF||TF||GA||GM||GE||DE||GH||GI||GR||GL||GD||GP||GU||GT||GG||GN||GW||GY||HT||HM||VA||HN||HK||HU||IS||IN||ID||IR||IQ||IE||IM||IL||IT||JM||JP||JE||JO||KZ||KE||KI||KP||KR||KW||KG||LA||LV||LB||LS||LR||LY||LI||LT||LU||MO||MK||MG||MW||MY||MV||ML||MT||MH||MQ||MR||MU||YT||MX||FM||MD||MC||MN||ME||MS||MA||MZ||MM||NA||NR||NP||NL||AN||NC||NZ||NI||NE||NG||NU||NF||MP||NO||OM||PK||PW||PS||PA||PG||PY||PE||PH||PN||PL||PT||PR||QA||RO||RU||RW||RE||SH||KN||LC||PM||VC||BL||MF||WS||SM||ST||SA||SN||RS||SC||SL||SG||SK||SI||SB||SO||ZA||GS||SS||ES||LK||SD||SR||SJ||SZ||SE||CH||SY||TW||TJ||TZ||TH||TL||TG||TK||TO||TT||TN||TR||TM||TC||TV||UM||UG||UA||AE||GB||US||UY||UZ||VU||VE||VN||VI||WF||EH||YE||ZM||ZW",
+      "valueLabels": "{\"AF\":\"Afghanistan\",\"AX\":\"Aland Islands\",\"AL\":\"Albania\",\"DZ\":\"Algeria\",\"AS\":\"American Samoa\",\"AD\":\"Andorra\",\"AO\":\"Angola\",\"AI\":\"Anguilla\",\"AQ\":\"Antarctica\",\"AG\":\"Antigua and Barbuda\",\"AR\":\"Argentina\",\"AM\":\"Armenia\",\"AW\":\"Aruba\",\"AU\":\"Australia\",\"AT\":\"Austria\",\"AZ\":\"Azerbaijan\",\"BS\":\"Bahamas\",\"BH\":\"Bahrain\",\"BD\":\"Bangladesh\",\"BB\":\"Barbados\",\"BY\":\"Belarus\",\"BE\":\"Belgium\",\"BZ\":\"Belize\",\"BJ\":\"Benin\",\"BM\":\"Bermuda\",\"BT\":\"Bhutan\",\"BO\":\"Bolivia\",\"BA\":\"Bosnia and Herzegovina\",\"BW\":\"Botswana\",\"BV\":\"Bouvet Island\",\"BR\":\"Brazil\",\"IO\":\"British Indian Ocean Territory\",\"VG\":\"British Virgin Islands\",\"BN\":\"Brunei Darussalam\",\"BG\":\"Bulgaria\",\"BF\":\"Burkina Faso\",\"BI\":\"Burundi\",\"KH\":\"Cambodia\",\"CM\":\"Cameroon\",\"CA\":\"Canada\",\"CV\":\"Cape Verde\",\"KY\":\"Cayman Islands\",\"CF\":\"Central African Republic\",\"TD\":\"Chad\",\"CL\":\"Chile\",\"CN\":\"China\",\"CX\":\"Christmas Island\",\"CC\":\"Cocos (Keeling) Islands\",\"CO\":\"Colombia\",\"KM\":\"Comoros\",\"CG\":\"Congo (Brazzaville)\",\"CD\":\"Congo, (Kinshasa)\",\"CK\":\"Cook Islands\",\"CR\":\"Costa Rica\",\"HR\":\"Croatia\",\"CU\":\"Cuba\",\"CY\":\"Cyprus\",\"CZ\":\"Czech Republic\",\"CI\":\"Côte d'Ivoire\",\"DK\":\"Denmark\",\"DJ\":\"Djibouti\",\"DM\":\"Dominica\",\"DO\":\"Dominican Republic\",\"EC\":\"Ecuador\",\"EG\":\"Egypt\",\"SV\":\"El Salvador\",\"GQ\":\"Equatorial Guinea\",\"ER\":\"Eritrea\",\"EE\":\"Estonia\",\"ET\":\"Ethiopia\",\"FK\":\"Falkland Islands (Malvinas)\",\"FO\":\"Faroe Islands\",\"FJ\":\"Fiji\",\"FI\":\"Finland\",\"FR\":\"France\",\"GF\":\"French Guiana\",\"PF\":\"French Polynesia\",\"TF\":\"French Southern Territories\",\"GA\":\"Gabon\",\"GM\":\"Gambia\",\"GE\":\"Georgia\",\"DE\":\"Germany\",\"GH\":\"Ghana\",\"GI\":\"Gibraltar\",\"GR\":\"Greece\",\"GL\":\"Greenland\",\"GD\":\"Grenada\",\"GP\":\"Guadeloupe\",\"GU\":\"Guam\",\"GT\":\"Guatemala\",\"GG\":\"Guernsey\",\"GN\":\"Guinea\",\"GW\":\"Guinea-Bissau\",\"GY\":\"Guyana\",\"HT\":\"Haiti\",\"HM\":\"Heard and Mcdonald Islands\",\"VA\":\"Holy See (Vatican City State)\",\"HN\":\"Honduras\",\"HK\":\"Hong Kong, SAR China\",\"HU\":\"Hungary\",\"IS\":\"Iceland\",\"IN\":\"India\",\"ID\":\"Indonesia\",\"IR\":\"Iran\",\"IQ\":\"Iraq\",\"IE\":\"Ireland\",\"IM\":\"Isle of Man\",\"IL\":\"Israel\",\"IT\":\"Italy\",\"JM\":\"Jamaica\",\"JP\":\"Japan\",\"JE\":\"Jersey\",\"JO\":\"Jordan\",\"KZ\":\"Kazakhstan\",\"KE\":\"Kenya\",\"KI\":\"Kiribati\",\"KP\":\"Korea (North)\",\"KR\":\"Korea (South)\",\"KW\":\"Kuwait\",\"KG\":\"Kyrgyzstan\",\"LA\":\"Lao PDR\",\"LV\":\"Latvia\",\"LB\":\"Lebanon\",\"LS\":\"Lesotho\",\"LR\":\"Liberia\",\"LY\":\"Libya\",\"LI\":\"Liechtenstein\",\"LT\":\"Lithuania\",\"LU\":\"Luxembourg\",\"MO\":\"Macao, SAR China\",\"MK\":\"Macedonia\",\"MG\":\"Madagascar\",\"MW\":\"Malawi\",\"MY\":\"Malaysia\",\"MV\":\"Maldives\",\"ML\":\"Mali\",\"MT\":\"Malta\",\"MH\":\"Marshall Islands\",\"MQ\":\"Martinique\",\"MR\":\"Mauritania\",\"MU\":\"Mauritius\",\"YT\":\"Mayotte\",\"MX\":\"Mexico\",\"FM\":\"Micronesia\",\"MD\":\"Moldova\",\"MC\":\"Monaco\",\"MN\":\"Mongolia\",\"ME\":\"Montenegro\",\"MS\":\"Montserrat\",\"MA\":\"Morocco\",\"MZ\":\"Mozambique\",\"MM\":\"Myanmar\",\"NA\":\"Namibia\",\"NR\":\"Nauru\",\"NP\":\"Nepal\",\"NL\":\"Netherlands\",\"AN\":\"Netherlands Antilles\",\"NC\":\"New Caledonia\",\"NZ\":\"New Zealand\",\"NI\":\"Nicaragua\",\"NE\":\"Niger\",\"NG\":\"Nigeria\",\"NU\":\"Niue\",\"NF\":\"Norfolk Island\",\"MP\":\"Northern Mariana Islands\",\"NO\":\"Norway\",\"OM\":\"Oman\",\"PK\":\"Pakistan\",\"PW\":\"Palau\",\"PS\":\"Palestinian Territory\",\"PA\":\"Panama\",\"PG\":\"Papua New Guinea\",\"PY\":\"Paraguay\",\"PE\":\"Peru\",\"PH\":\"Philippines\",\"PN\":\"Pitcairn\",\"PL\":\"Poland\",\"PT\":\"Portugal\",\"PR\":\"Puerto Rico\",\"QA\":\"Qatar\",\"RO\":\"Romania\",\"RU\":\"Russian Federation\",\"RW\":\"Rwanda\",\"RE\":\"Réunion\",\"SH\":\"Saint Helena\",\"KN\":\"Saint Kitts and Nevis\",\"LC\":\"Saint Lucia\",\"PM\":\"Saint Pierre and Miquelon\",\"VC\":\"Saint Vincent and Grenadines\",\"BL\":\"Saint-Barthélemy\",\"MF\":\"Saint-Martin (French part)\",\"WS\":\"Samoa\",\"SM\":\"San Marino\",\"ST\":\"Sao Tome and Principe\",\"SA\":\"Saudi Arabia\",\"SN\":\"Senegal\",\"RS\":\"Serbia\",\"SC\":\"Seychelles\",\"SL\":\"Sierra Leone\",\"SG\":\"Singapore\",\"SK\":\"Slovakia\",\"SI\":\"Slovenia\",\"SB\":\"Solomon Islands\",\"SO\":\"Somalia\",\"ZA\":\"South Africa\",\"GS\":\"South Georgia and the South Sandwich Islands\",\"SS\":\"South Sudan\",\"ES\":\"Spain\",\"LK\":\"Sri Lanka\",\"SD\":\"Sudan\",\"SR\":\"Suriname\",\"SJ\":\"Svalbard and Jan Mayen Islands\",\"SZ\":\"Swaziland\",\"SE\":\"Sweden\",\"CH\":\"Switzerland\",\"SY\":\"Syrian Arab Republic (Syria)\",\"TW\":\"Taiwan\",\"TJ\":\"Tajikistan\",\"TZ\":\"Tanzania\",\"TH\":\"Thailand\",\"TL\":\"Timor-Leste\",\"TG\":\"Togo\",\"TK\":\"Tokelau\",\"TO\":\"Tonga\",\"TT\":\"Trinidad and Tobago\",\"TN\":\"Tunisia\",\"TR\":\"Turkey\",\"TM\":\"Turkmenistan\",\"TC\":\"Turks and Caicos Islands\",\"TV\":\"Tuvalu\",\"UM\":\"US Minor Outlying Islands\",\"UG\":\"Uganda\",\"UA\":\"Ukraine\",\"AE\":\"United Arab Emirates\",\"GB\":\"United Kingdom\",\"US\":\"United States of America\",\"UY\":\"Uruguay\",\"UZ\":\"Uzbekistan\",\"VU\":\"Vanuatu\",\"VE\":\"Venezuela (Bolivarian Republic)\",\"VN\":\"Viet Nam\",\"VI\":\"Virgin Islands, US\",\"WF\":\"Wallis and Futuna Islands\",\"EH\":\"Western Sahara\",\"YE\":\"Yemen\",\"ZM\":\"Zambia\",\"ZW\":\"Zimbabwe\"}",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Manufacturing Details",
+      "order": "27",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "manufacturer_details",
+      "displayName": "Manufacturer Details",
+      "type": "LONG_TEXT",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Manufacturing Details",
+      "order": "28",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "packer_details",
+      "displayName": "Packer Details",
+      "type": "LONG_TEXT",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Manufacturing Details",
+      "order": "29",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "importer_details",
+      "displayName": "Importer Details",
+      "type": "LONG_TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Manufacturing Details",
+      "order": "30",
+      "maxAllowed": null,
+      "dependency": "{\"country_of_origin\":[{\"IN\":{\"attributePriority\":\"not_applicable_for_seller\"}}]}",
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "earliest_mfg_date",
+      "displayName": "Manufacturing date",
+      "type": "DATE",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Manufacturing Details",
+      "order": "31",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "shelf_life",
+      "displayName": "Shelf Life",
+      "type": "POSITIVE_INTEGER",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "MONTHS",
+      "qualifierLabels": "{\"MONTHS\":\"Months\"}",
+      "section": "Manufacturing Details",
+      "order": "32",
+      "maxAllowed": "60.0",
+      "dependency": null,
+      "tabs": [
+        "selling_info"
+      ]
+    },
+    {
+      "name": "model_name",
+      "displayName": "Model Name",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Identifying Attributes",
+      "order": "2",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "product_info"
+      ]
+    },
+    {
+      "name": "ideal_for",
+      "displayName": "Ideal For",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "Baby Boys||Baby Boys & Baby Girls||Baby Girls||Boys||Boys & Girls||Girls||Men||Men & Women||Women",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Identifying Attributes",
+      "order": "3",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "product_info"
+      ]
+    },
+    {
+      "name": "quantity",
+      "displayName": "Quantity",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "ml||L||g",
+      "qualifierLabels": "",
+      "section": "Identifying Attributes",
+      "order": "4",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "product_info",
+        "variants"
+      ]
+    },
+    {
+      "name": "fragrance_classification",
+      "displayName": "Fragrance Classification",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "Eau Fraiche||Eau de Cologne||Eau de Parfum||Eau de Toilette||Extrait De Parfum||Perfume",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Identifying Attributes",
+      "order": "5",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "product_info"
+      ]
+    },
+    {
+      "name": "fragrance_family",
+      "displayName": "Fragrance Family",
+      "type": "TEXT",
+      "priority": "mandatory",
+      "isEnum": true,
+      "values": "Floral||Fresh||Fruity||Oriental||Woody",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "6",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "product_info"
+      ]
+    },
+    {
+      "name": "fragrance_segment",
+      "displayName": "Fragrance Segment",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Budget||Entry||Premium",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "7",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "anti_perspirant",
+      "displayName": "Anti-perspirant",
+      "type": "BOOLEAN",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Yes||No",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "13",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "fragrance_type",
+      "displayName": "Fragrance Type",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "14",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "limited_edition",
+      "displayName": "Limited Edition",
+      "type": "BOOLEAN",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Yes||No",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "15",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "aromatic_compounds",
+      "displayName": "Aromatic Compounds",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "16",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "certification",
+      "displayName": "Certification",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Traits",
+      "order": "18",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "sales_package",
+      "displayName": "Items Included",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "In the Box",
+      "order": "8",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "ean",
+      "displayName": "EAN/UPC",
+      "type": "NUMERIC_STRING",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "9",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "series",
+      "displayName": "Series",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "10",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "model_number",
+      "displayName": "Model Number",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "11",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "season",
+      "displayName": "Season",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "12",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "description",
+      "displayName": "Description",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "23",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "keywords",
+      "displayName": "Search Keywords",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "24",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "key_features",
+      "displayName": "Key Features",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "26",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "video_url",
+      "displayName": "Video URL",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "27",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "is_pocket_perfume",
+      "displayName": "Is Pocket Perfume",
+      "type": "BOOLEAN",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Yes||No",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "80",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "trend",
+      "displayName": "Trend",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "100",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "pack_of",
+      "displayName": "Pack of",
+      "type": "NUMBER",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "101",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "gas",
+      "displayName": "Gas",
+      "type": "BOOLEAN",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Yes||No",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "108",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "max_shelf_life",
+      "displayName": "Maximum Shelf Life",
+      "type": "NUMBER",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "Months||Days",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "200",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "gift_pack",
+      "displayName": "Gift Pack",
+      "type": "BOOLEAN",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Yes||No",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "301",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "manufacturing_process",
+      "displayName": "Manufacturing Process",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Vegan||Cruelty Free||Sulphate/Paraben Free||NA",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "304",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "organic",
+      "displayName": "Organic",
+      "type": "BOOLEAN",
+      "priority": "good_to_have",
+      "isEnum": true,
+      "values": "Yes||No",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "General",
+      "order": "305",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "heart_note",
+      "displayName": "Heart Notes",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Notes",
+      "order": "19",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "top_note",
+      "displayName": "Top Notes",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Notes",
+      "order": "20",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "base_note",
+      "displayName": "Base Notes",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Fragrance Notes",
+      "order": "21",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "other_traits",
+      "displayName": "Other Traits",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "Additional Traits",
+      "order": "22",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": [
+        "optional_product_info"
+      ]
+    },
+    {
+      "name": "packages_length",
+      "displayName": "Length",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"CM\"]",
+      "qualifierLabels": "{\"CM\":\"cms\"}",
+      "section": "Packaging details",
+      "order": "20",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": []
+    },
+    {
+      "name": "packages_breadth",
+      "displayName": "Breadth",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"CM\"]",
+      "qualifierLabels": "{\"CM\":\"cms\"}",
+      "section": "Packaging details",
+      "order": "20",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": []
+    },
+    {
+      "name": "packages_height",
+      "displayName": "Height",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"CM\"]",
+      "qualifierLabels": "{\"CM\":\"cms\"}",
+      "section": "Packaging details",
+      "order": "20",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": []
+    },
+    {
+      "name": "packages_weight",
+      "displayName": "Weight",
+      "type": "DECIMAL",
+      "priority": "mandatory",
+      "isEnum": false,
+      "values": "[]",
+      "valueLabels": "",
+      "qualifierAllowed": "[\"KG\"]",
+      "qualifierLabels": "{\"KG\":\"Kgs\"}",
+      "section": "Packaging details",
+      "order": "20",
+      "maxAllowed": null,
+      "dependency": null,
+      "tabs": []
+    },
+    {
+      "name": "supplier_image",
+      "displayName": "Supplier Image",
+      "type": "TEXT",
+      "priority": "good_to_have",
+      "isEnum": false,
+      "values": "",
+      "valueLabels": "",
+      "qualifierAllowed": "",
+      "qualifierLabels": "",
+      "section": "System Attributes",
+      "order": "28",
+      "maxAllowed": "null",
+      "dependency": null,
+      "tabs": []
+    }
+  ]
+}

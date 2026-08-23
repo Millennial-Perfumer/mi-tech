@@ -94,3 +94,13 @@ db_backup_*.sql
 *.html
 meta_raw_debug.json
 backend/tmp/
+
+# --- Flipkart listing automation runtime state ---
+listings/flipkart/results.json
+listings/flipkart/manifest_78.json
+listings/flipkart/failures/
+listings/flipkart/results.json.bak
+
+# --- Content generation jobs ---
+content-jobs/
+listings/test

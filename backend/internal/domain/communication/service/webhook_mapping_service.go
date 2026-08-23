@@ -307,6 +307,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *co
 	}
 
 	// 3. Header Mapping
+	var headerText string
 	if template.Header != nil && string(*template.Header) != "null" {
 		var hData struct {
 			Type string `json:"type"`
@@ -319,6 +320,7 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *co
 				Text string `json:"text"`
 			}
 			json.Unmarshal(*template.Header, &hTextData)
+			headerText = hTextData.Text
 
 			reqCount := s.CountRequiredParams(hTextData.Text)
 			if reqCount > 0 {
@@ -413,6 +415,8 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *co
 	compJSON, _ := json.Marshal(components)
 	log.Printf("Automation Meta Call: Sending %s to %s (Order: %d). Payload: %s", template.TemplateName, cleanPhone, order.ID, string(compJSON))
 
+	messageText := RenderTemplateMessageText(template.Body, headerText, components)
+
 	err := s.messagesService.SendTemplateMessage(
 		storeID,
 		template.ID,
@@ -421,6 +425,8 @@ func (s *WebhookMappingService) executeWithTemplate(storeID string, template *co
 		template.TemplateName,
 		template.Language,
 		components,
+		messageText,
+		compJSON,
 	)
 
 	// Post-send logic: if it's a feedback message, mark the order status as 'Sent' (2)
@@ -584,7 +590,10 @@ func (s *WebhookMappingService) ExecuteMarketingSend(storeID string, template *c
 		return nil
 	}
 
-	return s.messagesService.SendTemplateMessage(storeID, template.ID, 0, cleanPhone, template.TemplateName, template.Language, components)
+	payloadJSON, _ := json.Marshal(components)
+	messageText := RenderTemplateMessageText(template.Body, "", components)
+
+	return s.messagesService.SendTemplateMessage(storeID, template.ID, 0, cleanPhone, template.TemplateName, template.Language, components, messageText, payloadJSON)
 }
 
 func (s *WebhookMappingService) GenerateFeedbackURL(order entity.Order) string {

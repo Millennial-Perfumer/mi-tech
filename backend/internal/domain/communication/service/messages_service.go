@@ -11,6 +11,7 @@ import (
 	"mi-tech/internal/shared/config"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -45,16 +46,18 @@ func NewMessagesService(repo repository.MessagesRepository, settings *config.Set
 	return s
 }
 
-func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}) error {
+func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}, messageText string, payload []byte) error {
 	// 1. Send via Meta
 	msgID, err := s.metaClient.SendTemplateMessage(phoneNumber, templateName, languageCode, components)
 	if err != nil {
-		// Log failed attempt
+		// Log failed attempt (retain the intended text/payload for review)
 		s.repo.SaveMessage(entity.AutomationMessage{
 			StoreID:      storeID,
 			TemplateID:   templateID,
 			OrderID:      orderID,
 			PhoneNumber:  phoneNumber,
+			MessageText:  messageText,
+			Payload:      payload,
 			Status:       "failed",
 			ErrorMessage: err.Error(),
 		})
@@ -68,6 +71,8 @@ func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, or
 		OrderID:     orderID,
 		PhoneNumber: phoneNumber,
 		MessageID:   msgID,
+		MessageText: messageText,
+		Payload:     payload,
 		Status:      "sent",
 		SentAt:      time.Now().UTC(),
 	})
@@ -77,6 +82,82 @@ func (s *MessagesService) SendTemplateMessage(storeID string, templateID int, or
 
 func (s *MessagesService) HandleStatusUpdate(messageID, status string) error {
 	return s.repo.UpdateMessageStatus(messageID, status)
+}
+
+// RenderTemplateMessageText reconstructs the plain-text message actually sent to
+// the customer from the template body/header and the resolved Meta components.
+func RenderTemplateMessageText(body, headerText string, components []interface{}) string {
+	var bodyParams []string
+	var headerParams []string
+	var buttonURLs []string
+
+	for _, c := range components {
+		comp, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		switch comp["type"] {
+		case "body":
+			bodyParams = extractComponentParams(comp["parameters"])
+		case "header":
+			headerParams = extractComponentParams(comp["parameters"])
+		case "button":
+			buttonURLs = extractComponentParams(comp["parameters"])
+		}
+	}
+
+	var sb strings.Builder
+	if headerText != "" {
+		sb.WriteString(substituteParams(headerText, headerParams))
+		sb.WriteString("\n\n")
+	}
+	sb.WriteString(substituteParams(body, bodyParams))
+	for _, u := range buttonURLs {
+		if u == "" {
+			continue
+		}
+		sb.WriteString("\n")
+		sb.WriteString(u)
+	}
+	return sb.String()
+}
+
+func extractComponentParams(params interface{}) []string {
+	var out []string
+	switch t := params.(type) {
+	case []map[string]string:
+		for _, p := range t {
+			out = append(out, p["text"])
+		}
+	case []map[string]interface{}:
+		for _, p := range t {
+			if s, ok := p["text"].(string); ok {
+				out = append(out, s)
+			}
+		}
+	case []interface{}:
+		for _, p := range t {
+			switch pm := p.(type) {
+			case map[string]interface{}:
+				if s, ok := pm["text"].(string); ok {
+					out = append(out, s)
+				}
+			case map[string]string:
+				out = append(out, pm["text"])
+			}
+		}
+	}
+	return out
+}
+
+func substituteParams(text string, params []string) string {
+	return templateParamRegex.ReplaceAllStringFunc(text, func(m string) string {
+		n, err := strconv.Atoi(strings.Trim(m, "{}"))
+		if err != nil || n < 1 || n > len(params) {
+			return m
+		}
+		return params[n-1]
+	})
 }
 
 func (s *MessagesService) GetMessages(storeID string, startDate, endDate *time.Time, search string, templateName string, limit, offset int) ([]entity.AutomationMessage, error) {

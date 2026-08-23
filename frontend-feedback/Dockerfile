@@ -5,8 +5,8 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 COPY . .
 RUN ls -la
 RUN npm run build

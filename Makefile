@@ -1,20 +1,20 @@
-.PHONY: install install-frontend install-frontend-mobile install-frontend-feedback install-backend run frontend frontend-mobile frontend-feedback backend build build-frontend build-frontend-feedback build-backend clean db-up db-down
+.PHONY: install install-frontend install-frontend-feedback install-shop-chat-agent install-backend run frontend frontend-feedback backend build build-frontend build-frontend-feedback build-shop-chat-agent build-backend clean db-up db-down
 export GOMODCACHE=$(shell pwd)/backend/.gocache/mod
 export GOCACHE=$(shell pwd)/backend/.gocache/build
 export GOFLAGS=-buildvcs=false
 export CGO_ENABLED=0
 
 # Install dependencies for both frontend and backend
-install: install-frontend install-frontend-mobile install-frontend-feedback install-backend
+install: install-frontend install-frontend-feedback install-shop-chat-agent install-backend
 
 install-frontend:
-	cd frontend && npm install --legacy-peer-deps
-
-install-frontend-mobile:
-	cd frontend-mobile && npm install --legacy-peer-deps
+	cd frontend && npm ci --legacy-peer-deps
 
 install-frontend-feedback:
-	cd frontend-feedback && npm install
+	cd frontend-feedback && npm ci --legacy-peer-deps
+
+install-shop-chat-agent:
+	cd shop-chat-agent && npm ci
 
 install-backend:
 	cd backend && go mod download
@@ -37,9 +37,6 @@ db-down:
 frontend:
 	cd frontend && npm run dev
 
-frontend-mobile:
-	cd frontend-mobile && npm run dev
-
 frontend-feedback:
 	cd frontend-feedback && npm run dev
 
@@ -47,13 +44,16 @@ backend:
 	cd backend && go run github.com/air-verse/air@latest -c .air.toml
 
 # Build both applications
-build: build-frontend build-frontend-feedback build-backend
+build: build-frontend build-frontend-feedback build-shop-chat-agent build-backend
 
 build-frontend:
 	cd frontend && npm run build
 
 build-frontend-feedback:
 	cd frontend-feedback && npm run build
+
+build-shop-chat-agent:
+	cd shop-chat-agent && npm run build
 
 build-backend:
 	cd backend && go build -o bin/api ./cmd/main.go
@@ -62,8 +62,6 @@ build-backend:
 clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
-	rm -rf frontend-mobile/dist
-	rm -rf frontend-mobile/node_modules
 	rm -rf frontend-feedback/dist
 	rm -rf frontend-feedback/node_modules
 	rm -rf backend/bin
