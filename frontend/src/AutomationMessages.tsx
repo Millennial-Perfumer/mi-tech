@@ -10,6 +10,8 @@ interface Message {
   customer_name: string;
   phone_number: string;
   template_name: string;
+  message_text: string;
+  payload: any;
   status: string;
   sent_at: string;
   delivered_at: string | null;
@@ -35,6 +37,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTemplates, setActiveTemplates] = useState<string[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const limit = 25;
 
   // Debounce search query
@@ -101,6 +104,23 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
     if (digits.length === 10) normalized = '91' + digits;
     else if (!digits.startsWith('91')) normalized = '91' + digits;
     return `+${normalized.slice(0, 2)} ${normalized.slice(2)}`;
+  };
+
+  const messagePreview = (m: Message) => {
+    const text = m.message_text || '';
+    if (!text) return '';
+    return text.length > 90 ? text.slice(0, 90) + '…' : text;
+  };
+
+  const formatDetailTime = (ts: string | null) => {
+    if (!ts) return '-';
+    return new Date(ts).toLocaleString([], {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -197,6 +217,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
               <th>Order Details</th>
               <th>Destination</th>
               <th>Template</th>
+              <th>Message</th>
               <th>Delivery Status</th>
               <th>Delivered At</th>
               <th>Read At</th>
@@ -204,13 +225,13 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
           </thead>
           <tbody>
             {isLoading && messages.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '4rem' }}>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '4rem' }}>
                 <div className="dot-flashing" style={{ margin: '0 auto 1rem' }}></div>
                 Loading message logs...
               </td></tr>
             ) : messages.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
                   <div style={{ marginBottom: '1.25rem', opacity: 0.5 }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -226,7 +247,7 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
               </tr>
             ) : (
               messages.map(m => (
-                <tr key={m.id}>
+                <tr key={m.id} className="log-row" onClick={() => setSelectedMessage(m)}>
                   <td className="time-cell">
                     {new Date(m.sent_at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </td>
@@ -243,6 +264,19 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
                   </td>
                   <td style={{ fontWeight: 500 }}>{formatPhoneNumber(m.phone_number)}</td>
                   <td><span className="template-code">{m.template_name || 'Deleted Template'}</span></td>
+                  <td>
+                    <div className="message-preview">
+                      {m.message_text ? (
+                        <span className="message-preview-text" title={m.message_text}>{messagePreview(m)}</span>
+                      ) : (
+                        <span className="message-preview-empty">Content not stored</span>
+                      )}
+                      <svg className="message-preview-icon" aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    </div>
+                  </td>
                   <td>{getStatusBadge(m.status)}</td>
                   <td className="time-cell">
                     {m.delivered_at ? new Date(m.delivered_at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
@@ -280,6 +314,81 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {selectedMessage && (
+        <div className="modal-overlay" onClick={() => setSelectedMessage(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '760px', width: '92%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h3>Message Detail</h3>
+              <button type="button" aria-label="Close modal" className="close-btn" onClick={() => setSelectedMessage(null)}>&times;</button>
+            </div>
+
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem 1.5rem', marginBottom: '1.5rem', padding: '1rem 1.25rem', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div>
+                  <div className="msg-detail-label">Template</div>
+                  <div className="msg-detail-value">{selectedMessage.template_name || 'Deleted Template'}</div>
+                </div>
+                <div>
+                  <div className="msg-detail-label">Destination</div>
+                  <div className="msg-detail-value">{formatPhoneNumber(selectedMessage.phone_number)}</div>
+                </div>
+                <div>
+                  <div className="msg-detail-label">Order</div>
+                  <div className="msg-detail-value">
+                    {selectedMessage.order_number ? `#${String(selectedMessage.order_number).replace(/^#/, '')}` : (selectedMessage.order_id ? `#${selectedMessage.order_id}` : (selectedMessage.template_name?.includes('verification') ? 'System/Auth' : 'Bulk/Test'))}
+                  </div>
+                </div>
+                <div>
+                  <div className="msg-detail-label">Status</div>
+                  <div className="msg-detail-value">{getStatusBadge(selectedMessage.status)}</div>
+                </div>
+                <div>
+                  <div className="msg-detail-label">Sent At</div>
+                  <div className="msg-detail-value">{formatDetailTime(selectedMessage.sent_at)}</div>
+                </div>
+                <div>
+                  <div className="msg-detail-label">Delivered At</div>
+                  <div className="msg-detail-value">{formatDetailTime(selectedMessage.delivered_at)}</div>
+                </div>
+                <div>
+                  <div className="msg-detail-label">Read At</div>
+                  <div className="msg-detail-value">{formatDetailTime(selectedMessage.read_at)}</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <div className="msg-detail-label" style={{ marginBottom: '0.4rem' }}>Message</div>
+                {selectedMessage.message_text ? (
+                  <div className="message-text-box">{selectedMessage.message_text}</div>
+                ) : (
+                  <div className="message-text-box message-text-empty">
+                    No message content stored for this record (content capture was added later).
+                  </div>
+                )}
+              </div>
+
+              {selectedMessage.error_message && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div className="msg-detail-label" style={{ marginBottom: '0.4rem' }}>Error</div>
+                  <div className="payload-box" style={{ color: 'var(--status-danger)' }}>{selectedMessage.error_message}</div>
+                </div>
+              )}
+
+              {selectedMessage.payload && (
+                <div>
+                  <div className="msg-detail-label" style={{ marginBottom: '0.4rem' }}>Raw Payload</div>
+                  <pre className="payload-box">{JSON.stringify(selectedMessage.payload, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '1rem' }}>
+              <button className="btn btn-secondary" onClick={() => setSelectedMessage(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}

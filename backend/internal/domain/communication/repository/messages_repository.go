@@ -48,12 +48,16 @@ func (r *sqlMessagesRepository) SaveMessage(m entity.AutomationMessage) (int, er
 	} else {
 		m.SentAt = m.SentAt.UTC()
 	}
+	var payloadArg interface{}
+	if len(m.Payload) > 0 {
+		payloadArg = []byte(m.Payload)
+	}
 	query := `
-		INSERT INTO automation_messages (store_id, template_id, order_id, phone_number, message_id, status, sent_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO automation_messages (store_id, template_id, order_id, phone_number, message_id, message_text, payload, status, sent_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id`
 	var id int
-	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.Status, m.SentAt).Scan(&id)
+	err := r.db.QueryRow(query, m.StoreID, m.TemplateID, m.OrderID, m.PhoneNumber, m.MessageID, m.MessageText, payloadArg, m.Status, m.SentAt).Scan(&id)
 	return id, err
 }
 
@@ -96,7 +100,7 @@ func (r *sqlMessagesRepository) UpdateMessageStatus(messageID, status string) er
 }
 
 func (r *sqlMessagesRepository) GetMessagesByOrderID(orderID int64) ([]entity.AutomationMessage, error) {
-	query := `SELECT id, store_id, template_id, order_id, phone_number, message_id, status, sent_at FROM automation_messages WHERE order_id = $1`
+	query := `SELECT id, store_id, template_id, order_id, phone_number, message_id, message_text, payload, status, sent_at FROM automation_messages WHERE order_id = $1`
 	rows, err := r.db.Query(query, orderID)
 	if err != nil {
 		return nil, err
@@ -106,9 +110,13 @@ func (r *sqlMessagesRepository) GetMessagesByOrderID(orderID int64) ([]entity.Au
 	var messages []entity.AutomationMessage
 	for rows.Next() {
 		var m entity.AutomationMessage
-		err := rows.Scan(&m.ID, &m.StoreID, &m.TemplateID, &m.OrderID, &m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt)
+		var payload []byte
+		err := rows.Scan(&m.ID, &m.StoreID, &m.TemplateID, &m.OrderID, &m.PhoneNumber, &m.MessageID, &m.MessageText, &payload, &m.Status, &m.SentAt)
 		if err != nil {
 			return nil, err
+		}
+		if payload != nil {
+			m.Payload = json.RawMessage(payload)
 		}
 		messages = append(messages, m)
 	}
@@ -120,7 +128,7 @@ func (r *sqlMessagesRepository) GetMessages(storeID string, startDate, endDate *
 		SELECT 
 			m.id, m.store_id, m.template_id, t.template_name, 
 			m.order_id, o.order_number, o.customer_name,
-			m.phone_number, m.message_id, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
+			m.phone_number, m.message_id, m.message_text, m.payload, m.status, m.sent_at, m.delivered_at, m.read_at, m.error_message 
 		FROM automation_messages m
 		LEFT JOIN automation_templates t ON m.template_id = t.id
 		LEFT JOIN orders o ON m.order_id = o.id
@@ -168,14 +176,18 @@ func (r *sqlMessagesRepository) GetMessages(storeID string, startDate, endDate *
 	for rows.Next() {
 		var m entity.AutomationMessage
 		var templateNameVal, orderNumber, customerName, errorMsg sql.NullString
+		var payload []byte
 		err := rows.Scan(
 			&m.ID, &m.StoreID, &m.TemplateID, &templateNameVal,
 			&m.OrderID, &orderNumber, &customerName,
-			&m.PhoneNumber, &m.MessageID, &m.Status, &m.SentAt,
+			&m.PhoneNumber, &m.MessageID, &m.MessageText, &payload, &m.Status, &m.SentAt,
 			&m.DeliveredAt, &m.ReadAt, &errorMsg,
 		)
 		if err != nil {
 			return nil, err
+		}
+		if payload != nil {
+			m.Payload = json.RawMessage(payload)
 		}
 		m.TemplateName = templateNameVal.String
 		m.OrderNumber = orderNumber.String

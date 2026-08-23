@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +19,7 @@ import (
 
 // Messenger defines the interface for sending WhatsApp notifications.
 type Messenger interface {
-	SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}) error
+	SendTemplateMessage(storeID string, templateID int, orderID int64, phoneNumber, templateName, languageCode string, components []interface{}, messageText string, payload []byte) error
 }
 
 // AuthService coordinates session management and 2FA.
@@ -109,7 +111,13 @@ func (s *AuthService) SendOTP(user *entity.User) error {
 		return fmt.Errorf("failed to query OTP template ID: %w", err)
 	}
 
-	return s.messagesService.SendTemplateMessage(config.StoreIDShopify, templateID, 0, user.PhoneNumber, "login_verification_template", "en", components)
+	// Never persist the OTP itself; mask it in anything written to message logs.
+	maskedOTP := "******"
+	payloadJSON, _ := json.Marshal(components)
+	maskedPayload := bytes.ReplaceAll(payloadJSON, []byte(otpStr), []byte(maskedOTP))
+	messageText := fmt.Sprintf("Your verification code is %s", maskedOTP)
+
+	return s.messagesService.SendTemplateMessage(config.StoreIDShopify, templateID, 0, user.PhoneNumber, "login_verification_template", "en", components, messageText, maskedPayload)
 }
 
 func (s *AuthService) VerifyOTP(username, otp string) (string, error) {

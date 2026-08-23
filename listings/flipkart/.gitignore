@@ -1,0 +1,5 @@
+.imgcache/
+screenshots/
+logs/
+results.json
+manifest.json

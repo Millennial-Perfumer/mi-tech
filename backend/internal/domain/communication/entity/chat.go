@@ -34,18 +34,20 @@ type ChatMessage struct {
 }
 
 type AutomationMessage struct {
-	ID           int        `json:"id"`
-	StoreID      string     `json:"store_id"`
-	TemplateID   int        `json:"template_id"`
-	TemplateName string     `json:"template_name"`
-	OrderID      int64      `json:"order_id"`
-	OrderNumber  string     `json:"order_number"`
-	CustomerName string     `json:"customer_name"`
-	PhoneNumber  string     `json:"phone_number"`
-	MessageID    string     `json:"message_id"`
-	Status       string     `json:"status"`
-	SentAt       time.Time  `json:"sent_at"`
-	DeliveredAt  *time.Time `json:"delivered_at"`
-	ReadAt       *time.Time `json:"read_at"`
-	ErrorMessage string     `json:"error_message"`
+	ID           int             `json:"id"`
+	StoreID      string          `json:"store_id"`
+	TemplateID   int             `json:"template_id"`
+	TemplateName string          `json:"template_name"`
+	OrderID      int64           `json:"order_id"`
+	OrderNumber  string          `json:"order_number"`
+	CustomerName string          `json:"customer_name"`
+	PhoneNumber  string          `json:"phone_number"`
+	MessageID    string          `json:"message_id"`
+	MessageText  string          `json:"message_text"`
+	Payload      json.RawMessage `json:"payload,omitempty"`
+	Status       string          `json:"status"`
+	SentAt       time.Time       `json:"sent_at"`
+	DeliveredAt  *time.Time      `json:"delivered_at"`
+	ReadAt       *time.Time      `json:"read_at"`
+	ErrorMessage string          `json:"error_message"`
 }
