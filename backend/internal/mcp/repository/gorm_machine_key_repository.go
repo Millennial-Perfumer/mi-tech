@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"time"
 
 	"mi-tech/internal/mcp/entity"
@@ -12,6 +13,51 @@ import (
 type gormMachineKeyRepository struct {
 	db *gorm.DB
 }
+
+// machineKeyRow keeps the PostgreSQL array at the SQL boundary. Scanning a
+// text[] directly into []string is not supported consistently by the pgx
+// database/sql adapter used by GORM; array_to_json gives us a portable scalar
+// value that can be decoded into the entity's public []string field.
+type machineKeyRow struct {
+	ID              int64      `gorm:"column:id"`
+	Name            string     `gorm:"column:name"`
+	KeyHash         string     `gorm:"column:key_hash"`
+	ScopesJSON      string     `gorm:"column:scopes_json"`
+	RateLimitPerMin int        `gorm:"column:rate_limit_per_min"`
+	ExpiresAt       *time.Time `gorm:"column:expires_at"`
+	RevokedAt       *time.Time `gorm:"column:revoked_at"`
+	CreatedAt       time.Time  `gorm:"column:created_at"`
+	UpdatedAt       time.Time  `gorm:"column:updated_at"`
+	LastUsedAt      *time.Time `gorm:"column:last_used_at"`
+}
+
+func (r machineKeyRow) entity() (entity.MachineAPIKey, error) {
+	key := entity.MachineAPIKey{
+		ID:              r.ID,
+		Name:            r.Name,
+		KeyHash:         r.KeyHash,
+		RateLimitPerMin: r.RateLimitPerMin,
+		ExpiresAt:       r.ExpiresAt,
+		RevokedAt:       r.RevokedAt,
+		CreatedAt:       r.CreatedAt,
+		UpdatedAt:       r.UpdatedAt,
+		LastUsedAt:      r.LastUsedAt,
+	}
+	if r.ScopesJSON == "" || r.ScopesJSON == "null" {
+		return key, nil
+	}
+	if err := json.Unmarshal([]byte(r.ScopesJSON), &key.Scopes); err != nil {
+		return entity.MachineAPIKey{}, err
+	}
+	return key, nil
+}
+
+const machineKeySelect = `
+	SELECT id, name, key_hash,
+	       COALESCE(array_to_json(scopes)::text, '[]') AS scopes_json,
+	       rate_limit_per_min, expires_at, revoked_at,
+	       created_at, updated_at, last_used_at
+	FROM machine_api_keys`
 
 // NewMachineKeyRepository creates a new MachineKeyRepository.
 func NewMachineKeyRepository(db *gorm.DB) MachineKeyRepository {
@@ -27,17 +73,33 @@ func (r *gormMachineKeyRepository) Create(key *entity.MachineAPIKey) error {
 }
 
 func (r *gormMachineKeyRepository) FindByHash(hash string) (*entity.MachineAPIKey, error) {
-	var key entity.MachineAPIKey
-	if err := r.db.Where("key_hash = ?", hash).First(&key).Error; err != nil {
+	var row machineKeyRow
+	result := r.db.Raw(machineKeySelect+` WHERE key_hash = ?`, hash).Scan(&row)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	key, err := row.entity()
+	if err != nil {
 		return nil, err
 	}
 	return &key, nil
 }
 
 func (r *gormMachineKeyRepository) List() ([]entity.MachineAPIKey, error) {
-	var keys []entity.MachineAPIKey
-	if err := r.db.Order("created_at DESC").Find(&keys).Error; err != nil {
+	var rows []machineKeyRow
+	if err := r.db.Raw(machineKeySelect + ` ORDER BY created_at DESC`).Scan(&rows).Error; err != nil {
 		return nil, err
+	}
+	keys := make([]entity.MachineAPIKey, 0, len(rows))
+	for _, row := range rows {
+		key, err := row.entity()
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
 	}
 	return keys, nil
 }
