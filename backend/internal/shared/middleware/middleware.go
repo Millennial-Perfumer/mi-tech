@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,10 +11,18 @@ import (
 	"time"
 
 	userServicePkg "mi-tech/internal/domain/user/service"
+	mcpPkg "mi-tech/internal/mcp"
 	"mi-tech/internal/shared/telemetry"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+// Context keys for machine-key identity injected by MachineKeyMiddleware.
+const (
+	ctxMachineKeyID     = "machineKeyID"
+	ctxMachineKeyName   = "machineKeyName"
+	ctxMachineKeyScopes = "machineScopes"
 )
 
 // normalizeOrigin trims spaces and trailing slashes from a URL string for consistent comparison.
@@ -156,6 +165,62 @@ func RequireRole(allowedRoles ...string) func(http.Handler) http.Handler {
 
 			log.Printf("RequireRole: success. role=%s, allowed=%v", role, allowedRoles)
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// MachineKeyMiddleware authenticates requests using a dedicated machine API key.
+// It never accepts user JWTs; only keys with the mtk_ prefix are valid.
+func MachineKeyMiddleware(keyService *mcpPkg.MachineKeyService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				http.Error(w, "authorization header missing", http.StatusUnauthorized)
+				return
+			}
+
+			parts := strings.Split(authHeader, " ")
+			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+				http.Error(w, "invalid authorization header format", http.StatusUnauthorized)
+				return
+			}
+
+			key, err := keyService.Authenticate(parts[1])
+			if err != nil {
+				status := http.StatusUnauthorized
+				if errors.Is(err, mcpPkg.ErrRateLimited) {
+					status = http.StatusTooManyRequests
+					w.Header().Set("Retry-After", "60")
+				}
+				http.Error(w, err.Error(), status)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), ctxMachineKeyID, key.ID)
+			ctx = context.WithValue(ctx, ctxMachineKeyName, key.Name)
+			ctx = context.WithValue(ctx, ctxMachineKeyScopes, key.Scopes)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// RequireScope enforces that the authenticated machine key grants the given scope.
+func RequireScope(scope string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			scopes, ok := r.Context().Value(ctxMachineKeyScopes).([]string)
+			if !ok {
+				http.Error(w, "unauthorized: machine key context missing", http.StatusUnauthorized)
+				return
+			}
+			for _, s := range scopes {
+				if s == scope {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			http.Error(w, "forbidden: insufficient scope", http.StatusForbidden)
 		})
 	}
 }

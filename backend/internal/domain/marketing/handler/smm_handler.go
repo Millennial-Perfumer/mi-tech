@@ -6,8 +6,11 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -190,6 +193,7 @@ func (h *SMMHandler) GetPostInsights(w http.ResponseWriter, r *http.Request) {
 func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 	var input service.CreateQueueInput
 	var fileHeaders []*multipart.FileHeader
+	var inMemoryFiles []service.InMemoryFile
 
 	contentType := r.Header.Get("Content-Type")
 	log.Printf("[SMM Queue Log] Incoming request Content-Type: %s", contentType)
@@ -222,12 +226,29 @@ func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if len(input.MediaURLs) > 0 {
+		if len(input.MediaURLs) > 10 {
+			http.Error(w, "a maximum of 10 media URLs is allowed", http.StatusBadRequest)
+			return
+		}
+		for _, mediaURL := range input.MediaURLs {
+			media, err := downloadQueueMedia(mediaURL)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("media URL rejected: %v", err), http.StatusBadRequest)
+				return
+			}
+			input.MediaFilenames = append(input.MediaFilenames, media.Name)
+			inMemoryFiles = append(inMemoryFiles, media)
+		}
+	}
+
 	log.Printf("[SMM Queue Log] Processing post - type: %s, caption: %q, hashtags: %q, files count: %d", input.PostType, input.Caption, input.Hashtags, len(fileHeaders))
 
 	post, err := h.socialService.CreateQueueItem(input)
 	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
 		log.Printf("[SMM Queue Log] Failed to insert DB post record: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   err.Error(),
@@ -237,7 +258,6 @@ func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 
 	// Stream files directly from RAM memory into Google Drive (Zero Disk Writes)
 	if post != nil {
-		var inMemoryFiles []service.InMemoryFile
 		for _, fHeader := range fileHeaders {
 			file, err := fHeader.Open()
 			if err == nil {
@@ -343,6 +363,72 @@ func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+const maxMCPQueueMediaBytes = 50 << 20
+
+// downloadQueueMedia accepts only public HTTPS media URLs for MCP publishing.
+// The size and content-type limits prevent the MCP write surface from becoming
+// an unrestricted server-side fetch or memory exhaustion endpoint.
+func downloadQueueMedia(rawURL string) (service.InMemoryFile, error) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || !isPublicQueueMediaURL(parsed) {
+		return service.InMemoryFile{}, fmt.Errorf("only public HTTPS URLs are allowed")
+	}
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if !isPublicQueueMediaURL(req.URL) {
+				return fmt.Errorf("redirect target is not a public HTTPS URL")
+			}
+			return nil
+		},
+	}
+	resp, err := client.Get(parsed.String())
+	if err != nil {
+		return service.InMemoryFile{}, fmt.Errorf("download failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return service.InMemoryFile{}, fmt.Errorf("download returned HTTP %d", resp.StatusCode)
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if idx := strings.IndexByte(contentType, ';'); idx >= 0 {
+		contentType = contentType[:idx]
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if !strings.HasPrefix(contentType, "image/") && !strings.HasPrefix(contentType, "video/") {
+		return service.InMemoryFile{}, fmt.Errorf("unsupported media type %q", contentType)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxMCPQueueMediaBytes+1))
+	if err != nil {
+		return service.InMemoryFile{}, fmt.Errorf("read failed: %w", err)
+	}
+	if len(data) > maxMCPQueueMediaBytes {
+		return service.InMemoryFile{}, fmt.Errorf("file exceeds 50 MB limit")
+	}
+	name := path.Base(parsed.Path)
+	if name == "." || name == "/" || name == "" {
+		name = "media"
+	}
+	return service.InMemoryFile{Name: name, Data: data, MimeType: contentType}, nil
+}
+
+func isPublicQueueMediaURL(parsed *url.URL) bool {
+	if parsed == nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || host == "localhost.localdomain" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()) {
+		return false
+	}
+	return true
+}
+
 // dispatchQueueToN8n sends an asynchronous webhook notification to n8n for auto GDrive upload
 func dispatchQueueToN8n(webhookURL string, folderName string, folderPath string) {
 	log.Printf("[SMM Webhook Log] Dispatching queue folder %s to n8n webhook: %s", folderName, webhookURL)
@@ -386,4 +472,3 @@ func (h *SMMHandler) GetQueue(w http.ResponseWriter, r *http.Request) {
 		"posts":   posts,
 	})
 }
-

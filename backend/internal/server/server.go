@@ -50,16 +50,22 @@ import (
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
 	webhookRepoPkg "mi-tech/internal/domain/webhook/repository"
 	webhookServicePkg "mi-tech/internal/domain/webhook/service"
+	mcpServicePkg "mi-tech/internal/mcp"
+	mcpHandlerPkg "mi-tech/internal/mcp/handler"
+	mcpRepoPkg "mi-tech/internal/mcp/repository"
 	"mi-tech/internal/shared/config"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	configRepoPkg "mi-tech/internal/shared/config/repository"
 	"mi-tech/internal/shared/database"
 	"mi-tech/internal/shared/extclient/amazon"
 	"mi-tech/internal/shared/extclient/shopify"
+	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 	systemServicePkg "mi-tech/internal/shared/system/service"
 	"net/http"
 	"time"
+
+	mcpSDK "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
@@ -68,10 +74,13 @@ import (
 type Server struct {
 	port              string
 	mux               *http.ServeMux
+	readOnlyMux       *http.ServeMux
 	db                *gorm.DB
 	amzPoller         *syncServicePkg.AmazonOrderPoller
 	feedbackScheduler *feedbackServicePkg.FeedbackScheduler
 	checkoutScheduler *abandonedCheckoutService.AbandonedRecoveryScheduler
+	auditService      *mcpServicePkg.AuditService
+	mcpExecutor       mcpServicePkg.Executor
 }
 
 func New() (*Server, error) {
@@ -118,6 +127,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	aiMemRepo := aiRepoPkg.NewAIMemoryRepository(db)
 	b2bRepo := b2bRepoPkg.NewB2BRepository(db)
 	acRepo := abandonedCheckoutRepo.NewAbandonedCheckoutRepository(db)
+	machineKeyRepo := mcpRepoPkg.NewMachineKeyRepository(db)
+	auditLogRepo := mcpRepoPkg.NewAuditLogRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -157,6 +168,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	socialService := marketingServicePkg.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := systemServicePkg.NewSystemService("../docs")
 	aiService := aiServicePkg.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
+	machineKeyService := mcpServicePkg.NewMachineKeyService(machineKeyRepo)
+	auditService := mcpServicePkg.NewAuditService(auditLogRepo, 256)
 	b2bService := b2bServicePkg.NewB2BService(b2bRepo, settingsProvider, db)
 	acService := abandonedCheckoutService.NewAbandonedCheckoutService(acRepo, whatsappRepo, messagesService, settingsProvider)
 	checkoutScheduler := abandonedCheckoutService.NewAbandonedRecoveryScheduler(acService)
@@ -192,6 +205,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
 	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
 	judgeMeHandler := marketingHandlerPkg.NewJudgeMeHandler(judgeMeService)
+	machineKeyHandler := mcpHandlerPkg.NewMachineKeyHandler(machineKeyService)
 
 	RegisterRoutes(
 		mux,
@@ -223,22 +237,79 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		b2bHandler,
 		acHandler,
 		judgeMeHandler,
+		machineKeyHandler,
 		authService,
 	)
+
+	// Mount the read-only MCP server over Streamable HTTP, behind machine-key auth.
+	// Tool registration is scoped per-session from the authenticated key's scopes.
+	// The executor routes tool calls to the internal read-only (GET-only) mux.
+	readOnlyMux := http.NewServeMux()
+	registerReadOnlyRoutes(readOnlyMux, readOnlyHandlers{
+		orderHandler:      orderHandler,
+		customerHandler:   customerHandler,
+		metricsHandler:    metricsHandler,
+		reportHandler:     reportHandler,
+		inventoryHandler:  inventoryHandler,
+		oilHandler:        oilHandler,
+		supplierHandler:   supplierHandler,
+		poHandler:         poHandler,
+		mfgHandler:        mfgHandler,
+		b2bHandler:        b2bHandler,
+		automationHandler: automationHandler,
+		marketingHandler:  marketingHandler,
+		smmHandler:        smmHandler,
+		judgeMeHandler:    judgeMeHandler,
+		feedbackHandler:   feedbackHandler,
+		acHandler:         acHandler,
+		plannerHandler:    plannerHandler,
+		ticketHandler:     ticketHandler,
+		aiHandler:         aiHandler,
+		settingsHandler:   settingsHandler,
+		systemHandler:     systemHandler,
+	})
+	mcpWriteHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		smmHandler.QueuePost(w, r)
+	})
+	mcpExecutor := mcpServicePkg.NewMuxExecutorWithWriteHandler(readOnlyMux, mcpWriteHandler)
+
+	mcpHandler := mcpServicePkg.HTTPHandler(func(scopes []string) *mcpSDK.Server {
+		return mcpServicePkg.BuildServer(mcpServicePkg.DefaultCatalog, mcpExecutor, auditService, scopes)
+	}, mcpServicePkg.HTTPHandlerOptions{Stateless: true})
+	mux.Handle("/mcp", middleware.MachineKeyMiddleware(machineKeyService)(mcpHandler))
+	log.Println("MCP server mounted at /mcp (Streamable HTTP, machine-key auth)")
 
 	feedbackScheduler := feedbackServicePkg.NewFeedbackScheduler(settingsProvider, feedbackService, mappingService, whatsappRepo)
 
 	return &Server{
 		port:              cfg.Port,
 		mux:               mux,
+		readOnlyMux:       readOnlyMux,
 		db:                db,
 		amzPoller:         amazonOrderPoller,
 		feedbackScheduler: feedbackScheduler,
 		checkoutScheduler: checkoutScheduler,
+		auditService:      auditService,
+		mcpExecutor:       mcpExecutor,
 	}
 }
 
+// MCPServer returns a scope-filtered SDK MCP server for stdio/local usage.
+// Unlike the HTTP transport, stdio has no request middleware, so the key
+// identity is explicitly bound to the executor as well.
+func (s *Server) MCPServer(keyID int64, keyName string, scopes []string) *mcpSDK.Server {
+	executor := mcpServicePkg.WithMachineIdentity(s.mcpExecutor, keyID, keyName, scopes)
+	return mcpServicePkg.BuildServer(mcpServicePkg.DefaultCatalog, executor, s.auditService, scopes)
+}
+
 func (s *Server) Run() error {
+	if s.auditService != nil {
+		defer s.auditService.Close()
+	}
 	server := &http.Server{
 		Addr:              ":" + s.port,
 		Handler:           otelhttp.NewHandler(s.mux, "mi-tech-api"),

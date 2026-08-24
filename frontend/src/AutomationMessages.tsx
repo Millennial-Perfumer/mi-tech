@@ -106,12 +106,6 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
     return `+${normalized.slice(0, 2)} ${normalized.slice(2)}`;
   };
 
-  const messagePreview = (m: Message) => {
-    const text = m.message_text || '';
-    if (!text) return '';
-    return text.length > 90 ? text.slice(0, 90) + '…' : text;
-  };
-
   const formatDetailTime = (ts: string | null) => {
     if (!ts) return '-';
     return new Date(ts).toLocaleString([], {
@@ -217,7 +211,6 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
               <th>Order Details</th>
               <th>Destination</th>
               <th>Template</th>
-              <th>Message</th>
               <th>Delivery Status</th>
               <th>Delivered At</th>
               <th>Read At</th>
@@ -225,13 +218,13 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
           </thead>
           <tbody>
             {isLoading && messages.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '4rem' }}>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '4rem' }}>
                 <div className="dot-flashing" style={{ margin: '0 auto 1rem' }}></div>
                 Loading message logs...
               </td></tr>
             ) : messages.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
                   <div style={{ marginBottom: '1.25rem', opacity: 0.5 }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -264,19 +257,6 @@ export function AutomationMessages({ fetchWithAuth, startDate, endDate, onDateCh
                   </td>
                   <td style={{ fontWeight: 500 }}>{formatPhoneNumber(m.phone_number)}</td>
                   <td><span className="template-code">{m.template_name || 'Deleted Template'}</span></td>
-                  <td>
-                    <div className="message-preview">
-                      {m.message_text ? (
-                        <span className="message-preview-text" title={m.message_text}>{messagePreview(m)}</span>
-                      ) : (
-                        <span className="message-preview-empty">Content not stored</span>
-                      )}
-                      <svg className="message-preview-icon" aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </div>
-                  </td>
                   <td>{getStatusBadge(m.status)}</td>
                   <td className="time-cell">
                     {m.delivered_at ? new Date(m.delivered_at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}

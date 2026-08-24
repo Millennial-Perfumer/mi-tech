@@ -1,0 +1,10 @@
+{
+  "mcp_servers": {
+    "mi-tech": {
+      "url": "https://mi-tech-api.millennialperfumer.in/mcp",
+      "headers": {
+        "Authorization": "Bearer mtk_REPLACE_WITH_YOUR_KEY"
+      }
+    }
+  }
+}

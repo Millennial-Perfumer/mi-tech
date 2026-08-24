@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mi-tech": {
+      "command": "/abs/path/to/backend/bin/mcp",
+      "env": {
+        "MCP_API_KEY": "mtk_REPLACE_WITH_YOUR_KEY",
+        "DB_DSN": "postgres://postgres:password@localhost:5432/mi-tech?sslmode=disable"
+      }
+    }
+  }
+}

@@ -15,6 +15,7 @@ type CreateQueueInput struct {
 	PostType        string   `json:"post_type"` // 'SINGLE_PHOTO', 'CAROUSEL', 'VIDEO'
 	TargetPlatforms []string `json:"target_platforms"`
 	MediaFilenames  []string `json:"media_filenames"`
+	MediaURLs       []string `json:"media_urls"`
 }
 
 type SocialService interface {
@@ -407,7 +408,6 @@ func (s *socialService) CreateQueueItem(input CreateQueueInput) (*entity.SocialQ
 func (s *socialService) GetQueueItems(limit int) ([]entity.SocialQueuePost, error) {
 	return s.repo.ListQueuePosts(limit)
 }
-
 
 func (s *socialService) CheckAssetHealth() (*AssetHealth, error) {
 	return s.metaClient.CheckAssetAlignment()

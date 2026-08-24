@@ -2037,6 +2037,7 @@ function App() {
           {activeTab === 'settings' && (
             <SettingsTab
               fetchWithAuth={fetchWithAuth}
+              userRole={userRole}
             />
           )}
 

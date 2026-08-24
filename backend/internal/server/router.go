@@ -22,6 +22,7 @@ import (
 	userHandlerPkg "mi-tech/internal/domain/user/handler"
 	userServicePkg "mi-tech/internal/domain/user/service"
 	webhookHandlerPkg "mi-tech/internal/domain/webhook/handler"
+	mcpHandlerPkg "mi-tech/internal/mcp/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	"mi-tech/internal/shared/middleware"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
@@ -63,6 +64,7 @@ func RegisterRoutes(
 	b2bHandler *b2bHandlerPkg.B2BHandler,
 	acHandler *abandonedCheckoutHandlerPkg.AbandonedCheckoutHandler,
 	judgeMeHandler *marketingHandlerPkg.JudgeMeHandler,
+	machineKeyHandler *mcpHandlerPkg.MachineKeyHandler,
 	authService *userServicePkg.AuthService,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
@@ -492,4 +494,26 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/abandoned-checkouts/recover", adminProtected(acHandler.RecoverCheckout))
 	mux.HandleFunc("/api/abandoned-checkouts/analytics", protected(acHandler.GetAbandonedCheckoutAnalytics))
 	mux.HandleFunc("/api/abandoned-checkouts/status", adminProtected(acHandler.UpdateCheckoutStatus))
+
+	// --- Machine API Key Management (MCP) ---
+	mux.HandleFunc("/api/mcp/keys", adminProtected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			machineKeyHandler.CreateKey(w, r)
+		case http.MethodGet:
+			machineKeyHandler.ListKeys(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/mcp/keys/", adminProtected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			machineKeyHandler.RotateKey(w, r)
+		case http.MethodDelete:
+			machineKeyHandler.RevokeKey(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 }
