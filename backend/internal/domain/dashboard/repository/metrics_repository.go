@@ -9,6 +9,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Dashboard date filters are calendar dates in the application's business
+// timezone. The web dashboard uses Asia/Kolkata when constructing ranges, so
+// MCP date-only arguments must use the same timezone rather than the VM's UTC
+// process timezone.
+var dashboardLocation = time.FixedZone("IST", 5*60*60+30*60)
+
 // gormMetricsRepository is the GORM implementation of MetricsRepository.
 type gormMetricsRepository struct {
 	db *gorm.DB
@@ -268,7 +274,7 @@ func parseDate(s string) (time.Time, bool) {
 	if err == nil {
 		return t, false
 	}
-	t, err = time.ParseInLocation("2006-01-02", s, time.Local)
+	t, err = time.ParseInLocation("2006-01-02", s, dashboardLocation)
 	if err == nil {
 		return t, true
 	}

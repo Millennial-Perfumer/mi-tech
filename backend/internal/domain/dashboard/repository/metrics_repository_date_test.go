@@ -16,6 +16,7 @@ func TestParseDateRangeAcceptsMCPDateOnlyArguments(t *testing.T) {
 	require.Equal(t, 0, start.Hour())
 	require.Equal(t, 0, start.Minute())
 	require.Equal(t, 0, start.Second())
+	require.Equal(t, dashboardLocation, start.Location())
 
 	require.Equal(t, 2026, end.Year())
 	require.Equal(t, time.August, end.Month())
