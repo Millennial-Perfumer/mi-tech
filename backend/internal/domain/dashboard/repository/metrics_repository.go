@@ -236,8 +236,8 @@ func (r *gormMetricsRepository) GetGeoDistribution(startDate, endDate string, so
 }
 
 func parseDateRange(startDate, endDate string) (time.Time, time.Time) {
-	start := parseISO(startDate)
-	end := parseISO(endDate)
+	start, _ := parseDate(startDate)
+	end, endIsDateOnly := parseDate(endDate)
 
 	if start.IsZero() {
 		now := time.Now()
@@ -245,21 +245,32 @@ func parseDateRange(startDate, endDate string) (time.Time, time.Time) {
 	}
 	if end.IsZero() {
 		end = time.Now()
+	} else if endIsDateOnly {
+		// Date-only API arguments represent the complete calendar day. Keep the
+		// existing inclusive SQL predicate while including records throughout
+		// the requested end date, not just those at midnight.
+		end = end.Add(24*time.Hour - time.Nanosecond)
 	}
 	return start, end
 }
 
-func parseISO(s string) time.Time {
+// parseDate accepts both the RFC3339 timestamps used by the web dashboard and
+// the YYYY-MM-DD dates used by MCP tools.
+func parseDate(s string) (time.Time, bool) {
 	if s == "" {
-		return time.Time{}
+		return time.Time{}, false
 	}
 	t, err := time.Parse(time.RFC3339, s)
 	if err == nil {
-		return t
+		return t, false
 	}
 	t, err = time.Parse("2006-01-02T15:04:05.000Z", s)
 	if err == nil {
-		return t
+		return t, false
 	}
-	return time.Time{}
+	t, err = time.ParseInLocation("2006-01-02", s, time.Local)
+	if err == nil {
+		return t, true
+	}
+	return time.Time{}, false
 }
