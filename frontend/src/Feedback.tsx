@@ -60,7 +60,7 @@ const Feedback: React.FC<FeedbackProps> = ({
   const totalPages = Math.ceil(feedbacks.length / itemsPerPage) || 1;
   const paginatedFeedbacks = feedbacks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const [googleReviewUrl] = useState('https://search.google.com/local/writereview?placeid=ChIJ-3J013P2DzkRyH0142-b1y0');
+  const [googleReviewUrl] = useState('https://g.page/r/CUFCDosDZRqoEBM/review');
 
   const handlePostJudgeMe = async (feedbackId: number) => {
     setPostingId(feedbackId);
