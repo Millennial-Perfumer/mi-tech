@@ -90,6 +90,11 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           REPO_OWNER: ${{ env.REPO_OWNER }}
+          # These remain GitHub Actions secrets and are forwarded only to the
+          # Compose process on the VM; they are never written to a server .env.
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_MCP_AUTH_TOKEN: ${{ secrets.META_MCP_AUTH_TOKEN }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
@@ -99,7 +104,7 @@ jobs:
           timeout: 60s
           command_timeout: 10m
           use_insecure_cipher: true
-          envs: REPO_OWNER
+          envs: REPO_OWNER,META_ACCESS_TOKEN,META_MCP_AUTH_TOKEN,THREADS_ACCESS_TOKEN
           script: |
             set -eu
             cd ~/mi-tech-app
@@ -112,10 +117,10 @@ jobs:
             export IMAGE_TAG=${{ github.sha }}
 
             # Fast targeted pull of custom app images
-            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback
+            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback meta-mcp-server
 
             # Recreate containers with zero unnecessary downtime
-            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback nginx
+            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback meta-mcp-server nginx
 
             # Ensure n8n is linked to app network for reverse proxying
             docker network connect mi-tech-app_app-network n8n 2>/dev/null || true

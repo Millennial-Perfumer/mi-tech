@@ -9,6 +9,7 @@ Detailed documentation for all backend endpoints, categorized by module.
 - [Authentication](api/auth.md) - Login, 2FA, and session validation.
 - [Users](api/users.md) - Admin-level user management.
 - [MCP Machine API Keys](api/mcp.md) - Machine-to-machine keys for the read-only MCP server.
+- [Meta MCP Server](api/meta-mcp-server.md) - Production Meta Graph API MCP gateway.
 - [Customers](api/customers.md) - CRM and CSV import.
 - [Orders](api/orders.md) - Order management and tracking.
 - [Shopify Sync](api/sync.md) - Manual and automated order synchronization.
