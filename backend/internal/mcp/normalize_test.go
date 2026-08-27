@@ -13,6 +13,19 @@ func TestNormalizeArgsDateRangeValid(t *testing.T) {
 	require.NoError(t, normalizeArgs(tool, args))
 }
 
+func TestNormalizeArgsRequiresDeclaredArguments(t *testing.T) {
+	tool, ok := DefaultCatalog.Lookup("planner_sprint_update")
+	require.True(t, ok)
+
+	err := normalizeArgs(tool, map[string]any{"payload": map[string]any{}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `required argument "id"`)
+
+	err = normalizeArgs(tool, map[string]any{"id": "", "payload": map[string]any{}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must not be empty")
+}
+
 func TestNormalizeArgsDateRangeReversed(t *testing.T) {
 	tool, _ := DefaultCatalog.Lookup("dashboard_metrics")
 	args := map[string]any{"start_date": "2026-08-23", "end_date": "2026-08-01"}

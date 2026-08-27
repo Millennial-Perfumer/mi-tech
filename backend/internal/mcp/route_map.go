@@ -1,16 +1,14 @@
 package mcp
 
 // RouteBinding describes how an MCP tool maps to an internal backend route.
-// The internal MCP mux only ever serves these paths via GET, guaranteeing the
-// read-only guarantee for the whole catalog.
 type RouteBinding struct {
 	// Path is the internal route (no query string).
 	Path string
-	// Method is always http.MethodGet for read-only tools.
+	// Method is the HTTP method used by the internal MCP mux.
 	Method string
 }
 
-// routeMap is the single source of truth for the read-only route surface.
+// routeMap is the single source of truth for the allowlisted route surface.
 // It is keyed by tool name and validated against DefaultCatalog in tests.
 var routeMap = map[string]RouteBinding{
 	// Orders
@@ -96,6 +94,125 @@ var routeMap = map[string]RouteBinding{
 	"system_health":    {Path: "/api/health", Method: "GET"},
 	"system_docs_list": {Path: "/api/system/docs", Method: "GET"},
 	"system_doc_get":   {Path: "/api/system/docs", Method: "GET"},
+	// Orders and customers (write)
+	"orders_create":                {Path: "/api/orders", Method: "POST"},
+	"orders_update":                {Path: "/api/orders", Method: "PUT"},
+	"orders_update_status":         {Path: "/api/orders/status", Method: "PUT"},
+	"orders_update_payment_status": {Path: "/api/orders/payment-status", Method: "PUT"},
+	"orders_mark_delivered":        {Path: "/api/orders/delivered", Method: "PUT"},
+	"customers_create":             {Path: "/api/customers", Method: "POST"},
+	"customers_bulk_delete":        {Path: "/api/customers/bulk-delete", Method: "POST"},
+	"customers_update":             {Path: "/api/customers/", Method: "PUT"},
+	"customers_delete":             {Path: "/api/customers/", Method: "DELETE"},
+	// Product inventory (write)
+	"inventory_create":         {Path: "/api/inventory", Method: "POST"},
+	"inventory_bulk_create":    {Path: "/api/inventory/bulk", Method: "POST"},
+	"inventory_update_item":    {Path: "/api/inventory/item", Method: "PUT"},
+	"inventory_set_stock":      {Path: "/api/inventory/stock", Method: "POST"},
+	"inventory_adjust_stock":   {Path: "/api/inventory/adjust", Method: "POST"},
+	"inventory_create_mapping": {Path: "/api/inventory/map", Method: "POST"},
+	"inventory_delete_mapping": {Path: "/api/inventory/map", Method: "DELETE"},
+	"inventory_sync_shopify":   {Path: "/api/inventory/sync-shopify", Method: "POST"},
+	"inventory_sync_prices":    {Path: "/api/inventory/sync-prices", Method: "POST"},
+	"inventory_sync_amazon":    {Path: "/api/inventory/amazon/sync", Method: "POST"},
+	"inventory_clear":          {Path: "/api/inventory", Method: "DELETE"},
+	// Production (write)
+	"oils_create":                 {Path: "/api/inventory/oil", Method: "POST"},
+	"oils_update":                 {Path: "/api/inventory/oil", Method: "PUT"},
+	"oils_delete":                 {Path: "/api/inventory/oil", Method: "DELETE"},
+	"oils_bulk_delete":            {Path: "/api/inventory/oil/bulk-delete", Method: "POST"},
+	"suppliers_create":            {Path: "/api/inventory/suppliers", Method: "POST"},
+	"suppliers_update":            {Path: "/api/inventory/suppliers", Method: "PUT"},
+	"suppliers_delete":            {Path: "/api/inventory/suppliers", Method: "DELETE"},
+	"purchase_orders_create":      {Path: "/api/inventory/po", Method: "POST"},
+	"purchase_orders_bulk_create": {Path: "/api/inventory/po/bulk", Method: "POST"},
+	"purchase_orders_update":      {Path: "/api/inventory/po", Method: "PUT"},
+	"purchase_orders_delete":      {Path: "/api/inventory/po", Method: "DELETE"},
+	"manufacturing_create":        {Path: "/api/inventory/manufacturing", Method: "POST"},
+	"manufacturing_update":        {Path: "/api/inventory/manufacturing", Method: "PUT"},
+	"manufacturing_delete":        {Path: "/api/inventory/manufacturing", Method: "DELETE"},
+	// Planner (write)
+	"planner_task_create":   {Path: "/api/planner/tasks", Method: "POST"},
+	"planner_task_update":   {Path: "/api/planner/tasks", Method: "PUT"},
+	"planner_task_delete":   {Path: "/api/planner/tasks", Method: "DELETE"},
+	"planner_task_move":     {Path: "/api/planner/tasks/move", Method: "POST"},
+	"planner_sprint_create": {Path: "/api/planner/sprints", Method: "POST"},
+	"planner_sprint_update": {Path: "/api/planner/sprints", Method: "PUT"},
+	"planner_sprint_delete": {Path: "/api/planner/sprints", Method: "DELETE"},
+	// Synchronization and settings (write)
+	"shopify_sync_orders":     {Path: "/api/shopify/sync", Method: "POST"},
+	"shopify_reset_orders":    {Path: "/api/shopify/reset", Method: "POST"},
+	"settings_set_date_range": {Path: "/api/settings/date-range", Method: "PUT"},
+	// Support and abandoned checkouts (write)
+	"support_ticket_create":            {Path: "/api/support/tickets", Method: "POST"},
+	"support_ticket_update":            {Path: "/api/support/tickets/", Method: "PUT"},
+	"abandoned_checkout_recover":       {Path: "/api/abandoned-checkouts/recover", Method: "POST"},
+	"abandoned_checkout_update_status": {Path: "/api/abandoned-checkouts/status", Method: "PUT"},
+	"abandoned_checkout_delete":        {Path: "/api/abandoned-checkouts", Method: "DELETE"},
+	// B2B (write)
+	"b2b_customer_create":                {Path: "/api/b2b/customers", Method: "POST"},
+	"b2b_customer_update":                {Path: "/api/b2b/customers", Method: "PUT"},
+	"b2b_customer_delete":                {Path: "/api/b2b/customers", Method: "DELETE"},
+	"b2b_invoice_create":                 {Path: "/api/b2b/invoices", Method: "POST"},
+	"b2b_invoice_update":                 {Path: "/api/b2b/invoices", Method: "PUT"},
+	"b2b_invoice_delete":                 {Path: "/api/b2b/invoices", Method: "DELETE"},
+	"b2b_invoice_issue":                  {Path: "/api/b2b/invoices/issue", Method: "POST"},
+	"b2b_invoice_cancel":                 {Path: "/api/b2b/invoices/cancel", Method: "POST"},
+	"b2b_invoice_deduct_inventory":       {Path: "/api/b2b/invoices/deduct-inventory", Method: "POST"},
+	"b2b_invoice_revert_inventory":       {Path: "/api/b2b/invoices/revert-inventory", Method: "POST"},
+	"b2b_invoice_update_payment":         {Path: "/api/b2b/invoices/payment", Method: "POST"},
+	"b2b_payment_terms_create_or_update": {Path: "/api/b2b/payment-terms", Method: "POST"},
+	"b2b_payment_terms_update":           {Path: "/api/b2b/payment-terms", Method: "PUT"},
+	"b2b_credit_note_create":             {Path: "/api/b2b/credit-notes", Method: "POST"},
+	"b2b_credit_note_update":             {Path: "/api/b2b/credit-notes", Method: "PUT"},
+	"b2b_credit_note_delete":             {Path: "/api/b2b/credit-notes", Method: "DELETE"},
+	"b2b_credit_note_issue":              {Path: "/api/b2b/credit-notes/issue", Method: "POST"},
+	"b2b_credit_note_cancel":             {Path: "/api/b2b/credit-notes/cancel", Method: "POST"},
+	"b2b_debit_note_create":              {Path: "/api/b2b/debit-notes", Method: "POST"},
+	"b2b_debit_note_update":              {Path: "/api/b2b/debit-notes", Method: "PUT"},
+	"b2b_debit_note_delete":              {Path: "/api/b2b/debit-notes", Method: "DELETE"},
+	"b2b_debit_note_issue":               {Path: "/api/b2b/debit-notes/issue", Method: "POST"},
+	"b2b_debit_note_cancel":              {Path: "/api/b2b/debit-notes/cancel", Method: "POST"},
+	"b2b_proforma_create":                {Path: "/api/b2b/proformas", Method: "POST"},
+	"b2b_proforma_update":                {Path: "/api/b2b/proformas", Method: "PUT"},
+	"b2b_proforma_delete":                {Path: "/api/b2b/proformas", Method: "DELETE"},
+	"b2b_proforma_issue":                 {Path: "/api/b2b/proformas/issue", Method: "POST"},
+	"b2b_proforma_accept":                {Path: "/api/b2b/proformas/accept", Method: "POST"},
+	"b2b_proforma_reject":                {Path: "/api/b2b/proformas/reject", Method: "POST"},
+	"b2b_proforma_cancel":                {Path: "/api/b2b/proformas/cancel", Method: "POST"},
+	"b2b_proforma_create_revision":       {Path: "/api/b2b/proformas/revision", Method: "POST"},
+	"b2b_proforma_convert_to_invoice":    {Path: "/api/b2b/proformas/convert", Method: "POST"},
+	"b2b_proformas_mark_expired":         {Path: "/api/b2b/proformas/check-expiry", Method: "POST"},
+	// WhatsApp automation (write)
+	"whatsapp_template_create":          {Path: "/api/automation/whatsapp/templates", Method: "POST"},
+	"whatsapp_template_update":          {Path: "/api/automation/whatsapp/templates", Method: "PUT"},
+	"whatsapp_template_delete":          {Path: "/api/automation/whatsapp/templates", Method: "DELETE"},
+	"whatsapp_templates_sync_status":    {Path: "/api/automation/whatsapp/templates/sync", Method: "POST"},
+	"whatsapp_templates_sync_all":       {Path: "/api/automation/whatsapp/templates/sync-all", Method: "POST"},
+	"whatsapp_template_sync_single":     {Path: "/api/automation/whatsapp/templates/sync-single", Method: "POST"},
+	"whatsapp_template_fetch":           {Path: "/api/automation/whatsapp/templates/fetch", Method: "POST"},
+	"whatsapp_trigger_create":           {Path: "/api/automation/whatsapp/triggers", Method: "POST"},
+	"whatsapp_trigger_update":           {Path: "/api/automation/whatsapp/triggers", Method: "PUT"},
+	"whatsapp_trigger_delete":           {Path: "/api/automation/whatsapp/triggers", Method: "DELETE"},
+	"whatsapp_send_message":             {Path: "/api/automation/whatsapp/send-message", Method: "POST"},
+	"whatsapp_send_manual":              {Path: "/api/automation/whatsapp/send-manual", Method: "POST"},
+	"whatsapp_send_bulk":                {Path: "/api/automation/whatsapp/send-bulk", Method: "POST"},
+	"whatsapp_conversation_mode_update": {Path: "/api/automation/whatsapp/conversations/mode", Method: "PUT"},
+	"whatsapp_event_create":             {Path: "/api/automation/whatsapp/events", Method: "POST"},
+	"whatsapp_event_delete":             {Path: "/api/automation/whatsapp/events", Method: "DELETE"},
+	"whatsapp_metrics_sync":             {Path: "/api/automation/whatsapp/sync-metrics", Method: "POST"},
+	// Social marketing and reviews (write)
+	"smm_post":                 {Path: "/api/marketing/smm/post", Method: "POST"},
+	"smm_sync":                 {Path: "/api/marketing/smm/sync", Method: "POST"},
+	"judgeme_generate_reviews": {Path: "/api/marketing/judgeme/generate", Method: "POST"},
+	"judgeme_submit_reviews":   {Path: "/api/marketing/judgeme/submit", Method: "POST"},
+	// Feedback and AI (write)
+	"feedback_bulk_send":             {Path: "/api/feedback/bulk-send", Method: "POST"},
+	"feedback_update_comment":        {Path: "/api/orders/feedback/comment", Method: "PUT"},
+	"feedback_post_judgeme":          {Path: "/api/orders/feedback/post-judgeme", Method: "POST"},
+	"feedback_request_google_review": {Path: "/api/orders/feedback/request-google-review", Method: "POST"},
+	"ai_chat":                        {Path: "/api/ai/chat", Method: "POST"},
+	"ai_conversation_delete":         {Path: "/api/ai/conversations", Method: "DELETE"},
 }
 
 // RouteFor returns the binding for a tool name and whether it exists.

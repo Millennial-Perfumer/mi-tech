@@ -4,13 +4,15 @@ package mcp
 type ArgType string
 
 const (
-	ArgString ArgType = "string"
-	ArgInt    ArgType = "integer"
-	ArgNumber ArgType = "number"
+	ArgString  ArgType = "string"
+	ArgInt     ArgType = "integer"
+	ArgNumber  ArgType = "number"
+	ArgObject  ArgType = "object"
+	ArgBoolean ArgType = "boolean"
 )
 
-// ArgSpec describes a single tool input argument. It drives both the MCP JSON
-// input schema and the internal GET query-parameter mapping.
+// ArgSpec describes a single tool input argument. It drives the MCP JSON input
+// schema and the internal request mapping.
 type ArgSpec struct {
 	Name        string
 	Type        ArgType
@@ -19,9 +21,8 @@ type ArgSpec struct {
 	Default     any
 }
 
-// ToolSpec is the single source of truth for one MCP tool. Route is the
-// internal backend path that the tool maps to; Write identifies the explicit
-// publishing exception to the read-only catalog.
+// ToolSpec is the single source of truth for one MCP tool. Route and Method
+// identify the internal backend operation; Write identifies a mutating tool.
 type ToolSpec struct {
 	Name        string
 	Description string
@@ -31,32 +32,59 @@ type ToolSpec struct {
 	// PathArgs lists argument names that are injected into the URL path
 	// (appended after Route) instead of the query string. Order matters.
 	PathArgs []string
-	// Write marks the small set of explicitly authorized MCP mutations.
+	// QueryArgs lists arguments sent as query parameters for write tools.
+	QueryArgs []string
+	// Method is the HTTP method used for dispatch. Empty means GET.
+	Method string
+	// Write marks an explicitly authorized MCP mutation.
 	Write bool
 }
 
 // Catalog is an ordered collection of tool specs.
 type Catalog []ToolSpec
 
-// Scope constants. All MCP scopes are read-only in this release.
+// Scope constants. Read and write scopes are intentionally separate so a
+// machine key can be granted reporting access without mutation access.
 const (
-	ScopeOrders            = "orders:read"
-	ScopeCustomers         = "customers:read"
-	ScopeMetrics           = "metrics:read"
-	ScopeGST               = "gst:read"
-	ScopeInventory         = "inventory:read"
-	ScopeProduction        = "production:read"
-	ScopeB2B               = "b2b:read"
-	ScopeCommunication     = "communication:read"
-	ScopeMarketing         = "marketing:read"
-	ScopeMarketingPublish  = "marketing:publish"
-	ScopeFeedback          = "feedback:read"
-	ScopeAbandonedCheckout = "abandoned_checkout:read"
-	ScopePlanner           = "planner:read"
-	ScopeSupport           = "support:read"
-	ScopeAI                = "ai:read"
-	ScopeSettings          = "settings:read"
-	ScopeSystem            = "system:read"
+	ScopeOrders             = "orders:read"
+	ScopeCustomers          = "customers:read"
+	ScopeMetrics            = "metrics:read"
+	ScopeGST                = "gst:read"
+	ScopeInventory          = "inventory:read"
+	ScopeProduction         = "production:read"
+	ScopeB2B                = "b2b:read"
+	ScopeCommunication      = "communication:read"
+	ScopeMarketing          = "marketing:read"
+	ScopeMarketingPublish   = "marketing:publish"
+	ScopeFeedback           = "feedback:read"
+	ScopeAbandonedCheckout  = "abandoned_checkout:read"
+	ScopePlanner            = "planner:read"
+	ScopeSupport            = "support:read"
+	ScopeAI                 = "ai:read"
+	ScopeSettings           = "settings:read"
+	ScopeSystem             = "system:read"
+	ScopeOrdersWrite        = "orders:write"
+	ScopeCustomersWrite     = "customers:write"
+	ScopeInventoryWrite     = "inventory:write"
+	ScopeProductionWrite    = "production:write"
+	ScopePlannerWrite       = "planner:write"
+	ScopeB2BWrite           = "b2b:write"
+	ScopeCommunicationWrite = "communication:write"
+	ScopeMarketingWrite     = "marketing:write"
+	ScopeFeedbackWrite      = "feedback:write"
+	ScopeSupportWrite       = "support:write"
+	ScopeSettingsWrite      = "settings:write"
+	ScopeAIWrite            = "ai:write"
+	// Destructive scopes are separate from ordinary operational writes so a
+	// leaked or narrowly delegated key cannot delete/reset data by default.
+	ScopeOrdersDestructive        = "orders:destructive"
+	ScopeCustomersDestructive     = "customers:destructive"
+	ScopeInventoryDestructive     = "inventory:destructive"
+	ScopeProductionDestructive    = "production:destructive"
+	ScopePlannerDestructive       = "planner:destructive"
+	ScopeB2BDestructive           = "b2b:destructive"
+	ScopeCommunicationDestructive = "communication:destructive"
+	ScopeAIDestructive            = "ai:destructive"
 )
 
 // arg is a shorthand constructor for an optional ArgSpec.
@@ -69,8 +97,8 @@ func argReq(name string, typ ArgType, desc string) ArgSpec {
 	return ArgSpec{Name: name, Type: typ, Required: true, Description: desc}
 }
 
-// DefaultCatalog defines every read-only tool exposed by the MCP server.
-// Each entry maps 1:1 to a read-only backend GET route (see route_map.go).
+// DefaultCatalog defines every tool exposed by the MCP server. Each entry maps
+// 1:1 to an allowlisted backend route (see route_map.go).
 var DefaultCatalog = Catalog{
 	// --- Orders ---
 	{
@@ -710,6 +738,165 @@ var DefaultCatalog = Catalog{
 		},
 		PathArgs: []string{"slug"},
 	},
+}
+
+// writeTool creates an explicitly allowlisted mutation. The payload is sent
+// as the JSON request body; IDs used by legacy DELETE/status endpoints remain
+// query arguments so existing handlers can be reused unchanged.
+func writeTool(name, description, scope, method, route string, queryArgs ...string) ToolSpec {
+	args := []ArgSpec{argReq("payload", ArgObject, "JSON request body accepted by the MI-Tech API handler.")}
+	for _, q := range queryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
+	}
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
+func writeToolOptionalPayload(name, description, scope, method, route string, queryArgs ...string) ToolSpec {
+	args := []ArgSpec{arg("payload", ArgObject, "Optional JSON request body accepted by the MI-Tech API handler.")}
+	for _, q := range queryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
+	}
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
+func writeToolPath(name, description, scope, method, route, pathArg string) ToolSpec {
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, PathArgs: []string{pathArg}, Args: []ArgSpec{argReq("payload", ArgObject, "JSON request body accepted by the MI-Tech API handler."), argReq(pathArg, ArgString, "Resource identifier.")}, Write: true}
+}
+
+func writeToolPathNoBody(name, description, scope, method, route, pathArg string) ToolSpec {
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, PathArgs: []string{pathArg}, Args: []ArgSpec{argReq(pathArg, ArgString, "Resource identifier.")}, Write: true}
+}
+
+func writeToolNoBody(name, description, scope, method, route string, queryArgs ...string) ToolSpec {
+	args := make([]ArgSpec, 0, len(queryArgs))
+	for _, q := range queryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
+	}
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
+func init() {
+	DefaultCatalog = append(DefaultCatalog,
+		// Orders and customers
+		writeTool("orders_create", "Create an order.", ScopeOrdersWrite, "POST", "/api/orders"),
+		writeTool("orders_update", "Update an order.", ScopeOrdersWrite, "PUT", "/api/orders", "id"),
+		writeTool("orders_update_status", "Update an order status.", ScopeOrdersWrite, "PUT", "/api/orders/status", "id"),
+		writeTool("orders_update_payment_status", "Update an order payment status.", ScopeOrdersWrite, "PUT", "/api/orders/payment-status", "id"),
+		writeToolNoBody("orders_mark_delivered", "Mark an order as delivered.", ScopeOrdersWrite, "PUT", "/api/orders/delivered", "id"),
+		writeTool("customers_create", "Create a customer.", ScopeCustomersWrite, "POST", "/api/customers"),
+		writeTool("customers_bulk_delete", "Delete customers in bulk.", ScopeCustomersDestructive, "POST", "/api/customers/bulk-delete"),
+		writeToolPath("customers_update", "Update a customer.", ScopeCustomersWrite, "PUT", "/api/customers/", "id"),
+		writeToolPathNoBody("customers_delete", "Delete a customer by id.", ScopeCustomersDestructive, "DELETE", "/api/customers/", "id"),
+		// Product inventory and stock synchronization
+		writeTool("inventory_create", "Create an inventory item.", ScopeInventoryWrite, "POST", "/api/inventory"),
+		writeTool("inventory_bulk_create", "Create inventory items in bulk.", ScopeInventoryWrite, "POST", "/api/inventory/bulk"),
+		writeTool("inventory_update_item", "Update an inventory item.", ScopeInventoryWrite, "PUT", "/api/inventory/item"),
+		writeToolNoBody("inventory_set_stock", "Set stock to an exact quantity.", ScopeInventoryWrite, "POST", "/api/inventory/stock", "id", "val"),
+		writeToolNoBody("inventory_adjust_stock", "Adjust stock by a delta.", ScopeInventoryWrite, "POST", "/api/inventory/adjust", "id", "delta"),
+		writeTool("inventory_create_mapping", "Create an external inventory mapping.", ScopeInventoryWrite, "POST", "/api/inventory/map"),
+		writeToolNoBody("inventory_delete_mapping", "Delete an external inventory mapping.", ScopeInventoryDestructive, "DELETE", "/api/inventory/map", "id"),
+		writeTool("inventory_sync_shopify", "Synchronize inventory with Shopify.", ScopeInventoryWrite, "POST", "/api/inventory/sync-shopify"),
+		writeTool("inventory_sync_prices", "Synchronize inventory prices.", ScopeInventoryWrite, "POST", "/api/inventory/sync-prices"),
+		writeToolOptionalPayload("inventory_sync_amazon", "Synchronize inventory with Amazon, optionally for a date range.", ScopeInventoryWrite, "POST", "/api/inventory/amazon/sync"),
+		writeToolNoBody("inventory_clear", "Clear all inventory. Use only for an intentional warehouse reset.", ScopeInventoryDestructive, "DELETE", "/api/inventory"),
+		// Production: oils, suppliers, purchase orders, manufacturing
+		writeTool("oils_create", "Create an oil inventory item.", ScopeProductionWrite, "POST", "/api/inventory/oil"),
+		writeTool("oils_update", "Update an oil inventory item.", ScopeProductionWrite, "PUT", "/api/inventory/oil"),
+		writeToolNoBody("oils_delete", "Delete an oil inventory item.", ScopeProductionDestructive, "DELETE", "/api/inventory/oil", "id"),
+		writeTool("oils_bulk_delete", "Delete oil inventory items in bulk.", ScopeProductionDestructive, "POST", "/api/inventory/oil/bulk-delete"),
+		writeTool("suppliers_create", "Create a supplier.", ScopeProductionWrite, "POST", "/api/inventory/suppliers"),
+		writeTool("suppliers_update", "Update a supplier.", ScopeProductionWrite, "PUT", "/api/inventory/suppliers"),
+		writeToolNoBody("suppliers_delete", "Delete a supplier.", ScopeProductionDestructive, "DELETE", "/api/inventory/suppliers", "id"),
+		writeTool("purchase_orders_create", "Create a purchase order.", ScopeProductionWrite, "POST", "/api/inventory/po"),
+		writeTool("purchase_orders_bulk_create", "Create purchase orders in bulk.", ScopeProductionWrite, "POST", "/api/inventory/po/bulk"),
+		writeTool("purchase_orders_update", "Update a purchase order.", ScopeProductionWrite, "PUT", "/api/inventory/po"),
+		writeToolNoBody("purchase_orders_delete", "Delete a purchase order.", ScopeProductionDestructive, "DELETE", "/api/inventory/po", "id"),
+		writeTool("manufacturing_create", "Create a manufacturing record.", ScopeProductionWrite, "POST", "/api/inventory/manufacturing"),
+		writeTool("manufacturing_update", "Update a manufacturing record.", ScopeProductionWrite, "PUT", "/api/inventory/manufacturing"),
+		writeToolNoBody("manufacturing_delete", "Delete a manufacturing record.", ScopeProductionDestructive, "DELETE", "/api/inventory/manufacturing", "id"),
+		// Planner
+		writeTool("planner_task_create", "Create a planner task.", ScopePlannerWrite, "POST", "/api/planner/tasks"),
+		writeTool("planner_task_update", "Update a planner task.", ScopePlannerWrite, "PUT", "/api/planner/tasks", "id"),
+		writeToolNoBody("planner_task_delete", "Delete a planner task.", ScopePlannerDestructive, "DELETE", "/api/planner/tasks", "id"),
+		writeTool("planner_task_move", "Move a planner task.", ScopePlannerWrite, "POST", "/api/planner/tasks/move"),
+		writeTool("planner_sprint_create", "Create a planner sprint.", ScopePlannerWrite, "POST", "/api/planner/sprints"),
+		writeTool("planner_sprint_update", "Update a planner sprint.", ScopePlannerWrite, "PUT", "/api/planner/sprints", "id"),
+		writeToolNoBody("planner_sprint_delete", "Delete a planner sprint.", ScopePlannerDestructive, "DELETE", "/api/planner/sprints", "id"),
+		// Synchronization and configuration
+		writeToolOptionalPayload("shopify_sync_orders", "Synchronize orders from Shopify, optionally for a date range.", ScopeOrdersWrite, "POST", "/api/shopify/sync"),
+		writeToolNoBody("shopify_reset_orders", "Reset synchronized orders. Destructive operation.", ScopeOrdersDestructive, "POST", "/api/shopify/reset"),
+		writeTool("settings_set_date_range", "Set the application date range.", ScopeSettingsWrite, "PUT", "/api/settings/date-range"),
+		// Support and abandoned checkout operations
+		writeTool("support_ticket_create", "Create a support ticket.", ScopeSupportWrite, "POST", "/api/support/tickets"),
+		writeToolPath("support_ticket_update", "Update a support ticket status.", ScopeSupportWrite, "PUT", "/api/support/tickets/", "id"),
+		writeTool("abandoned_checkout_recover", "Recover an abandoned checkout.", ScopeOrdersWrite, "POST", "/api/abandoned-checkouts/recover"),
+		writeTool("abandoned_checkout_update_status", "Update an abandoned checkout status.", ScopeOrdersWrite, "PUT", "/api/abandoned-checkouts/status"),
+		writeToolNoBody("abandoned_checkout_delete", "Delete an abandoned checkout.", ScopeOrdersDestructive, "DELETE", "/api/abandoned-checkouts", "id"),
+		// B2B customers, invoices, notes, and proformas
+		writeTool("b2b_customer_create", "Create a B2B customer.", ScopeB2BWrite, "POST", "/api/b2b/customers"),
+		writeTool("b2b_customer_update", "Update a B2B customer.", ScopeB2BWrite, "PUT", "/api/b2b/customers"),
+		writeToolNoBody("b2b_customer_delete", "Delete a B2B customer.", ScopeB2BDestructive, "DELETE", "/api/b2b/customers", "id"),
+		writeTool("b2b_invoice_create", "Create a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices"),
+		writeTool("b2b_invoice_update", "Update a B2B invoice.", ScopeB2BWrite, "PUT", "/api/b2b/invoices"),
+		writeToolNoBody("b2b_invoice_delete", "Delete a B2B invoice.", ScopeB2BDestructive, "DELETE", "/api/b2b/invoices", "id"),
+		writeToolNoBody("b2b_invoice_issue", "Issue a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices/issue", "id"),
+		writeToolNoBody("b2b_invoice_cancel", "Cancel a B2B invoice.", ScopeB2BDestructive, "POST", "/api/b2b/invoices/cancel", "id"),
+		writeToolNoBody("b2b_invoice_deduct_inventory", "Deduct inventory for a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices/deduct-inventory", "id"),
+		writeToolNoBody("b2b_invoice_revert_inventory", "Revert inventory deduction for a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices/revert-inventory", "id"),
+		writeTool("b2b_invoice_update_payment", "Record a B2B invoice payment.", ScopeB2BWrite, "POST", "/api/b2b/invoices/payment"),
+		writeTool("b2b_payment_terms_create_or_update", "Create or update B2B payment terms.", ScopeB2BWrite, "POST", "/api/b2b/payment-terms"),
+		writeTool("b2b_payment_terms_update", "Update B2B payment terms.", ScopeB2BWrite, "PUT", "/api/b2b/payment-terms"),
+		writeTool("b2b_credit_note_create", "Create a B2B credit note.", ScopeB2BWrite, "POST", "/api/b2b/credit-notes"),
+		writeTool("b2b_credit_note_update", "Update a B2B credit note.", ScopeB2BWrite, "PUT", "/api/b2b/credit-notes"),
+		writeToolNoBody("b2b_credit_note_delete", "Delete a B2B credit note.", ScopeB2BDestructive, "DELETE", "/api/b2b/credit-notes", "id"),
+		writeToolNoBody("b2b_credit_note_issue", "Issue a B2B credit note.", ScopeB2BWrite, "POST", "/api/b2b/credit-notes/issue", "id"),
+		writeToolNoBody("b2b_credit_note_cancel", "Cancel a B2B credit note.", ScopeB2BDestructive, "POST", "/api/b2b/credit-notes/cancel", "id"),
+		writeTool("b2b_debit_note_create", "Create a B2B debit note.", ScopeB2BWrite, "POST", "/api/b2b/debit-notes"),
+		writeTool("b2b_debit_note_update", "Update a B2B debit note.", ScopeB2BWrite, "PUT", "/api/b2b/debit-notes"),
+		writeToolNoBody("b2b_debit_note_delete", "Delete a B2B debit note.", ScopeB2BDestructive, "DELETE", "/api/b2b/debit-notes", "id"),
+		writeToolNoBody("b2b_debit_note_issue", "Issue a B2B debit note.", ScopeB2BWrite, "POST", "/api/b2b/debit-notes/issue", "id"),
+		writeToolNoBody("b2b_debit_note_cancel", "Cancel a B2B debit note.", ScopeB2BDestructive, "POST", "/api/b2b/debit-notes/cancel", "id"),
+		writeTool("b2b_proforma_create", "Create a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas"),
+		writeTool("b2b_proforma_update", "Update a B2B proforma invoice.", ScopeB2BWrite, "PUT", "/api/b2b/proformas"),
+		writeToolNoBody("b2b_proforma_delete", "Delete a B2B proforma invoice.", ScopeB2BDestructive, "DELETE", "/api/b2b/proformas", "id"),
+		writeToolNoBody("b2b_proforma_issue", "Issue a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/issue", "id"),
+		writeToolNoBody("b2b_proforma_accept", "Accept a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/accept", "id"),
+		writeToolNoBody("b2b_proforma_reject", "Reject a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/reject", "id"),
+		writeToolNoBody("b2b_proforma_cancel", "Cancel a B2B proforma invoice.", ScopeB2BDestructive, "POST", "/api/b2b/proformas/cancel", "id"),
+		writeToolNoBody("b2b_proforma_create_revision", "Create a proforma invoice revision.", ScopeB2BWrite, "POST", "/api/b2b/proformas/revision", "id"),
+		writeToolNoBody("b2b_proforma_convert_to_invoice", "Convert a proforma invoice to a tax invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/convert", "id"),
+		writeToolNoBody("b2b_proformas_mark_expired", "Mark expired proforma invoices.", ScopeB2BWrite, "POST", "/api/b2b/proformas/check-expiry"),
+		// WhatsApp automation
+		writeTool("whatsapp_template_create", "Create a WhatsApp template.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates"),
+		writeTool("whatsapp_template_update", "Update a WhatsApp template mapping.", ScopeCommunicationWrite, "PUT", "/api/automation/whatsapp/templates"),
+		writeToolNoBody("whatsapp_template_delete", "Delete a WhatsApp template.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/templates", "id"),
+		writeToolNoBody("whatsapp_templates_sync_status", "Synchronize WhatsApp template statuses from Meta.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/sync"),
+		writeToolNoBody("whatsapp_templates_sync_all", "Synchronize all WhatsApp templates.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/sync-all"),
+		writeToolNoBody("whatsapp_template_sync_single", "Synchronize one WhatsApp template.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/sync-single", "name"),
+		writeToolNoBody("whatsapp_template_fetch", "Fetch a WhatsApp template from Meta.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/fetch", "name"),
+		writeTool("whatsapp_trigger_create", "Create a WhatsApp automation trigger.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/triggers"),
+		writeTool("whatsapp_trigger_update", "Enable or disable a WhatsApp automation trigger.", ScopeCommunicationWrite, "PUT", "/api/automation/whatsapp/triggers"),
+		writeToolNoBody("whatsapp_trigger_delete", "Delete a WhatsApp automation trigger.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/triggers", "id"),
+		writeTool("whatsapp_send_message", "Send a free-text WhatsApp message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-message"),
+		writeTool("whatsapp_send_manual", "Send a manual WhatsApp message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-manual"),
+		writeTool("whatsapp_send_bulk", "Send a bulk WhatsApp marketing message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-bulk"),
+		writeTool("whatsapp_conversation_mode_update", "Change a WhatsApp conversation between auto and human mode.", ScopeCommunicationWrite, "PUT", "/api/automation/whatsapp/conversations/mode"),
+		writeTool("whatsapp_event_create", "Create a WhatsApp automation event.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/events"),
+		writeToolNoBody("whatsapp_event_delete", "Delete a WhatsApp automation event.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/events", "id"),
+		writeToolNoBody("whatsapp_metrics_sync", "Synchronize WhatsApp automation metrics.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/sync-metrics"),
+		// Social marketing and reviews
+		writeTool("smm_post", "Publish content to a social platform.", ScopeMarketingWrite, "POST", "/api/marketing/smm/post"),
+		writeToolNoBody("smm_sync", "Synchronize social marketing metrics and history.", ScopeMarketingWrite, "POST", "/api/marketing/smm/sync", "platform"),
+		writeTool("judgeme_generate_reviews", "Generate Judge.me review drafts.", ScopeMarketingWrite, "POST", "/api/marketing/judgeme/generate"),
+		writeTool("judgeme_submit_reviews", "Submit Judge.me reviews.", ScopeMarketingWrite, "POST", "/api/marketing/judgeme/submit"),
+		// Feedback and AI
+		writeTool("feedback_bulk_send", "Send feedback requests for selected orders.", ScopeFeedbackWrite, "POST", "/api/feedback/bulk-send"),
+		writeTool("feedback_update_comment", "Update an internal feedback comment.", ScopeFeedbackWrite, "PUT", "/api/orders/feedback/comment", "id"),
+		writeToolNoBody("feedback_post_judgeme", "Post a feedback review to Judge.me.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/post-judgeme", "id"),
+		writeToolNoBody("feedback_request_google_review", "Request a Google review from feedback.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/request-google-review", "id"),
+		writeTool("ai_chat", "Send a message to the MI-Tech AI assistant.", ScopeAIWrite, "POST", "/api/ai/chat"),
+		writeToolNoBody("ai_conversation_delete", "Delete an AI conversation.", ScopeAIDestructive, "DELETE", "/api/ai/conversations", "id"),
+	)
 }
 
 // Lookup returns the tool spec with the given name and whether it was found.

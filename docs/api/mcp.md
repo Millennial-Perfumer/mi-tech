@@ -1,8 +1,9 @@
 # MCP Server & Machine API Keys
 
 A secure Model Context Protocol (MCP) server that exposes MI Tech business
-capabilities to automated workflows (e.g. Codex). The catalog is read-only
-except for the explicitly scoped social-queue publishing tool. All access is
+capabilities to automated workflows (e.g. Codex). The catalog is read-only for
+query tools and exposes explicitly scoped operational mutations for approved
+machine clients. All access is
 via a dedicated machine-to-machine API key — never a user JWT.
 
 ## Overview
@@ -11,11 +12,11 @@ via a dedicated machine-to-machine API key — never a user JWT.
 | :--- | :--- |
 | Transports | Streamable HTTP at `POST /mcp` (stateless) and stdio (`backend/cmd/mcp`) |
 | Auth | `Authorization: Bearer mtk_…` machine key (API-key only) |
-| Tools exposed | Read-only tools plus scoped `smm_queue_create` publishing |
+| Tools exposed | Read-only tools plus scoped operational write tools |
 | Catalog source | `backend/internal/mcp/catalog.go` |
-| Dispatch | In-process to the internal read-only mux (`server/readonly_mux.go`) — no duplicated logic |
-| Audit | Every tool call logged to `mcp_audit_logs` (no keys/headers stored) |
-| Status | Phases 1–5 complete; Phase 6 (deploy) deferred to local + build only; Phase 7 (tests) pending |
+| Dispatch | In-process to the internal read/write muxes (`server/readonly_mux.go`) — no duplicated business logic |
+| Audit | Every catalog tool invocation logged to `mcp_audit_logs` (no keys/headers stored) |
+| Status | Read and scoped write catalog implemented; deployment is a separate rollout step |
 
 ## Authentication
 
@@ -41,7 +42,23 @@ read scope (e.g. `orders:read`, `customers:read`, `metrics:read`,
 `gst:read`, `inventory:read`, `production:read`, `b2b:read`,
 `communication:read`, `marketing:read`, `feedback:read`,
 `abandoned_checkout:read`, `planner:read`, `support:read`, `ai:read`,
-`settings:read`, `system:read`). The one write scope is `marketing:publish`.
+`settings:read`, `system:read`). Operational mutations use separate write
+scopes: `orders:write`, `customers:write`, `inventory:write`,
+`production:write`, `planner:write`, `b2b:write`, `communication:write`,
+`marketing:write`, `feedback:write`, `support:write`, `settings:write`, and
+`ai:write`. The existing social queue publisher continues to use
+`marketing:publish`.
+
+Write tools are individually allowlisted in `backend/internal/mcp/catalog.go`
+and dispatched through a separate write mux to existing domain handlers. JSON
+request bodies are supplied through a `payload` object; legacy endpoints that
+use query identifiers expose those identifiers as explicit tool arguments.
+The generic settings setter is not exposed; `settings:write` only covers the
+date-range operation. Destructive tools additionally require one of
+`orders:destructive`, `customers:destructive`, `inventory:destructive`,
+`production:destructive`, `planner:destructive`, `b2b:destructive`,
+`communication:destructive`, or `ai:destructive`. Every catalog tool
+invocation is audited.
 
 Path-based tools (e.g. `system_doc_get`) take the path segment as a named
 argument and are mapped to `GET /api/.../{arg}`.
@@ -223,11 +240,13 @@ above, replacing `https://<your-host>/mcp` with the production URL).
 }
 ```
 
-Valid scopes are the read-only MCP scopes (e.g. `orders:read`, `customers:read`,
+Valid scopes include the read-only MCP scopes (e.g. `orders:read`, `customers:read`,
 `metrics:read`, `gst:read`, `inventory:read`, `production:read`, `b2b:read`,
 `communication:read`, `marketing:read`, `feedback:read`, `abandoned_checkout:read`,
-`planner:read`, `support:read`, `ai:read`, `settings:read`, `system:read`).
-The additional write scope `marketing:publish` enables `smm_queue_create`.
+`planner:read`, `support:read`, `ai:read`, `settings:read`, `system:read`) and
+the corresponding operational `:write` scopes plus the dedicated
+`:destructive` scopes documented above. `marketing:publish` enables
+`smm_queue_create`.
 
 ### List Machine API Keys
 `GET /api/mcp/keys`
@@ -249,5 +268,5 @@ Metadata (name, scopes, rate limit, expiry) is preserved.
 
 - Keys are machine-to-machine only; user JWTs are never accepted by the MCP endpoint.
 - Expiry, revocation, and per-minute rate limiting are enforced on every invocation.
-- Every MCP tool call is audited in `mcp_audit_logs` without storing keys or authorization headers.
+- Every catalog tool invocation is audited in `mcp_audit_logs` without storing keys or authorization headers.
 - Sensitive fields (phone, email, address, pin/zip, secret/token/password) are masked in tool responses before they leave the server.

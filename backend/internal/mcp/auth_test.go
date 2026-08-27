@@ -167,11 +167,14 @@ func TestRateLimit(t *testing.T) {
 func TestValidateScopes(t *testing.T) {
 	svc := NewMachineKeyService(&fakeKeyRepo{})
 
-	if err := svc.ValidateScopes([]string{ScopeOrders, ScopeSystem}); err != nil {
+	if err := svc.ValidateScopes([]string{ScopeOrders, ScopeSystem, ScopeOrdersDestructive}); err != nil {
 		t.Fatalf("valid scopes rejected: %v", err)
 	}
-	if err := svc.ValidateScopes([]string{"orders:write"}); !errors.Is(err, ErrInvalidScope) {
+	if err := svc.ValidateScopes([]string{"unknown:write"}); !errors.Is(err, ErrInvalidScope) {
 		t.Fatalf("expected ErrInvalidScope, got %v", err)
+	}
+	if _, _, err := svc.Generate(KeyOptions{Name: "invalid", Scopes: []string{"unknown:write"}}); !errors.Is(err, ErrInvalidScope) {
+		t.Fatalf("Generate should reject unknown scopes, got %v", err)
 	}
 }
 

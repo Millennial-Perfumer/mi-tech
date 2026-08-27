@@ -71,6 +71,10 @@ func NewMachineKeyService(repo repository.MachineKeyRepository) *MachineKeyServi
 // Generate creates a new machine key and returns the plaintext key exactly once.
 // Callers are responsible for showing it to the operator; it is not persisted.
 func (s *MachineKeyService) Generate(opts KeyOptions) (plaintext string, key *entity.MachineAPIKey, err error) {
+	if err := s.ValidateScopes(opts.Scopes); err != nil {
+		return "", nil, err
+	}
+
 	plaintext, hash, err := newKeyMaterial()
 	if err != nil {
 		return "", nil, err
@@ -137,7 +141,7 @@ func (s *MachineKeyService) Authenticate(plaintext string) (*entity.MachineAPIKe
 	return key, nil
 }
 
-// ValidateScopes ensures every scope is a known read-only scope.
+// ValidateScopes ensures every scope is present in the allowlisted catalog.
 func (s *MachineKeyService) ValidateScopes(scopes []string) error {
 	if len(scopes) == 0 {
 		return fmt.Errorf("%w: at least one scope is required", ErrInvalidScope)

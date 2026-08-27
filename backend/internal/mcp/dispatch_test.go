@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -143,6 +144,46 @@ func TestMuxExecutorDispatchesScopedWriteToolAsJSONPost(t *testing.T) {
 	tool := ToolSpec{Name: "smm_queue_create", Route: "/api/marketing/smm/queue", Write: true}
 
 	data, err := exec.Dispatch(context.Background(), tool, map[string]any{"caption": "caption"})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"success":true}`, string(data))
+}
+
+func TestMuxExecutorDispatchesWritePayloadAndQueryArguments(t *testing.T) {
+	writeHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPut, r.Method)
+		require.Equal(t, "42", r.URL.Query().Get("id"))
+		var payload map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		require.Equal(t, "fulfilled", payload["status"])
+		_, _ = w.Write([]byte(`{"success":true}`))
+	})
+	exec := NewMuxExecutorWithWriteHandler(http.NewServeMux(), writeHandler)
+	tool, ok := DefaultCatalog.Lookup("orders_update_status")
+	require.True(t, ok)
+
+	data, err := exec.Dispatch(context.Background(), tool, map[string]any{
+		"id":      42,
+		"payload": map[string]any{"status": "fulfilled"},
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"success":true}`, string(data))
+}
+
+func TestMuxExecutorDispatchesQueryOnlyWriteArguments(t *testing.T) {
+	writeHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "order_confirmation", r.URL.Query().Get("name"))
+		require.Equal(t, "", r.URL.Query().Get("payload"))
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Empty(t, body)
+		_, _ = w.Write([]byte(`{"success":true}`))
+	})
+	exec := NewMuxExecutorWithWriteHandler(http.NewServeMux(), writeHandler)
+	tool, ok := DefaultCatalog.Lookup("whatsapp_template_sync_single")
+	require.True(t, ok)
+
+	data, err := exec.Dispatch(context.Background(), tool, map[string]any{"name": "order_confirmation"})
 	require.NoError(t, err)
 	require.JSONEq(t, `{"success":true}`, string(data))
 }

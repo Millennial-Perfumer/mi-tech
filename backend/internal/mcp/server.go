@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Executor executes a single read-only tool call against the backend.
-// It is the seam between the MCP protocol layer and the read-only dispatch
-// (internal mux) built in a later phase.
+// Executor executes a single allowlisted tool call against the backend.
+// It is the seam between the MCP protocol layer and the internal dispatch mux.
 type Executor interface {
 	// Dispatch runs the tool and returns its raw JSON result.
 	Dispatch(ctx context.Context, tool ToolSpec, args map[string]any) (json.RawMessage, error)
@@ -96,9 +96,16 @@ func toolHandler(spec ToolSpec, executor Executor, audit *AuditService) sdk.Tool
 		if err != nil {
 			return auditedToolError(audit, ctx, spec, start, err)
 		}
-		return &sdk.CallToolResult{
+		result := &sdk.CallToolResult{
 			Content: []sdk.Content{&sdk.TextContent{Text: string(data)}},
-		}, nil
+		}
+		if audit != nil {
+			keyID, keyName, scopes := identityFromContext(ctx)
+			// The in-process executor collapses successful backend responses to
+			// the MCP result body, so 200 is the protocol-level success status.
+			audit.Log(AuditEntry{KeyID: keyID, KeyName: keyName, Scopes: scopes, Tool: spec.Name, Outcome: "success", Status: http.StatusOK, DurationMs: time.Since(start).Milliseconds()})
+		}
+		return result, nil
 	}
 }
 
@@ -129,9 +136,7 @@ func auditedToolError(audit *AuditService, ctx context.Context, spec ToolSpec, s
 	return &sdk.CallToolResult{IsError: true, Content: []sdk.Content{&sdk.TextContent{Text: err.Error()}}}, nil
 }
 
-// StubExecutor is the Phase 3 placeholder executor. It lets the MCP server
-// foundation start and be discovered while the read-only dispatch (internal
-// mux wiring) is implemented in the next phase.
+// StubExecutor is retained for protocol-layer tests and local scaffolding.
 type StubExecutor struct{}
 
 // Dispatch returns a clear "not yet implemented" result for any tool.

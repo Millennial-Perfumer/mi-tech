@@ -4,10 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/require"
+	"mi-tech/internal/mcp/entity"
 )
+
+type successfulTestExecutor struct{}
+
+func (successfulTestExecutor) Dispatch(context.Context, ToolSpec, map[string]any) (json.RawMessage, error) {
+	return json.RawMessage(`{"success":true}`), nil
+}
+
+type captureAuditRepository struct {
+	entries chan *entity.MCPAuditLog
+}
+
+func (r *captureAuditRepository) Create(entry *entity.MCPAuditLog) error {
+	r.entries <- entry
+	return nil
+}
 
 // connectClient connects an SDK client to a built server over in-memory
 // transports and returns the client session.
@@ -95,6 +112,34 @@ func TestToolCallReturnsStubError(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, res.IsError, "stub executor should report an error")
+}
+
+func TestToolHandlerAuditsSuccessfulCalls(t *testing.T) {
+	repo := &captureAuditRepository{entries: make(chan *entity.MCPAuditLog, 1)}
+	audit := NewAuditService(repo, 1)
+	t.Cleanup(audit.Close)
+
+	spec, ok := DefaultCatalog.Lookup("orders_list")
+	require.True(t, ok)
+	ctx := context.WithValue(context.Background(), "machineKeyID", int64(7))
+	ctx = context.WithValue(ctx, "machineKeyName", "test-key")
+	ctx = context.WithValue(ctx, "machineScopes", []string{ScopeOrders})
+
+	result, err := toolHandler(spec, successfulTestExecutor{}, audit)(ctx, &sdk.CallToolRequest{
+		Params: &sdk.CallToolParamsRaw{Arguments: json.RawMessage(`{}`)},
+	})
+	require.NoError(t, err)
+	require.False(t, result.IsError)
+
+	select {
+	case entry := <-repo.entries:
+		require.Equal(t, "orders_list", entry.Tool)
+		require.Equal(t, "success", entry.Outcome)
+		require.Equal(t, 200, entry.Status)
+		require.Equal(t, int64(7), entry.KeyID)
+	case <-time.After(time.Second):
+		t.Fatal("successful tool call was not audited")
+	}
 }
 
 // TestToolInputSchema verifies generated input schemas carry args.

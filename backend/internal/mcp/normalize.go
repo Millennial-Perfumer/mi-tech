@@ -19,10 +19,29 @@ const (
 //
 // It mutates args in place (applying defaults for omitted pagination).
 func normalizeArgs(tool ToolSpec, args map[string]any) error {
+	if err := validateRequiredArgs(tool, args); err != nil {
+		return err
+	}
 	if err := validateDateRange(tool, args); err != nil {
 		return err
 	}
 	applyPaginationDefaults(tool, args)
+	return nil
+}
+
+func validateRequiredArgs(tool ToolSpec, args map[string]any) error {
+	for _, a := range tool.Args {
+		if !a.Required {
+			continue
+		}
+		value, ok := args[a.Name]
+		if !ok || value == nil {
+			return fmt.Errorf("missing required argument %q for tool %s", a.Name, tool.Name)
+		}
+		if a.Type == ArgString && strings.TrimSpace(stringValue(value)) == "" {
+			return fmt.Errorf("argument %q for tool %s must not be empty", a.Name, tool.Name)
+		}
+	}
 	return nil
 }
 
@@ -117,6 +136,9 @@ func applyPaginationDefaults(tool ToolSpec, args map[string]any) {
 }
 
 func stringValue(v any) string {
+	if v == nil {
+		return ""
+	}
 	if s, ok := v.(string); ok {
 		return s
 	}
@@ -126,7 +148,7 @@ func stringValue(v any) string {
 	if f, ok := v.(float64); ok {
 		return fmt.Sprintf("%.0f", f)
 	}
-	return ""
+	return fmt.Sprint(v)
 }
 
 func toInt(v any) (int, bool) {

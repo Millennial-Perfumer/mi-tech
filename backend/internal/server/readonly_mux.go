@@ -17,6 +17,7 @@ import (
 	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
+	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
 	configHandlerPkg "mi-tech/internal/shared/config/handler"
 	systemHandlerPkg "mi-tech/internal/shared/system/handler"
 )
@@ -45,6 +46,7 @@ type readOnlyHandlers struct {
 	aiHandler         *aiHandlerPkg.AIHandler
 	settingsHandler   *configHandlerPkg.SettingsHandler
 	systemHandler     *systemHandlerPkg.SystemHandler
+	syncHandler       *syncHandlerPkg.SyncHandler
 }
 
 // ro wraps a read-only handler so any non-GET request is rejected at the mux
@@ -177,4 +179,241 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 	// System docs
 	mux.HandleFunc("/api/system/docs", ro(h.systemHandler.ListDocs))
 	mux.HandleFunc("/api/system/docs/", ro(h.systemHandler.GetDoc))
+}
+
+// registerMCPWriteRoutes exposes only the mutation endpoints that are
+// explicitly represented in the MCP catalog. It intentionally calls domain
+// handlers directly: the MCP machine-key scope is the authorization boundary,
+// while the normal browser router remains protected by user JWT/admin checks.
+func registerMCPWriteRoutes(mux *http.ServeMux, h readOnlyHandlers) {
+	// Orders
+	mux.HandleFunc("/api/orders", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.orderHandler.CreateOrder(w, r)
+		case http.MethodPut:
+			h.orderHandler.UpdateOrder(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/orders/status", h.orderHandler.UpdateOrderStatus)
+	mux.HandleFunc("/api/orders/payment-status", h.orderHandler.UpdatePaymentStatus)
+	mux.HandleFunc("/api/orders/delivered", h.orderHandler.MarkAsDelivered)
+
+	// Customers
+	mux.HandleFunc("/api/customers", h.customerHandler.CreateCustomer)
+	mux.HandleFunc("/api/customers/bulk-delete", h.customerHandler.BulkDeleteCustomers)
+	mux.HandleFunc("/api/customers/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			h.customerHandler.UpdateCustomer(w, r)
+		case http.MethodDelete:
+			h.customerHandler.DeleteCustomer(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Product inventory
+	mux.HandleFunc("/api/inventory", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.inventoryHandler.CreateItem(w, r)
+		case http.MethodDelete:
+			h.inventoryHandler.Clear(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/inventory/bulk", h.inventoryHandler.BulkCreate)
+	mux.HandleFunc("/api/inventory/item", h.inventoryHandler.UpdateItem)
+	mux.HandleFunc("/api/inventory/stock", h.inventoryHandler.UpdateStock)
+	mux.HandleFunc("/api/inventory/adjust", h.inventoryHandler.AdjustStock)
+	mux.HandleFunc("/api/inventory/map", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			h.inventoryHandler.CreateMapping(w, r)
+		} else if r.Method == http.MethodDelete {
+			h.inventoryHandler.DeleteMapping(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/inventory/sync-shopify", h.inventoryHandler.SyncShopify)
+	mux.HandleFunc("/api/inventory/sync-prices", h.inventoryHandler.SyncPrices)
+	mux.HandleFunc("/api/inventory/amazon/sync", h.inventoryHandler.SyncAmazon)
+
+	// Oils, suppliers, purchase orders, and manufacturing
+	mux.HandleFunc("/api/inventory/oil", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.oilHandler.CreateOil(w, r)
+		case http.MethodPut:
+			h.oilHandler.UpdateOil(w, r)
+		case http.MethodDelete:
+			h.oilHandler.DeleteOil(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/inventory/oil/bulk-delete", h.oilHandler.BulkDeleteOils)
+	mux.HandleFunc("/api/inventory/suppliers", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.supplierHandler.CreateSupplier(w, r)
+		case http.MethodPut:
+			h.supplierHandler.UpdateSupplier(w, r)
+		case http.MethodDelete:
+			h.supplierHandler.DeleteSupplier(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/inventory/po", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.poHandler.Create(w, r)
+		case http.MethodPut:
+			h.poHandler.Update(w, r)
+		case http.MethodDelete:
+			h.poHandler.Delete(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/inventory/po/bulk", h.poHandler.BulkCreate)
+	mux.HandleFunc("/api/inventory/manufacturing", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.mfgHandler.Create(w, r)
+		case http.MethodPut:
+			h.mfgHandler.Update(w, r)
+		case http.MethodDelete:
+			h.mfgHandler.Delete(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Planner
+	mux.HandleFunc("/api/planner/tasks", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.plannerHandler.CreateTask(w, r)
+		case http.MethodPut:
+			h.plannerHandler.UpdateTask(w, r)
+		case http.MethodDelete:
+			h.plannerHandler.DeleteTask(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/planner/tasks/move", h.plannerHandler.MoveTask)
+	mux.HandleFunc("/api/planner/sprints", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.plannerHandler.CreateSprint(w, r)
+		case http.MethodPut:
+			h.plannerHandler.UpdateSprint(w, r)
+		case http.MethodDelete:
+			h.plannerHandler.DeleteSprint(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// B2B billing and proformas
+	mux.HandleFunc("/api/b2b/customers", h.b2bHandler.HandleCustomers)
+	mux.HandleFunc("/api/b2b/invoices", h.b2bHandler.HandleInvoices)
+	mux.HandleFunc("/api/b2b/invoices/issue", h.b2bHandler.IssueInvoice)
+	mux.HandleFunc("/api/b2b/invoices/cancel", h.b2bHandler.CancelInvoice)
+	mux.HandleFunc("/api/b2b/invoices/deduct-inventory", h.b2bHandler.DeductInventory)
+	mux.HandleFunc("/api/b2b/invoices/revert-inventory", h.b2bHandler.RevertInventory)
+	mux.HandleFunc("/api/b2b/invoices/payment", h.b2bHandler.UpdatePayment)
+	mux.HandleFunc("/api/b2b/payment-terms", h.b2bHandler.HandlePaymentTerms)
+	mux.HandleFunc("/api/b2b/credit-notes", h.b2bHandler.HandleCreditNotes)
+	mux.HandleFunc("/api/b2b/credit-notes/issue", h.b2bHandler.IssueCreditNote)
+	mux.HandleFunc("/api/b2b/credit-notes/cancel", h.b2bHandler.CancelCreditNote)
+	mux.HandleFunc("/api/b2b/debit-notes", h.b2bHandler.HandleDebitNotes)
+	mux.HandleFunc("/api/b2b/debit-notes/issue", h.b2bHandler.IssueDebitNote)
+	mux.HandleFunc("/api/b2b/debit-notes/cancel", h.b2bHandler.CancelDebitNote)
+	mux.HandleFunc("/api/b2b/proformas", h.b2bHandler.HandleProformas)
+	mux.HandleFunc("/api/b2b/proformas/issue", h.b2bHandler.IssueProforma)
+	mux.HandleFunc("/api/b2b/proformas/accept", h.b2bHandler.AcceptProforma)
+	mux.HandleFunc("/api/b2b/proformas/reject", h.b2bHandler.RejectProforma)
+	mux.HandleFunc("/api/b2b/proformas/cancel", h.b2bHandler.CancelProforma)
+	mux.HandleFunc("/api/b2b/proformas/revision", h.b2bHandler.CreateRevision)
+	mux.HandleFunc("/api/b2b/proformas/convert", h.b2bHandler.ConvertToTaxInvoice)
+	mux.HandleFunc("/api/b2b/proformas/check-expiry", h.b2bHandler.CheckExpiredProformas)
+
+	// Synchronization and settings
+	mux.HandleFunc("/api/shopify/sync", h.syncHandler.SyncOrders)
+	mux.HandleFunc("/api/shopify/reset", h.syncHandler.ResetOrders)
+	mux.HandleFunc("/api/settings/date-range", h.settingsHandler.SetDateRange)
+
+	// Support and abandoned checkouts
+	mux.HandleFunc("/api/support/tickets", h.ticketHandler.HandleTickets)
+	mux.HandleFunc("/api/support/tickets/", h.ticketHandler.UpdateTicketStatus)
+	mux.HandleFunc("/api/abandoned-checkouts", h.acHandler.GetAbandonedCheckouts)
+	mux.HandleFunc("/api/abandoned-checkouts/recover", h.acHandler.RecoverCheckout)
+	mux.HandleFunc("/api/abandoned-checkouts/status", h.acHandler.UpdateCheckoutStatus)
+
+	// WhatsApp automation
+	mux.HandleFunc("/api/automation/whatsapp/templates", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.automationHandler.CreateTemplate(w, r)
+		case http.MethodPut:
+			h.automationHandler.UpdateTemplate(w, r)
+		case http.MethodDelete:
+			h.automationHandler.DeleteTemplate(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync", h.automationHandler.SyncTemplateStatus)
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync-all", h.automationHandler.SyncAllTemplates)
+	mux.HandleFunc("/api/automation/whatsapp/templates/sync-single", h.automationHandler.SyncSingleTemplate)
+	mux.HandleFunc("/api/automation/whatsapp/templates/fetch", h.automationHandler.FetchTemplateFromMeta)
+	mux.HandleFunc("/api/automation/whatsapp/triggers", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.automationHandler.CreateTrigger(w, r)
+		case http.MethodPut:
+			h.automationHandler.UpdateTrigger(w, r)
+		case http.MethodDelete:
+			h.automationHandler.DeleteTrigger(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/automation/whatsapp/send-message", h.automationHandler.SendFreeTextMessage)
+	mux.HandleFunc("/api/automation/whatsapp/send-manual", h.automationHandler.SendManualMessage)
+	mux.HandleFunc("/api/automation/whatsapp/send-bulk", h.automationHandler.SendBulkMarketing)
+	mux.HandleFunc("/api/automation/whatsapp/conversations/mode", h.automationHandler.UpdateConversationMode)
+	mux.HandleFunc("/api/automation/whatsapp/events", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			h.automationHandler.CreateEvent(w, r)
+		case http.MethodDelete:
+			h.automationHandler.DeleteEvent(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", h.automationHandler.SyncAutomationMetrics)
+
+	// Social marketing and reviews
+	mux.HandleFunc("/api/marketing/smm/post", h.smmHandler.PostContent)
+	mux.HandleFunc("/api/marketing/smm/sync", h.smmHandler.Sync)
+	mux.HandleFunc("/api/marketing/judgeme/generate", h.judgeMeHandler.GenerateReviews)
+	mux.HandleFunc("/api/marketing/judgeme/submit", h.judgeMeHandler.SubmitReviews)
+
+	// Feedback and AI
+	mux.HandleFunc("/api/feedback/bulk-send", h.feedbackHandler.BulkSendFeedbackRequests)
+	mux.HandleFunc("/api/orders/feedback/comment", h.feedbackHandler.UpdateFeedbackAdminComment)
+	mux.HandleFunc("/api/orders/feedback/post-judgeme", h.feedbackHandler.PostJudgeMeReview)
+	mux.HandleFunc("/api/orders/feedback/request-google-review", h.feedbackHandler.RequestGoogleReview)
+	mux.HandleFunc("/api/ai/chat", h.aiHandler.Chat)
+	mux.HandleFunc("/api/ai/conversations", h.aiHandler.DeleteConversation)
 }

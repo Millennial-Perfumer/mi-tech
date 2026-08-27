@@ -12,10 +12,9 @@ import (
 	"strings"
 )
 
-// MuxExecutor dispatches read-only tool calls to an internal mux that serves
-// only GET routes from the read-only catalog. Requests execute in-process, so
-// no network hops or additional authentication are required beyond the machine
-// key already validated at the transport layer.
+// MuxExecutor dispatches allowlisted tool calls to internal read and write
+// muxes. Requests execute in-process, so no network hops or additional
+// authentication are required beyond the machine key validated at transport.
 type MuxExecutor struct {
 	handler      http.Handler
 	writeHandler http.Handler
@@ -44,8 +43,8 @@ func (e *identityExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map
 	return e.inner.Dispatch(ctx, tool, args)
 }
 
-// NewMuxExecutor creates an executor that routes tool calls to the given
-// internal read-only handler (an *http.ServeMux).
+// NewMuxExecutor creates an executor that routes read tool calls to the given
+// internal handler (an *http.ServeMux).
 func NewMuxExecutor(handler http.Handler) *MuxExecutor {
 	return &MuxExecutor{handler: handler}
 }
@@ -72,17 +71,18 @@ func (e *MuxExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map[stri
 	}
 
 	query := url.Values{}
-	if !tool.Write {
-		for _, a := range tool.Args {
-			if inPath(tool.PathArgs, a.Name) {
-				continue
-			}
-			v, ok := args[a.Name]
-			if !ok || v == nil {
-				continue
-			}
-			query.Set(a.Name, stringify(v))
+	for _, a := range tool.Args {
+		if inPath(tool.PathArgs, a.Name) || !tool.Write && a.Type == ArgObject {
+			continue
 		}
+		if tool.Write && !inPath(tool.QueryArgs, a.Name) {
+			continue
+		}
+		v, ok := args[a.Name]
+		if !ok || v == nil {
+			continue
+		}
+		query.Set(a.Name, stringify(v))
 	}
 	if len(query) > 0 {
 		path += "?" + query.Encode()
@@ -95,28 +95,43 @@ func (e *MuxExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map[stri
 		if e.writeHandler == nil {
 			return nil, fmt.Errorf("tool %s has no write handler", tool.Name)
 		}
-		method = http.MethodPost
+		method = tool.Method
+		if method == "" {
+			method = http.MethodPost
+		}
 		requestHandler = e.writeHandler
 		var err error
 		writeArgs := make(map[string]any, len(args))
-		for key, value := range args {
-			if (key == "target_platforms" || key == "media_urls") && value != nil {
-				if text, ok := value.(string); ok {
-					items := make([]string, 0)
-					for _, item := range strings.Split(text, ",") {
-						if trimmed := strings.TrimSpace(item); trimmed != "" {
-							items = append(items, trimmed)
-						}
-					}
-					writeArgs[key] = items
+		if payload, ok := args["payload"]; ok {
+			requestBody, err = json.Marshal(payload)
+			if err != nil {
+				return nil, ToolError{Status: http.StatusBadRequest, Err: fmt.Errorf("encode tool payload: %w", err)}
+			}
+		} else {
+			for key, value := range args {
+				if inPath(tool.PathArgs, key) || inPath(tool.QueryArgs, key) {
 					continue
 				}
+				if (key == "target_platforms" || key == "media_urls") && value != nil {
+					if text, ok := value.(string); ok {
+						items := make([]string, 0)
+						for _, item := range strings.Split(text, ",") {
+							if trimmed := strings.TrimSpace(item); trimmed != "" {
+								items = append(items, trimmed)
+							}
+						}
+						writeArgs[key] = items
+						continue
+					}
+				}
+				writeArgs[key] = value
 			}
-			writeArgs[key] = value
-		}
-		requestBody, err = json.Marshal(writeArgs)
-		if err != nil {
-			return nil, ToolError{Status: http.StatusBadRequest, Err: fmt.Errorf("encode tool arguments: %w", err)}
+			if len(writeArgs) > 0 {
+				requestBody, err = json.Marshal(writeArgs)
+				if err != nil {
+					return nil, ToolError{Status: http.StatusBadRequest, Err: fmt.Errorf("encode tool arguments: %w", err)}
+				}
+			}
 		}
 	}
 	req := httptest.NewRequest(method, path, bytes.NewReader(requestBody))

@@ -16,7 +16,7 @@ func ServeStdio(ctx context.Context, server *sdk.Server) error {
 // HTTPHandlerOptions configures the production Streamable HTTP transport.
 type HTTPHandlerOptions struct {
 	// Stateless disables session persistence. Each POST creates a temporary
-	// session. Recommended for a read-only tool server behind a load balancer.
+	// session. Recommended for this machine-key API behind a load balancer.
 	Stateless bool
 	// JSONResponse returns application/json rather than text/event-stream.
 	JSONResponse bool

@@ -241,9 +241,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		authService,
 	)
 
-	// Mount the read-only MCP server over Streamable HTTP, behind machine-key auth.
+	// Mount the MCP server over Streamable HTTP, behind machine-key auth.
 	// Tool registration is scoped per-session from the authenticated key's scopes.
-	// The executor routes tool calls to the internal read-only (GET-only) mux.
+	// The executor routes read and explicitly allowlisted write tools to separate
+	// internal muxes.
 	readOnlyMux := http.NewServeMux()
 	registerReadOnlyRoutes(readOnlyMux, readOnlyHandlers{
 		orderHandler:      orderHandler,
@@ -268,18 +269,42 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		settingsHandler:   settingsHandler,
 		systemHandler:     systemHandler,
 	})
-	mcpWriteHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mcpWriteMux := http.NewServeMux()
+	registerMCPWriteRoutes(mcpWriteMux, readOnlyHandlers{
+		orderHandler:      orderHandler,
+		customerHandler:   customerHandler,
+		inventoryHandler:  inventoryHandler,
+		oilHandler:        oilHandler,
+		supplierHandler:   supplierHandler,
+		poHandler:         poHandler,
+		mfgHandler:        mfgHandler,
+		plannerHandler:    plannerHandler,
+		b2bHandler:        b2bHandler,
+		settingsHandler:   settingsHandler,
+		syncHandler:       syncHandler,
+		automationHandler: automationHandler,
+		smmHandler:        smmHandler,
+		judgeMeHandler:    judgeMeHandler,
+		feedbackHandler:   feedbackHandler,
+		aiHandler:         aiHandler,
+	})
+	// The social queue publisher is retained as an explicit write endpoint.
+	mcpWriteMux.HandleFunc("/api/marketing/smm/queue", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		smmHandler.QueuePost(w, r)
 	})
+	mcpWriteHandler := http.Handler(mcpWriteMux)
 	mcpExecutor := mcpServicePkg.NewMuxExecutorWithWriteHandler(readOnlyMux, mcpWriteHandler)
 
 	mcpHandler := mcpServicePkg.HTTPHandler(func(scopes []string) *mcpSDK.Server {
 		return mcpServicePkg.BuildServer(mcpServicePkg.DefaultCatalog, mcpExecutor, auditService, scopes)
-	}, mcpServicePkg.HTTPHandlerOptions{Stateless: true})
+	}, mcpServicePkg.HTTPHandlerOptions{
+		Stateless:           true,
+		MaxRequestBodyBytes: 1 << 20, // Keep MCP requests bounded at 1 MiB.
+	})
 	mux.Handle("/mcp", middleware.MachineKeyMiddleware(machineKeyService)(mcpHandler))
 	log.Println("MCP server mounted at /mcp (Streamable HTTP, machine-key auth)")
 
