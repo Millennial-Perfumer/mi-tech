@@ -41,7 +41,8 @@ is separate: it protects the public MCP endpoint and is sent by every client as
 The container defaults are `MCP_TRANSPORT=streamable-http`,
 `MCP_HTTP_HOST=0.0.0.0`, `MCP_HTTP_PORT=3000`, and `MCP_HTTP_PATH=/mcp`; they
 are set explicitly in `docker-compose.prod.yml` and do not need entries in
-`.env`.
+`.env`. The service follows the upstream `latest` image tag and Compose pulls
+it again on each deployment.
 
 ## Client configuration
 

@@ -50,7 +50,9 @@ services:
   # Meta Graph API MCP gateway. It is reachable only through nginx; its bearer
   # token protects the Meta API credentials held by this container.
   meta-mcp-server:
-    image: ghcr.io/open-work-org/meta-mcp-server:sha-f673c8e
+    # Track the upstream release tag and re-check the registry on every deploy.
+    image: ghcr.io/open-work-org/meta-mcp-server:latest
+    pull_policy: always
     restart: always
     environment:
       META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:?META_ACCESS_TOKEN is required}
