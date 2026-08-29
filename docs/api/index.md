@@ -14,6 +14,7 @@ Comprehensive documentation for the Mi-Tech GST Invoice Manager REST API. All en
 - **[Settings & Configs](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/settings.md)**: Global parameters and secure API keys.
 - **[Users](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/users.md)**: Administrator account management.
 - **[MCP Machine API Keys](mcp.md)**: Machine-to-machine keys for the read-only MCP server.
+- **[GitHub MCP Server](github-mcp-server.md)**: Production deployment, authentication, and client configuration for the GitHub connector.
 - **[Webhooks](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/webhooks.md)**: Third-party integration endpoints.
 - **[System & Metrics](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/system.md)**: Health checks, Prometheus metrics, and tracking.
 

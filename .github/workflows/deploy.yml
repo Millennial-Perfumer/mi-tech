@@ -93,8 +93,9 @@ jobs:
           # These remain GitHub Actions secrets and are forwarded only to the
           # Compose process on the VM; they are never written to a server .env.
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          META_MCP_AUTH_TOKEN: ${{ secrets.META_MCP_AUTH_TOKEN }}
+          MCP_HTTP_AUTH_TOKEN: ${{ secrets.MCP_HTTP_AUTH_TOKEN }}
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          PAT_GITHUB: ${{ secrets.PAT_GITHUB }}
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
@@ -104,7 +105,7 @@ jobs:
           timeout: 60s
           command_timeout: 10m
           use_insecure_cipher: true
-          envs: REPO_OWNER,META_ACCESS_TOKEN,META_MCP_AUTH_TOKEN,THREADS_ACCESS_TOKEN
+          envs: REPO_OWNER,META_ACCESS_TOKEN,MCP_HTTP_AUTH_TOKEN,THREADS_ACCESS_TOKEN,PAT_GITHUB
           script: |
             set -eu
             cd ~/mi-tech-app
@@ -115,12 +116,13 @@ jobs:
             # Export GITHUB_REPOSITORY_OWNER for docker-compose.prod.yml
             export GITHUB_REPOSITORY_OWNER=$REPO_OWNER
             export IMAGE_TAG=${{ github.sha }}
+            export GITHUB_PERSONAL_ACCESS_TOKEN=$PAT_GITHUB
 
             # Fast targeted pull of custom app images
-            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback meta-mcp-server
+            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback meta-mcp-server github-mcp-server
 
             # Recreate containers with zero unnecessary downtime
-            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback meta-mcp-server nginx
+            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback meta-mcp-server github-mcp-server nginx
 
             # Ensure n8n is linked to app network for reverse proxying
             docker network connect mi-tech-app_app-network n8n 2>/dev/null || true

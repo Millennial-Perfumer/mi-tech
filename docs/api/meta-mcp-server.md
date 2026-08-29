@@ -21,10 +21,10 @@ the same values in the shell that runs `docker compose`.
 # A long-lived Meta Graph API token. Prefer a System User token for production.
 META_ACCESS_TOKEN=EAAB...
 
-# GitHub Secret: META_MCP_AUTH_TOKEN
+# Organization Secret: MCP_HTTP_AUTH_TOKEN
 # A random, high-entropy bearer token for clients of this MCP endpoint.
 # Generate, for example: openssl rand -hex 32
-META_MCP_AUTH_TOKEN=replace-with-a-random-secret
+MCP_HTTP_AUTH_TOKEN=replace-with-a-random-secret
 
 # GitHub Secret: THREADS_ACCESS_TOKEN (optional; required only for Threads).
 THREADS_ACCESS_TOKEN=
@@ -34,9 +34,9 @@ META_MCP_ALLOWED_ORIGINS=https://mcp.millennialperfumer.in
 ```
 
 `META_ACCESS_TOKEN` is the token used by the server to call Meta APIs. It must
-have only the permissions needed for the enabled tools. `META_MCP_AUTH_TOKEN`
-is separate: it protects the public MCP endpoint and is sent by every client as
-`Authorization: Bearer <META_MCP_AUTH_TOKEN>`.
+have only the permissions needed for the enabled tools. `MCP_HTTP_AUTH_TOKEN`
+protects both public MCP endpoints and is sent by every client as
+`Authorization: Bearer <MCP_HTTP_AUTH_TOKEN>`.
 
 The container defaults are `MCP_TRANSPORT=streamable-http`,
 `MCP_HTTP_HOST=0.0.0.0`, `MCP_HTTP_PORT=3000`, and `MCP_HTTP_PATH=/mcp`; they
@@ -52,7 +52,7 @@ it again on each deployment.
     "meta": {
       "url": "https://mcp.millennialperfumer.in/meta-mcp-server",
       "headers": {
-        "Authorization": "Bearer YOUR_META_MCP_AUTH_TOKEN"
+        "Authorization": "Bearer YOUR_MCP_HTTP_AUTH_TOKEN"
       }
     }
   }
@@ -88,8 +88,9 @@ it again on each deployment.
 
 The health endpoint is intentionally unauthenticated and returns only service
 status. The MCP endpoint requires its bearer token. Rotate
-`META_MCP_AUTH_TOKEN` whenever a client is removed; rotate the Meta token on
-its own schedule or immediately after suspected exposure.
+`MCP_HTTP_AUTH_TOKEN` whenever a client is removed; this rotates access to both
+MCP endpoints. Rotate the Meta token on its own schedule or immediately after
+suspected exposure.
 
 ## Meta API permissions
 
