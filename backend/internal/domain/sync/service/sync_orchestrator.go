@@ -186,19 +186,32 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 // AdjustStockInternal performs only the local DB updates and logging.
 // It does NOT trigger external synchronization.
 func (s *SyncOrchestrator) AdjustStockInternal(ctx context.Context, itemID int, delta int, sourcePlatform string, reason string, externalOrderID *string) error {
+	before, err := s.inventoryRepo.GetItemByID(itemID)
+	if err != nil {
+		return err
+	}
+
 	// ALWAYS update local stock — this must happen regardless of sync setting
-	err := s.inventoryRepo.AdjustStock(itemID, delta)
+	err = s.inventoryRepo.AdjustStock(itemID, delta)
+	if err != nil {
+		return err
+	}
+	after, err := s.inventoryRepo.GetItemByID(itemID)
 	if err != nil {
 		return err
 	}
 
 	// Log the movement
+	actorType := "system"
 	return s.inventoryRepo.LogAdjustment(&inventoryEntity.InventoryLog{
 		InventoryItemID: itemID,
 		Delta:           delta,
 		Reason:          reason,
 		Platform:        sourcePlatform,
 		ExternalOrderID: externalOrderID,
+		StockBefore:     &before.CurrentStock,
+		StockAfter:      &after.CurrentStock,
+		ActorType:       &actorType,
 	})
 }
 
@@ -225,21 +238,34 @@ func (s *SyncOrchestrator) UpdateStock(ctx context.Context, itemID int, val int,
 	}
 
 	// For absolute updates, we need to know the delta for logging
-	item, _ := s.inventoryRepo.GetItemByID(itemID)
+	item, err := s.inventoryRepo.GetItemByID(itemID)
+	if err != nil {
+		return err
+	}
 	delta := val - item.CurrentStock
 
-	err := s.inventoryRepo.UpdateStockCount(itemID, val)
+	err = s.inventoryRepo.UpdateStockCount(itemID, val)
+	if err != nil {
+		return err
+	}
+	after, err := s.inventoryRepo.GetItemByID(itemID)
 	if err != nil {
 		return err
 	}
 
 	// Log the movement
-	s.inventoryRepo.LogAdjustment(&inventoryEntity.InventoryLog{
+	actorType := "system"
+	if err := s.inventoryRepo.LogAdjustment(&inventoryEntity.InventoryLog{
 		InventoryItemID: itemID,
 		Delta:           delta,
 		Reason:          reason,
 		Platform:        sourcePlatform,
-	})
+		StockBefore:     &item.CurrentStock,
+		StockAfter:      &after.CurrentStock,
+		ActorType:       &actorType,
+	}); err != nil {
+		return err
+	}
 
 	return s.GlobalSync(ctx, itemID, sourcePlatform)
 }

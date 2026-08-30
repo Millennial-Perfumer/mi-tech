@@ -131,6 +131,22 @@ var DefaultCatalog = Catalog{
 		},
 	},
 	{
+		Name:        "orders_history",
+		Description: "List immutable order history, including previous AWBs/tracking values, status changes, customer-detail changes, and sync events.",
+		Scope:       ScopeOrders,
+		Route:       "/api/orders/history",
+		Args: []ArgSpec{
+			arg("id", ArgInt, "Internal order id."),
+			arg("external_order_id", ArgString, "External order id."),
+			arg("search", ArgString, "Search current and historical event values, including old AWBs."),
+			arg("event_type", ArgString, "Filter by event type."),
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("page", ArgInt, "Page number, 1-based."),
+			arg("limit", ArgInt, "Number of events per page, maximum 100."),
+		},
+	},
+	{
 		Name:        "orders_sources",
 		Description: "List distinct order sources.",
 		Scope:       ScopeOrders,
@@ -155,6 +171,23 @@ var DefaultCatalog = Catalog{
 			arg("min_orders", ArgInt, "Minimum order count."),
 			arg("city", ArgString, "City filter."),
 			arg("state", ArgString, "State filter."),
+		},
+	},
+	{
+		Name:        "customers_history",
+		Description: "List immutable customer profile history, including previous contact and address values.",
+		Scope:       ScopeCustomers,
+		Route:       "/api/customers/history",
+		Args: []ArgSpec{
+			arg("id", ArgInt, "Internal customer id."),
+			arg("order_id", ArgInt, "Order id that caused the customer change."),
+			arg("phone", ArgString, "Customer phone number."),
+			arg("search", ArgString, "Search historical customer values."),
+			arg("event_type", ArgString, "Filter by event type."),
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("page", ArgInt, "Page number, 1-based."),
+			arg("limit", ArgInt, "Number of events per page, maximum 100."),
 		},
 	},
 
@@ -274,6 +307,16 @@ var DefaultCatalog = Catalog{
 			arg("page", ArgInt, "Page number."),
 			arg("limit", ArgInt, "Page size."),
 			arg("sort", ArgString, "Sort expression."),
+		},
+	},
+	{
+		Name:        "inventory_logs",
+		Description: "List stock movement history by inventory item id or external order id, including stock before and after when recorded.",
+		Scope:       ScopeInventory,
+		Route:       "/api/inventory/logs",
+		Args: []ArgSpec{
+			arg("id", ArgInt, "Inventory item id."),
+			arg("external_order_id", ArgString, "External order id that caused the movement."),
 		},
 	},
 	{

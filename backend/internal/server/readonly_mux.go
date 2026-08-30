@@ -26,6 +26,7 @@ import (
 // mux. It mirrors the subset of handlers exposed via GET-only routes.
 type readOnlyHandlers struct {
 	orderHandler      *orderHandlerPkg.OrderHandler
+	historyHandler    *orderHandlerPkg.HistoryHandler
 	customerHandler   *orderHandlerPkg.CustomerHandler
 	metricsHandler    *dashboardHandlerPkg.MetricsHandler
 	reportHandler     *gstHandlerPkg.GSTHandler
@@ -81,10 +82,12 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 			h.orderHandler.GetOrders(w, r)
 		}
 	}))
+	mux.HandleFunc("/api/orders/history", ro(h.historyHandler.GetOrderHistory))
 	mux.HandleFunc("/api/sources", ro(h.orderHandler.GetSources))
 
 	// Customers
 	mux.HandleFunc("/api/customers", ro(h.customerHandler.ListCustomers))
+	mux.HandleFunc("/api/customers/history", ro(h.historyHandler.GetCustomerHistory))
 
 	// Dashboard metrics
 	mux.HandleFunc("/api/dashboard/metrics", ro(h.metricsHandler.GetDashboardMetrics))
@@ -101,6 +104,7 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 
 	// Inventory
 	mux.HandleFunc("/api/inventory", ro(h.inventoryHandler.GetDashboard))
+	mux.HandleFunc("/api/inventory/logs", ro(h.inventoryHandler.GetLogs))
 	mux.HandleFunc("/api/inventory/next-sku", ro(h.inventoryHandler.GetNextSKU))
 
 	// Production

@@ -14,9 +14,11 @@ var routeMap = map[string]RouteBinding{
 	// Orders
 	"orders_list":    {Path: "/api/orders", Method: "GET"},
 	"orders_get":     {Path: "/api/orders", Method: "GET"},
+	"orders_history": {Path: "/api/orders/history", Method: "GET"},
 	"orders_sources": {Path: "/api/sources", Method: "GET"},
 	// Customers
-	"customers_list": {Path: "/api/customers", Method: "GET"},
+	"customers_list":    {Path: "/api/customers", Method: "GET"},
+	"customers_history": {Path: "/api/customers/history", Method: "GET"},
 	// Dashboard metrics
 	"dashboard_metrics":          {Path: "/api/dashboard/metrics", Method: "GET"},
 	"dashboard_top_products":     {Path: "/api/dashboard/top-products", Method: "GET"},
@@ -30,6 +32,7 @@ var routeMap = map[string]RouteBinding{
 	"gst_gstr1_json":       {Path: "/api/reports/gstr1-json", Method: "GET"},
 	// Inventory
 	"inventory_dashboard": {Path: "/api/inventory", Method: "GET"},
+	"inventory_logs":      {Path: "/api/inventory/logs", Method: "GET"},
 	"inventory_next_sku":  {Path: "/api/inventory/next-sku", Method: "GET"},
 	// Production
 	"suppliers_list":       {Path: "/api/inventory/suppliers", Method: "GET"},

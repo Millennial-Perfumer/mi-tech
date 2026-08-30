@@ -37,6 +37,7 @@ import (
 func RegisterRoutes(
 	mux *http.ServeMux,
 	orderHandler *orderHandlerPkg.OrderHandler,
+	historyHandler *orderHandlerPkg.HistoryHandler,
 	syncHandler *syncHandlerPkg.SyncHandler,
 	metricsHandler *dashboardHandlerPkg.MetricsHandler,
 	reportHandler *gstHandlerPkg.GSTHandler,
@@ -167,6 +168,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/orders/status", protected(orderHandler.UpdateOrderStatus))
 	mux.HandleFunc("/api/orders/payment-status", protected(orderHandler.UpdatePaymentStatus))
 	mux.HandleFunc("/api/orders/delivered", protected(orderHandler.MarkAsDelivered))
+	mux.HandleFunc("/api/orders/history", protected(historyHandler.GetOrderHistory))
 	mux.HandleFunc("/api/feedback/scan", protected(feedbackHandler.ScanFeedbackCandidates))
 	mux.HandleFunc("/api/feedback/bulk-send", protected(feedbackHandler.BulkSendFeedbackRequests))
 	mux.HandleFunc("/api/orders/feedback", protected(feedbackHandler.GetFeedback))
@@ -188,6 +190,7 @@ func RegisterRoutes(
 			customerHandler.ListCustomers(w, r)
 		}
 	}))
+	mux.HandleFunc("/api/customers/history", protected(historyHandler.GetCustomerHistory))
 
 	mux.HandleFunc("/api/customers/", protected(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

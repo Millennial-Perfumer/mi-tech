@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"mi-tech/internal/domain/order/entity"
@@ -95,6 +96,59 @@ func TestCustomerService_UpdateCustomer_PreserveStats(t *testing.T) {
 	assert.Equal(t, "Name", *fetched.LastName)  // Preserved by patching
 	assert.Equal(t, 5, fetched.TotalOrders)     // Preserved!
 	assert.Equal(t, 500.25, fetched.TotalSpent) // Preserved!
+}
+
+func TestCustomerService_UpdateCustomer_CreatesHistory(t *testing.T) {
+	db, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Skip("DB not available")
+	}
+	defer testutil.CleanupTestDB(db)
+
+	repo := repository.NewCustomerRepository(db)
+	svc := service.NewCustomerService(repo, nil, nil)
+
+	phone := "+919998887771"
+	cust := &entity.Customer{
+		PhoneNumber: phone,
+		FirstName:   util.StrPtr("Old"),
+		LastName:    util.StrPtr("Name"),
+	}
+	err = repo.UpsertByPhone(context.Background(), cust)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = svc.UpdateCustomer(context.Background(), &entity.Customer{
+		ID:        cust.ID,
+		FirstName: util.StrPtr("New"),
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	events := repository.NewEventRepository(db)
+	rows, total, err := events.ListCustomerEvents(context.Background(), repository.EventFilter{CustomerID: cust.ID, Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total < 2 {
+		t.Fatalf("expected customer creation and update events, got %d", total)
+	}
+
+	var detailsEvent *entity.CustomerEvent
+	for i := range rows {
+		if rows[i].EventType == "customer_details_changed" {
+			detailsEvent = &rows[i]
+			break
+		}
+	}
+	if detailsEvent == nil {
+		t.Fatal("expected customer_details_changed event")
+	}
+	if !strings.Contains(string(*detailsEvent.BeforeData), "Old") || !strings.Contains(string(*detailsEvent.AfterData), "New") {
+		t.Fatalf("expected before/after customer names, before=%s after=%s", string(*detailsEvent.BeforeData), string(*detailsEvent.AfterData))
+	}
 }
 
 func TestCustomerService_UpdateFromOrder_RecalculatesStats(t *testing.T) {

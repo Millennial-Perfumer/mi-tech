@@ -36,10 +36,18 @@ type InventoryMapping struct {
 type InventoryLog struct {
 	ID              int       `gorm:"primaryKey" json:"id"`
 	InventoryItemID int       `gorm:"column:inventory_item_id" json:"inventory_item_id"`
+	OrderID         *int64    `gorm:"column:order_id" json:"order_id,omitempty"`
+	CustomerID      *int64    `gorm:"column:customer_id" json:"customer_id,omitempty"`
 	Delta           int       `gorm:"column:delta" json:"delta"`
 	Reason          string    `gorm:"column:reason" json:"reason"` // sale, cancellation, return, lost, manual, correction
 	Platform        string    `gorm:"column:platform" json:"platform"`
 	ExternalOrderID *string   `gorm:"column:external_order_id" json:"external_order_id"`
+	StockBefore     *int      `gorm:"column:stock_before" json:"stock_before,omitempty"`
+	StockAfter      *int      `gorm:"column:stock_after" json:"stock_after,omitempty"`
+	ActorType       *string   `gorm:"column:actor_type" json:"actor_type,omitempty"`
+	ActorID         *string   `gorm:"column:actor_id" json:"actor_id,omitempty"`
+	RequestID       *string   `gorm:"column:request_id" json:"request_id,omitempty"`
+	IdempotencyKey  *string   `gorm:"column:idempotency_key" json:"idempotency_key,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 }
 

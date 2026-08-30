@@ -184,7 +184,14 @@ func (s *OrderService) UpsertOrder(order entity.Order) error {
 	}
 
 	if s.customerService != nil {
-		_ = s.customerService.UpdateFromOrder(context.Background(), &order)
+		// Upsert receives the order by value and may resolve its internal ID from
+		// the external provider ID. Reload the persisted row so customer history
+		// can retain the exact order context that caused the change.
+		customerOrder := order
+		if saved, fetchErr := s.orderRepo.GetByExternalID(order.ExternalOrderID); fetchErr == nil {
+			customerOrder = saved
+		}
+		_ = s.customerService.UpdateFromOrder(context.Background(), &customerOrder)
 	}
 	return nil
 }

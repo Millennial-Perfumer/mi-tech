@@ -484,6 +484,12 @@ func (s *InventoryService) GetLogs(itemID int) ([]entity.InventoryLog, error) {
 	return s.repo.GetLogsByItemID(itemID)
 }
 
+// GetLogsByExternalOrderID returns stock movements caused by an external
+// order identifier, including historical adjustments linked to that order.
+func (s *InventoryService) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
+	return s.repo.GetLogsByExternalOrderID(externalOrderID)
+}
+
 // SyncAmazonOrders triggers an immediate poll of Amazon orders.
 func (s *InventoryService) SyncAmazonOrders(ctx context.Context, start, end *time.Time) {
 	if s.amzPoller != nil {

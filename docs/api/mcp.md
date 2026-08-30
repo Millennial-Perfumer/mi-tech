@@ -49,6 +49,19 @@ scopes: `orders:write`, `customers:write`, `inventory:write`,
 `ai:write`. The existing social queue publisher continues to use
 `marketing:publish`.
 
+The order/customer/inventory read catalog also includes:
+
+- `orders_history` — paginated append-only order events, including historical
+  AWB/tracking values searchable through `search`.
+- `customers_history` — paginated customer change events, optionally scoped to
+  an order or historical phone value.
+- `inventory_logs` — inventory movement logs, optionally scoped by item or
+  external order ID.
+
+AWBs remain on the existing order record as the current snapshot. Historical
+AWB values are preserved in `order_events` when tracking changes; this design
+intentionally does not add a separate `order_shipments` table.
+
 Write tools are individually allowlisted in `backend/internal/mcp/catalog.go`
 and dispatched through a separate write mux to existing domain handlers. JSON
 request bodies are supplied through a `payload` object; legacy endpoints that

@@ -251,6 +251,9 @@ func (s *CustomerService) UpdateFromOrder(ctx context.Context, order *entity.Ord
 		}
 	}
 
+	if order.ID > 0 {
+		return s.repo.UpsertByPhoneForOrder(ctx, customer, order.ID)
+	}
 	return s.repo.UpsertByPhone(ctx, customer)
 }
 

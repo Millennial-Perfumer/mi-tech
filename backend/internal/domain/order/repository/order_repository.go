@@ -17,7 +17,8 @@ import (
 
 // gormOrderRepository is the GORM implementation of OrderRepository.
 type gormOrderRepository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	events *gormEventRepository
 }
 
 // orderListAllowedSortColumns defines the permitted columns for sorting to prevent SQL injection.
@@ -28,9 +29,11 @@ var orderListAllowedSortColumns = map[string]bool{
 	"fulfillment_status": true,
 }
 
+const orderAuditSelectColumns = "id, source_id, external_order_id, order_number, total_price, subtotal_price, total_tax, total_discount, financial_status, fulfillment_status, delivery_status, tracking_number, shipping_company, tracking_url, status, cancelled_at, cancel_reason, customer_name, customer_first_name, customer_last_name, customer_email, customer_phone, customer_city, customer_state, customer_country, customer_address1, customer_address2, customer_zip, customer_external_id, delivered_at, feedback_status_id, feedback_sent_at, inventory_deducted"
+
 // NewOrderRepository creates a new GORM-backed OrderRepository.
 func NewOrderRepository(db *gorm.DB) OrderRepository {
-	return &gormOrderRepository{db: db}
+	return &gormOrderRepository{db: db, events: newEventRepository(db)}
 }
 
 func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, error) {
@@ -235,6 +238,10 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 
 		// 3. Adjust stock: subtract the delta
 		// Optimization: Minimize update queries by grouping adjustments per item.
+		var itemBefore inventoryEntity.InventoryItem
+		if err := tx.Select("current_stock").First(&itemBefore, itemID).Error; err != nil {
+			return nil, fmt.Errorf("failed to read stock for item %d: %w", itemID, err)
+		}
 		if err := tx.Model(&inventoryEntity.InventoryItem{}).
 			Where("id = ?", itemID).
 			Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
@@ -248,10 +255,14 @@ func (r *gormOrderRepository) syncInventoryDeltas(tx *gorm.DB, order *entity.Ord
 		}
 		logs = append(logs, inventoryEntity.InventoryLog{
 			InventoryItemID: itemID,
+			OrderID:         &order.ID,
 			Delta:           -delta,
 			Reason:          reason,
 			Platform:        order.SourceID,
 			ExternalOrderID: &order.ExternalOrderID,
+			StockBefore:     &itemBefore.CurrentStock,
+			StockAfter:      intPointer(itemBefore.CurrentStock - delta),
+			ActorType:       util.StrPtr("system"),
 		})
 		affectedIDs = append(affectedIDs, itemID)
 	}
@@ -300,22 +311,31 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 		// 1. Check if the order already exists to preserve PII
 		var existing entity.Order
 		err := tx.Where("external_order_id = ?", order.ExternalOrderID).
-			Select("id", "source_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
+			Select(orderAuditSelectColumns).
 			First(&existing).Error
+		existingFound := err == nil
 
 		if err == nil {
 			// If this order has already been converted to B2B, do not overwrite B2B invoice data with retail sync data
 			if existing.SourceID == "b2b" {
 				// Only update delivery & tracking status if Amazon provides shipment updates
-				return tx.Model(&existing).Updates(map[string]interface{}{
+				updated := existing
+				updated.FulfillmentStatus = order.FulfillmentStatus
+				updated.DeliveryStatus = order.DeliveryStatus
+				updated.TrackingNumber = order.TrackingNumber
+				updated.ShippingCompany = order.ShippingCompany
+				updated.TrackingUrl = order.TrackingUrl
+				if err := tx.Model(&existing).Updates(map[string]interface{}{
 					"fulfillment_status": order.FulfillmentStatus,
 					"delivery_status":    order.DeliveryStatus,
 					"tracking_number":    order.TrackingNumber,
 					"shipping_company":   order.ShippingCompany,
 					"tracking_url":       order.TrackingUrl,
 					"updated_at":         time.Now(),
-				}).Error
+				}).Error; err != nil {
+					return err
+				}
+				return r.events.recordOrderChanges(tx, &existing, &updated, existing.SourceID, "sync")
 			}
 
 			order.ID = existing.ID // Crucial to link line items correctly and resolve primary key conflict
@@ -424,7 +444,18 @@ func (r *gormOrderRepository) Upsert(order entity.Order) ([]int, error) {
 		affectedIDs = ids
 
 		// Update order again with inventory_deducted flag
-		return tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error
+		if err := tx.Model(&order).Update("inventory_deducted", order.InventoryDeducted).Error; err != nil {
+			return err
+		}
+
+		var saved entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", order.ID).First(&saved).Error; err != nil {
+			return fmt.Errorf("failed to reload saved order for history: %w", err)
+		}
+		if existingFound {
+			return r.events.recordOrderChanges(tx, &existing, &saved, saved.SourceID, "sync")
+		}
+		return r.events.recordOrderChanges(tx, nil, &saved, saved.SourceID, "sync")
 	})
 	return affectedIDs, err
 }
@@ -437,22 +468,13 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// 1. Fetch existing orders in one batch to preserve PII
 		externalIDs := make([]string, len(orders))
-		sourceIDs := make(map[string]bool)
 		for i, o := range orders {
 			externalIDs[i] = o.ExternalOrderID
-			sourceIDs[o.SourceID] = true
-		}
-
-		// Collect unique source IDs (usually just one, but let's be safe)
-		var uniqueSources []string
-		for s := range sourceIDs {
-			uniqueSources = append(uniqueSources, s)
 		}
 
 		var existingOrders []entity.Order
 		err := tx.Where("external_order_id IN ?", externalIDs).
-			Select("id", "source_id", "external_order_id", "customer_name", "customer_first_name", "customer_last_name", "customer_email", "customer_phone",
-				"customer_city", "customer_state", "customer_country", "customer_address1", "customer_address2", "customer_zip", "delivered_at", "inventory_deducted").
+			Select(orderAuditSelectColumns).
 			Find(&existingOrders).Error
 
 		if err != nil {
@@ -499,14 +521,25 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 		for _, o := range orders {
 			if existing, found := existingMap[o.ExternalOrderID]; found && existing.SourceID == "b2b" {
 				// Only update delivery & tracking status for B2B converted orders
-				_ = tx.Model(&entity.Order{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
+				updated := existing
+				updated.FulfillmentStatus = o.FulfillmentStatus
+				updated.DeliveryStatus = o.DeliveryStatus
+				updated.TrackingNumber = o.TrackingNumber
+				updated.ShippingCompany = o.ShippingCompany
+				updated.TrackingUrl = o.TrackingUrl
+				if err := tx.Model(&entity.Order{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
 					"fulfillment_status": o.FulfillmentStatus,
 					"delivery_status":    o.DeliveryStatus,
 					"tracking_number":    o.TrackingNumber,
 					"shipping_company":   o.ShippingCompany,
 					"tracking_url":       o.TrackingUrl,
 					"updated_at":         time.Now(),
-				}).Error
+				}).Error; err != nil {
+					return err
+				}
+				if err := r.events.recordOrderChanges(tx, &existing, &updated, existing.SourceID, "sync"); err != nil {
+					return err
+				}
 			} else {
 				ordersToUpsert = append(ordersToUpsert, o)
 			}
@@ -561,6 +594,30 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			}
 		}
 
+		// GORM normally fills IDs for both inserted and conflicted rows. Resolve
+		// any remaining zero IDs explicitly so inventory logs and the final
+		// inventory_deducted update always retain their order link.
+		persistedOrdersByExternalID := make(map[string]entity.Order, len(ordersToUpsert))
+		for i := range ordersToUpsert {
+			if ordersToUpsert[i].ID == 0 {
+				var persisted entity.Order
+				if err := tx.Select("id, external_order_id, source_id").
+					Where("external_order_id = ?", ordersToUpsert[i].ExternalOrderID).
+					First(&persisted).Error; err != nil {
+					return fmt.Errorf("failed to resolve batch order %s: %w", ordersToUpsert[i].ExternalOrderID, err)
+				}
+				ordersToUpsert[i].ID = persisted.ID
+			}
+			persistedOrdersByExternalID[ordersToUpsert[i].ExternalOrderID] = ordersToUpsert[i]
+		}
+		for i := range orders {
+			if persisted, found := persistedOrdersByExternalID[orders[i].ExternalOrderID]; found {
+				orders[i].ID = persisted.ID
+			} else if existing, found := existingMap[orders[i].ExternalOrderID]; found {
+				orders[i].ID = existing.ID
+			}
+		}
+
 		// 3. Flatten and Batch Upsert Line Items
 		var allLineItems []entity.LineItem
 		for i := range ordersToUpsert {
@@ -584,7 +641,14 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			Platform string
 			SKU      string
 		}
+		type orderInventoryDelta struct {
+			orderID    int64
+			externalID string
+			platform   string
+			itemDeltas map[int]int
+		}
 		totalSKUDeltas := make(map[skuKey]int)
+		orderInventoryDeltas := make([]orderInventoryDelta, 0, len(orders))
 		pairs := make([][]interface{}, 0)
 
 		for i := range orders {
@@ -622,10 +686,51 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				return fmt.Errorf("failed to fetch mappings in batch: %w", err)
 			}
 
-			itemDeltas := make(map[int]int)
+			mappingsBySKU := make(map[skuKey][]int)
 			for _, m := range mappings {
 				key := skuKey{Platform: m.Platform, SKU: m.ExternalSKU}
-				itemDeltas[m.InventoryItemID] += totalSKUDeltas[key]
+				mappingsBySKU[key] = append(mappingsBySKU[key], m.InventoryItemID)
+			}
+
+			// Build the per-order item deltas as well as the aggregate delta used
+			// for the single stock update per item.
+			for i := range orders {
+				orderSKUDeltas := make(map[string]int)
+				for _, li := range orders[i].LineItems {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] += li.Quantity
+					}
+				}
+				for _, li := range oldLinesByOrder[orders[i].ID] {
+					if li.SKU != nil && *li.SKU != "" {
+						orderSKUDeltas[*li.SKU] -= li.Quantity
+					}
+				}
+				itemDeltas := make(map[int]int)
+				for sku, delta := range orderSKUDeltas {
+					if delta == 0 {
+						continue
+					}
+					key := skuKey{Platform: orders[i].SourceID, SKU: sku}
+					for _, itemID := range mappingsBySKU[key] {
+						itemDeltas[itemID] += delta
+					}
+				}
+				if len(itemDeltas) > 0 {
+					orderInventoryDeltas = append(orderInventoryDeltas, orderInventoryDelta{
+						orderID:    orders[i].ID,
+						externalID: orders[i].ExternalOrderID,
+						platform:   orders[i].SourceID,
+						itemDeltas: itemDeltas,
+					})
+				}
+			}
+
+			itemDeltas := make(map[int]int)
+			for key, delta := range totalSKUDeltas {
+				for _, itemID := range mappingsBySKU[key] {
+					itemDeltas[itemID] += delta
+				}
 			}
 
 			var logs []inventoryEntity.InventoryLog
@@ -633,21 +738,41 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 				if delta == 0 {
 					continue
 				}
-				// Optimization: Aggregate deltas by InventoryItemID to minimize update queries
+				var itemBefore inventoryEntity.InventoryItem
+				if err := tx.Select("current_stock").First(&itemBefore, itemID).Error; err != nil {
+					return fmt.Errorf("failed to read stock for item %d: %w", itemID, err)
+				}
+				// Aggregate the stock update by item, but keep one ledger row per
+				// order/item movement so the order timeline remains complete.
 				if err := tx.Model(&inventoryEntity.InventoryItem{}).
 					Where("id = ?", itemID).
 					Update("current_stock", gorm.Expr("current_stock - ?", delta)).Error; err != nil {
 					return fmt.Errorf("failed to adjust stock for item %d: %w", itemID, err)
 				}
 
-				// Note: Batch upsert logs are aggregated by itemID for performance.
-				// Optimization: Batch insert logs after the loop to reduce DB roundtrips.
-				logs = append(logs, inventoryEntity.InventoryLog{
-					InventoryItemID: itemID,
-					Delta:           -delta,
-					Reason:          "batch_sync",
-					Platform:        uniqueSources[0], // Assuming batch is usually from one source
-				})
+				stockAtLog := itemBefore.CurrentStock
+				for _, orderDelta := range orderInventoryDeltas {
+					orderDeltaValue := orderDelta.itemDeltas[itemID]
+					if orderDeltaValue == 0 {
+						continue
+					}
+					stockBefore := stockAtLog
+					stockAfter := stockBefore - orderDeltaValue
+					orderID := orderDelta.orderID
+					externalID := orderDelta.externalID
+					logs = append(logs, inventoryEntity.InventoryLog{
+						InventoryItemID: itemID,
+						OrderID:         &orderID,
+						Delta:           -orderDeltaValue,
+						Reason:          "batch_sync",
+						Platform:        orderDelta.platform,
+						ExternalOrderID: &externalID,
+						StockBefore:     &stockBefore,
+						StockAfter:      &stockAfter,
+						ActorType:       util.StrPtr("system"),
+					})
+					stockAtLog = stockAfter
+				}
 
 				affectedIDs = append(affectedIDs, itemID)
 			}
@@ -668,71 +793,141 @@ func (r *gormOrderRepository) UpsertBatch(orders []entity.Order) ([]int, error) 
 			return fmt.Errorf("failed to batch update inventory_deducted flag: %w", err)
 		}
 
+		// Record the final persisted snapshot for every normal order in the
+		// batch. A sync that produces no meaningful change creates no event.
+		for i := range ordersToUpsert {
+			var saved entity.Order
+			if err := tx.Select(orderAuditSelectColumns).
+				Where("external_order_id = ?", ordersToUpsert[i].ExternalOrderID).
+				First(&saved).Error; err != nil {
+				return fmt.Errorf("failed to reload batch order %s for history: %w", ordersToUpsert[i].ExternalOrderID, err)
+			}
+			if before, found := existingMap[saved.ExternalOrderID]; found {
+				if err := r.events.recordOrderChanges(tx, &before, &saved, saved.SourceID, "sync"); err != nil {
+					return err
+				}
+			} else if err := r.events.recordOrderChanges(tx, nil, &saved, saved.SourceID, "sync"); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	return affectedIDs, err
 }
 
 func (r *gormOrderRepository) UpdateStatus(externalOrderID string, financialStatus, fulfillmentStatus string) error {
-	return r.db.Model(&entity.Order{}).
-		Where("external_order_id = ?", externalOrderID).
-		Updates(map[string]interface{}{
-			"financial_status":   financialStatus,
-			"fulfillment_status": fulfillmentStatus,
-			"status":             fulfillmentStatus,
-			"updated_at":         time.Now(),
-		}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("external_order_id = ?", externalOrderID).First(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&entity.Order{}).
+			Where("external_order_id = ?", externalOrderID).
+			Updates(map[string]interface{}{
+				"financial_status":   financialStatus,
+				"fulfillment_status": fulfillmentStatus,
+				"status":             fulfillmentStatus,
+				"updated_at":         time.Now(),
+			}).Error; err != nil {
+			return err
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", before.ID).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "system")
+	})
 }
 
 func (r *gormOrderRepository) UpdateFinancialStatus(id int64, status string) error {
-	return r.db.Model(&entity.Order{}).
-		Where("id = ?", id).
-		Updates(map[string]interface{}{
-			"financial_status": status,
-			"updated_at":       time.Now(),
-		}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&entity.Order{}).
+			Where("id = ?", id).
+			Updates(map[string]interface{}{
+				"financial_status": status,
+				"updated_at":       time.Now(),
+			}).Error; err != nil {
+			return err
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "system")
+	})
 }
 
 func (r *gormOrderRepository) UpdateOrderStatus(id int64, status string) (int64, error) {
 	status = strings.ToLower(status)
-	updates := map[string]interface{}{
-		"status":     status,
-		"updated_at": time.Now(),
-	}
+	returnRows := int64(0)
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&before).Error; err != nil {
+			return err
+		}
 
-	if status == "CANCELLED" {
-		updates["fulfillment_status"] = "restocked"
-		// Only set cancelled_at if not already set
-		r.db.Model(&entity.Order{}).Where("id = ? AND cancelled_at IS NULL", id).
-			Update("cancelled_at", time.Now())
-	} else if status == "FULFILLED" || status == "UNFULFILLED" {
-		updates["fulfillment_status"] = strings.ToLower(status)
-	}
+		updates := map[string]interface{}{
+			"status":     status,
+			"updated_at": time.Now(),
+		}
 
-	if status == "DELIVERED" {
-		updates["delivery_status"] = "delivered"
-		updates["delivered_at"] = time.Now()
-		// Initialize feedback status to 'Pending' (1) if it's not already set
-		updates["feedback_status_id"] = gorm.Expr("COALESCE(feedback_status_id, 1)")
-	}
+		if status == "cancelled" {
+			updates["fulfillment_status"] = "restocked"
+			// Only set cancelled_at if not already set.
+			updates["cancelled_at"] = gorm.Expr("COALESCE(cancelled_at, ?)", time.Now())
+		} else if status == "fulfilled" || status == "unfulfilled" {
+			updates["fulfillment_status"] = status
+		}
 
-	result := r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(updates)
-	return result.RowsAffected, result.Error
+		if status == "delivered" {
+			updates["delivery_status"] = "delivered"
+			updates["delivered_at"] = time.Now()
+			// Initialize feedback status to 'Pending' (1) if it is not already set.
+			updates["feedback_status_id"] = gorm.Expr("COALESCE(feedback_status_id, 1)")
+		}
+
+		result := tx.Model(&entity.Order{}).Where("id = ?", id).Updates(updates)
+		returnRows = result.RowsAffected
+		if result.Error != nil {
+			return result.Error
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "system")
+	})
+	return returnRows, err
 }
 
 func (r *gormOrderRepository) CancelOrder(externalOrderID string, cancelledAt *string, reason string) error {
-	updates := map[string]interface{}{
-		"status":        "CANCELLED",
-		"cancel_reason": reason,
-		"updated_at":    time.Now(),
-	}
-	if cancelledAt != nil {
-		updates["cancelled_at"] = *cancelledAt
-	}
-
-	return r.db.Model(&entity.Order{}).
-		Where("external_order_id = ?", externalOrderID).
-		Updates(updates).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("external_order_id = ?", externalOrderID).First(&before).Error; err != nil {
+			return err
+		}
+		updates := map[string]interface{}{
+			"status":        "CANCELLED",
+			"cancel_reason": reason,
+			"updated_at":    time.Now(),
+		}
+		if cancelledAt != nil {
+			updates["cancelled_at"] = *cancelledAt
+		}
+		if err := tx.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(updates).Error; err != nil {
+			return err
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", before.ID).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "system")
+	})
 }
 
 func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackingNumber, shippingCompany, trackingUrl, deliveryStatus string) error {
@@ -750,6 +945,10 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("external_order_id = ?", externalOrderID).First(&before).Error; err != nil {
+			return err
+		}
 		if err := tx.Model(&entity.Order{}).Where("external_order_id = ?", externalOrderID).Updates(commonUpdates).Error; err != nil {
 			return err
 		}
@@ -764,29 +963,48 @@ func (r *gormOrderRepository) UpdateTrackingInfo(externalOrderID string, trackin
 				updates["feedback_status_id"] = gorm.Expr("COALESCE(feedback_status_id, 1)")
 			}
 			// Protect 'delivered' status from being overwritten by 'in_transit' or other earlier states
-			return tx.Model(&entity.Order{}).
+			if err := tx.Model(&entity.Order{}).
 				Where("external_order_id = ? AND (delivery_status != 'delivered' OR delivery_status IS NULL)", externalOrderID).
-				Updates(updates).Error
+				Updates(updates).Error; err != nil {
+				return err
+			}
 		}
-		return nil
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", before.ID).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "system")
 	})
 }
 
 func (r *gormOrderRepository) UpdateOrderDetails(id int64, order entity.Order) error {
-	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"customer_first_name": order.CustomerFirstName,
-		"customer_last_name":  order.CustomerLastName,
-		"customer_name":       order.CustomerName,
-		"customer_email":      order.CustomerEmail,
-		"customer_phone":      order.CustomerPhone,
-		"customer_address1":   order.CustomerAddress1,
-		"customer_address2":   order.CustomerAddress2,
-		"customer_city":       order.CustomerCity,
-		"customer_state":      order.CustomerState,
-		"customer_zip":        order.CustomerZip,
-		"customer_country":    order.CustomerCountry,
-		"updated_at":          time.Now(),
-	}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"customer_first_name": order.CustomerFirstName,
+			"customer_last_name":  order.CustomerLastName,
+			"customer_name":       order.CustomerName,
+			"customer_email":      order.CustomerEmail,
+			"customer_phone":      order.CustomerPhone,
+			"customer_address1":   order.CustomerAddress1,
+			"customer_address2":   order.CustomerAddress2,
+			"customer_city":       order.CustomerCity,
+			"customer_state":      order.CustomerState,
+			"customer_zip":        order.CustomerZip,
+			"customer_country":    order.CustomerCountry,
+			"updated_at":          time.Now(),
+		}).Error; err != nil {
+			return err
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "manual")
+	})
 }
 
 func (r *gormOrderRepository) GetCustomerStats(phone string) (totalOrders int, totalSpent float64, err error) {
@@ -856,12 +1074,25 @@ func (r *gormOrderRepository) TruncateAll() error {
 
 func (r *gormOrderRepository) MarkAsDelivered(id int64) error {
 	now := time.Now()
-	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"delivery_status":    "delivered",
-		"delivered_at":       now,
-		"updated_at":         now,
-		"feedback_status_id": gorm.Expr("COALESCE(feedback_status_id, 1)"),
-	}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&entity.Order{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"delivery_status":    "delivered",
+			"delivered_at":       now,
+			"updated_at":         now,
+			"feedback_status_id": gorm.Expr("COALESCE(feedback_status_id, 1)"),
+		}).Error; err != nil {
+			return err
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "manual")
+	})
 }
 
 func (r *gormOrderRepository) GetOrdersForFeedback(delayMinutes int) ([]entity.Order, error) {
@@ -883,7 +1114,20 @@ func (r *gormOrderRepository) UpdateFeedbackStatus(id int64, statusID int) error
 	if statusID == 2 { // Sent
 		updates["feedback_sent_at"] = time.Now()
 	}
-	return r.db.Model(&entity.Order{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var before entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&entity.Order{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+			return err
+		}
+		var after entity.Order
+		if err := tx.Select(orderAuditSelectColumns).Where("id = ?", id).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordOrderChanges(tx, &before, &after, after.SourceID, "system")
+	})
 }
 
 func (r *gormOrderRepository) GetByIDAndPhone(id int64, phone string) (entity.Order, error) {
@@ -896,6 +1140,10 @@ func (r *gormOrderRepository) GetByIDAndPhone(id int64, phone string) (entity.Or
 	}
 	err := r.db.Where("id = ? AND (customer_phone LIKE ? OR ? LIKE '%' || customer_phone)", id, "%"+searchPhone, phone).First(&order).Error
 	return order, err
+}
+
+func intPointer(value int) *int {
+	return &value
 }
 
 func (r *gormOrderRepository) GetNextPOSSequence(terminalCode string) (string, error) {
@@ -926,4 +1174,3 @@ func (r *gormOrderRepository) GetMaxAmazonInvoiceNumber() (int, error) {
 	`).Scan(&maxVal).Error
 	return maxVal, err
 }
-

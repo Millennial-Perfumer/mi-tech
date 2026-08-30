@@ -6,6 +6,9 @@ import (
 	"strings"
 	"time"
 
+	orderEntity "mi-tech/internal/domain/order/entity"
+	orderRepository "mi-tech/internal/domain/order/repository"
+
 	"gorm.io/gorm"
 	"mi-tech/internal/domain/b2b/entity"
 )
@@ -160,6 +163,15 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 		}
 	}
 
+	var beforeOrder *orderEntity.Order
+	if orderID != 0 {
+		var existingOrder orderEntity.Order
+		if err := tx.First(&existingOrder, orderID).Error; err != nil {
+			return err
+		}
+		beforeOrder = &existingOrder
+	}
+
 	// Prepare order data
 	financialStatus := "unpaid"
 	lowerPaymentStatus := strings.ToLower(inv.PaymentStatus)
@@ -257,7 +269,11 @@ func (r *gormB2BRepository) syncToOrdersTable(tx *gorm.DB, inv *entity.B2BInvoic
 		}
 	}
 
-	return nil
+	var afterOrder orderEntity.Order
+	if err := tx.First(&afterOrder, orderID).Error; err != nil {
+		return err
+	}
+	return orderRepository.RecordOrderChanges(tx, beforeOrder, &afterOrder, "b2b", "system")
 }
 
 func (r *gormB2BRepository) CreateInvoice(inv *entity.B2BInvoice) error {

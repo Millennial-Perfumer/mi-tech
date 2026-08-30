@@ -129,6 +129,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	acRepo := abandonedCheckoutRepo.NewAbandonedCheckoutRepository(db)
 	machineKeyRepo := mcpRepoPkg.NewMachineKeyRepository(db)
 	auditLogRepo := mcpRepoPkg.NewAuditLogRepository(db)
+	eventRepo := orderRepoPkg.NewEventRepository(db)
 
 	// Providers
 	settingsProvider := config.NewSettingsProvider(configsRepo)
@@ -182,6 +183,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Handlers
 	orderHandler := orderHandlerPkg.NewOrderHandler(orderService, invoiceService, mappingService)
+	historyHandler := orderHandlerPkg.NewHistoryHandler(eventRepo)
 	syncHandler := syncHandlerPkg.NewSyncHandler(syncService)
 	metricsHandler := dashboardHandlerPkg.NewMetricsHandler(metricsService)
 	reportHandler := gstHandlerPkg.NewGSTHandler(reportService)
@@ -210,6 +212,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	RegisterRoutes(
 		mux,
 		orderHandler,
+		historyHandler,
 		syncHandler,
 		metricsHandler,
 		reportHandler,
@@ -248,6 +251,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	readOnlyMux := http.NewServeMux()
 	registerReadOnlyRoutes(readOnlyMux, readOnlyHandlers{
 		orderHandler:      orderHandler,
+		historyHandler:    historyHandler,
 		customerHandler:   customerHandler,
 		metricsHandler:    metricsHandler,
 		reportHandler:     reportHandler,

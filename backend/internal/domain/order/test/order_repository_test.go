@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -37,6 +38,7 @@ func (s *OrderRepositoryTestSuite) TearDownSuite() {
 
 func (s *OrderRepositoryTestSuite) SetupTest() {
 	// Clean up tables before each test
+	s.db.Exec("TRUNCATE TABLE order_events RESTART IDENTITY")
 	s.db.Exec("TRUNCATE TABLE order_line_items CASCADE")
 	s.db.Exec("TRUNCATE TABLE orders CASCADE")
 }
@@ -104,6 +106,43 @@ func (s *OrderRepositoryTestSuite) TestUpdateStatus() {
 	fetched, _ := s.repo.GetByExternalID("ext_update")
 	assert.Equal(s.T(), "paid", *fetched.FinancialStatus)
 	assert.Equal(s.T(), "fulfilled", *fetched.FulfillmentStatus)
+}
+
+func (s *OrderRepositoryTestSuite) TestTrackingChangeCreatesHistory() {
+	oldAWB := "OLD123"
+	newAWB := "NEW456"
+	carrier := "Carrier A"
+	order := entity.Order{
+		ExternalOrderID: "history_tracking_1",
+		OrderNumber:     "H-1",
+		SourceID:        "shopify",
+		TrackingNumber:  &oldAWB,
+		ShippingCompany: &carrier,
+	}
+
+	_, err := s.repo.Upsert(order)
+	s.Require().NoError(err)
+	fetched, err := s.repo.GetByExternalID(order.ExternalOrderID)
+	s.Require().NoError(err)
+
+	err = s.repo.UpdateTrackingInfo(order.ExternalOrderID, newAWB, "Carrier B", "https://carrier.test/NEW456", "in_transit")
+	s.Require().NoError(err)
+
+	events := repository.NewEventRepository(s.db)
+	rows, total, err := events.ListOrderEvents(context.Background(), repository.EventFilter{OrderID: fetched.ID, Limit: 100})
+	s.Require().NoError(err)
+	s.GreaterOrEqual(total, int64(2))
+
+	var trackingEvent *entity.OrderEvent
+	for i := range rows {
+		if rows[i].EventType == "tracking_changed" {
+			trackingEvent = &rows[i]
+			break
+		}
+	}
+	s.Require().NotNil(trackingEvent)
+	s.Contains(string(*trackingEvent.BeforeData), oldAWB)
+	s.Contains(string(*trackingEvent.AfterData), newAWB)
 }
 
 func (s *OrderRepositoryTestSuite) TestUpsertPIIMerge() {

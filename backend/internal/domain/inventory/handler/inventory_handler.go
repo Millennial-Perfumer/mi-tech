@@ -227,6 +227,18 @@ func (h *InventoryHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
 
 // GetLogs returns the stock movement history for an item.
 func (h *InventoryHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
+	if externalOrderID := r.URL.Query().Get("external_order_id"); externalOrderID != "" {
+		logs, err := h.service.GetLogsByExternalOrderID(externalOrderID)
+		if err != nil {
+			log.Printf("InventoryHandler.GetLogs by external order error: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(logs)
+		return
+	}
+
 	idStr := r.URL.Query().Get("id")
 	id, _ := strconv.Atoi(idStr)
 

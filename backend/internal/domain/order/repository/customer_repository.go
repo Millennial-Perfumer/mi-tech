@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"mi-tech/internal/domain/order/entity"
 	"time"
 
@@ -10,7 +11,8 @@ import (
 )
 
 type CustomerRepository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	events *gormEventRepository
 }
 
 // customerListAllowedSortColumns defines the permitted columns for sorting to prevent SQL injection.
@@ -22,12 +24,22 @@ var customerListAllowedSortColumns = map[string]bool{
 }
 
 func NewCustomerRepository(db *gorm.DB) *CustomerRepository {
-	return &CustomerRepository{db: db}
+	return &CustomerRepository{db: db, events: newEventRepository(db)}
 }
 
 // UpsertByPhone performs a phone-number based upsert using raw SQL to ensure
 // exact matching with partial unique indexes and avoid column ambiguity.
 func (r *CustomerRepository) UpsertByPhone(ctx context.Context, c *entity.Customer) error {
+	return r.upsertByPhone(ctx, c, nil)
+}
+
+// UpsertByPhoneForOrder is used when customer data was refreshed from a
+// particular order, allowing the customer event to retain that order context.
+func (r *CustomerRepository) UpsertByPhoneForOrder(ctx context.Context, c *entity.Customer, orderID int64) error {
+	return r.upsertByPhone(ctx, c, &orderID)
+}
+
+func (r *CustomerRepository) upsertByPhone(ctx context.Context, c *entity.Customer, orderID *int64) error {
 	now := time.Now()
 	query := `
 		INSERT INTO customers (
@@ -53,30 +65,80 @@ func (r *CustomerRepository) UpsertByPhone(ctx context.Context, c *entity.Custom
 			updated_at = EXCLUDED.updated_at
 		RETURNING id`
 
-	return r.db.WithContext(ctx).Raw(query,
-		c.PhoneNumber, c.FirstName, c.LastName, c.Email, c.Address1, c.Address2,
-		c.City, c.State, c.Country, c.ZipCode, c.TotalOrders, c.TotalSpent,
-		c.SourceID, c.ExternalID, now, now,
-	).Scan(&c.ID).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before entity.Customer
+		lookupErr := tx.WithContext(ctx).Where("phone_number = ?", c.PhoneNumber).First(&before).Error
+		if lookupErr != nil && !errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			return lookupErr
+		}
+
+		if err := tx.WithContext(ctx).Raw(query,
+			c.PhoneNumber, c.FirstName, c.LastName, c.Email, c.Address1, c.Address2,
+			c.City, c.State, c.Country, c.ZipCode, c.TotalOrders, c.TotalSpent,
+			c.SourceID, c.ExternalID, now, now,
+		).Scan(&c.ID).Error; err != nil {
+			return err
+		}
+
+		var after entity.Customer
+		if err := tx.WithContext(ctx).First(&after, c.ID).Error; err != nil {
+			return err
+		}
+		if errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			return r.events.recordCustomerChanges(tx, nil, &after, after.SourceID, "sync", orderID)
+		}
+		return r.events.recordCustomerChanges(tx, &before, &after, after.SourceID, "sync", orderID)
+	})
 }
 
 // UpdateStats updates only the total_orders and total_spent for a customer.
 func (r *CustomerRepository) UpdateStats(ctx context.Context, phoneNumber string, orderDelta int, spentDelta float64) error {
-	return r.db.WithContext(ctx).Model(&entity.Customer{}).
-		Where("phone_number = ?", phoneNumber).
-		Updates(map[string]interface{}{
-			"total_orders": gorm.Expr("total_orders + ?", orderDelta),
-			"total_spent":  gorm.Expr("total_spent + ?", spentDelta),
-			"updated_at":   gorm.Expr("CURRENT_TIMESTAMP"),
-		}).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before entity.Customer
+		if err := tx.WithContext(ctx).Where("phone_number = ?", phoneNumber).First(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.WithContext(ctx).Model(&entity.Customer{}).
+			Where("phone_number = ?", phoneNumber).
+			Updates(map[string]interface{}{
+				"total_orders": gorm.Expr("total_orders + ?", orderDelta),
+				"total_spent":  gorm.Expr("total_spent + ?", spentDelta),
+				"updated_at":   gorm.Expr("CURRENT_TIMESTAMP"),
+			}).Error; err != nil {
+			return err
+		}
+		var after entity.Customer
+		if err := tx.WithContext(ctx).Where("id = ?", before.ID).First(&after).Error; err != nil {
+			return err
+		}
+		return r.events.recordCustomerChanges(tx, &before, &after, after.SourceID, "system", nil)
+	})
 }
 
 func (r *CustomerRepository) Create(ctx context.Context, customer *entity.Customer) error {
-	return r.db.WithContext(ctx).Create(customer).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.WithContext(ctx).Create(customer).Error; err != nil {
+			return err
+		}
+		return r.events.recordCustomerChanges(tx, nil, customer, customer.SourceID, "manual", nil)
+	})
 }
 
 func (r *CustomerRepository) Update(ctx context.Context, customer *entity.Customer) error {
-	return r.db.WithContext(ctx).Save(customer).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before entity.Customer
+		if err := tx.WithContext(ctx).First(&before, customer.ID).Error; err != nil {
+			return err
+		}
+		if err := tx.WithContext(ctx).Save(customer).Error; err != nil {
+			return err
+		}
+		var after entity.Customer
+		if err := tx.WithContext(ctx).First(&after, customer.ID).Error; err != nil {
+			return err
+		}
+		return r.events.recordCustomerChanges(tx, &before, &after, after.SourceID, "manual", nil)
+	})
 }
 
 func (r *CustomerRepository) GetByID(ctx context.Context, id int64) (*entity.Customer, error) {
@@ -197,21 +259,54 @@ func (r *CustomerRepository) UpsertBatch(ctx context.Context, customers []entity
 		return nil
 	}
 
-	// We use clause.OnConflict to handle the upsert logic.
-	// The partial unique index 'idx_customers_phone_unique_active' is targeted via TargetWhere.
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		TargetWhere: clause.Where{
-			Exprs: []clause.Expression{
-				clause.Expr{SQL: "deleted_at IS NULL"},
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		phones := make([]string, 0, len(customers))
+		for _, customer := range customers {
+			phones = append(phones, customer.PhoneNumber)
+		}
+
+		var existingCustomers []entity.Customer
+		if err := tx.WithContext(ctx).Where("phone_number IN ?", phones).Find(&existingCustomers).Error; err != nil {
+			return err
+		}
+		existingByPhone := make(map[string]entity.Customer, len(existingCustomers))
+		for _, customer := range existingCustomers {
+			existingByPhone[customer.PhoneNumber] = customer
+		}
+
+		// We use clause.OnConflict to handle the upsert logic.
+		// The partial unique index 'idx_customers_phone_unique_active' is targeted via TargetWhere.
+		if err := tx.WithContext(ctx).Clauses(clause.OnConflict{
+			TargetWhere: clause.Where{
+				Exprs: []clause.Expression{
+					clause.Expr{SQL: "deleted_at IS NULL"},
+				},
 			},
-		},
-		Columns: []clause.Column{{Name: "phone_number"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"first_name", "last_name", "email", "address1", "address2",
-			"city", "state", "country", "zip_code", "total_orders", "total_spent",
-			"updated_at",
-		}),
-	}).Create(&customers).Error
+			Columns: []clause.Column{{Name: "phone_number"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"first_name", "last_name", "email", "address1", "address2",
+				"city", "state", "country", "zip_code", "total_orders", "total_spent",
+				"updated_at",
+			}),
+		}).Create(&customers).Error; err != nil {
+			return err
+		}
+
+		for i := range customers {
+			var after entity.Customer
+			if err := tx.WithContext(ctx).Where("phone_number = ?", customers[i].PhoneNumber).First(&after).Error; err != nil {
+				return err
+			}
+			if before, found := existingByPhone[customers[i].PhoneNumber]; found {
+				if err := r.events.recordCustomerChanges(tx, &before, &after, after.SourceID, "sync", nil); err != nil {
+					return err
+				}
+			} else if err := r.events.recordCustomerChanges(tx, nil, &after, after.SourceID, "sync", nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (r *CustomerRepository) GetByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
