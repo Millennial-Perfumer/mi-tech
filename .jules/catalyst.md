@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] WhatsApp-Integrated Customer Referral & Rewards Loop
+* **Added On**: 2024-06-25
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Boost Traffic-to-Customer Conversion & Increase Purchase Frequency
+* **Customer Value Proposition**: Empowers loyal customers to easily share their favorite products with friends via WhatsApp. When a friend makes a purchase, the referring customer automatically receives a personalized reward (e.g., store credit or a high-value discount) directly in their chat, creating a delightful sharing experience.
+* **Business Growth & Profit Impact**: Word-of-mouth is the highest converting traffic source with zero direct ad spend. By automating referral tracking and reward distribution natively through the existing `communication` (SMM) and `order` modules, we sustainably lower Customer Acquisition Cost (CAC). Incentivizing both the new buyer and the referrer drives the compounding sales volume required to reach the 3L/month target while maximizing profit margins.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `marketing` and `communication` domains to support a `ReferralCode` entity mapped to existing customers. Implement a chatbot flow in the SMM hub allowing customers to generate a unique referral link by messaging "Refer". When an `order` webhook arrives, check the payload for the referral attribution. If valid, automatically trigger a WhatsApp template to the referrer containing a single-use Shopify discount code, and log the successful referral in the `marketing` module for dashboard analytics.
