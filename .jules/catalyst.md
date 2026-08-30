@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Predictive Inventory Restocking & Margin Protection Alerts
+* **Added On**: 2024-07-10
+* **Target Audience**: Store Admins
+* **3L Growth Vector**: Reduce Operational & Loss Leakage
+* **Customer Value Proposition**: Ensures that high-demand and high-margin products are always in stock, preventing frustrating stockouts and backorders for customers, thereby improving their shopping experience and trust.
+* **Business Growth & Profit Impact**: Stockouts on best-selling, high-margin items directly result in lost revenue and wasted marketing spend. By utilizing historical sales velocity data from synced orders to forecast when inventory will deplete within a critical window (e.g., 7-14 days), admins can proactively reorder. Preventing stockouts on top performers directly preserves AOV and conversion rates, accelerating the path to the 3L/month target while protecting profit margins from emergency logistics costs.
+* **Technical Complexity**: Medium
+* **Description**: Create a new automated job in the `planner` or `inventory` domain that runs daily. It will analyze the past 30 days of sales data from the `order` domain to calculate the daily sales velocity for each active item in the `inventory` mapping. By comparing this velocity against current stock levels, it will flag items projected to run out in less than 7 days. These alerts will be pushed directly to the `dashboard` and sent as a priority WhatsApp notification to the Admin via the `communication` SMM hub, complete with suggested reorder quantities.
