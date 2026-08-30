@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated B2B Proforma Follow-up & Payment Gateway via WhatsApp
+* **Added On**: 2024-07-28
+* **Target Audience**: B2B Customers, Finance, Sales Team
+* **3L Growth Vector**: Reduce Operational & Loss Leakage / Increase Conversion Rate
+* **Customer Value Proposition**: Simplifies the B2B purchasing flow. Instead of navigating emails and manual bank transfers, clients receive their proforma invoice directly on WhatsApp with a seamless, integrated payment or approval link, drastically speeding up their procurement process.
+* **Business Growth & Profit Impact**: B2B orders represent a significantly higher Average Order Value (AOV) compared to D2C. Automating the follow-up of 'SENT' proforma invoices reduces the sales cycle length and prevents high-value deals from going cold. By facilitating faster payment collection (Advances or full amounts), we accelerate cash flow—a key requirement to scale operations and predictably reach the 3 Lakhs/month target.
+* **Technical Complexity**: Medium
+* **Description**: Integrate the `b2b` module (`B2BProformaInvoice`) with the `communication` (SMM) module. Implement a background job (`b2b_service/cron`) that identifies Proformas in the `SENT` status nearing their `ValidUntil` date. It automatically dispatches a WhatsApp template containing the invoice summary and a dynamic payment link. Upon successful payment capture, a webhook updates the proforma status to `ACCEPTED` and notifies the sales team.
