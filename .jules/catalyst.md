@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] AI-Powered B2B Proforma Invoice Generator & Summarizer via SMM Hub
+* **Added On**: 2024-07-09
+* **Target Audience**: Store Admins, Sales Reps
+* **3L Growth Vector**: Increase Average Order Value (AOV) & Reduce Operational Leakage
+* **Customer Value Proposition**: Enables B2B clients to quickly request, receive, and review bulk order quotes without waiting for manual admin drafting.
+* **Business Growth & Profit Impact**: High-AOV B2B orders represent massive leaps toward the 3L/month target. Automating the quotation process directly over WhatsApp dramatically shortens the B2B sales cycle. By removing the manual admin bottleneck for generating Proforma Invoices (`b2b_proforma_invoices`), sales reps can handle a higher volume of inbound B2B inquiries concurrently, improving the conversion rate of high-ticket B2B deals while optimizing staff operational efficiency.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `communication` agent service (`ProcessTaskAI` or WhatsApp AI loop) and the `b2b` module to allow sales reps or admins to generate a draft B2B Proforma invoice directly via an AI command (e.g., "@ai Generate a proforma for Customer X for 100 units of SKU Y"). The AI agent will invoke a new native tool `generate_b2b_proforma` that interfaces with the `b2b` module to create a DRAFT `B2BProformaInvoice` record. The agent will then return a summarized text version of the quote (subtotal, GST breakdown, total) via WhatsApp, enabling instant forwarding to the client.
