@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Post-Positive-Review Upsell Sequence
+* **Added On**: 2024-07-22
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Customers who recently had a great experience (indicated by a 4 or 5-star review) receive an immediate, personalized "Thank You" via WhatsApp along with an exclusive discount code for a complementary product or bundle, making them feel valued and rewarded.
+* **Business Growth & Profit Impact**: High-satisfaction moments are peak buying windows. By integrating the `feedback` domain with the `communication` (SMM) module, we can automatically trigger targeted upsell templates the moment a positive review is submitted. This capitalizes on their immediate goodwill to drive instant repeat purchases, rapidly accelerating LTV and pushing towards the 3L/month target with zero ad spend.
+* **Technical Complexity**: Low
+* **Description**: Update the `feedback` module to trigger an action when a feedback entry is recorded with a rating of 4 or 5 stars. The `communication` module will then handle sending a predefined WhatsApp template (e.g., "Thanks for the 5 stars! Here's 20% off your next order...") containing a personalized Shopify discount link to the customer.
