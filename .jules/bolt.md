@@ -60,3 +60,6 @@
 ## 2026-06-25 - [Parallelize Abandoned Checkout Recovery]
 **Learning:** Processing abandoned checkouts sequentially within `ProcessRecoveryQueue` creates an O(N) bottleneck due to external API calls and database updates performed by `processSingleCheckout`.
 **Action:** When iterating over a batch of items that each require external API updates or DB queries in a background queue, use `golang.org/x/sync/errgroup` to parallelize the requests. Limit concurrency to `5` to prevent overloading the network and external rate limits. Always capture the loop variable for goroutines (`ac := ac`).
+## 2026-06-25 - [Parallelize External API Calls in AmazonOrderPoller.SyncOrders]
+**Learning:** Sequential processing of external API calls (`amazonClient.GetOrderItems`) inside a loop over orders creates a severe $O(N)$ performance bottleneck, limited by network latency.
+**Action:** When iterating over items in a batch that each require external API updates or fetches, use `golang.org/x/sync/errgroup` to parallelize the requests. Limit concurrency to `5` to prevent overloading the network or triggering rate limits from external platforms. Safely collect external API responses into a thread-safe map guarded by a `sync.Mutex` and then use this pre-fetched result in the subsequent sequential processing loop.
