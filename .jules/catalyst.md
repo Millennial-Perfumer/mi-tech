@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Review-Based Re-Engagement via WhatsApp
+* **Added On**: 2024-11-20
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Customers feel appreciated for sharing their feedback. Rewarding them with a timely, personalized discount or gift offer immediately after they leave a positive review incentivizes a delightful, frictionless second purchase.
+* **Business Growth & Profit Impact**: High-rating reviewers are our most satisfied cohort and have the highest propensity to repurchase. By intercepting them at the peak of their positive experience (via the `feedback` module) and automating a WhatsApp promotional template (via the `communication` hub), we convert passive satisfaction into immediate repeat revenue. This creates a zero-CAC retention loop that directly compounds monthly revenue towards the 3L/month target.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `feedback_service.go` logic. Upon saving a new `CustomerFeedback` record with a rating of 4 or 5 stars, trigger an event. A listener in the `communication` domain will catch this event and use the `TemplatesService` to dispatch a pre-approved WhatsApp template containing a personalized discount code to the customer's phone number.
