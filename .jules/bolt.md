@@ -60,3 +60,7 @@
 ## 2026-06-25 - [Parallelize Abandoned Checkout Recovery]
 **Learning:** Processing abandoned checkouts sequentially within `ProcessRecoveryQueue` creates an O(N) bottleneck due to external API calls and database updates performed by `processSingleCheckout`.
 **Action:** When iterating over a batch of items that each require external API updates or DB queries in a background queue, use `golang.org/x/sync/errgroup` to parallelize the requests. Limit concurrency to `5` to prevent overloading the network and external rate limits. Always capture the loop variable for goroutines (`ac := ac`).
+
+## $(date +%Y-%m-%d) - ⚡ Bolt: Concurrent Execution in GlobalSyncBatch
+**Learning:** Sequential execution of external API calls within `GlobalSyncBatch` (e.g., pushing stock updates to Shopify and Amazon) creates a significant $O(N)$ performance bottleneck, where latency grows linearly with the size of the batch.
+**Action:** Replaced sequential API calls in `GlobalSyncBatch` with a concurrent approach using `golang.org/x/sync/errgroup` with a concurrency limit of 5. This maintains safety against rate limits while dramatically reducing total latency. Moved common dependencies (such as fetching Shopify location ID) outside the parallel execution to avoid redundant API calls and race conditions.
