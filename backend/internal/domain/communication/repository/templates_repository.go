@@ -12,6 +12,7 @@ type TemplatesRepository interface {
 	SaveTemplate(t entity.AutomationTemplate) (int, error)
 	GetTemplates(storeID string, startDate, endDate *time.Time) ([]entity.AutomationTemplate, error)
 	UpdateStatus(templateName, status string) error
+	BulkUpdateStatuses(updates map[string]string) error
 	SaveTrigger(tr entity.Trigger) error
 	GetTriggerByTopic(storeID, topic string) (*entity.Trigger, error)
 	GetTemplateByName(storeID, name string) (*entity.AutomationTemplate, error)
@@ -114,6 +115,35 @@ func (r *sqlTemplatesRepository) UpdateStatus(templateName, status string) error
 	query := `UPDATE automation_templates SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE template_name = $2`
 	_, err := r.db.Exec(query, status, templateName)
 	return err
+}
+
+// BulkUpdateStatuses executes a single database transaction using a prepared statement to update multiple
+// template statuses efficiently. This eliminates N+1 query patterns.
+func (r *sqlTemplatesRepository) BulkUpdateStatuses(updates map[string]string) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`UPDATE automation_templates SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE template_name = $2`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for templateName, status := range updates {
+		_, err := stmt.Exec(status, templateName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *sqlTemplatesRepository) SaveTrigger(tr entity.Trigger) error {
