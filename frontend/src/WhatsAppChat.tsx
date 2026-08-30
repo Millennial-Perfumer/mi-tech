@@ -405,9 +405,10 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ paddingRight: searchQuery ? '2.5rem' : '1rem' }}
             />
-            <svg className="chat-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <svg className="chat-search-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search"
                 title="Clear search"
@@ -436,7 +437,7 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
@@ -502,14 +503,18 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
               
               <div className="mode-toggle-group">
                 <button 
+                  type="button"
                   className={`mode-btn ${activeConversation.mode === 'auto' ? 'active' : ''}`}
                   onClick={() => toggleMode('auto')}
+                  aria-pressed={activeConversation.mode === 'auto'}
                 >
                   Auto
                 </button>
                 <button 
+                  type="button"
                   className={`mode-btn ${activeConversation.mode === 'human' ? 'active' : ''}`}
                   onClick={() => toggleMode('human')}
+                  aria-pressed={activeConversation.mode === 'human'}
                 >
                   Human
                 </button>
@@ -581,13 +586,14 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                       ) : isDocument && filename ? (
                         <div className="message-document-wrapper">
                           <div className="doc-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
                           </div>
                           <div className="doc-info">
                             <div className="doc-name" title={msg.metadata?.extracted_metadata?.original_name || filename}>
                                 {msg.metadata?.extracted_metadata?.original_name || filename}
                             </div>
                             <button 
+                              type="button"
                               className="doc-download-btn"
                               onClick={async () => {
                                 try {
@@ -633,15 +639,17 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
 
             <div className="chat-input-area">
               <button 
+                type="button"
                 className="chat-upload-btn"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingMedia || isSending}
                 title="Upload media"
+                aria-label="Upload media"
               >
                 {isUploadingMedia ? (
                   <div className="mini-spinner"></div>
                 ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                 )}
               </button>
               <input 
@@ -660,17 +668,20 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
               <button 
+                type="button"
                 className="chat-send-btn" 
                 onClick={sendMessage}
                 disabled={!inputText.trim() || isSending || isUploadingMedia}
+                aria-label="Send message"
+                title="Send message"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               </button>
             </div>
           </>
         ) : (
           <div className="chat-empty-state">
-             <svg className="chat-empty-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+             <svg className="chat-empty-icon" aria-hidden="true" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
              <h3>Select a conversation</h3>
              <p>Choose a contact from the sidebar to start messaging</p>
           </div>
