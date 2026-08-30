@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated 5-Star Feedback-to-Upsell Loop via WhatsApp
+* **Added On**: 2026-07-23
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Delights customers by rewarding their positive feedback with an exclusive, immediate perk, making them feel valued and incentivized to shop again.
+* **Business Growth & Profit Impact**: Capitalizing on the moment a customer is most satisfied (just after leaving a 4 or 5-star review) is highly leveraged. Offering a time-bound discount creates urgency and drives immediate repeat purchases with zero additional ad spend. This directly increases LTV and accelerates recurring revenue needed to hit the 3 Lakhs/month milestone.
+* **Technical Complexity**: Low
+* **Description**: Extend the `feedback` module's service layer. When a new review is submitted with a rating of 4 or 5 stars, trigger an event to the `communication` (SMM) module. The communication hub will automatically generate a unique, time-sensitive discount code and dispatch a "Thank You" WhatsApp template containing the code and a link to the store, driving an immediate repeat purchase.
