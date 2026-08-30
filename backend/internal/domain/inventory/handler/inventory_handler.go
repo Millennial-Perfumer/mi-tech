@@ -82,6 +82,7 @@ func (h *InventoryHandler) GetNextSKU(w http.ResponseWriter, r *http.Request) {
 // CreateItem handles manual product creation.
 func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	var item entity.InventoryItem
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -100,6 +101,7 @@ func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 // BulkCreate handles bulk product creation.
 func (h *InventoryHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
 	var items []entity.InventoryItem
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -159,6 +161,7 @@ func (h *InventoryHandler) CreateMapping(w http.ResponseWriter, r *http.Request)
 		VariantID      string `json:"variant_id"`
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -249,6 +252,7 @@ func (h *InventoryHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Optional body
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	json.NewDecoder(r.Body).Decode(&req)
 
 	var start, end *time.Time
@@ -274,6 +278,7 @@ func (h *InventoryHandler) SyncAmazon(w http.ResponseWriter, r *http.Request) {
 // UpdateItem handles partial updates to a product.
 func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	var item entity.InventoryItem
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

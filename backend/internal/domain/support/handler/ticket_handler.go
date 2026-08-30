@@ -30,6 +30,7 @@ func (h *TicketHandler) HandleTickets(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "tickets": tickets})
 	case http.MethodPost:
 		var req dto.CreateTicketRequest
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid body: "+err.Error(), http.StatusBadRequest)
 			return
@@ -67,6 +68,7 @@ func (h *TicketHandler) UpdateTicketStatus(w http.ResponseWriter, r *http.Reques
 	id := uint(id32)
 
 	var req dto.UpdateTicketStatusRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
 		return
