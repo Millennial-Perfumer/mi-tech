@@ -296,7 +296,6 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 		addCartToOrderRate = (float64(stats.RecoveredCartCount) / float64(cartsCreatedCount)) * 100
 	}
 
-
 	// WhatsApp Status Aggregation
 	msgQuery := r.db.WithContext(ctx).Table("automation_messages").Where("store_id = ? AND order_id = 0", storeID)
 	if startDate != "" {
@@ -505,4 +504,3 @@ func (r *gormAbandonedCheckoutRepository) UpsertCart(ctx context.Context, cart *
 
 	return r.db.WithContext(ctx).Exec(query, cart.StoreID, cart.CartToken, cart.LineItems, now, now).Error
 }
-

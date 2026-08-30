@@ -10,6 +10,7 @@ import (
 	"mi-tech/internal/shared/extclient/shopify"
 	"os"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 )
 
@@ -138,6 +139,9 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 	var shopifyLocationID string
 	var locationDiscovered bool
 
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(5)
+
 	for _, item := range items {
 		for _, m := range item.Mappings {
 			if m.Platform == sourcePlatform {
@@ -152,7 +156,7 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 					if shopifyLocationID == "" && !locationDiscovered {
 						shopifyLocationID = s.shopifyClient.GetLocationID()
 						if shopifyLocationID == "" {
-							discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(ctx)
+							discoveredID, err := s.shopifyClient.DiscoverPrimaryLocationID(gCtx)
 							if err == nil {
 								shopifyLocationID = discoveredID
 								log.Printf("SyncOrchestrator: Auto-discovered Shopify location ID: %s", shopifyLocationID)
@@ -164,22 +168,33 @@ func (s *SyncOrchestrator) GlobalSyncBatch(ctx context.Context, itemIDs []int, s
 					}
 
 					if shopifyLocationID != "" {
-						err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
-						if err != nil {
-							log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
-						}
+						m := m
+						item := item
+						g.Go(func() error {
+							err := s.shopifyClient.AdjustInventoryLevel(*m.ExternalVariantID, shopifyLocationID, item.CurrentStock)
+							if err != nil {
+								log.Printf("SyncOrchestrator Warning: Shopify sync failed for %s: %v", *m.ExternalVariantID, err)
+							}
+							return nil
+						})
 					}
 				}
 			case "amazon":
-				log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
-				err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
-				if err != nil {
-					log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
-				}
+				m := m
+				item := item
+				g.Go(func() error {
+					log.Printf("SyncOrchestrator: Pushing stock update to Amazon for SKU %s", m.ExternalSKU)
+					err := s.amazonClient.UpdateInventory(m.ExternalSKU, item.CurrentStock)
+					if err != nil {
+						log.Printf("SyncOrchestrator Warning: Amazon sync failed for %s: %v", m.ExternalSKU, err)
+					}
+					return nil
+				})
 			}
 		}
 	}
 
+	_ = g.Wait()
 	return nil
 }
 
