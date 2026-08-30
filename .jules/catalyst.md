@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Post-Feedback Re-Engagement Loop
+* **Added On**: 2026-07-25
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Customers who leave positive feedback are rewarded with a personalized "thank you" message and an exclusive discount code for their next purchase, making them feel valued and encouraging repeat business.
+* **Business Growth & Profit Impact**: Customers who have just had a positive experience and left a good review are highly primed to purchase again. Automatically triggering a targeted WhatsApp message with a discount link to these individuals capitalizes on this goodwill, directly boosting repeat purchase rates (LTV) and accelerating revenue towards the 3L/month goal with zero additional acquisition cost.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `feedback` module (`service`). When a new positive feedback record (e.g., rating >= 4 stars) is successfully saved, trigger an event to the `communication` (SMM) module. This event will dispatch an automated WhatsApp template to the customer containing a personalized thank you and a one-click checkout link with a dynamic discount code for their next order.
