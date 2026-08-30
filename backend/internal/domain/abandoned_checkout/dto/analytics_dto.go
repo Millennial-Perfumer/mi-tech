@@ -45,4 +45,3 @@ type AbandonedCheckoutAnalyticsResponse struct {
 	StatusBreakdown       []StatusBreakdownItem `json:"statusBreakdown"`
 	TopLostCarts          []TopLostCartItem     `json:"topLostCarts"`
 }
-
