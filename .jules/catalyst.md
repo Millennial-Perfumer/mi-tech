@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Post-Purchase WhatsApp Feedback-to-Upsell Loop
+* **Added On**: 2026-07-15
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Customers feel valued when asked for their opinion. Upon leaving a 4- or 5-star review, they are immediately rewarded with a personalized, time-sensitive discount code for their next purchase via WhatsApp, making them feel like VIPs and encouraging them to return.
+* **Business Growth & Profit Impact**: Automating the transition from a positive feedback event directly into a re-engagement flow creates a high-conversion, closed-loop retention engine. Customers who have just expressed satisfaction are highly likely to convert on a time-limited offer (e.g., 10% off within 48 hours). This directly increases LTV and purchase frequency, heavily contributing to the 3 Lakhs/month goal with zero additional customer acquisition cost.
+* **Technical Complexity**: Medium
+* **Description**: Extend the `feedback` module (`backend/internal/domain/feedback/service`) to trigger an event upon receiving a 4 or 5-star `CustomerFeedback` rating. Integrate this with the `marketing` module to dynamically generate a unique Shopify discount code. Finally, use the `communication` (AgentService/WhatsApp) module to immediately dispatch a personalized "Thank You" message to the customer that includes the discount code and a one-click checkout link to hero products.
