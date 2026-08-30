@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Post-Purchase Automated Referral & Review Engine via WhatsApp
+* **Added On**: 2024-07-28
+* **Target Audience**: End Customers, Store Admins
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Delivers a highly personalized and frictionless post-purchase experience. Customers are easily able to leave reviews and refer friends directly through WhatsApp, earning exclusive discounts for future purchases without navigating away from their preferred messaging app.
+* **Business Growth & Profit Impact**: By automating post-purchase feedback loops 7 days after delivery, we proactively capture high-intent positive sentiment. Rewarding this sentiment with a referral discount (e.g., "Give ₹500, Get ₹500") directly fuels viral, low-cost customer acquisition while simultaneously guaranteeing repeat purchases (boosting LTV) from the original buyer to redeem their reward. This creates a compounding growth engine essential for scaling to 3L/month.
+* **Technical Complexity**: Medium
+* **Description**: Implement a background cron job (`planner/cron`) that queries the `order` module for orders marked as "Delivered" 7 days prior. Integrate this with the `feedback` module to generate a unique review/referral tracking link. The `communication` (SMM) module then automatically dispatches a WhatsApp template (e.g., "How are you loving [Product]?") containing this link. Positive responses automatically trigger a follow-up template offering the referral discount code.
