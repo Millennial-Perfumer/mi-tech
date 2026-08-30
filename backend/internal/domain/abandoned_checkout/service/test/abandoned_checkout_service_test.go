@@ -88,7 +88,6 @@ func (m *MockAbandonedCheckoutRepository) UpsertCart(ctx context.Context, cart *
 	return args.Error(0)
 }
 
-
 type MockTemplatesRepository struct {
 	mock.Mock
 }
@@ -290,4 +289,3 @@ func TestAbandonedCheckoutService_ProcessCartWebhook(t *testing.T) {
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
-

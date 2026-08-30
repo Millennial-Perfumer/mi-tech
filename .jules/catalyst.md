@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Smart "Restock Notification" Waitlist & WhatsApp Blast
+* **Added On**: 2024-06-26
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Boost Traffic-to-Customer Conversion
+* **Customer Value Proposition**: Customers don't have to repeatedly check the store for their favorite out-of-stock perfume; they simply opt-in via a widget and receive an instant WhatsApp alert the second the item is back in stock.
+* **Business Growth & Profit Impact**: Captures high-intent buyers who would otherwise bounce from an out-of-stock page. By building a waitlist and automatically blasting a WhatsApp notification with a direct checkout link upon restocking, we create an immediate, high-conversion revenue spike. Converting just 20-30% of waitlisted traffic for popular hero clones directly salvages lost sales, pushing the brand closer to the 3L/month goal.
+* **Technical Complexity**: Medium
+* **Description**: Create a new `Waitlist` entity linked to the `inventory` module (specifically mapping to `InventoryItem`). When an item is marked out of stock, the frontend displays a "Notify Me on WhatsApp" widget. When the `CurrentStock` for that SKU increases above 0 during an inventory sync (handled by `inventory_service.go`), the backend event listener triggers a batch job via the `communication` module (using `messages_service.go` or `notification_service.go`) to send a WhatsApp template message with a one-click checkout link to all subscribed customers for that SKU.
