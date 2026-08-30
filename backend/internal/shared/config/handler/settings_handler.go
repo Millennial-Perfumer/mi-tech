@@ -41,6 +41,7 @@ func (h *SettingsHandler) SetDateRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576) // Limit to 1MB
 	var body struct {
 		StartDate string `json:"start_date"`
 		EndDate   string `json:"end_date"`
@@ -89,6 +90,7 @@ func (h *SettingsHandler) UpdateSetting(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576) // Limit to 1MB
 	var body struct {
 		Key   string `json:"key"`
 		Value string `json:"value"`
