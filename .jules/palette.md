@@ -19,3 +19,6 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+## 2026-06-25 - [WhatsApp Chat Component Accessibility]
+**Learning:** Found several utility buttons (Clear Search, Mode Toggles, Upload Media, Send Message) in `WhatsAppChat.tsx` lacking `type="button"`, increasing the risk of accidental form submissions. Additionally, the icon-only upload and send buttons lacked explicit `aria-label`s, negatively impacting screen reader users.
+**Action:** Always add `type="button"` defensively to action buttons within complex interactive components and ensure `aria-label` or `title` is applied to all icon-only interactive controls.
