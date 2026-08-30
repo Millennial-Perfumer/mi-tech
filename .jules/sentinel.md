@@ -49,3 +49,7 @@
 **Vulnerability:** The authentication and user handlers (`Login`, `VerifyOTP`, `CreateUser`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a critical unmitigated Denial-of-Service (DoS) memory exhaustion risk.
 **Learning:** Handlers processing unauthenticated external requests MUST employ request body limits before reading or decoding. The Go standard library does not automatically limit request bodies, making this an explicit responsibility of the developer.
 **Prevention:** Always bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.
+## 2025-06-25 - [DoS Vulnerability in AI Handlers via Unbounded Request Bodies]
+**Vulnerability:** The AI chat handler (`Chat`) read the HTTP request body using `json.NewDecoder(r.Body)` without first restricting the maximum payload size, presenting a Denial-of-Service (DoS) memory exhaustion risk on a public-facing endpoint.
+**Learning:** The `r.Body` must be limited before decoding regardless of route authentication or complexity. The Go standard library does not automatically limit request bodies.
+**Prevention:** Bound request body sizes using `r.Body = http.MaxBytesReader(w, r.Body, 1048576)` (1MB limit) at the start of HTTP POST/PUT handlers before calling `json.NewDecoder`.

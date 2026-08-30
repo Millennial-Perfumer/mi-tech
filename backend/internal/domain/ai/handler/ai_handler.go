@@ -22,6 +22,9 @@ func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mitigate DoS risk by limiting request body to 1MB
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
+
 	var req struct {
 		ConversationID int64  `json:"conversation_id"`
 		Message        string `json:"message"`
