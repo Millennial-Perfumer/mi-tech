@@ -71,4 +71,3 @@ type ShopifyCartItem struct {
 	Price     string `json:"price"`
 	SKU       string `json:"sku"`
 }
-
