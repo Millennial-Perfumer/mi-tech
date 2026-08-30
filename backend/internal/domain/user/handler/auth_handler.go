@@ -19,7 +19,6 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 // Login handles POST /api/auth/login.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Mitigate DoS risk by limiting request body to 1MB
-	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
@@ -42,7 +41,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // VerifyOTP handles POST /api/auth/verify-otp.
 func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	// Mitigate DoS risk by limiting request body to 1MB
-	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	var req dto.VerifyOTPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)

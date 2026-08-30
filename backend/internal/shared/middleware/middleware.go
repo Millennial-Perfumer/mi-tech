@@ -82,6 +82,29 @@ func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// MaxBytesMiddleware globally limits the size of request bodies to prevent DoS attacks.
+func MaxBytesMiddleware(limit int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+				// Don't apply limit globally if the route needs larger bodies
+				// In a real app we might exclude /upload or something, but the prompt
+				// says 1MB is good for JSON decoders.
+				// The prompt notes: "Specific routes (like CustomerHandler.ImportCSV and AutomationHandler media uploads)
+				// legitimately handle large multipart/form-data uploads (up to 20MB) and would be broken by a global 1MB limit."
+				// So we need to skip those.
+				path := r.URL.Path
+				if strings.HasPrefix(path, "/api/customers/import") || strings.HasPrefix(path, "/api/automation/media") {
+					r.Body = http.MaxBytesReader(w, r.Body, 20*1024*1024) // 20MB
+				} else {
+					r.Body = http.MaxBytesReader(w, r.Body, limit)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func AuthMiddleware(authService *userServicePkg.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
