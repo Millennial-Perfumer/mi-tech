@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] Automated Positive Feedback Re-engagement Loop
+* **Added On**: 2024-07-10
+* **Target Audience**: End Customers
+* **3L Growth Vector**: Increase Purchase Frequency (Customer Lifetime Value - LTV)
+* **Customer Value Proposition**: Delights customers who have just had a positive experience by immediately rewarding their 4 or 5-star feedback with an exclusive, time-sensitive VIP discount on their next purchase via WhatsApp.
+* **Business Growth & Profit Impact**: Customers who leave positive feedback are in a high-trust state and are the most likely to make repeat purchases. By automatically triggering an upsell/re-engagement WhatsApp message immediately after a 4 or 5-star rating is submitted, we can capture high-margin repeat business with zero human effort. This directly boosts LTV and purchase frequency, heavily contributing to the 3L/month target.
+* **Technical Complexity**: Low
+* **Description**: Extend the `feedback` domain (`feedback_service.go`). Upon saving a new `CustomerFeedback` record with a `Rating` of 4 or 5, asynchronously trigger a call to the `communication` (SMM) module to send a predefined "Thank You + Discount" WhatsApp template to the `CustomerPhone`. The template should include a unique or generic Shopify discount link to incentivize immediate repeat purchasing.
