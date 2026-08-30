@@ -30,6 +30,7 @@ func (h *SupplierHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) 
 
 func (h *SupplierHandler) CreateSupplier(w http.ResponseWriter, r *http.Request) {
 	var supplier entity.Supplier
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&supplier); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -44,6 +45,7 @@ func (h *SupplierHandler) CreateSupplier(w http.ResponseWriter, r *http.Request)
 
 func (h *SupplierHandler) UpdateSupplier(w http.ResponseWriter, r *http.Request) {
 	var supplier entity.Supplier
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&supplier); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

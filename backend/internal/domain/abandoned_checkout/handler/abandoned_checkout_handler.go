@@ -78,6 +78,7 @@ func (h *AbandonedCheckoutHandler) RecoverCheckout(w http.ResponseWriter, r *htt
 		var body struct {
 			ID int `json:"id"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
 			id = body.ID
 		}
@@ -170,6 +171,7 @@ func (h *AbandonedCheckoutHandler) UpdateCheckoutStatus(w http.ResponseWriter, r
 		Completed      bool   `json:"completed"`
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

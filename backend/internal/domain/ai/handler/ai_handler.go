@@ -26,6 +26,7 @@ func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
 		ConversationID int64  `json:"conversation_id"`
 		Message        string `json:"message"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
