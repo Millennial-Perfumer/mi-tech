@@ -19,3 +19,7 @@
 ## 2024-06-25 - Accessible Table Sorting Headers
 **Learning:** For table header columns that trigger sorting and include dynamic visual indicators (like ↑ or ↓), placing a static `aria-label` on the inner button is an anti-pattern as it overrides the text for screen readers. Instead, the correct pattern is to apply the `aria-sort` attribute (`"ascending"`, `"descending"`, or `"none"`) directly to the parent `<th>` element, and ensure the inner interactive trigger explicitly sets `type="button"`.
 **Action:** Always apply `aria-sort` to the `<th>` when building sortable data tables, and ensure inner trigger buttons have `type="button"` to prevent accidental form submissions.
+
+## 2026-06-25 - [Accessible SVGs inside Buttons]
+**Learning:** Adding `aria-label` to an icon-only button is good, but screen readers might still try to read the nested SVG element, causing noise. Applying `aria-hidden="true"` to the inner SVG prevents this and ensures a clean, single announcement.
+**Action:** Always pair an `aria-label` on an icon-only button with `aria-hidden="true"` on its purely visual child elements (like SVGs).
