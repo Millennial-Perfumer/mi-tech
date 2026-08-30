@@ -323,4 +323,3 @@ func (s *abandonedCheckoutService) ProcessCartWebhook(ctx context.Context, store
 	}
 	return s.repo.UpsertCart(ctx, &cart)
 }
-
