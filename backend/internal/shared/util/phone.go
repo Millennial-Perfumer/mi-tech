@@ -17,29 +17,32 @@ func NormalizePhone(phone string) string {
 
 	// Try parsing with phonenumbers, defaulting to India (IN) region
 	num, err := phonenumbers.Parse(phone, "IN")
-	if err == nil {
-		if phonenumbers.IsValidNumber(num) {
-			return phonenumbers.Format(num, phonenumbers.E164)
+	if err == nil && phonenumbers.IsValidNumber(num) {
+		return phonenumbers.Format(num, phonenumbers.E164)
+	}
+
+	// If it fails (e.g. missing + for some formats), try explicitly parsing as E164 if it has no prefix
+	if !strings.HasPrefix(phone, "+") {
+		// Try appending a + and parsing again, in case it was E164 without the plus
+		numPlus, errPlus := phonenumbers.Parse("+"+phone, "ZZ") // ZZ is unknown region, forces +
+		if errPlus == nil && phonenumbers.IsValidNumber(numPlus) {
+			return phonenumbers.Format(numPlus, phonenumbers.E164)
 		}
 	}
 
-	// For invalid or dummy numbers that couldn't be parsed, simply clean
-	// out non-numeric characters and prepend default +91 prefix.
+	// If all parsing fails, return original cleaned of obvious noise just in case,
+	// but preserve original behavior of not touching fully invalid strings
+	// but the original code stripped characters.
 	var cleaned strings.Builder
 	for _, r := range phone {
 		if (r >= '0' && r <= '9') || r == '+' {
 			cleaned.WriteRune(r)
 		}
 	}
-	phone = cleaned.String()
+	cleanedStr := cleaned.String()
 
-	if !strings.HasPrefix(phone, "+") {
-		if strings.HasPrefix(phone, "91") && len(phone) > 10 {
-			phone = "+" + phone
-		} else if len(phone) > 0 {
-			phone = "+91" + phone
-		}
+	if cleanedStr == "" {
+		return phone
 	}
-
-	return phone
+	return cleanedStr
 }
