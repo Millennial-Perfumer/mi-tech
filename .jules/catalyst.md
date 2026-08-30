@@ -71,3 +71,12 @@
 * **Business Growth & Profit Impact**: This highly interactive and shareable feature acts as a frictionless lead magnet. By capturing high-intent search traffic directly on WhatsApp, it reduces drop-off compared to a traditional website search, accelerates the path to purchase for first-time buyers, and organically increases conversion rates—a critical driver for reaching the 3L/month revenue target.
 * **Technical Complexity**: Medium
 * **Description**: Leverage the existing `ai` module (`query_guard.go`) and integrate it with the `communication` (WhatsApp/SMM) and `inventory` modules. When a customer sends a message like "Do you have a clone for Baccarat Rouge?", the SMM webhook handler processes the intent, queries the AI to match the designer scent profile against the local `InventoryItem` data (using tags or AI embeddings), and replies with the highest confidence match and a direct Shopify checkout URL.
+
+### [IDE-010] B2B Proforma Automated Follow-Up & One-Click Conversion
+* **Added On**: 2026-07-20
+* **Target Audience**: Store Admins, B2B Clients
+* **3L Growth Vector**: Increase Average Order Value (AOV), Boost Traffic-to-Customer Conversion
+* **Customer Value Proposition**: B2B clients receive timely reminders for expiring draft proformas with a seamless, one-click acceptance and payment link, eliminating friction in the wholesale purchasing process.
+* **Business Growth & Profit Impact**: B2B orders typically have significantly higher AOVs. By automating the follow-up of DRAFT and SENT B2B Proforma Invoices that are nearing their `ValidUntil` date, we can drastically increase the conversion rate of large wholesale deals without manual sales effort. Converting just 1-2 additional bulk proformas per month directly drives the revenue towards the 3L/month target.
+* **Technical Complexity**: Medium
+* **Description**: Implement a daily background worker that scans the `B2BProformaInvoice` entity for records in DRAFT or SENT status where the `ValidUntil` date is within 3 days. It integrates with the `communication` hub to trigger a personalized WhatsApp or Email reminder to the customer's contact details, containing a secure link to review the proforma and a one-click "Accept & Convert to Invoice" action that updates the status and creates the final invoice.
