@@ -6,6 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -144,6 +147,48 @@ func TestMuxExecutorDispatchesScopedWriteToolAsJSONPost(t *testing.T) {
 	tool := ToolSpec{Name: "smm_queue_create", Route: "/api/marketing/smm/queue", Write: true}
 
 	data, err := exec.Dispatch(context.Background(), tool, map[string]any{"caption": "caption"})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"success":true}`, string(data))
+}
+
+func TestMuxExecutorDispatchesQueueFilesAsMultipartPost(t *testing.T) {
+	tmpDir := t.TempDir()
+	mediaPath := filepath.Join(tmpDir, "product.png")
+	pngHeader := []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}
+	require.NoError(t, os.WriteFile(mediaPath, pngHeader, 0o600))
+
+	writeHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.True(t, strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data; boundary="))
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		require.Equal(t, "caption", r.FormValue("caption"))
+		require.Equal(t, "hashtags", r.FormValue("hashtags"))
+		require.Equal(t, "SINGLE_PHOTO", r.FormValue("post_type"))
+		require.Equal(t, `["instagram","facebook"]`, r.FormValue("target_platforms"))
+
+		files := r.MultipartForm.File["files"]
+		require.Len(t, files, 1)
+		require.Equal(t, "product.png", files[0].Filename)
+		file, err := files[0].Open()
+		require.NoError(t, err)
+		defer file.Close()
+		contents, err := io.ReadAll(file)
+		require.NoError(t, err)
+		require.Equal(t, pngHeader, contents)
+
+		_, _ = w.Write([]byte(`{"success":true}`))
+	})
+	exec := NewMuxExecutorWithWriteHandler(http.NewServeMux(), writeHandler)
+	tool, ok := DefaultCatalog.Lookup("smm_queue_create")
+	require.True(t, ok)
+
+	data, err := exec.Dispatch(context.Background(), tool, map[string]any{
+		"caption":          "caption",
+		"hashtags":         "hashtags",
+		"post_type":        "SINGLE_PHOTO",
+		"target_platforms": "instagram,facebook",
+		"media_files":      []any{mediaPath},
+	})
 	require.NoError(t, err)
 	require.JSONEq(t, `{"success":true}`, string(data))
 }

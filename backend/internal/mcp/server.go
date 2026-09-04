@@ -58,7 +58,10 @@ func inputSchema(spec ToolSpec) map[string]any {
 	props := make(map[string]any, len(spec.Args))
 	var required []string
 	for _, a := range spec.Args {
-		prop := map[string]any{"type": a.Type}
+		prop := map[string]any{"type": string(a.Type)}
+		if a.Type == ArgArray {
+			prop["items"] = map[string]any{"type": string(ArgString)}
+		}
 		if a.Description != "" {
 			prop["description"] = a.Description
 		}

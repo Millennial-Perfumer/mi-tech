@@ -186,6 +186,7 @@ func (h *SMMHandler) GetPostInsights(w http.ResponseWriter, r *http.Request) {
 // @Tags social
 // @Security Bearer
 // @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Param body body service.CreateQueueInput true "Queue Post Input"
 // @Success 200 {object} map[string]interface{}

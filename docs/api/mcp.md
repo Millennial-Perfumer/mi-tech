@@ -79,11 +79,16 @@ argument and are mapped to `GET /api/.../{arg}`.
 ### Publishing to the Google Drive social queue
 
 Use the `smm_queue_create` MCP tool with a caption, optional hashtags, target
-platforms, and optional comma-separated public HTTPS media URLs. Supported
-platforms include `instagram`, `facebook`, `threads`, and `x`. Media is
-downloaded in memory, limited to 50 MB per file, and placed in the generated
-Google Drive queue folder using the same flow as the web uploader. The tool
-requires a machine key containing `marketing:publish`.
+platforms, and either `media_files` or comma-separated public HTTPS
+`media_urls`. `media_files` is an array of absolute paths accessible to the MCP
+process; those files are sent as multipart `files` parts, matching the web
+uploader. Supported platforms include `instagram`, `facebook`, `threads`, and
+`x`. Media is limited to 10 files and 50 MB per file, then placed in the
+generated Google Drive queue folder using the same flow as the web uploader.
+The tool requires a machine key containing `marketing:publish`. Remote HTTP
+MCP clients cannot pass paths from their own computer unless the files are
+first made available to the MCP server; public HTTPS URLs remain available for
+that case.
 
 ## Response Normalization (Phase 5)
 

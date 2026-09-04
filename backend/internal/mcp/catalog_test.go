@@ -46,7 +46,7 @@ func TestCatalogScopesReadOnly(t *testing.T) {
 
 // TestCatalogArgSpecsValid verifies argument names are unique per tool and types are valid.
 func TestCatalogArgSpecsValid(t *testing.T) {
-	validTypes := map[ArgType]bool{ArgString: true, ArgInt: true, ArgNumber: true, ArgObject: true, ArgBoolean: true}
+	validTypes := map[ArgType]bool{ArgString: true, ArgInt: true, ArgNumber: true, ArgObject: true, ArgBoolean: true, ArgArray: true}
 	for _, spec := range DefaultCatalog {
 		seen := make(map[string]struct{}, len(spec.Args))
 		for _, a := range spec.Args {

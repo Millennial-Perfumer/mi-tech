@@ -5,11 +5,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+)
+
+const (
+	maxMCPQueueMediaFiles      = 10
+	maxMCPQueueMediaBytes      = 50 << 20
+	maxMCPQueueMediaTotalBytes = 100 << 20
 )
 
 // MuxExecutor dispatches allowlisted tool calls to internal read and write
@@ -91,6 +103,7 @@ func (e *MuxExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map[stri
 	method := http.MethodGet
 	requestHandler := e.handler
 	var requestBody []byte
+	var requestContentType string
 	if tool.Write {
 		if e.writeHandler == nil {
 			return nil, fmt.Errorf("tool %s has no write handler", tool.Name)
@@ -101,15 +114,23 @@ func (e *MuxExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map[stri
 		}
 		requestHandler = e.writeHandler
 		var err error
-		writeArgs := make(map[string]any, len(args))
-		if payload, ok := args["payload"]; ok {
+		if tool.Name == "smm_queue_create" && hasNonEmptyArgument(args["media_files"]) {
+			requestBody, requestContentType, err = buildMultipartQueueBody(args)
+			if err != nil {
+				return nil, ToolError{Status: http.StatusBadRequest, Err: fmt.Errorf("build multipart media upload: %w", err)}
+			}
+		} else if payload, ok := args["payload"]; ok {
 			requestBody, err = json.Marshal(payload)
 			if err != nil {
 				return nil, ToolError{Status: http.StatusBadRequest, Err: fmt.Errorf("encode tool payload: %w", err)}
 			}
 		} else {
+			writeArgs := make(map[string]any, len(args))
 			for key, value := range args {
 				if inPath(tool.PathArgs, key) || inPath(tool.QueryArgs, key) {
+					continue
+				}
+				if key == "media_files" {
 					continue
 				}
 				if (key == "target_platforms" || key == "media_urls") && value != nil {
@@ -136,7 +157,10 @@ func (e *MuxExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map[stri
 	}
 	req := httptest.NewRequest(method, path, bytes.NewReader(requestBody))
 	if tool.Write {
-		req.Header.Set("Content-Type", "application/json")
+		if requestContentType == "" {
+			requestContentType = "application/json"
+		}
+		req.Header.Set("Content-Type", requestContentType)
 	}
 	req = req.WithContext(withIdentity(ctx, req.Context()))
 
@@ -151,6 +175,233 @@ func (e *MuxExecutor) Dispatch(ctx context.Context, tool ToolSpec, args map[stri
 		body = []byte("{}")
 	}
 	return sanitizeResponse(body)
+}
+
+// buildMultipartQueueBody maps the MCP queue arguments to the same multipart
+// contract used by the web uploader: scalar form fields plus repeated `files`
+// parts. File paths are intentionally local to the MCP process; a remote HTTP
+// MCP client must first make the files available to that process.
+func buildMultipartQueueBody(args map[string]any) ([]byte, string, error) {
+	paths, err := mediaFilePaths(args["media_files"])
+	if err != nil {
+		return nil, "", err
+	}
+	if len(paths) == 0 {
+		return nil, "", fmt.Errorf("media_files must contain at least one file")
+	}
+	if hasNonEmptyArgument(args["media_urls"]) {
+		return nil, "", fmt.Errorf("media_files and media_urls cannot be used together")
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for _, key := range []string{"caption", "hashtags", "post_type"} {
+		if value, ok := args[key]; ok && value != nil {
+			if err := writer.WriteField(key, stringify(value)); err != nil {
+				return nil, "", fmt.Errorf("write %s field: %w", key, err)
+			}
+		}
+	}
+	if value, ok := args["target_platforms"]; ok && value != nil {
+		platforms, err := queueTargetPlatforms(value)
+		if err != nil {
+			return nil, "", err
+		}
+		if platforms != "" {
+			if err := writer.WriteField("target_platforms", platforms); err != nil {
+				return nil, "", fmt.Errorf("write target_platforms field: %w", err)
+			}
+		}
+	}
+
+	var totalBytes int64
+	for _, path := range paths {
+		name, data, contentType, err := readQueueMediaFile(path)
+		if err != nil {
+			return nil, "", err
+		}
+		totalBytes += int64(len(data))
+		if totalBytes > maxMCPQueueMediaTotalBytes {
+			return nil, "", fmt.Errorf("media files exceed the %d MB total limit", maxMCPQueueMediaTotalBytes/(1<<20))
+		}
+
+		header := make(textproto.MIMEHeader)
+		header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{
+			"name":     "files",
+			"filename": name,
+		}))
+		header.Set("Content-Type", contentType)
+		part, err := writer.CreatePart(header)
+		if err != nil {
+			return nil, "", fmt.Errorf("create file part for %q: %w", name, err)
+		}
+		if _, err := part.Write(data); err != nil {
+			return nil, "", fmt.Errorf("write file %q: %w", name, err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", fmt.Errorf("close multipart body: %w", err)
+	}
+	return body.Bytes(), writer.FormDataContentType(), nil
+}
+
+func mediaFilePaths(value any) ([]string, error) {
+	var rawPaths []any
+	switch typed := value.(type) {
+	case []any:
+		rawPaths = typed
+	case []string:
+		for _, path := range typed {
+			rawPaths = append(rawPaths, path)
+		}
+	case string:
+		if strings.TrimSpace(typed) != "" {
+			rawPaths = []any{typed}
+		}
+	default:
+		return nil, fmt.Errorf("media_files must be an array of local file paths")
+	}
+	if len(rawPaths) == 0 {
+		return nil, fmt.Errorf("media_files must contain at least one file")
+	}
+	if len(rawPaths) > maxMCPQueueMediaFiles {
+		return nil, fmt.Errorf("a maximum of %d media files is allowed", maxMCPQueueMediaFiles)
+	}
+
+	paths := make([]string, 0, len(rawPaths))
+	for _, rawPath := range rawPaths {
+		path, ok := rawPath.(string)
+		path = strings.TrimSpace(path)
+		if !ok || path == "" {
+			return nil, fmt.Errorf("every media_files item must be a non-empty file path")
+		}
+		if !filepath.IsAbs(path) {
+			return nil, fmt.Errorf("media file path %q must be absolute", path)
+		}
+		paths = append(paths, filepath.Clean(path))
+	}
+	return paths, nil
+}
+
+func readQueueMediaFile(path string) (string, []byte, string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("open media file %q: %w", path, err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return "", nil, "", fmt.Errorf("stat media file %q: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", nil, "", fmt.Errorf("media file %q is not a regular file", path)
+	}
+	if info.Size() > maxMCPQueueMediaBytes {
+		return "", nil, "", fmt.Errorf("media file %q exceeds the %d MB limit", path, maxMCPQueueMediaBytes/(1<<20))
+	}
+
+	data, err := io.ReadAll(io.LimitReader(file, maxMCPQueueMediaBytes+1))
+	if err != nil {
+		return "", nil, "", fmt.Errorf("read media file %q: %w", path, err)
+	}
+	if len(data) == 0 {
+		return "", nil, "", fmt.Errorf("media file %q is empty", path)
+	}
+	if len(data) > maxMCPQueueMediaBytes {
+		return "", nil, "", fmt.Errorf("media file %q exceeds the %d MB limit", path, maxMCPQueueMediaBytes/(1<<20))
+	}
+
+	name := filepath.Base(path)
+	contentType := queueMediaContentType(name, data)
+	if contentType == "" {
+		return "", nil, "", fmt.Errorf("unsupported media type for %q; use JPG, PNG, WEBP, MP4, or MOV", name)
+	}
+	return name, data, contentType, nil
+}
+
+func queueMediaContentType(name string, data []byte) string {
+	detected := http.DetectContentType(data)
+	switch detected {
+	case "image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime":
+		return detected
+	}
+	if detected != "application/octet-stream" {
+		return ""
+	}
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".webp":
+		return "image/webp"
+	case ".mp4":
+		return "video/mp4"
+	case ".mov":
+		return "video/quicktime"
+	default:
+		return ""
+	}
+}
+
+func queueTargetPlatforms(value any) (string, error) {
+	var platforms []string
+	switch typed := value.(type) {
+	case string:
+		text := strings.TrimSpace(typed)
+		if text == "" {
+			return "", nil
+		}
+		if strings.HasPrefix(text, "[") {
+			if err := json.Unmarshal([]byte(text), &platforms); err != nil {
+				return "", fmt.Errorf("target_platforms must be comma-separated or a JSON array: %w", err)
+			}
+		} else {
+			for _, item := range strings.Split(text, ",") {
+				if item = strings.TrimSpace(item); item != "" {
+					platforms = append(platforms, item)
+				}
+			}
+		}
+	case []string:
+		platforms = typed
+	case []any:
+		for _, item := range typed {
+			text, ok := item.(string)
+			if !ok {
+				return "", fmt.Errorf("target_platforms items must be strings")
+			}
+			if text = strings.TrimSpace(text); text != "" {
+				platforms = append(platforms, text)
+			}
+		}
+	default:
+		return "", fmt.Errorf("target_platforms must be a string or array of strings")
+	}
+	for i := range platforms {
+		platforms[i] = strings.TrimSpace(platforms[i])
+	}
+	encoded, err := json.Marshal(platforms)
+	if err != nil {
+		return "", fmt.Errorf("encode target_platforms: %w", err)
+	}
+	return string(encoded), nil
+}
+
+func hasNonEmptyArgument(value any) bool {
+	switch typed := value.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(typed) != ""
+	case []string:
+		return len(typed) > 0
+	case []any:
+		return len(typed) > 0
+	default:
+		return true
+	}
 }
 
 // buildToolPath assembles the request path, injecting path args (in declared

@@ -153,6 +153,18 @@ func TestToolInputSchema(t *testing.T) {
 	require.True(t, ok)
 	require.Contains(t, props, "start_date")
 	require.Contains(t, props, "limit")
+
+	queueSpec, ok := DefaultCatalog.Lookup("smm_queue_create")
+	require.True(t, ok)
+	queueSchema := inputSchema(queueSpec)
+	queueProps, ok := queueSchema["properties"].(map[string]any)
+	require.True(t, ok)
+	mediaFiles, ok := queueProps["media_files"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "array", mediaFiles["type"])
+	items, ok := mediaFiles["items"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "string", items["type"])
 }
 
 // TestHTTPHandlerStateless verifies the Streamable HTTP handler mounts.
