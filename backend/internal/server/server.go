@@ -290,7 +290,9 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		smmHandler:        smmHandler,
 		judgeMeHandler:    judgeMeHandler,
 		feedbackHandler:   feedbackHandler,
+		acHandler:         acHandler,
 		aiHandler:         aiHandler,
+		ticketHandler:     ticketHandler,
 	})
 	// The social queue publisher is retained as an explicit write endpoint.
 	mcpWriteMux.HandleFunc("/api/marketing/smm/queue", func(w http.ResponseWriter, r *http.Request) {
