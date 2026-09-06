@@ -24,7 +24,9 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME is required}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      # Keep the v2 host allowed even when the VM's existing .env has only
+      # the legacy frontend origin. Duplicate entries are harmless.
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS},https://mi-tech.v2.millennialperfumer.in"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-tempo:4317}
       # Add other necessary backend environment variables here
@@ -41,14 +43,14 @@ services:
     networks:
       - app-network
 
-  frontend-feedback:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend-feedback:${IMAGE_TAG:?IMAGE_TAG is required}
+  frontend-v2:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend-v2:${IMAGE_TAG:?IMAGE_TAG is required}
     restart: always
     networks:
       - app-network
 
-  frontend-v2:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend-v2:${IMAGE_TAG:?IMAGE_TAG is required}
+  frontend-feedback:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend-feedback:${IMAGE_TAG:?IMAGE_TAG is required}
     restart: always
     networks:
       - app-network
@@ -106,8 +108,8 @@ services:
       - /var/www/html/f-images:/var/www/html/f-images:ro
     depends_on:
       - frontend
-      - frontend-feedback
       - frontend-v2
+      - frontend-feedback
       - backend
       - meta-mcp-server
       - github-mcp-server

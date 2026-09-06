@@ -20,7 +20,7 @@ type CustomerRepository struct {
 var customerListAllowedSortColumns = map[string]bool{
 	"phone_number": true, "first_name": true, "last_name": true,
 	"email": true, "city": true, "state": true, "total_orders": true,
-	"total_spent": true, "updated_at": true, "created_at": true,
+	"total_spent": true, "updated_at": true, "created_at": true, "source_id": true,
 }
 
 func NewCustomerRepository(db *gorm.DB) *CustomerRepository {

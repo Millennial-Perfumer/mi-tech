@@ -184,8 +184,8 @@ export function DashboardPage({ token, onUnauthorized }: DashboardPageProps) {
       <header className="dashboard-header">
         <div>
           <p className="eyebrow">Mi Tech / Overview</p>
-          <h2 id="dashboard-heading">Good morning. Here’s your business at a glance.</h2>
-          <p className="dashboard-subtitle">Monitor revenue, orders, GST, and operational health in one calm workspace.</p>
+          <h2 id="dashboard-heading">Overview</h2>
+          <p className="dashboard-subtitle">Revenue, orders, GST, and operational health for the selected period.</p>
         </div>
         <div className="dashboard-actions">
           <button className="secondary-button" type="button" onClick={() => void fetchDashboardData(true)} disabled={isRefreshing}>

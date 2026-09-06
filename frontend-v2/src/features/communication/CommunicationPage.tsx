@@ -153,7 +153,7 @@ export function CommunicationPage({ token, onUnauthorized }: CommunicationPagePr
   return (
     <section className="workspace-page communication-page" aria-labelledby="communication-heading">
       <header className="workspace-page-header">
-        <div><p className="eyebrow">Engagement / Communication</p><h2 id="communication-heading">Customer conversations, in one place.</h2><p>Move between WhatsApp conversations quickly, keep the context visible, and take over from automation when a person is needed.</p></div>
+        <div><p className="eyebrow">Engagement / Communication</p><h2 id="communication-heading">Communication</h2><p>Manage customer conversations and WhatsApp handovers.</p></div>
         <button className="secondary-button" type="button" onClick={() => void loadConversations()} disabled={isLoading}><RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" /> Refresh inbox</button>
       </header>
       {error && <div className="dashboard-error" role="alert"><CircleAlert size={18} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => { setError(''); void loadConversations() }}>Try again</button></div>}

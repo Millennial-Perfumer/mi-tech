@@ -1,6 +1,6 @@
 #!/bin/bash
 # init-ssl.sh
-# One-time SSL bootstrap script for mi-tech.millennialperfumer.in
+# One-time SSL bootstrap script for MI-Tech production hosts.
 # Run this manually via SSH on a fresh server (or when certs are missing).
 # After this runs once, the certbot container handles all future renewals.
 
@@ -63,14 +63,15 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   --email $EMAIL \
   --agree-tos \
   --no-eff-email \
+  --expand \
   -d $DOMAIN \
-  -d $V2_DOMAIN \
   -d $API_DOMAIN \
   -d $MONITORING_DOMAIN \
   -d $FEEDBACK_DOMAIN \
   -d $AGENT_DOMAIN \
   -d $N8N_DOMAIN \
-  -d $MCP_DOMAIN
+  -d $MCP_DOMAIN \
+  -d $V2_DOMAIN
 
 echo "==> [5/5] Reloading Nginx with real certificate..."
 docker compose -f $COMPOSE_FILE exec nginx nginx -s reload
@@ -78,7 +79,7 @@ docker compose -f $COMPOSE_FILE exec nginx nginx -s reload
 echo ""
 echo "✅ SSL bootstrap complete!"
 echo "   https://$DOMAIN        → Frontend"
+echo "   https://$V2_DOMAIN     → Frontend v2"
 echo "   https://$API_DOMAIN    → API"
-  echo "   https://$V2_DOMAIN    → Frontend v2"
 echo ""
 echo "   The certbot container will now handle renewals every 12 hours automatically."

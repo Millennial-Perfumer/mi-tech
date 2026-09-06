@@ -175,12 +175,12 @@ func (r *sqlMessagesRepository) GetMessages(storeID string, startDate, endDate *
 	var messages []entity.AutomationMessage
 	for rows.Next() {
 		var m entity.AutomationMessage
-		var templateNameVal, orderNumber, customerName, errorMsg sql.NullString
+		var templateNameVal, orderNumber, customerName, messageText, errorMsg sql.NullString
 		var payload []byte
 		err := rows.Scan(
 			&m.ID, &m.StoreID, &m.TemplateID, &templateNameVal,
 			&m.OrderID, &orderNumber, &customerName,
-			&m.PhoneNumber, &m.MessageID, &m.MessageText, &payload, &m.Status, &m.SentAt,
+			&m.PhoneNumber, &m.MessageID, &messageText, &payload, &m.Status, &m.SentAt,
 			&m.DeliveredAt, &m.ReadAt, &errorMsg,
 		)
 		if err != nil {
@@ -192,6 +192,7 @@ func (r *sqlMessagesRepository) GetMessages(storeID string, startDate, endDate *
 		m.TemplateName = templateNameVal.String
 		m.OrderNumber = orderNumber.String
 		m.CustomerName = customerName.String
+		m.MessageText = messageText.String
 		m.ErrorMessage = errorMsg.String
 		messages = append(messages, m)
 	}

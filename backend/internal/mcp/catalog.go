@@ -621,6 +621,7 @@ var DefaultCatalog = Catalog{
 			arg("post_type", ArgString, "SINGLE_PHOTO, CAROUSEL, or VIDEO. Inferred when omitted."),
 			arg("target_platforms", ArgString, "Comma-separated platforms: instagram, facebook, threads, x."),
 			arg("media_urls", ArgString, "Comma-separated public HTTPS media URLs."),
+			arg("media_files", ArgArray, "Absolute local file paths to upload as media."),
 		},
 	},
 	{

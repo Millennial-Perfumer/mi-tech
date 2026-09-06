@@ -21,6 +21,9 @@ type Customer = {
   source_id?: string
 }
 
+type CustomerSortField = 'first_name' | 'phone_number' | 'city' | 'total_orders' | 'total_spent' | 'updated_at' | 'source_id'
+type SortOrder = 'ASC' | 'DESC'
+
 const pageSize = 20
 
 function displayName(customer: Customer) {
@@ -39,6 +42,11 @@ function formatDate(value: string | undefined) {
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function sortIndicator(field: CustomerSortField, sortField: CustomerSortField, sortOrder: SortOrder) {
+  if (field !== sortField) return '↕'
+  return sortOrder === 'ASC' ? '↑' : '↓'
+}
+
 export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [search, setSearch] = useState('')
@@ -51,6 +59,18 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [sortField, setSortField] = useState<CustomerSortField>('updated_at')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
+
+  const handleSort = (field: CustomerSortField) => {
+    setPage(1)
+    if (field === sortField) {
+      setSortOrder((current) => current === 'ASC' ? 'DESC' : 'ASC')
+      return
+    }
+    setSortField(field)
+    setSortOrder('ASC')
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250)
@@ -68,8 +88,8 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
     const query = new URLSearchParams({
       page: String(page),
       pageSize: String(pageSize),
-      sortBy: 'updated_at',
-      sortOrder: 'DESC',
+      sortBy: sortField,
+      sortOrder: sortOrder,
     })
     if (debouncedSearch) query.set('search', debouncedSearch)
     if (sourceFilter) query.set('source_id', sourceFilter)
@@ -97,7 +117,7 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [debouncedSearch, location, minOrders, minSpent, onUnauthorized, page, sourceFilter, token])
+  }, [debouncedSearch, location, minOrders, minSpent, onUnauthorized, page, sortField, sortOrder, sourceFilter, token])
 
   useEffect(() => {
     void fetchCustomers()
@@ -118,8 +138,8 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
       <header className="workspace-page-header">
         <div>
           <p className="eyebrow">Operations / Customers</p>
-          <h2 id="customers-heading">Know the people behind every order.</h2>
-          <p>Find customers quickly, understand lifetime value, and keep the directory useful for the whole team.</p>
+          <h2 id="customers-heading">Customers</h2>
+          <p>Manage customer records, order history, and lifetime value.</p>
         </div>
         <span className="page-period-note">Customer totals are lifetime values</span>
       </header>
@@ -169,13 +189,29 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
             <p className="eyebrow">Customer directory</p>
             <h3>{isLoading ? 'Loading customers…' : `${total.toLocaleString('en-IN')} customers found`}</h3>
           </div>
-          <span className="orders-card-meta">Recently active first</span>
+          <span className="orders-card-meta">{sortField === 'updated_at' && sortOrder === 'DESC' ? 'Recently active first' : 'Click a column to sort'}</span>
         </div>
 
         <div className="orders-table-wrap">
           <table className="orders-table customers-table">
             <thead>
-              <tr><th>Customer</th><th>Contact</th><th>Location</th><th>Orders</th><th>Lifetime spend</th><th>Last activity</th><th>Source</th></tr>
+              <tr>
+                {([
+                  ['Customer', 'first_name'],
+                  ['Contact', 'phone_number'],
+                  ['Location', 'city'],
+                  ['Orders', 'total_orders'],
+                  ['Lifetime spend', 'total_spent'],
+                  ['Last activity', 'updated_at'],
+                  ['Source', 'source_id'],
+                ] as [string, CustomerSortField][]).map(([label, field]) => (
+                  <th key={field} aria-sort={sortField === field ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                    <button className="sortable-table-button" type="button" onClick={() => handleSort(field)} aria-label={`Sort by ${label}`}>
+                      <span>{label}</span><span className="sortable-table-indicator" aria-hidden="true">{sortIndicator(field, sortField, sortOrder)}</span>
+                    </button>
+                  </th>
+                ))}
+              </tr>
             </thead>
             <tbody>
               {isLoading ? (

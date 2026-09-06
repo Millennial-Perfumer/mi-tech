@@ -13,6 +13,7 @@ type Order = {
   id: string | number
   order_number?: string
   customer_name?: string
+  customer_phone?: string
   created_at?: string
   total_price?: string | number
   financial_status?: string
@@ -20,6 +21,9 @@ type Order = {
   status?: string
   source_id?: string
 }
+
+type OrderSortField = 'order_number' | 'customer_name' | 'created_at' | 'source_id' | 'total_price' | 'financial_status' | 'fulfillment_status'
+type SortOrder = 'ASC' | 'DESC'
 
 const pageSize = 20
 
@@ -46,6 +50,11 @@ function statusTone(value: string | undefined) {
   return 'neutral'
 }
 
+function sortIndicator(field: OrderSortField, sortField: OrderSortField, sortOrder: SortOrder) {
+  if (field !== sortField) return '↕'
+  return sortOrder === 'ASC' ? '↑' : '↓'
+}
+
 export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
   const { startDate, endDate } = usePeriodFilter()
   const [orders, setOrders] = useState<Order[]>([])
@@ -62,6 +71,18 @@ export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<string | number | null>(null)
   const [convertOrderId, setConvertOrderId] = useState<string | number | null>(null)
+  const [sortField, setSortField] = useState<OrderSortField>('created_at')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
+
+  const handleSort = (field: OrderSortField) => {
+    setPage(1)
+    if (field === sortField) {
+      setSortOrder((current) => current === 'ASC' ? 'DESC' : 'ASC')
+      return
+    }
+    setSortField(field)
+    setSortOrder('ASC')
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250)
@@ -79,8 +100,8 @@ export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
     const query = new URLSearchParams({
       page: String(page),
       limit: String(pageSize),
-      sort_by: 'created_at',
-      sort_order: 'DESC',
+      sort_by: sortField,
+      sort_order: sortOrder,
     })
     if (startDate) query.set('start_date', dateToBoundary(startDate))
     if (endDate) query.set('end_date', dateToBoundary(endDate, true))
@@ -109,7 +130,7 @@ export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [debouncedSearch, endDate, fulfillmentFilter, onUnauthorized, page, paymentFilter, sourceFilter, startDate, token])
+  }, [debouncedSearch, endDate, fulfillmentFilter, onUnauthorized, page, paymentFilter, sortField, sortOrder, sourceFilter, startDate, token])
 
   useEffect(() => {
     void fetchOrders()
@@ -122,8 +143,8 @@ export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
       <header className="workspace-page-header">
         <div>
           <p className="eyebrow">Operations / Orders</p>
-          <h2 id="orders-heading">Orders, without the noise.</h2>
-          <p>Search every connected channel, inspect order health, and keep fulfilment moving.</p>
+          <h2 id="orders-heading">Orders</h2>
+          <p>Search and manage orders from every connected channel.</p>
         </div>
           <div className="support-header-actions"><span className="page-period-note">Period filter is shared across the workspace</span><button className="primary-button" type="button" onClick={() => setIsCreateOpen(true)}><Plus size={15} aria-hidden="true" /> New order</button></div>
       </header>
@@ -179,20 +200,28 @@ export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
             <p className="eyebrow">Order register</p>
             <h3>{isLoading ? 'Loading orders…' : `${totalCount.toLocaleString('en-IN')} orders found`}</h3>
           </div>
-          <span className="orders-card-meta">Newest first</span>
+          <span className="orders-card-meta">{sortField === 'created_at' && sortOrder === 'DESC' ? 'Newest first' : 'Click a column to sort'}</span>
         </div>
 
         <div className="orders-table-wrap">
           <table className="orders-table">
             <thead>
               <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Date</th>
-                <th>Channel</th>
-                <th>Amount</th>
-                <th>Payment</th>
-                <th>Fulfilment</th>
+                {([
+                  ['Order', 'order_number'],
+                  ['Customer', 'customer_name'],
+                  ['Date', 'created_at'],
+                  ['Channel', 'source_id'],
+                  ['Amount', 'total_price'],
+                  ['Payment', 'financial_status'],
+                  ['Fulfilment', 'fulfillment_status'],
+                ] as [string, OrderSortField][]).map(([label, field]) => (
+                  <th key={field} aria-sort={sortField === field ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                    <button className="sortable-table-button" type="button" onClick={() => handleSort(field)} aria-label={`Sort by ${label}`}>
+                      <span>{label}</span><span className="sortable-table-indicator" aria-hidden="true">{sortIndicator(field, sortField, sortOrder)}</span>
+                    </button>
+                  </th>
+                ))}
                 <th>Actions</th>
               </tr>
             </thead>

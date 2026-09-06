@@ -90,7 +90,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     <main className="auth-shell">
       <section className="auth-card" aria-labelledby="auth-heading">
         <img className="auth-logo" src={fullLogo} alt="Millennial Perfumer" />
-        <p className="eyebrow">MP Workspace</p>
+        <p className="eyebrow">MP-TECH</p>
         <h1 id="auth-heading">{requiresOtp ? 'Verify your identity' : 'Welcome back'}</h1>
         <p className="auth-intro">
           {requiresOtp

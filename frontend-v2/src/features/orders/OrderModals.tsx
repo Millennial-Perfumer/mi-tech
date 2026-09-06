@@ -1,10 +1,21 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { CircleAlert, Download, Plus, Trash2, X } from 'lucide-react'
+import { CircleAlert, Download, MessageSquare, Plus, RefreshCw, Send, Trash2, X } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, formatMoney, numberValue, textValue } from '../../lib/http'
 
 type Props = { token: string; onUnauthorized: () => void }
 type LineItem = { mi_sku: string; title: string; quantity: string; price: string; discount: string }
 type Order = Record<string, unknown>
+
+const webhookLabels: Record<string, string> = {
+  'orders/create': 'Order placed',
+  'orders/assigned': 'Order assigned',
+  'orders/fulfilled': 'Order dispatched',
+  'orders/out_for_delivery': 'Order out for delivery',
+  'orders/delivered': 'Order delivered',
+  'orders/updated': 'Order updated',
+  'orders/cancelled': 'Order cancelled',
+  'orders/paid': 'Order paid',
+}
 
 const emptyLineItem = (): LineItem => ({ mi_sku: '', title: '', quantity: '1', price: '', discount: '0' })
 
@@ -194,15 +205,78 @@ export function ConvertOrderToB2BModal({ token, onUnauthorized, orderId, onClose
   </form></div>
 }
 
+export function ManualWhatsAppModal({ token, onUnauthorized, orderId, orderNumber, customerName, customerPhone, onClose, onSent }: Props & { orderId: string | number; orderNumber: string; customerName: string; customerPhone: string; onClose: () => void; onSent?: () => void }) {
+  const [triggers, setTriggers] = useState<Record<string, unknown>[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSending, setIsSending] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    const loadTriggers = async () => {
+      setIsLoading(true)
+      setError('')
+      try {
+        const data = await apiJson<unknown>(token, onUnauthorized, '/api/automation/whatsapp/triggers')
+        const available = arrayFrom(data).filter((trigger) => numberValue(trigger.template_id) > 0 && textValue(trigger.template_status, '').toUpperCase() !== 'ARCHIVED')
+        if (active) setTriggers(available)
+      } catch (caughtError) {
+        if (active) setError(caughtError instanceof Error ? caughtError.message : 'Unable to load message templates')
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    }
+    void loadTriggers()
+    return () => { active = false }
+  }, [onUnauthorized, token])
+
+  const sendMessage = async () => {
+    if (!selectedTemplateId || !customerPhone) return
+    setIsSending(true)
+    setError('')
+    try {
+      await apiRequest(token, onUnauthorized, '/api/automation/whatsapp/send-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: String(orderId), template_id: selectedTemplateId }),
+      })
+      onSent?.()
+      onClose()
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to send WhatsApp message')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  return <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isSending) onClose() }}><section className="modal-card manual-message-modal" role="dialog" aria-modal="true" aria-labelledby="manual-message-heading">
+    <div className="modal-heading"><div><p className="eyebrow">Orders / WhatsApp</p><h2 id="manual-message-heading">Send message</h2></div><button className="icon-button" type="button" aria-label="Close message dialog" onClick={onClose} disabled={isSending}><X size={19} aria-hidden="true" /></button></div>
+    <div className="manual-message-recipient"><span className="metric-label">Sending to</span><strong>{customerName || 'Guest customer'}</strong><span>Order {orderNumber || `#${orderId}`} · {customerPhone || 'No phone number'}</span></div>
+    {error && <div className="dashboard-error" role="alert"><CircleAlert size={16} aria-hidden="true" /><span>{error}</span></div>}
+    <div className="manual-message-heading"><div><span className="metric-label">Message template</span><p>Select a configured WhatsApp event to send for this order.</p></div></div>
+    <div className="manual-message-options" role="listbox" aria-label="Select WhatsApp message template" aria-busy={isLoading}>
+      {isLoading ? <div className="manual-message-empty"><RefreshCw className="spin" size={17} aria-hidden="true" /> Loading templates…</div> : triggers.length === 0 ? <div className="manual-message-empty">No active WhatsApp templates are configured.</div> : triggers.map((trigger, index) => {
+        const templateId = numberValue(trigger.template_id)
+        const topic = textValue(trigger.webhook_topic, `Template ${index + 1}`)
+        return <button className={`manual-message-option ${selectedTemplateId === templateId ? 'manual-message-option-selected' : ''}`} key={`${templateId}-${topic}`} type="button" role="option" aria-selected={selectedTemplateId === templateId} onClick={() => setSelectedTemplateId(templateId)}><span><strong>{webhookLabels[topic] || topic}</strong><small>{textValue(trigger.template_body, 'Configured WhatsApp message')}</small></span><em>{textValue(trigger.template_name, '')}</em></button>
+      })}
+    </div>
+    <div className="modal-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={isSending}>Cancel</button><button className="primary-button" type="button" onClick={() => void sendMessage()} disabled={isSending || !selectedTemplateId || !customerPhone}><Send size={14} aria-hidden="true" /> {isSending ? 'Sending…' : 'Send message'}</button></div>
+  </section></div>
+}
+
 export function OrderDetailsModal({ token, onUnauthorized, orderId, onClose, onChanged, onConvertToB2B }: Props & { orderId: string | number; onClose: () => void; onChanged: () => void; onConvertToB2B?: () => void }) {
   const [order, setOrder] = useState<Order | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isWorking, setIsWorking] = useState(false)
   const [error, setError] = useState('')
+  const [isMessageOpen, setIsMessageOpen] = useState(false)
   const load = useCallback(async () => { setIsLoading(true); try { const data = await apiJson<unknown>(token, onUnauthorized, `/api/orders?id=${orderId}`); setOrder((data && typeof data === 'object' && 'order' in data ? (data as { order: Order }).order : data) as Order) } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to load order details') } finally { setIsLoading(false) } }, [onUnauthorized, orderId, token])
   useEffect(() => { void load() }, [load])
   const update = async (path: string, body?: unknown, label = 'Order updated') => { setIsWorking(true); try { await apiRequest(token, onUnauthorized, path, body ? { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { method: 'PUT' }); setOrder((current) => current ? { ...current, ...(body as Order || {}) } : current); onChanged() } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : `${label} failed`) } finally { setIsWorking(false) } }
   const downloadInvoice = async () => { setIsWorking(true); try { const response = await apiRequest(token, onUnauthorized, `/api/orders/invoice?id=${orderId}`); const blob = await response.blob(); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `order-${orderId}-invoice.pdf`; link.click(); URL.revokeObjectURL(link.href) } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to download invoice') } finally { setIsWorking(false) } }
   const isB2BOrder = textValue(order?.source_id, '').toLowerCase() === 'b2b'
-  return <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div className="modal-card order-details-modal" role="dialog" aria-modal="true" aria-labelledby="order-details-heading"><div className="modal-heading"><div><p className="eyebrow">Order detail</p><h2 id="order-details-heading">{textValue(order?.order_number, `Order #${orderId}`)}</h2></div><button className="icon-button" type="button" aria-label="Close" onClick={onClose}><X size={19} aria-hidden="true" /></button></div>{error && <div className="dashboard-error" role="alert"><CircleAlert size={16} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div>}{isLoading ? <p className="table-state">Loading order details…</p> : order && <><div className="order-detail-grid"><div><span className="metric-label">Customer</span><strong>{textValue(order.customer_name, 'Guest customer')}</strong><small>{textValue(order.customer_phone, '')}</small><small>{textValue(order.customer_email, '')}</small></div><div><span className="metric-label">Placed</span><strong>{formatDate(order.created_at)}</strong><small>{textValue(order.source_id, 'Unknown channel')}</small></div><div><span className="metric-label">Total</span><strong>{formatMoney(order.total_price)}</strong><small>{textValue(order.financial_status, 'Payment pending')}</small></div><div><span className="metric-label">Fulfilment</span><strong>{textValue(order.fulfillment_status || order.status, 'Unfulfilled')}</strong><small>{textValue(order.delivery_status, '')}</small></div></div><div className="order-detail-actions"><button className="secondary-button" type="button" onClick={() => void downloadInvoice()} disabled={isWorking}><Download size={14} aria-hidden="true" /> Invoice</button><button className="secondary-button" type="button" disabled={isWorking} onClick={() => void update(`/api/orders/payment-status?id=${orderId}`, { financial_status: 'paid' }, 'Payment update')}>Mark paid</button><button className="secondary-button" type="button" disabled={isWorking} onClick={() => void update(`/api/orders/delivered?id=${orderId}`, undefined, 'Delivery update')}>Mark delivered</button>{onConvertToB2B && !isB2BOrder && <button className="primary-button" type="button" disabled={isWorking} onClick={onConvertToB2B}>Convert to B2B</button>}</div><div className="order-status-editor"><label className="form-field"><span>Order status</span><select value={textValue(order.status, 'open')} onChange={(event) => void update(`/api/orders/status?id=${orderId}`, { status: event.target.value }, 'Status update')} disabled={isWorking}><option value="open">Open</option><option value="processing">Processing</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div className="order-detail-section"><p className="eyebrow">Customer address</p><p>{[order.customer_address1, order.customer_city, order.customer_state, order.customer_zip].map((value) => textValue(value, '')).filter(Boolean).join(', ') || 'No address recorded.'}</p></div></>}</div></div>
+  const customerPhone = textValue(order?.customer_phone, '')
+  return <><div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div className="modal-card order-details-modal" role="dialog" aria-modal="true" aria-labelledby="order-details-heading"><div className="modal-heading"><div><p className="eyebrow">Order detail</p><h2 id="order-details-heading">{textValue(order?.order_number, `Order #${orderId}`)}</h2></div><button className="icon-button" type="button" aria-label="Close" onClick={onClose}><X size={19} aria-hidden="true" /></button></div>{error && <div className="dashboard-error" role="alert"><CircleAlert size={16} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div>}{isLoading ? <p className="table-state">Loading order details…</p> : order && <><div className="order-detail-grid"><div><span className="metric-label">Customer</span><strong>{textValue(order.customer_name, 'Guest customer')}</strong><small>{customerPhone}</small><small>{textValue(order.customer_email, '')}</small></div><div><span className="metric-label">Placed</span><strong>{formatDate(order.created_at)}</strong><small>{textValue(order.source_id, 'Unknown channel')}</small></div><div><span className="metric-label">Total</span><strong>{formatMoney(order.total_price)}</strong><small>{textValue(order.financial_status, 'Payment pending')}</small></div><div><span className="metric-label">Fulfilment</span><strong>{textValue(order.fulfillment_status || order.status, 'Unfulfilled')}</strong><small>{textValue(order.delivery_status, '')}</small></div></div><div className="order-detail-actions">{customerPhone && <button className="primary-button" type="button" onClick={() => setIsMessageOpen(true)} disabled={isWorking}><MessageSquare size={14} aria-hidden="true" /> Send message</button>}<button className="secondary-button" type="button" onClick={() => void downloadInvoice()} disabled={isWorking}><Download size={14} aria-hidden="true" /> Invoice</button><button className="secondary-button" type="button" disabled={isWorking} onClick={() => void update(`/api/orders/payment-status?id=${orderId}`, { financial_status: 'paid' }, 'Payment update')}>Mark paid</button><button className="secondary-button" type="button" disabled={isWorking} onClick={() => void update(`/api/orders/delivered?id=${orderId}`, undefined, 'Delivery update')}>Mark delivered</button>{onConvertToB2B && !isB2BOrder && <button className="primary-button" type="button" disabled={isWorking} onClick={onConvertToB2B}>Convert to B2B</button>}</div><div className="order-status-editor"><label className="form-field"><span>Order status</span><select value={textValue(order.status, 'open')} onChange={(event) => void update(`/api/orders/status?id=${orderId}`, { status: event.target.value }, 'Status update')} disabled={isWorking}><option value="open">Open</option><option value="processing">Processing</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label></div><div className="order-detail-section"><p className="eyebrow">Customer address</p><p>{[order.customer_address1, order.customer_city, order.customer_state, order.customer_zip].map((value) => textValue(value, '')).filter(Boolean).join(', ') || 'No address recorded.'}</p></div></>}</div></div>{isMessageOpen && order && <ManualWhatsAppModal token={token} onUnauthorized={onUnauthorized} orderId={orderId} orderNumber={textValue(order.order_number, `#${orderId}`)} customerName={textValue(order.customer_name, 'Guest customer')} customerPhone={customerPhone} onClose={() => setIsMessageOpen(false)} onSent={onChanged} />}</>
 }

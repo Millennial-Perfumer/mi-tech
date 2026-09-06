@@ -162,8 +162,8 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
       {!embedded && <header className="workspace-page-header">
         <div>
           <p className="eyebrow">Operations / Inventory</p>
-          <h2 id="inventory-heading">Know what is ready to ship.</h2>
-          <p>Keep the warehouse catalogue clear, spot stock risk early, and update counts without opening a separate detail screen.</p>
+          <h2 id="inventory-heading">Products</h2>
+          <p>Review products, stock levels, and inventory details.</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => void fetchInventory()} disabled={isLoading}>
           <RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" />
