@@ -91,6 +91,7 @@ out/
 db_backup_*.sql
 *.sql.gz
 *.html
+!frontend-v2/index.html
 meta_raw_debug.json
 backend/tmp/
 
