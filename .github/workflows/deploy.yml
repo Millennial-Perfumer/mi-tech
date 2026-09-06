@@ -132,7 +132,8 @@ jobs:
             docker network connect mi-tech-app_app-network n8n 2>/dev/null || true
 
             # Reload Nginx configuration
-            docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload 2>/dev/null || true
+            docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
+            docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
 
             # Remove only dangling (untagged) images without wiping layer cache
             docker image prune -f
