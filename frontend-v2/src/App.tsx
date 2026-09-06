@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import fullLogo from './assets/mi-black-full.png'
-import shortLogo from './assets/mi-black-short.png'
 import { AuthScreen } from './components/AuthScreen'
 import { DateRangePicker } from './components/DateRangePicker'
 import { DashboardPage } from './features/dashboard/DashboardPage'
@@ -292,14 +291,9 @@ function App() {
           >
             <Menu size={21} strokeWidth={1.8} />
           </button>
-          <span className="mobile-brand-lockup" aria-label="MP-TECH">
-            <img className="mobile-brand-logo" src={shortLogo} alt="" />
-            <strong className="mobile-brand-name">MP-TECH</strong>
+          <span className="mobile-brand-lockup" aria-label="Millennial Perfumer">
+            <img className="mobile-brand-logo-full" src={fullLogo} alt="Millennial Perfumer" />
           </span>
-          <div className="topbar-heading">
-            <span className="eyebrow">Workspace</span>
-            <h1>{pageTitles[activeView]}</h1>
-          </div>
           {periodFilteredViews.includes(activeView) && (
             <div className="topbar-period-filter">
               <DateRangePicker startDate={startDate} endDate={endDate} onChange={setDateRange} />

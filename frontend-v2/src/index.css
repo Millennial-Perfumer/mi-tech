@@ -249,23 +249,6 @@ a:focus-visible,
   background: var(--surface);
 }
 
-.topbar-heading {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.topbar-heading h1 {
-  overflow: hidden;
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.08rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .topbar-actions {
   display: flex;
   align-items: center;
@@ -313,7 +296,7 @@ a:focus-visible,
 .mobile-menu,
 .mobile-close,
 .mobile-brand-lockup,
-.mobile-brand-logo,
+.mobile-brand-logo-full,
 .mobile-tab-bar,
 .navigation-scrim {
   display: none;
@@ -324,16 +307,6 @@ a:focus-visible,
   gap: 8px;
   min-width: 0;
   color: var(--text-main);
-}
-
-.mobile-brand-name {
-  overflow: hidden;
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .main-content {
@@ -2391,27 +2364,20 @@ a:focus-visible,
 
   .mobile-brand-lockup {
     display: flex;
+    flex: 0 0 160px;
+    min-width: 0;
   }
 
-  .mobile-brand-logo {
+  .mobile-brand-logo-full {
     display: block;
-    flex: 0 0 30px;
-    width: 30px;
-    height: 30px;
-    padding: 3px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
+    width: 160px;
+    height: auto;
     object-fit: contain;
   }
 
   .topbar {
     min-height: 68px;
     padding: 12px 16px;
-  }
-
-  .topbar-heading {
-    margin-right: auto;
   }
 
   .profile-label,
