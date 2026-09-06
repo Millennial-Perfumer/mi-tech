@@ -89,6 +89,7 @@ jobs:
           use_insecure_cipher: true
           source: "docker-compose.prod.yml,docker-compose.monitoring.yml,nginx/,monitoring/,init-ssl.sh"
           target: "~/mi-tech-app"
+          overwrite: true
 
       - name: Deploy on VM
         uses: appleboy/ssh-action@v1.0.3
