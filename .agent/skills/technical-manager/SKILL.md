@@ -104,7 +104,6 @@ You have **59 specialist skills** organized into functional groups. Always deleg
 | **[systematic-debugging](../systematic-debugging/SKILL.md)** | Any bug, test failure, or unexpected behavior |
 | **[terminal-ops](../terminal-ops/SKILL.md)** | Running commands, verifying output, narrow fixes |
 | **[codebase-onboarding](../codebase-onboarding/SKILL.md)** | Understanding unfamiliar code areas |
-| **[graphify](../graphify/SKILL.md)** | Building or querying repository knowledge graphs and community maps |
 
 ### 📋 Planning & Process
 | Skill | When to Use |

@@ -1,0 +1,50 @@
+/*
+ * Mi Tech v2 design tokens.
+ * Components should consume these variables instead of hard-coding
+ * typography, color, spacing, radius, or elevation values.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Typography */
+  --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-display);
+  --font-mono: 'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  /* Mi Tech light-first palette */
+  --canvas: #f8f8f6;
+  --surface: #ffffff;
+  --surface-soft: #f4f4f1;
+  --surface-hover: #eef1f1;
+  --surface-selected: #edf1f1;
+  --text-main: #121212;
+  --text-secondary: #383838;
+  --text-muted: #73736f;
+  --text-faint: #a4a49e;
+  --border: #e6e6e1;
+  --border-strong: #cfcfc9;
+  --status: #4c4c48;
+  --danger: #8d3b34;
+  --danger-deep: #7d332e;
+  --danger-line: #d6aaa5;
+  --danger-soft: #fbf3f2;
+
+  /* InLoop-inspired restrained interaction accent */
+  --platform: #687478;
+  --platform-deep: #536064;
+  --platform-soft: #edf1f1;
+  --platform-line: #cbd5d6;
+
+  /* Effects */
+  --overlay: rgb(18 18 18 / 24%);
+  --focus-ring: 0 0 0 3px rgb(76 76 72 / 18%);
+  --shadow-panel: 0 1px 2px rgb(18 18 18 / 4%);
+  --shadow-float: 0 12px 30px rgb(18 18 18 / 10%);
+
+  /* Layout */
+  --sidebar-width: 248px;
+  --content-max-width: 1440px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+}

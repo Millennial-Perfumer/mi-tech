@@ -1,14 +1,17 @@
-.PHONY: install install-frontend install-frontend-feedback install-shop-chat-agent install-backend run frontend frontend-feedback backend build build-frontend build-frontend-feedback build-shop-chat-agent build-backend clean db-up db-down
+.PHONY: install install-frontend install-frontend-v2 install-frontend-feedback install-shop-chat-agent install-backend run frontend fe-v2 frontend-feedback backend build build-frontend build-frontend-v2 build-frontend-feedback build-shop-chat-agent build-backend clean db-up db-down
 export GOMODCACHE=$(shell pwd)/backend/.gocache/mod
 export GOCACHE=$(shell pwd)/backend/.gocache/build
 export GOFLAGS=-buildvcs=false
 export CGO_ENABLED=0
 
 # Install dependencies for both frontend and backend
-install: install-frontend install-frontend-feedback install-shop-chat-agent install-backend
+install: install-frontend install-frontend-v2 install-frontend-feedback install-shop-chat-agent install-backend
 
 install-frontend:
 	cd frontend && npm ci --legacy-peer-deps
+
+install-frontend-v2:
+	cd frontend-v2 && npm install --legacy-peer-deps
 
 install-frontend-feedback:
 	cd frontend-feedback && npm ci --legacy-peer-deps
@@ -22,7 +25,7 @@ install-backend:
 # Run both applications (backend in background, frontend in foreground)
 run: db-up
 	@echo "Starting backend and frontends..."
-	@make backend & make frontend & make frontend-feedback & wait
+	@make backend & make frontend & make fe-v2 & make frontend-feedback & wait
 
 # Start local PostgreSQL database container
 db-up:
@@ -37,6 +40,9 @@ db-down:
 frontend:
 	cd frontend && npm run dev
 
+fe-v2:
+	cd frontend-v2 && npm run dev
+
 frontend-feedback:
 	cd frontend-feedback && npm run dev
 
@@ -44,10 +50,13 @@ backend:
 	cd backend && go run github.com/air-verse/air@latest -c .air.toml
 
 # Build both applications
-build: build-frontend build-frontend-feedback build-shop-chat-agent build-backend
+build: build-frontend build-frontend-v2 build-frontend-feedback build-shop-chat-agent build-backend
 
 build-frontend:
 	cd frontend && npm run build
+
+build-frontend-v2:
+	cd frontend-v2 && npm run build
 
 build-frontend-feedback:
 	cd frontend-feedback && npm run build
@@ -62,6 +71,8 @@ build-backend:
 clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
+	rm -rf frontend-v2/dist
+	rm -rf frontend-v2/node_modules
 	rm -rf frontend-feedback/dist
 	rm -rf frontend-feedback/node_modules
 	rm -rf backend/bin

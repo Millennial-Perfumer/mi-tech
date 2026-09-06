@@ -9,7 +9,6 @@ const (
 	ArgNumber  ArgType = "number"
 	ArgObject  ArgType = "object"
 	ArgBoolean ArgType = "boolean"
-	ArgArray   ArgType = "array"
 )
 
 // ArgSpec describes a single tool input argument. It drives the MCP JSON input
@@ -611,7 +610,7 @@ var DefaultCatalog = Catalog{
 	},
 	{
 		Name:        "smm_queue_create",
-		Description: "Queue a social post for Google Drive/n8n publishing. Accepts a caption, hashtags, target platforms, and optional local media files or public HTTPS media URLs.",
+		Description: "Queue a social post for Google Drive/n8n publishing. Accepts a caption, hashtags, target platforms, and optional public HTTPS media URLs.",
 		Scope:       ScopeMarketingPublish,
 		Route:       "/api/marketing/smm/queue",
 		Write:       true,
@@ -621,7 +620,6 @@ var DefaultCatalog = Catalog{
 			arg("post_type", ArgString, "SINGLE_PHOTO, CAROUSEL, or VIDEO. Inferred when omitted."),
 			arg("target_platforms", ArgString, "Comma-separated platforms: instagram, facebook, threads, x."),
 			arg("media_urls", ArgString, "Comma-separated public HTTPS media URLs."),
-			arg("media_files", ArgArray, "Absolute local file paths to upload as multipart files. Maximum 10 files and 50 MB per file."),
 		},
 	},
 	{
