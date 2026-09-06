@@ -1,30 +1,7 @@
 import { useState } from 'react'
-import shortLogo from './assets/mi-black-short.png'
-import { AuthScreen } from './components/AuthScreen'
-import { DateRangePicker } from './components/DateRangePicker'
-import { DashboardPage } from './features/dashboard/DashboardPage'
-import { OrdersPage } from './features/orders/OrdersPage'
-import { ReportsPage } from './features/reports/ReportsPage'
-import { CustomersPage } from './features/customers/CustomersPage'
-import { InventoryWorkspacePage } from './features/inventory/InventoryWorkspacePage'
-import { CommunicationPage } from './features/communication/CommunicationPage'
-import { SupportPage } from './features/support/SupportPage'
-import { FeedbackPage } from './features/feedback/FeedbackPage'
-import { AbandonedCartsPage } from './features/abandoned/AbandonedCartsPage'
-import { MarketingPage } from './features/marketing/MarketingPage'
-import { B2BPage } from './features/b2b/B2BPage'
-import { AutomationPage } from './features/automation/AutomationPage'
-import { SocialPage } from './features/social/SocialPage'
-import { PlannerPage } from './features/planner/PlannerPage'
-import { AIPage } from './features/ai/AIPage'
-import { UsersPage } from './features/users/UsersPage'
-import { SettingsPage } from './features/settings/SettingsPage'
-import { JudgeMePage } from './features/judgeme/JudgeMePage'
-import { usePeriodFilter } from './lib/usePeriodFilter'
 import {
   BarChart3,
   Boxes,
-  CheckCircle2,
   ChevronRight,
   CircleUserRound,
   FileText,
@@ -35,8 +12,6 @@ import {
   Search,
   Settings,
   ShoppingBag,
-  Sparkles,
-  Star,
   Ticket,
   Users,
   X,
@@ -44,23 +19,13 @@ import {
 
 type ViewId =
   | 'dashboard'
-  | 'shopify'
+  | 'orders'
   | 'customers'
   | 'reports'
-  | 'b2b'
   | 'inventory'
   | 'communication'
   | 'tickets'
-  | 'feedback'
-  | 'automation'
-  | 'abandoned-carts'
   | 'marketing'
-  | 'social'
-  | 'social-queue'
-  | 'judgeme'
-  | 'planner'
-  | 'ai-analysis'
-  | 'users'
   | 'settings'
 
 type NavigationItem = {
@@ -74,10 +39,9 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     label: 'Operations',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'shopify', label: 'Orders', icon: ShoppingBag },
+      { id: 'orders', label: 'Orders', icon: ShoppingBag },
       { id: 'customers', label: 'Customers', icon: Users },
       { id: 'reports', label: 'GST reports', icon: FileText },
-      { id: 'b2b', label: 'B2B billing', icon: FileText },
       { id: 'inventory', label: 'Inventory', icon: Boxes },
     ],
   },
@@ -86,97 +50,38 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     items: [
       { id: 'communication', label: 'Communication', icon: MessageSquare },
       { id: 'tickets', label: 'Support tickets', icon: Ticket },
-      { id: 'feedback', label: 'Customer feedback', icon: MessageSquare },
-      { id: 'automation', label: 'Automation', icon: CheckCircle2 },
-      { id: 'abandoned-carts', label: 'Abandoned carts', icon: ShoppingBag },
       { id: 'marketing', label: 'Marketing', icon: BarChart3 },
-      { id: 'social', label: 'Social media', icon: BarChart3 },
-      { id: 'social-queue', label: 'Auto queue', icon: Boxes },
-      { id: 'judgeme', label: 'Judge.me reviews', icon: Star },
-      { id: 'planner', label: 'Planner', icon: LayoutDashboard },
-      { id: 'ai-analysis', label: 'AI analysis', icon: Sparkles },
-      { id: 'users', label: 'User roles', icon: Users },
     ],
   },
 ]
 
 const pageTitles: Record<ViewId, string> = {
   dashboard: 'Overview',
-  shopify: 'Orders',
+  orders: 'Orders',
   customers: 'Customers',
   reports: 'GST reports',
-  b2b: 'B2B billing',
   inventory: 'Inventory',
   communication: 'Communication',
   tickets: 'Support tickets',
-  feedback: 'Customer feedback',
-  automation: 'Automation',
-  'abandoned-carts': 'Abandoned carts',
   marketing: 'Marketing',
-  social: 'Social media',
-  'social-queue': 'Auto queue',
-  judgeme: 'Judge.me reviews',
-  planner: 'Planner',
-  'ai-analysis': 'AI analysis',
-  users: 'User roles',
   settings: 'Settings',
 }
 
-const pageDescriptions: Record<ViewId, string> = {
-  dashboard: 'Monitor revenue, orders, GST, and operational health.',
-  shopify: 'Review, search, and action orders from every connected channel.',
-  customers: 'Manage your customer directory and engagement history.',
-  reports: 'Generate and export GST-ready reports.',
-  b2b: 'Create GST-compliant B2B invoices and manage business customers.',
-  inventory: 'Manage products, stock, suppliers, and manufacturing.',
-  communication: 'Keep customer conversations and WhatsApp activity in one place.',
-  tickets: 'Track, assign, and resolve customer concerns.',
-  feedback: 'Review customer sentiment and follow-up opportunities.',
-  automation: 'Manage templates, triggers, and messaging automation.',
-  'abandoned-carts': 'Recover lost sales from abandoned checkouts.',
-  marketing: 'Review paid marketing performance and growth signals.',
-  social: 'Coordinate social channels and publishing activity.',
-  'social-queue': 'Manage scheduled social content and automated queues.',
-  judgeme: 'Review and manage Judge.me feedback.',
-  planner: 'Organize work and execution across the team.',
-  'ai-analysis': 'Explore AI-assisted business insights.',
-  users: 'Manage access and roles across the workspace.',
-  settings: 'Manage integrations, store data, and workspace preferences.',
-}
-
-const periodFilteredViews: ViewId[] = ['dashboard', 'shopify', 'reports', 'abandoned-carts', 'marketing', 'automation', 'social']
+const metrics = [
+  { label: 'Revenue', value: '₹0', detail: 'Connect data to begin' },
+  { label: 'Orders', value: '0', detail: 'No orders loaded' },
+  { label: 'GST collected', value: '₹0', detail: 'No reports loaded' },
+  { label: 'Open tickets', value: '0', detail: 'No tickets loaded' },
+]
 
 function App() {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
-  const [activeView, setActiveView] = useState<ViewId>(() => {
-    const savedView = localStorage.getItem('gstAppActiveTab') as ViewId | null
-    return savedView && savedView in pageTitles ? savedView : 'dashboard'
-  })
+  const [activeView, setActiveView] = useState<ViewId>('dashboard')
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
-  const { startDate, endDate, setDateRange } = usePeriodFilter()
-
-  const handleLogin = (newToken: string) => {
-    localStorage.setItem('token', newToken)
-    setToken(newToken)
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    setToken(null)
-  }
 
   const navigate = (view: ViewId) => {
     setActiveView(view)
-    localStorage.setItem('gstAppActiveTab', view)
     setIsMobileNavOpen(false)
   }
-
-  const focusPageSearch = () => {
-    const searchField = document.querySelector<HTMLInputElement>('#main-content input[placeholder*="Search"], #main-content textarea[placeholder*="Ask"]')
-    searchField?.focus()
-  }
-
-  if (!token) return <AuthScreen onLogin={handleLogin} />
 
   return (
     <div className="app-shell">
@@ -198,9 +103,12 @@ function App() {
         aria-label="Primary navigation"
       >
         <div className="sidebar-header">
-          <div className="brand-lockup">
-            <img className="brand-logo-short" src={shortLogo} alt="Millennial Perfumer" />
-            <span className="brand-name">MP Workspace</span>
+          <div className="brand-mark" aria-hidden="true">
+            M
+          </div>
+          <div className="brand-copy">
+            <span className="brand-name">Mi Tech</span>
+            <span className="brand-caption">Operations workspace</span>
           </div>
           <button
             className="icon-button mobile-close"
@@ -270,21 +178,15 @@ function App() {
           >
             <Menu size={21} strokeWidth={1.8} />
           </button>
-          <img className="mobile-brand-logo" src={shortLogo} alt="Millennial Perfumer" />
           <div className="topbar-heading">
             <span className="eyebrow">Workspace</span>
             <h1>{pageTitles[activeView]}</h1>
           </div>
-          {periodFilteredViews.includes(activeView) && (
-            <div className="topbar-period-filter">
-              <DateRangePicker startDate={startDate} endDate={endDate} onChange={setDateRange} />
-            </div>
-          )}
           <div className="topbar-actions">
-            <button className="icon-button" type="button" aria-label="Focus page search" onClick={focusPageSearch}>
+            <button className="icon-button" type="button" aria-label="Search">
               <Search size={19} strokeWidth={1.8} />
             </button>
-            <button className="profile-button" type="button" aria-label="Sign out" onClick={handleLogout}>
+            <button className="profile-button" type="button">
               <span className="profile-dot" aria-hidden="true" />
               <span className="profile-label">Admin</span>
               <ChevronRight size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -293,54 +195,60 @@ function App() {
         </header>
 
         <main className="main-content" id="main-content" tabIndex={-1}>
+          <section className="intro-block" aria-labelledby="page-heading">
+            <div>
+              <p className="eyebrow">Mi Tech / {pageTitles[activeView]}</p>
+              <h2 id="page-heading">
+                A clearer, calmer way to run your business.
+              </h2>
+              <p className="intro-copy">
+                The v2 foundation is ready for feature-by-feature migration.
+              </p>
+            </div>
+            <button className="primary-button" type="button">
+              Connect data
+              <ChevronRight size={17} strokeWidth={1.9} aria-hidden="true" />
+            </button>
+          </section>
+
           {activeView === 'dashboard' ? (
-            <DashboardPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'shopify' ? (
-            <OrdersPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'reports' ? (
-            <ReportsPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'customers' ? (
-            <CustomersPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'inventory' ? (
-            <InventoryWorkspacePage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'communication' ? (
-            <CommunicationPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'tickets' ? (
-            <SupportPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'feedback' ? (
-            <FeedbackPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'abandoned-carts' ? (
-            <AbandonedCartsPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'marketing' ? (
-            <MarketingPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'b2b' ? (
-            <B2BPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'automation' ? (
-            <AutomationPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'social' ? (
-            <SocialPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'social-queue' ? (
-            <SocialPage token={token} onUnauthorized={handleLogout} initialTab="queue" />
-          ) : activeView === 'judgeme' ? (
-            <JudgeMePage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'planner' ? (
-            <PlannerPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'ai-analysis' ? (
-            <AIPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'users' ? (
-            <UsersPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'settings' ? (
-            <SettingsPage token={token} onUnauthorized={handleLogout} />
+            <>
+              <section className="metrics-grid" aria-label="Business overview">
+                {metrics.map((metric) => (
+                  <article className="metric-card" key={metric.label}>
+                    <span className="metric-label">{metric.label}</span>
+                    <strong className="metric-value">{metric.value}</strong>
+                    <span className="metric-detail">{metric.detail}</span>
+                  </article>
+                ))}
+              </section>
+
+              <section className="empty-panel" aria-labelledby="migration-heading">
+                <div className="empty-panel-icon" aria-hidden="true">
+                  <LayoutDashboard size={22} strokeWidth={1.7} />
+                </div>
+                <div>
+                  <p className="eyebrow">Foundation milestone</p>
+                  <h2 id="migration-heading">Ready for the first feature slice</h2>
+                  <p>
+                    Shared navigation, responsive layout, warm monochrome tokens,
+                    and keyboard-visible focus states are now in place.
+                  </p>
+                </div>
+              </section>
+            </>
           ) : (
-            <section className="migration-panel" aria-labelledby="view-heading">
-              <div className="migration-panel-icon" aria-hidden="true">
+            <section className="empty-panel" aria-labelledby="view-heading">
+              <div className="empty-panel-icon" aria-hidden="true">
                 <MoreHorizontal size={22} strokeWidth={1.7} />
               </div>
               <div>
                 <p className="eyebrow">Migration queue</p>
-                <h2 id="view-heading">{pageTitles[activeView]}</h2>
-                <p>{pageDescriptions[activeView]}</p>
-                <span className="migration-status">Next v2 feature slice</span>
+                <h2 id="view-heading">{pageTitles[activeView]} is next</h2>
+                <p>
+                  This route is reserved for the existing {pageTitles[activeView].toLowerCase()}{' '}
+                  feature set and will be migrated without changing its API behavior.
+                </p>
               </div>
             </section>
           )}
@@ -362,9 +270,7 @@ function App() {
                 type="button"
                 key={item.id}
                 aria-current={isActive ? 'page' : undefined}
-                aria-expanded={item.id === 'settings' ? isMobileNavOpen : undefined}
-                aria-label={item.id === 'settings' ? 'Open all workspace sections' : item.label}
-                onClick={() => item.id === 'settings' ? setIsMobileNavOpen(true) : navigate(item.id)}
+                onClick={() => navigate(item.id)}
               >
                 <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
                 <span>{item.label}</span>

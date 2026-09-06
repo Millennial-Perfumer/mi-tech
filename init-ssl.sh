@@ -7,6 +7,7 @@
 set -e
 
 DOMAIN="mi-tech.millennialperfumer.in"
+V2_DOMAIN="mi-tech.v2.millennialperfumer.in"
 API_DOMAIN="mi-tech-api.millennialperfumer.in"
 MONITORING_DOMAIN="mi-tech-monitoring.millennialperfumer.in"
 FEEDBACK_DOMAIN="feedback-form.millennialperfumer.in"
@@ -63,6 +64,7 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   --agree-tos \
   --no-eff-email \
   -d $DOMAIN \
+  -d $V2_DOMAIN \
   -d $API_DOMAIN \
   -d $MONITORING_DOMAIN \
   -d $FEEDBACK_DOMAIN \
@@ -77,5 +79,6 @@ echo ""
 echo "✅ SSL bootstrap complete!"
 echo "   https://$DOMAIN        → Frontend"
 echo "   https://$API_DOMAIN    → API"
+  echo "   https://$V2_DOMAIN    → Frontend v2"
 echo ""
 echo "   The certbot container will now handle renewals every 12 hours automatically."

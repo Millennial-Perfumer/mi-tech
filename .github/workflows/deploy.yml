@@ -29,6 +29,10 @@ jobs:
             context: ./frontend-feedback
             image_name: mi-tech-frontend-feedback
             build_args: "VITE_API_URL=https://mi-tech-api.millennialperfumer.in"
+          - service: frontend-v2
+            context: ./frontend-v2
+            image_name: mi-tech-frontend-v2
+            build_args: "VITE_API_URL=https://mi-tech-api.millennialperfumer.in"
 
     steps:
       - name: Checkout repository
@@ -119,10 +123,10 @@ jobs:
             export GITHUB_PERSONAL_ACCESS_TOKEN=$PAT_GITHUB
 
             # Fast targeted pull of custom app images
-            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback meta-mcp-server github-mcp-server
+            docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback frontend-v2 meta-mcp-server github-mcp-server
 
             # Recreate containers with zero unnecessary downtime
-            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback meta-mcp-server github-mcp-server nginx
+            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend frontend-feedback frontend-v2 meta-mcp-server github-mcp-server nginx
 
             # Ensure n8n is linked to app network for reverse proxying
             docker network connect mi-tech-app_app-network n8n 2>/dev/null || true

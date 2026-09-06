@@ -47,6 +47,12 @@ services:
     networks:
       - app-network
 
+  frontend-v2:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mi-tech-frontend-v2:${IMAGE_TAG:?IMAGE_TAG is required}
+    restart: always
+    networks:
+      - app-network
+
   # Meta Graph API MCP gateway. It is reachable only through nginx; its bearer
   # token protects the Meta API credentials held by this container.
   meta-mcp-server:
@@ -101,6 +107,7 @@ services:
     depends_on:
       - frontend
       - frontend-feedback
+      - frontend-v2
       - backend
       - meta-mcp-server
       - github-mcp-server
