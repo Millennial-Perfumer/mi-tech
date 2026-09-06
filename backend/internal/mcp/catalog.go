@@ -1,100 +1,412 @@
-YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éí×øÙ:-jZ.¶›­–)Ş³W6¶”µÀ((¼¼ÉQåÁ”•¹Õµ•É…Ñ•ÌÑ¡”)M=8µÍ¡•µ„ÑåÁ•Ì…¸5@Ñ½½°…ÉumemX^H]™K‚G—R%QåÁ”ÍÑÉ¥¹œ()½³t (
-	ArgString  ArU\HHœİš[™È‚‚P\™Ò[B&uG—RÒ&–çFVvW"  ”&tçVÖ&W"%QåÁ”€ô€‰¹Õµ‰•Èˆ(%É=‰©•Ğ€ÉQåÁ”€ô€‰½‰©•Ğˆ(%ÉBoolean ArgType = "boolean"
-	ArgAp˜^H\•G—RÒ&	…äˆ(¤((¼¼ÉSpec describes a sin[HÛÛ[WB&wVÖVçBâ—BG&—fW2F†RÔ5¥4ôâ–ÁÕĞ(¼¼Í¡•µ„…¹Ñ¡”¥´ernal request mapping.	\H\•7V27G'V7B° ”æÖR7G&–ä(%QåÁ”€€€€€€€ÉQåÁ”(%I•ÅÕ¥É•€€€‰½½°(%•ÍÉ¥ÁÑ¥½¸ÍÑÉ¥¹œ(%•™…Õ±Ğ€€€€…¹ä)ô((¼¼Q½½±MÁ•Œ¥ÌÑ¡”Í¥¹±”Í½ÕÉ”½˜ÑÅth for one MCP tool. Route and Method
-// identify the im\›˜[˜XÚÙ[™Ü\˜][ÛÈÜš]HY[F–f–W2×WFF–äÑ½½°¸$ype ToolSpec struct {
+package mcp
+
+// ArgType enumerates the JSON-schema types an MCP tool argument may have.
+type ArgType string
+
+const (
+	ArgString  ArgType = "string"
+	ArgInt     ArgType = "integer"
+	ArgNumber  ArgType = "number"
+	ArgObject  ArgType = "object"
+	ArgBoolean ArgType = "boolean"
+	ArgArray   ArgType = "array"
+)
+
+// ArgSpec describes a single tool input argument. It drives the MCP JSON input
+// schema and the internal request mapping.
+type ArgSpec struct {
 	Name        string
-	Description strinB‚TØÛÜHİš[™Â‚T›İ]Hİš[™Â‚P\—2µÔ&u7V0 ’òòF„%Ì±¥ÍÑÌ…ÉÕµ•¹Ğ¹…µ•ÌÑ¡…Ğ…É”¥¹©•Ñ•¥´o the URL path
-	// (appended after Route) ilİXYÙˆH]Y\Hİš[™ËˆÜ™\ˆX]\2à •F„%ÌmuÍÑÉ¥¹œ($¼¼EÕ•ÉArgs lists arguments sent as query parametepÈ›ÜˆÜš]HÛÛË‚‚T]Y\”&w2µ×7G&–ä($¼¼5•Ñ¡½¥ÌÑ¡”!QQ@µ•Ñ¡½ÕÍ•™½È‘¥ÍÁ…Ñ ¸µÁÑäµ•…¹ÌP¸(%5•Ñ¡½ÍÑÉ¥¹
+	Type        ArgType
+	Required    bool
+	Description string
+	Default     any
+}
+
+// ToolSpec is the single source of truth for one MCP tool. Route and Method
+// identify the internal backend operation; Write identifies a mutating tool.
+type ToolSpec struct {
+	Name        string
+	Description string
+	Scope       string
+	Route       string
+	Args        []ArgSpec
+	// PathArgs lists argument names that are injected into the URL path
+	// (appended after Route) instead of the query string. Order matters.
+	PathArgs []string
+	// QueryArgs lists arguments sent as query parameters for write tools.
+	QueryArgs []string
+	// Method is the HTTP method used for dispatch. Empty means GET.
+	Method string
 	// Write marks an explicitly authorized MCP mutation.
 	Write bool
 }
 
-// CataloH\È[ˆÜ™\™YÛÛXİ[ÛˆÙˆÛÛÜXÜË‚\HØ][ÙÈ×UÛÛÜXÂ‚‹ËÈØÛÜHÛÛœİ[G2â&VBæBw&—FR66÷W2&R–çFVçF–öæÆÇ’6W&FR6ò¢òòÖ6†–æR¶W’6â&Rw&Ñ•É•Á½Äing access without mutation access.
+// Catalog is an ordered collection of tool specs.
+type Catalog []ToolSpec
+
+// Scope constants. Read and write scopes are intentionally separate so a
+// machine key can be granted reporting access without mutation access.
 const (
-	ScopeOrders             = "ordepÎœ™XY‚‚TØÛÜPİ\İÛY\œÈH˜İ\İÛY\œÎœ™XY‚‚TØÛÜSY]šXÜÈH›Y]šXÜÎœ™XY‚‚TØÛÜQÔÕH™Üİ&VB  •66÷T–çfVçF÷'’Ò&–Ù•´orNœ™XY‚‚TØÛÜT›ÙXİ[ÛˆH&öGV7F–öã§&VB  •66÷T#$"Ò&#&#§&VB  •66÷T6öÖ×Væ–6F–öâÒ&6öÖ×Væ–6F–öã§&VB  •66÷TÖ&¶WF–ærÒ&Ö&¶WF–äâead"
+	ScopeOrders             = "orders:read"
+	ScopeCustomers          = "customers:read"
+	ScopeMetrics            = "metrics:read"
+	ScopeGST                = "gst:read"
+	ScopeInventory          = "inventory:read"
+	ScopeProduction         = "production:read"
+	ScopeB2B                = "b2b:read"
+	ScopeCommunication      = "communication:read"
+	ScopeMarketing          = "marketing:read"
 	ScopeMarketingPublish   = "marketing:publish"
-	ScopeFeedback           = "feedback8™XY‚‚TØÛÜPX˜[™Û™YÚXÚÛİ]H˜X˜[™Û™YØÚXÚÛİ]œ™XY‚‚TØÛÜT[›™\ˆHÆææW#§&VB  •66÷U7W÷'BÒÕÁÁ½Ä:read"
-	ScopeAI                 = "ai8™XY‚‚TØÛÜTÙ][™ÜÈHœÙ][—3§&VB  •66÷U7—7FVÒÒ'7—7FVÓ‰•…ˆ(%M½Á•=É‘•ÉÍ]É¥Ñ”€€€€€€€€ô€‰½É‘•Ã:write"
-	ScopeCustomersWrite     = "customepÎÜš]H‚‚TØÛÜR[™[ÜUÜš]HHš[fVÑ½É:write"
-	ScopeProductionWrite    = "production9Üš]H‚‚TØÛÜT[›™\•Üš]HHœ[›™\Üš]H‚‚TØÛÜPŒ•Üš]HH˜Œ˜Üš]H‚‚TØÛÜPÛÛ[][šXØ][Û•Üš]HH˜ÛÛ[][šXØ][ÛÜš]H‚‚TØÛÜSX\šÙ][™ÕÜš]HH›X\šÙ][™ÎÜš]H‚‚TØÛÜQ™YY˜XÚÕÜš]HH™™YY˜XÚÎÜš]H‚‚TØÛÜTİ\ÜÜš]HH7W÷éİÉ¥Ñ”ˆ(%M½Á•M•ÑÑ¥¹Í]É¥Ñ”€€€€€€ô€‰Í•ÑÑ¥¹s:write"
-	ScopeAIWrite            = "ai9Üš]H‚‚KËÈ\İXİ]™HØÛÜ\È\™HÙ\\˜]Hœ›ÛHÜ™[˜\HÜ\˜][Û˜[Üš]\ÈÛÈB‚KËÈXZÙYÜˆ˜\œ›İÛH[YØ]YÙ^HØ[››İ[]KÜ™\Ù]]H’FVfVÇBà •66÷T÷&FW'4FW7G'V7F—fRÒ&÷&FW'3¦FW7GÑ¥Ù”ˆ(%M½Á•ÕÍÑ½µ•ÉÍ•ÍÑÉÕÑ¥Ù”€€€€€ô€‰ÕÍÑ½µ•ÉÌé‘•ÍÑÅctive"
-	ScopeInventoryDestructive     = "inventory:destqXİ]™H‚‚TØÛÜT›ÙXİ[Û‘\İXİ]™HH&öGV7F–öã¦FW7G'V7F—fR  •66÷UÆææW$FW7GÑ¥Ù”€€€€€€€ô€‰Á±…¹¹•Èé‘•ÍÑÉÕÑ¥Ù”ˆ(%M½Á•É	•ÍÑÅctive           = "b2b:destructive"
-	ScopeCommunicationDestructive = "communication:destqXİ]™H‚‚TØÛÜPRQ\İV7F—fRÒ&“¦FW7G'V7F—fR ¢ ¢òò&r—26†÷'F†æB6öç7G'V7F÷"f÷"â÷F–öæÂ&u7V2à¦gVæ2$¡¹…µ”ÍÑÉ¥¹, typ ArU\K\ØÈİš[™ÊH\™ÔÜXÈÂ‚\™]\›ˆ\™ÔÜXŞÓ˜[YNˆ˜[YK\Nˆ\\ØÜš\[Ûˆ\ØßBŸB‚‹ËÈ\•&W—26†÷¡…¹½³tqXİÜˆ›ÜˆH™\]Z\™Y\™ÔÜXË‚™[˜È\•&W†æÖR7G&–ä°ÑåÀÉType, desc string) ArgSpec {
-	return ArgSpec{Name: name, Type: typ, Required: true, Description: desc}B‚‹ËÈY˜][Ø][ÒFVf–æW2WfW$Ñ½½°•áÁ½Í•‰äÑ¡”5@Í•ÉÙ•È¸… •¹ÑÉäµ…ÁÌ(¼¼€ÄèÄÑ¼…¸…±±½İ±¥ÍÑ•‰…­•¹É½ÕÑ”€¡Í•”É½ÕÑ•}µ…À¹¼¤¸)Ù…È•™…Õ±Ñ…Ñ…±½œ€ô…Ñ…±½{
+	ScopeFeedback           = "feedback:read"
+	ScopeAbandonedCheckout  = "abandoned_checkout:read"
+	ScopePlanner            = "planner:read"
+	ScopeSupport            = "support:read"
+	ScopeAI                 = "ai:read"
+	ScopeSettings           = "settings:read"
+	ScopeSystem             = "system:read"
+	ScopeOrdersWrite        = "orders:write"
+	ScopeCustomersWrite     = "customers:write"
+	ScopeInventoryWrite     = "inventory:write"
+	ScopeProductionWrite    = "production:write"
+	ScopePlannerWrite       = "planner:write"
+	ScopeB2BWrite           = "b2b:write"
+	ScopeCommunicationWrite = "communication:write"
+	ScopeMarketingWrite     = "marketing:write"
+	ScopeFeedbackWrite      = "feedback:write"
+	ScopeSupportWrite       = "support:write"
+	ScopeSettingsWrite      = "settings:write"
+	ScopeAIWrite            = "ai:write"
+	// Destructive scopes are separate from ordinary operational writes so a
+	// leaked or narrowly delegated key cannot delete/reset data by default.
+	ScopeOrdersDestructive        = "orders:destructive"
+	ScopeCustomersDestructive     = "customers:destructive"
+	ScopeInventoryDestructive     = "inventory:destructive"
+	ScopeProductionDestructive    = "production:destructive"
+	ScopePlannerDestructive       = "planner:destructive"
+	ScopeB2BDestructive           = "b2b:destructive"
+	ScopeCommunicationDestructive = "communication:destructive"
+	ScopeAIDestructive            = "ai:destructive"
+)
+
+// arg is a shorthand constructor for an optional ArgSpec.
+func arg(name string, typ ArgType, desc string) ArgSpec {
+	return ArgSpec{Name: name, Type: typ, Description: desc}
+}
+
+// argReq is a shorthand constructor for a required ArgSpec.
+func argReq(name string, typ ArgType, desc string) ArgSpec {
+	return ArgSpec{Name: name, Type: typ, Required: true, Description: desc}
+}
+
+// DefaultCatalog defines every tool exposed by the MCP server. Each entry maps
+// 1:1 to an allowlisted backend route (see route_map.go).
+var DefaultCatalog = Catalog{
 	// --- Orders ---
 	{
 		Name:        "orders_list",
-		Description: "List orders with optional date ranYKV–æF–öâÂ6V&6‚ÂæB7FGW2f–ÇFW¸ˆ°($%M½Á”è€€€€€€M½Á•=É‘•Ã,
+		Description: "List orders with optional date range, pagination, search, and status filters.",
+		Scope:       ScopeOrders,
 		Route:       "/api/orders",
-		Ar\Îˆ×P\™ÔÜXŞÂ‚BBX\™Ê7F'EöFFR"Â&u7G&–ærÂ$•4òFFR…•••’ÔÔÒÔDB’7F½˜Ñ¡”É…¹”¸ˆ¤°($$%…Éœ ‰•¹‘}‘…Ñ”ˆ°ÉStrinK’TÓÈ]H
-VVVKSSKQ
-H[™ÙˆH˜[™ÙKˆŠK‚BBX\™ÊœVR"Â&t–çBÂ%vRÕµ‰•È°€Äµ‰…Í•¸ˆ¤°($$%…Éœ ‰±¥µ¥Ğˆ°ÉInt, "M[X™\ˆÙˆ™\İ[È\ˆYÙKˆŠK‚BBX\™ÊœÙX\˜Ú‹\•7G&–ä°€‰ee-text search across order fields."),
-			arg( Ûİ\˜ÙH‹\™Ôİš[™Ë“Ü™\ˆÛİ\˜ÙHš[\‹ˆŠK‚BBX\™Ê™š[˜[˜ÚX[Üİ]\È‹\™Ôİš[™Ë‘š[˜[˜ÚX[İ]\Èš[\‹ˆŠK‚BBX\™Ê™[š[Y[Üİ]\È‹\™Ôİš[™Ë‘[š[Y[İ]\Èš[\‹ˆŠK‚BBX\™Êœİ]\È‹\•7G&–ä°€‰=É‘•ÈÍÑ…ÑÕÌ™¥±Ñ•È¸ˆ¤°($$%…É("sort_by", ArTİš[’Â$f–VÆBFò6÷'B'’â"’À –$ ‰Í½ÉÑ}½É‘•Èˆ°ÉStrinK”ÛÜ\™Xİ[Ûˆ
-\ØËÙ\ØÊKˆŠK‚BBX\’‚'7FFR"Â&u7G&–ærÂ$÷&FW"7FFRf–ÇFW"â"’À —ÒÀ —ÒÀ —° ”æÖS¢&÷&FW'5õ•Ğˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰•Ñ „Í¥¹le order bHYˆ‹‚BTØÛÜNˆØÛÜSÜ™\2À •&÷WFS¢"ö’ö÷&FW'2"À ”%ÌèmuÉMÁ•ì($$%…ÉI•Ä ‰¥ˆ°ÉInt, "Order id."),
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date (YYYY-MM-DD) start of the range."),
+			arg("end_date", ArgString, "ISO date (YYYY-MM-DD) end of the range."),
+			arg("page", ArgInt, "Page number, 1-based."),
+			arg("limit", ArgInt, "Number of results per page."),
+			arg("search", ArgString, "Free-text search across order fields."),
+			arg("source", ArgString, "Order source filter."),
+			arg("financial_status", ArgString, "Financial status filter."),
+			arg("fulfillment_status", ArgString, "Fulfillment status filter."),
+			arg("status", ArgString, "Order status filter."),
+			arg("sort_by", ArgString, "Field to sort by."),
+			arg("sort_order", ArgString, "Sort direction (asc/desc)."),
+			arg("state", ArgString, "Order state filter."),
 		},
 	},
 	{
-		Name:        "ordep×Ú\İÜH‹‚BQ\ØÜš\[Ûˆ“\İ[[]]X›HÜ™\ˆ\İÜK[˜ÛY[™È™]š[İ\ÈUĞœËİ˜XÚÚ[™È˜[Y\Ëİ]\ÈÚ[™Ù\Ëİ\İÛY\‹Y]Z[Ú[™Ù\Ë[™Ş[˜È]™[G2â"À •66÷S¢66÷T÷&FW'2À •&÷WFS¢"ö’ö÷&FW½¡¥ÍÑ½Éäˆ°($%És: []ArgSpec{
-			arg("id", ArR[’[\›˜[Ü™\ˆYˆŠK‚BBX\™Ê™^\›˜[ÛÜ™\—ÚY‹\™Ôİš[™Ë‘^\›˜[Ü™\ˆYˆŠK‚BBX\’‚'6V&6‚"Â&u7G&–ærÂ%6V&6‚7W'&VçBæB†—7F÷&–6ÂWfVçBfÇVW2Â–æ6ÇVF–æröÆBt'2â"’À –$ ‰•Ù•¹Ñ}ÑåÁ”ˆ°ÉStrinK‘š[\ˆH]™[\KˆŠK‚BBX\™Êœİ\EöFFR"Â&u7G&–ærÂ$•4òFFR7F'Bâ"’À –&r‚&VæEöFFR"Â%MÑÉ¥¹, "ISO date end."),
-			arg( YÙH‹\™Ò[BÂ%vRçVÖ&W"ÂÖ&6VBâ"’À –$ ‰±¥µ¥Ğˆ°É%¹Ğ°€‰9Õµ‰•È½˜•Ù•¹ÑÌÁ•ÈÁ…”°µ…á¥µÕ´€ÄÀÀ¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰½É‘•ÉÍ}Í½ÕÉ•Ìˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰1¥ÍĞ‘¥ÍÑ¥¹Ğ½É‘•ÈÍ½ÕÉ•Ì¸ˆ°($%M½Á”è€€€€€€M½Á•=É‘•ÉÌ°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½Í½ÕÉ•Ìˆ°(%ô°(($¼¼€´´´ÕÍÑ½µ•ÉÌ€´´´(%ì($%9…µ”è€€€€€€€€‰ÕÍÑ½µ•ÉÍ}±¥ÍĞˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰1¥ÍĞÕÍÑ½µ•ÉÌİ¥Ñ Á…ination, search, and spend/order filters.",
+		Name:        "orders_get",
+		Description: "Fetch a single order by id.",
+		Scope:       ScopeOrders,
+		Route:       "/api/orders",
+		Args: []ArgSpec{
+			argReq("id", ArgInt, "Order id."),
+		},
+	},
+	{
+		Name:        "orders_history",
+		Description: "List immutable order history, including previous AWBs/tracking values, status changes, customer-detail changes, and sync events.",
+		Scope:       ScopeOrders,
+		Route:       "/api/orders/history",
+		Args: []ArgSpec{
+			arg("id", ArgInt, "Internal order id."),
+			arg("external_order_id", ArgString, "External order id."),
+			arg("search", ArgString, "Search current and historical event values, including old AWBs."),
+			arg("event_type", ArgString, "Filter by event type."),
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("page", ArgInt, "Page number, 1-based."),
+			arg("limit", ArgInt, "Number of events per page, maximum 100."),
+		},
+	},
+	{
+		Name:        "orders_sources",
+		Description: "List distinct order sources.",
+		Scope:       ScopeOrders,
+		Route:       "/api/sources",
+	},
+
+	// --- Customers ---
+	{
+		Name:        "customers_list",
+		Description: "List customers with pagination, search, and spend/order filters.",
 		Scope:       ScopeCustomers,
 		Route:       "/api/customers",
 		Args: []ArgSpec{
-			arg("paYH‹\™Ò[”YÙHVÖ&W"â"’À –&r‚…•M¥é”ˆ°ÉInt, "PaYHÚ^™KˆŠK‚BBX\™Ê6V&6‚"Â&u7G&–ærÂ$g&VR×FW‡B6V&6‚â"’À –&r‚'6÷'D'’"Â%MÑÉ¥¹, "Field to sort by."),
-			arJœÛÜÜ™\ˆ‹\™Ôİš[™Ë”ÛÜ\™Xİ[Ûˆ
-\ØËÙ\ØÊKˆŠK‚BBX\™Ê6÷W&6Uö–B"Â&u7G&–ærÂ%6÷W&6R–Bf–ÇFW"â"’À –&r‚&Ö–å÷7VçB"Â%5mber, "Minimum total spent."),
-			arJ›X^ÜÜ[B"Â&tçVÖ&W"Â$Ö†–×VÒF÷FÂ7VçBâ"’À –&r‚&Ö–åö÷&FWˆ°É%´, "Minimum order count."),
+			arg("page", ArgInt, "Page number."),
+			arg("pageSize", ArgInt, "Page size."),
+			arg("search", ArgString, "Free-text search."),
+			arg("sortBy", ArgString, "Field to sort by."),
+			arg("sortOrder", ArgString, "Sort direction (asc/desc)."),
+			arg("source_id", ArgString, "Source id filter."),
+			arg("min_spent", ArgNumber, "Minimum total spent."),
+			arg("max_spent", ArgNumber, "Maximum total spent."),
+			arg("min_orders", ArgInt, "Minimum order count."),
 			arg("city", ArgString, "City filter."),
-			arJœİ]H‹\™Ôİš[™Ë”İ]Hš[\‹ˆŠK‚B_K‚_K‚^Â‚BS˜[YNˆ˜İ\İÛY\œ×Ú\İÜH‹‚BQ\ØÜš\[Ûˆ“\İ[[]]X›Hİ\İÛY\ˆ›Ùš[H\İÜK[˜ÛY[’&Wf–÷W26öÑ…Ğ…¹…‘‘É•ÍÌÙ…±Õ•Ì¸ˆ°($%M½Á”è€€€€€€M½Á•ÕÍÑ½µ•ÉÌ°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½ÕÍÑ½µ•Ã/history",
-		Ar\Îˆ×P\™ÔÜXŞÂ‚BBX\™ÊšY‹\”–çBÂ$–çFW&æÂ7W7FöÖW"–Bâ"’À –&r‚&÷&FW%ö–B"Â&t–Ğ°€‰=É‘•È¥Ñ¡…Ğ…ÕÍ•Ñ¡”ÕÍÑ½µ•È¡…¹”¸ˆ¤°($$%…Éœ €hone", ArTİš[’Â$7W7FöÖW"†öæRÕµ‰•È¸ˆ¤°($$%…Éœ ƒearch", ArgString, "Search historical customer values."),
-			arJ™]™[İ\H‹\•7G&–ä°€‰¥±Ñ•È‰ä•Ù•¹ĞÑåÁ”¸ˆ¤°($$%…Éœ ‰ÍÑ…Ä_date", ArgString, "ISO date start."),
-			arg("end_date", ArTİš[’Â$•4òFFRVæBâ"’À –&r‚…”ˆ°É%´, "Page number, 1-based."),
-			arJ›[Z]‹\™Ò[“[X™\ˆÙˆ]™[È\ˆYÙKX^[][HLˆŠK‚B_K‚_K‚‚KËÈKKH\Ú›Ø\™Y]šXÜÈKKB‚^Â‚BS˜[YNˆ™\Ú›Ø\™ÛY]šXÜÈ‹‚BQ\ØÜš\[ÛˆVw&VvFRF6†&ö&BÖWG&–72‡&WfVçVRÂ÷&FW'2Â7W7FöÖW¤™½È„‘…Ñ”É…¹”¸ˆ°($%M½Á”è€€€€€€M½Á•5•ÑÉ¥Ì°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½‘…Í¡‰½…É½µ•ÑÉ¥Ìˆ°($%És: []ArgSpec{
-			arg( İ\Ù]H‹\™Ôİš[™Ë’TÓÈ]Hİ\ˆŠK‚BBX\’‚&VæEöFFR"Â&u7G&–ærÂ$•4òFFRVæBâ"’À –$ ‰Í½ÕÉ•}¥‘Ìˆ°ÉStrinKÛÛ[XK\Ù\\˜]YÛİ\˜ÙHYËˆŠK‚B_K‚_K‚^Â‚BS˜[YNˆ™\Ú›Ø\™İÜÜ›ÙXİÈ‹‚BQ\ØÜš\[Ûˆ•Ü›ÙXİÈH™]™[VRf÷"FFR&ævRâ"À •66÷S¢66÷TÖWG&–72À •&÷WFS¢"ö’öF6†&ö&B÷F÷×&öGV7G2"À ”&w3¢µÔ&u7V7° –&r‚'7F}‘…Ñ”ˆ°ÉMÑÉ¥¹œ°€‰%M<‘…Ñ”ÍÑ…ÉĞ¸ˆ¤°($$%…Éœ ‰•¹‘}‘…Ñ”ˆ°ÉStrinK’TÓÈ]H[™ˆŠK‚BBX\™Ê6÷W&6Uö–G2"Â&u7G&–ærÂ$6öÖÖ×6W&FVB6÷W&6R–G2â"’À –$ ‰±¥µ¥Ğˆ°É%¹Ğ°€‰9Õµ‰•È½˜ÁÉ½‘ÕÑÌÑ¼É•ÑÕÉ¸€¡‘•™…Õ±Ğ€Ô¤¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰‘…Í¡‰½…É‘}É•Ù•¹Õ•}ÑÉ•¹ˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰…¥±äÉ•Ù•µe trend for a date range.",
+			arg("state", ArgString, "State filter."),
+		},
+	},
+	{
+		Name:        "customers_history",
+		Description: "List immutable customer profile history, including previous contact and address values.",
+		Scope:       ScopeCustomers,
+		Route:       "/api/customers/history",
+		Args: []ArgSpec{
+			arg("id", ArgInt, "Internal customer id."),
+			arg("order_id", ArgInt, "Order id that caused the customer change."),
+			arg("phone", ArgString, "Customer phone number."),
+			arg("search", ArgString, "Search historical customer values."),
+			arg("event_type", ArgString, "Filter by event type."),
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("page", ArgInt, "Page number, 1-based."),
+			arg("limit", ArgInt, "Number of events per page, maximum 100."),
+		},
+	},
+
+	// --- Dashboard metrics ---
+	{
+		Name:        "dashboard_metrics",
+		Description: "Aggregate dashboard metrics (revenue, orders, customers) for a date range.",
 		Scope:       ScopeMetrics,
-		Route:       "/api/dashboard/revenue-trend",
-		Ar\Îˆ×P\™ÔÜXŞÂ‚BBX\™Ê7F'EöFFR"Â&u7G&–ærÂ$•4òFFR7F'Bâ"’À –$ ‰•¹‘}‘…Ñ”ˆ°ÉMÑÉ¥¹œ°€‰%M<‘…Ñ”•¹¸ˆ¤°($$%…É("source_ids", ArTİš[’Â$6öÖÖ×6W&FVB6÷W&6R–G2â"’À —ÒÀ —ÒÀ —° ”æÖS¢&F6†&ö&EövVõöF—7G&–'WF–öâ"À ”FW67&—F–öã¢$7W7FöÖW"ö÷&FW"F—7G&–'WF–öâ$•½É…Á¡ä¸ˆ°($%M½Á”è€€€€€€M½Á•5•ÑÉ¥Ì°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½‘…Í¡‰½…É½•¼µ‘¥ÍÑÉ¥‰ÕÑ¥½¸ˆ°($%ÉÌèmuÉSpec{
-			arJœİ\Ù]H‹\•7G&–ä°€‰%M<‘…Ñ”ÍÑ…Ä."),
+		Route:       "/api/dashboard/metrics",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
 			arg("end_date", ArgString, "ISO date end."),
 			arg("source_ids", ArgString, "Comma-separated source ids."),
-			arg("limit", ArR[“VÖ&W"öb&Vv–öÌÑ¼É•ÑÕÉ¸€¡‘•™…Õ±Ğ€Ô¤¸ˆ¤°($%ô°(%ô°(($¼¼€´´´MPÉ•Á½ÉÑÌ€´´´(%ì($%9…µ”è€€€€€€€€‰ÍÑ}ÍÕµµ…Éäˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰MPÍÕµµ…ÉäÉ•Á½ÉĞ™½È„‘…Ñ”É…¹”¸ˆ°($%M½Á”è€€€€€€M½Á•MP°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½É•Á½Äs/summarH‹‚BP\™ÜÎˆ×P\•7V7° –$ ‰ÍÑ…ÉÑ}‘…Ñ”ˆ°ÉStrinK’TÓÈ]Hİ\Bâ"’À –&r‚&VæEöFFR"Â&u7G&–ærÂ$•4òFFRVæBâ"’À –&r‚'6÷W&6Uö–G2"Â&u7G&–ærÂ$6öÖÖ×6W&FVB6÷W&6R–G2â"’À —ÒÀ —ÒÀ —° ”æÖS¢&w7E÷7FFU÷v—6R"À ”FW67&—F–öã¢$u5B7VÖÖ$‚oken down bHİ]Kˆ‹‚BTØÛÜNˆØÛÜQÔÕ‚BT›İ]Nˆ‹Ø\KÜ™\ÜËÜİ]K]Ú\ÙH‹‚BP\—3¢µÔ&u7V7° –&r‚Ñ…ÉÑ}‘…Ñ”ˆ°ÉMÑÉ¥¹œ°€‰%M<‘…Ñ”ÍÑ…ÉĞ¸ˆ¤°($$%…É("end_date", ArgString, "ISO date end."),
-			arJœÛİ\˜ÙWÚYÈ‹\•7G&–ä°€‰½µµ„µÍ•Á…É…Ñ•Í½ÕÉ”¥‘Ì¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰st_hsn_wise",
-		Description: "GST summarH&ö¶VâF÷vâ$!M8½‘”¸ˆ°($%M½Á”è€€€€€€M½Á•MP°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½É•Á½ÉÑÌ½¡Í¸µİ¥Í”ˆ°($%ÉÌèmuÉSpec{
-			arJœİ\Ù]H‹\•7G&–ä°€‰%M<‘…Ñ”ÍÑ…Ä."),
+		},
+	},
+	{
+		Name:        "dashboard_top_products",
+		Description: "Top products by revenue for a date range.",
+		Scope:       ScopeMetrics,
+		Route:       "/api/dashboard/top-products",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("source_ids", ArgString, "Comma-separated source ids."),
+			arg("limit", ArgInt, "Number of products to return (default 5)."),
+		},
+	},
+	{
+		Name:        "dashboard_revenue_trend",
+		Description: "Daily revenue trend for a date range.",
+		Scope:       ScopeMetrics,
+		Route:       "/api/dashboard/revenue-trend",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("source_ids", ArgString, "Comma-separated source ids."),
+		},
+	},
+	{
+		Name:        "dashboard_geo_distribution",
+		Description: "Customer/order distribution by geography.",
+		Scope:       ScopeMetrics,
+		Route:       "/api/dashboard/geo-distribution",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("source_ids", ArgString, "Comma-separated source ids."),
+			arg("limit", ArgInt, "Number of regions to return (default 5)."),
+		},
+	},
+
+	// --- GST reports ---
+	{
+		Name:        "gst_summary",
+		Description: "GST summary report for a date range.",
+		Scope:       ScopeGST,
+		Route:       "/api/reports/summary",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("source_ids", ArgString, "Comma-separated source ids."),
+		},
+	},
+	{
+		Name:        "gst_state_wise",
+		Description: "GST summary broken down by state.",
+		Scope:       ScopeGST,
+		Route:       "/api/reports/state-wise",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("source_ids", ArgString, "Comma-separated source ids."),
+		},
+	},
+	{
+		Name:        "gst_hsn_wise",
+		Description: "GST summary broken down by HSN code.",
+		Scope:       ScopeGST,
+		Route:       "/api/reports/hsn-wise",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
 			arg("end_date", ArgString, "ISO date end."),
 			arg("source_ids", ArgString, "Comma-separated source ids."),
 		},
 	},
 	{
 		Name:        "gst_documents_issued",
-		Description: "CoumÙˆÔÕØİ[Y[È\ÜİYY’G—RæBFFR&å”¸ˆ°($%M½Á”è€€€€€€M½Á•MP°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½É•Á½ÉÑÌ½‘½Õµ•¹ÑÌµ¥ÍÍÕ•ˆ°($%ÉÌèmuÉMÁ•ì($$%…Éœ ‰ÍÑ…Ä_date", ArgString, "ISO date start."),
-			arg("end_date", ArTİš[’Â$•4òFFRVæBâ"’À –&r‚½ÕÉ•}¥‘Ìˆ°ÉMÑÉ¥¹œ°€‰½µµ„µÍ•Á…É…Ñ•Í½ÕÉ”¥‘Ì¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰ÍÑ}str1_json",
+		Description: "Count of GST documents issued by type and date range.",
+		Scope:       ScopeGST,
+		Route:       "/api/reports/documents-issued",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("source_ids", ArgString, "Comma-separated source ids."),
+		},
+	},
+	{
+		Name:        "gst_gstr1_json",
 		Description: "GSTR-1 JSON export for a date range, optionally filtered by GSTIN.",
 		Scope:       ScopeGST,
-		Route:       "/api/repoqËÙÜİŒKZœÛÛˆ‹‚BP\™ÜÎˆ×P\•7V7° –$ ‰ÍÑ…ÉÑ}‘…Ñ”ˆ°ÉStrinK’TÓÈ]Hİ\Bâ"’À –&r‚&VæEöFFR"Â&u7G&–ærÂ$•4òFFRVæBâ"’À –&r‚&w7F–â"Â&u7G&–ærÂ$÷F–öæÂu5D”âf–ÇFW"â"’À —ÒÀ —ÒÀ  ’òòÒÒÒ–çfVçF÷'’ÒÒĞ —° ”æÖS¢&–çfVçF÷'•öF6†&ö&B"À ”FW67&—F–öã¢$–çfVçF÷'’F6†&ö&BvRv—F‚6V&6‚Â6÷'BÂæB¥¹…Ñ¥½¸¸ˆ°($%M½Á”è€€€€€€M½Á•%¹Ù•¹Ñ½Éä°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½¥¹Ù•¹Ñ½Éäˆ°($%ÉÌèmuÉMÁ•ì($$%…Éœ ‰Í•…É ˆ°ÉStrinK‘&VR×FW‡B6V&6‚â"’À –$ ‰Á…”ˆ°ÉInt, "PaYH[X™\‹ˆŠK‚BBX\™Ê›[Z]‹\™Ò[BÂ%vR6—¦Râ"’À –&r‚'6÷'B"Â&u7G&–ærÂ%6÷•áÁÉ•ÍÍ¥½¸¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰¥¹Ù•¹Ñ½Éå}±½Ìˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰1¥ÍĞÍÑ½¬µ½Ù•µ•´ history by im™[F÷$¥Ñ•´¥½È•áÑ•É¹…°½É‘•È¥°¥¹±Õ‘¥¹ stock before and after when recorded.",
+		Route:       "/api/reports/gstr1-json",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+			arg("gstin", ArgString, "Optional GSTIN filter."),
+		},
+	},
+
+	// --- Inventory ---
+	{
+		Name:        "inventory_dashboard",
+		Description: "Inventory dashboard page with search, sort, and pagination.",
+		Scope:       ScopeInventory,
+		Route:       "/api/inventory",
+		Args: []ArgSpec{
+			arg("search", ArgString, "Free-text search."),
+			arg("page", ArgInt, "Page number."),
+			arg("limit", ArgInt, "Page size."),
+			arg("sort", ArgString, "Sort expression."),
+		},
+	},
+	{
+		Name:        "inventory_logs",
+		Description: "List stock movement history by inventory item id or external order id, including stock before and after when recorded.",
 		Scope:       ScopeInventory,
 		Route:       "/api/inventory/logs",
-		Args: []ArTÜXŞÂ‚BBX\’‚&–B"Â&t–çBÂ$–çfVçF÷'’—FVÒ–Bâ"’À –&r‚&W‡FW&æÅö÷&FW%ö–B"Â%MÑÉ¥¹, "External order id that caused the movement."),
+		Args: []ArgSpec{
+			arg("id", ArgInt, "Inventory item id."),
+			arg("external_order_id", ArgString, "External order id that caused the movement."),
 		},
 	},
 	{
 		Name:        "inventory_next_sku",
-		Description: "Generate the next available im™[F÷$M-T¸ˆ°($%M½Á”è€€€€€€M½Á•%¹Ù•¹Ñ½Éä°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½¥¶emÜ’öæW‡B×6·R"À —ÒÀ  ’òòÒÒÒ&öGV7F–öã¢7WÆ–W'2Âö–Ç2ÂW&6†6R÷&FW°µ…µfacturing ---
+		Description: "Generate the next available inventory SKU.",
+		Scope:       ScopeInventory,
+		Route:       "/api/inventory/next-sku",
+	},
+
+	// --- Production: suppliers, oils, purchase orders, manufacturing ---
 	{
-		Name:        "suppliep×Û\İ‹‚BQ\ØÜš\[Ûˆ“\İ›ÙXİ[Ûˆİ\Y\œËˆ‹‚BTØÛÜNˆØÛÜT›ÙXİ[Û‹‚BT›İ]Nˆ‹Ø\KÚ[™[ÜKÜİ\Y\œÈ‹‚_K‚^Â‚BS˜[YNˆ›Ú[×Û\İ‹‚BQ\ØÜš\[Ûˆ“\İÚ[[™[ÜH][\Ëˆ‹‚BTØÛÜNˆØÛÜT›ÙXİ[Û‹‚BT›İ]Nˆ‹Ø\KÚ[™[ÜKÛÚ[‹‚_K‚^Â‚BS˜[YNˆW&6†6Uö÷&FW'5öÆ—7B"À ”FW67&—F–öã¢$Æ—7BW&6†6R÷&FW'3²7W÷'G2&V6VĞµ‘…åÌ…¹É••¹Ğµ±¥µ¥ĞÙ¥•İÌ¸ˆ°($%M½Á”è€€€€€€M½Á•AÉ½‘ÕÑ¥½¸°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½Á¼ˆ°($%ÉÌèmuÉMÁ•ì($$%…Éœ ‰‘…åÌˆ°É%¹Ğ°€‰I•ÑÕÉ¸ÁÕÉ¡…Í”½É‘•Ã grouped by the last N days."),
-			arg("paYH‹\™Ò[”YÙHVÖ&W"f÷"F†R&V6VçBÖF—2f–Wrâ"’À –$ ‰±¥µ¥Ğˆ°É%¹Ğ°€‰I•ÑÕÉ¸Ñ¡”µ½ÍĞÉ••´ N purchase ordepËˆŠK‚B_K‚_K‚^Â‚BS˜[YNˆ›X[Y˜Xİ\š[•öÆ—7B"À ”FW67&—F–öã¢$Æ—7BÖçVf7GW&–ä‰…Ñ¡•Ì¸ˆ°($%M½Á”è€€€€€€M½Á•AÉ½‘ÕÑ¥½¸°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½¥¶emÜ’öÖçVf7GW&–ær"À —ÒÀ  ’òòÒÒÒ#$"&–ÆÆ–ærÒÒĞ —° ”æÖS¢&#&%ö7W7FöÖW}±¥ÍĞˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰1¥ÍĞÉÕÍÑ½µ•Ã with optional search.",
-		Scope:       ScopeB2B,
-		Route:       "/api/b2b/customepÈ‹‚BP\™ÜÎˆ×P\•7V7° –$ ‰Í•…É ˆ°ÉMÑÉ¥¹œ°€‰É•”µÑ•áĞÍ•…É ¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰ˆÉ‰}¥¹Ù½¥•Í}±¥ÍĞˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰1¥ÍĞÉ¥¹Ù½¥•Ìİ¥Ñ ½ÁÑ¥½¹…°‘…Ñ”É…¹”…¹ÍÑ…ÑÕÌ™¥±Ñ•È¸ˆ°($%M½Á”è€€€€€€M½Á•É°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½ˆÉˆ½¥¹Ù½¥•Ìˆ°($%ÉÌèmuÉSpec{
-			arJœİ\]H‹\™Ôİš[™Ë’TÓÈ]Hİ\ˆŠK‚BBX\’‚&VæDFFR"Â%MÑÉ¥¹, "ISO date end."),
-			arg( İ]\È‹\™Ôİš[™Ë’[›ÚXÙHİ]\Èš[\‹ˆŠK‚B_K‚_K‚^Â‚BS˜[YNˆ˜Œ˜—Ú[fö–6UövWB"À ”FW67&—F–öã¢$fWF6‚6–ævÆR#$"–çfö–6R'’–Bâ"À •66÷S¢66÷T#$"À •&÷WFS¢"ö’ö#&"ö–çfö–6W2öFWF–Â"À ”%ÌèmuÉMÁ•ì($$%…ÉI•Ä ‰¥ˆ°ÉInt, "Invoice id."),
+		Name:        "suppliers_list",
+		Description: "List production suppliers.",
+		Scope:       ScopeProduction,
+		Route:       "/api/inventory/suppliers",
+	},
+	{
+		Name:        "oils_list",
+		Description: "List oil inventory items.",
+		Scope:       ScopeProduction,
+		Route:       "/api/inventory/oil",
+	},
+	{
+		Name:        "purchase_orders_list",
+		Description: "List purchase orders; supports recent-days and recent-limit views.",
+		Scope:       ScopeProduction,
+		Route:       "/api/inventory/po",
+		Args: []ArgSpec{
+			arg("days", ArgInt, "Return purchase orders grouped by the last N days."),
+			arg("page", ArgInt, "Page number for the recent-days view."),
+			arg("limit", ArgInt, "Return the most recent N purchase orders."),
 		},
 	},
 	{
-		Name:        "b2b_im›ÚXÙWÛ™^ÛVÖ&W""À ”FW67&—F–öã¢$6ö×WFRF†RæW‡B#$"–çfö–6RÕµ‰•È¸ˆ°($%M½Á”è€€€€€€M½Á•É°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½ˆÉˆ½¥¹Ù½¥•Ì½¹•áĞµ¹Õµ‰•Èˆ°(%ô°(%ì($%9…µ”è€€€€€€€€‰ˆÉ‰}Á…åµ•¹Ñ}Ñ•ÉµÍ}±¥ÍĞˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰1¥ÍĞÉÁ…åµ•¹ĞÑ•ÉµÌ¸ˆ°($%M½Á”è€€€€€€M½Á•É°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½ˆÉˆ½Á…åµ•´-terms",
+		Name:        "manufacturing_list",
+		Description: "List manufacturing batches.",
+		Scope:       ScopeProduction,
+		Route:       "/api/inventory/manufacturing",
+	},
+
+	// --- B2B billing ---
+	{
+		Name:        "b2b_customers_list",
+		Description: "List B2B customers with optional search.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/customers",
+		Args: []ArgSpec{
+			arg("search", ArgString, "Free-text search."),
+		},
+	},
+	{
+		Name:        "b2b_invoices_list",
+		Description: "List B2B invoices with optional date range and status filter.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/invoices",
+		Args: []ArgSpec{
+			arg("startDate", ArgString, "ISO date start."),
+			arg("endDate", ArgString, "ISO date end."),
+			arg("status", ArgString, "Invoice status filter."),
+		},
+	},
+	{
+		Name:        "b2b_invoice_get",
+		Description: "Fetch a single B2B invoice by id.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/invoices/detail",
+		Args: []ArgSpec{
+			argReq("id", ArgInt, "Invoice id."),
+		},
+	},
+	{
+		Name:        "b2b_invoice_next_number",
+		Description: "Compute the next B2B invoice number.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/invoices/next-number",
+	},
+	{
+		Name:        "b2b_payment_terms_list",
+		Description: "List B2B payment terms.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/payment-terms",
 	},
 	{
 		Name:        "b2b_credit_notes_list",
-		Description: "List B2B credit notes, optionally filtered bH[›ÚXÙKˆ‹‚BTØÛÜNˆØÛÜPŒ‹‚BT›İ]Nˆ‹Ø\KØŒ˜‹ØÜ™Y][›İ\È‹‚BP\—3¢µÔ&u7V7° –&r‚&–çfö–6Uö–B"Â&t–Ğ°€‰=ÁÑ¥½¹…°¥¶oice id filter."),
+		Description: "List B2B credit notes, optionally filtered by invoice.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/credit-notes",
+		Args: []ArgSpec{
+			arg("invoice_id", ArgInt, "Optional invoice id filter."),
 		},
 	},
 	{
@@ -102,96 +414,530 @@ H[™ÙˆH˜[™ÙKˆŠK‚BBX\™ÊœVR"Â&t–çBÂ%vRÕµ‰•È°€Äµ‰…Í•¸ˆ¤°($$%…Éœ ‰±¥
 		Description: "List B2B debit notes, optionally filtered by invoice.",
 		Scope:       ScopeB2B,
 		Route:       "/api/b2b/debit-notes",
-		Ar\Îˆ×P\™ÔÜXŞÂ‚BBX\™Êš[›ÚXÙWÚY‹\™Ò[BÂ$÷F–öæÂ–Ù½¥”¥™¥±Ñ•È¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰ˆÉ‰}ÕÍÑ½µ•É}±•‘er",
-		Description: "Fetch a B2B customerÈYW"â"À •66÷S¢66÷T#$"À •&÷WFS¢"ö’ö#&"ö7W7FöÖW½±•‘•Èˆ°($%ÉÌèmuÉMÁ•ì($$%…ÉI•Ä ‰ÕÍÑ½µ•É}¥ˆ°É%´, "Customer id."),
+		Args: []ArgSpec{
+			arg("invoice_id", ArgInt, "Optional invoice id filter."),
+		},
+	},
+	{
+		Name:        "b2b_customer_ledger",
+		Description: "Fetch a B2B customer's ledger.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/customers/ledger",
+		Args: []ArgSpec{
+			argReq("customer_id", ArgInt, "Customer id."),
 		},
 	},
 	{
 		Name:        "b2b_outstanding_aging",
-		Description: "Outstanding aging repoq›ÜˆŒˆİ\İÛY\2â"À •66÷S¢66÷T#$"À •&÷WFS¢"ö’ö#&"ö7W7FöÖW½½ÕÑÍÑ…¹‘¥¹œˆ°(%ô°(%ì($%9…µ”è€€€€€€€€‰ˆÉ‰}st_periods_list",
+		Description: "Outstanding aging report for B2B customers.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/customers/outstanding",
+	},
+	{
+		Name:        "b2b_gst_periods_list",
 		Description: "List B2B GST periods.",
 		Scope:       ScopeB2B,
 		Route:       "/api/b2b/gst-periods",
 	},
 	{
 		Name:        "b2b_proformas_list",
-		Description: "List B2B proforma im›ÚXÙ\ÈÚ]Ü[Û˜[]H˜[™ÙH[™İ]\Èš[\‹ˆ‹‚BTØÛÜNˆØÛÜPŒ‹‚BT›İ]Nˆ‹Ø\KØŒ˜‹Ü›Ù›Ü›X\È‹‚BP\™ÜÎˆ×P\•7V7° –$ ‰ÍÑ…ÉÑ…Ñ”ˆ°ÉMÑÉ¥¹œ°€‰%M<‘…Ñ”ÍÑ…ÉĞ¸ˆ¤°($$%…É("endDate", ArTİš[’Â$•4òFFRVæBâ"’À –&r‚Ñ…ÑÕÌˆ°ÉMÑÉ¥¹œ°€‰AÉ½™½Éµ„ÍÑ…ÑÕÌ™¥±Ñ•È¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‰ˆÉ‰}ÁÉ½™½Éµ…}•Ğˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰•Ñ „Í¥¹±”ÉÁÉ½™½Éµ„‰ä¥¸ˆ°($%M½Á”è€€€€€€M½Á•É°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½ˆÉˆ½ÁÉ½™½Éµ…Ì½‘•Ñ…¥°ˆ°($%ÉÌèmuÉSpec{
-			arT™\JšY‹\™Ò[”›Ù›Ü›XHYˆŠK‚B_K‚_K‚^Â‚BS˜[YNˆ˜Œ˜—Ü›Ù›Ü›XWÛ™^ÛVÖ&W""À ”FW67&—F–öã¢$6ö×WFRF†RæW‡B#$"&öf÷&ÖçVÖ&W"â"À •66÷S¢66÷T#$"À •&÷WFS¢"ö’ö#&"÷&öf÷&Ö2öæW‡BÖçVÖ&W""À —ÒÀ —° ”æÖS¢&#&%÷&öf÷&Ö5ö6†V6µöW‡—$ˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰¡•¬…¹É•Á½ÉĞ•áÁ¥É•ÉÁÉ½™½Éµ…Ì¸ˆ°($%M½Á”è€€€€€€M½Á•É°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½ˆÉˆ½ÁÉ½™½Éµ…Ì½¡•¬µ•áÁ¥Éäˆ°(%ô°(($¼¼€´´´½µµÕ¹¥…Ñ¥½¸€¡]¡…ÑÍÁÀ…ÕÑ½µ…Ñ¥½¸¤€´´´(%ì($%9…µ”è€€€€€€€€‰İ¡…ÑÍ…ÁÁ}µ•ÑÉ¥Ìˆ°($%•ÍÉ¥ÁÑ¥½¸è€‰]¡…ÑÍÁÀ…ÕÑ½µ…Ñ¥½¸µ•ÑÉ¥Ì™½È„‘…Ñ”É…¹e.",
+		Description: "List B2B proforma invoices with optional date range and status filter.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/proformas",
+		Args: []ArgSpec{
+			arg("startDate", ArgString, "ISO date start."),
+			arg("endDate", ArgString, "ISO date end."),
+			arg("status", ArgString, "Proforma status filter."),
+		},
+	},
+	{
+		Name:        "b2b_proforma_get",
+		Description: "Fetch a single B2B proforma by id.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/proformas/detail",
+		Args: []ArgSpec{
+			argReq("id", ArgInt, "Proforma id."),
+		},
+	},
+	{
+		Name:        "b2b_proforma_next_number",
+		Description: "Compute the next B2B proforma number.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/proformas/next-number",
+	},
+	{
+		Name:        "b2b_proformas_check_expiry",
+		Description: "Check and report expired B2B proformas.",
+		Scope:       ScopeB2B,
+		Route:       "/api/b2b/proformas/check-expiry",
+	},
+
+	// --- Communication (WhatsApp automation) ---
+	{
+		Name:        "whatsapp_metrics",
+		Description: "WhatsApp automation metrics for a date range.",
 		Scope:       ScopeCommunication,
 		Route:       "/api/automation/whatsapp/metrics",
-		Ar\Îˆ×P\™ÔÜXŞÂ‚BBX\™Ê7F'EöFFR"Â&u7G&–ærÂ$•4òFFR7F'Bâ"’À –$ ‰•¹‘}‘…Ñ”ˆ°ÉMÑÉ¥¹œ°€‰%M<‘…Ñ”•¹¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‡hatsapp_templates",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "whatsapp_templates",
 		Description: "List WhatsApp message templates for a date range.",
 		Scope:       ScopeCommunication,
 		Route:       "/api/automation/whatsapp/templates",
-		Ar\Îˆ×P\™ÔÜXŞÂ‚BBX\™Ê7F'EöFFR"Â&u7G&–ærÂ$•4òFFR7F'Bâ"’À –$ ‰•¹‘}‘…Ñ”ˆ°ÉMÑÉ¥¹œ°€‰%M<‘…Ñ”•¹¸ˆ¤°($%ô°(%ô°(%ì($%9…µ”è€€€€€€€€‡hatsapp_trigY\œÈ‹‚BQ\ØÜš\[Ûˆ“\İÚ]Ğ\]]ÛX][ÛˆšVvW'2â"À •66÷S¢66÷T6öÖ×Væ–6F–öâÀ •&÷WFS¢"ö’öWFöÖF–öâ÷v†G6÷G&–vvWˆ°(%ô°(%ì($%9…µ”è€€€€€€€€‡hatsapp_messages",
-		Description: "List WhatsApp automation messages.",
-		Scope:       ScopeCommunication,
-		Route:       "/api/automation/whatsapp/messaY\È‹‚_K‚^Â‚BS˜[YNˆv†G6ö÷&FW%öÖW76vW2"À ”FW67&—F–öã¢$Æ—7Bv†G4ÖW76•Ì™½È½É‘•ÉÌ¸ˆ°($%M½Á”è€€€€€€M½Á•½µµÕ¹¥…Ñ¥½¸°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½µ•ÍÍ…es/order",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
 	},
 	{
-		Name:        !Ú]Ø\ØÛÛfW…Ñ¥½³",
+		Name:        "whatsapp_triggers",
+		Description: "List WhatsApp automation triggers.",
+		Scope:       ScopeCommunication,
+		Route:       "/api/automation/whatsapp/triggers",
+	},
+	{
+		Name:        "whatsapp_messages",
+		Description: "List WhatsApp automation messages.",
+		Scope:       ScopeCommunication,
+		Route:       "/api/automation/whatsapp/messages",
+	},
+	{
+		Name:        "whatsapp_order_messages",
+		Description: "List WhatsApp messages for orders.",
+		Scope:       ScopeCommunication,
+		Route:       "/api/automation/whatsapp/messages/order",
+	},
+	{
+		Name:        "whatsapp_conversations",
 		Description: "List WhatsApp conversations.",
 		Scope:       ScopeCommunication,
 		Route:       "/api/automation/whatsapp/conversations",
 	},
 	{
 		Name:        "whatsapp_chat",
-		Description: "List messaY\È[ˆHÚ]Ğ\ÛÛ™\œØ][Û‹ˆ‹‚BTØÛÜNˆØÛÜPÛÛ[][šXØ][Û‹‚BT›İ]Nˆ‹Ø\KØ]]ÛX][Û‹İÚ]Ø\ØÚ]‹‚BP\™ÜÎˆ×P\•7V7° –%I•Ä ‰½¹Ù•ÉÍ…Ñ¥½¹}¥ˆ°É%´, "Conversation id."),
-			arg("limit", ArgIm“[X™\ˆÙˆY\ÜØVW2†FVfVÇBS’â"’À –&r‚&öfM•Ğˆ°É%¹Ğ°€‰=™“et for paZ[˜][Û‹ˆŠK‚B_K‚_K‚^Â‚BS˜[YNˆv†G6öWfVçG2"À ”FW67&—F–öã¢$Æ—7Bv†G4WFöÖF–öâWfVÑÌ¸ˆ°($%M½Á”è€€€€€€M½Á•½µµÕ¹¥…Ñ¥½¸°($%I½ÕÑ”è€€€€€€€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½•Ù•¹ÑÌˆ°(%ô°(($¼¼€´´´5…É­•Ñ¥¹ (Meta, SMM, Judge.me) ---
+		Description: "List messages in a WhatsApp conversation.",
+		Scope:       ScopeCommunication,
+		Route:       "/api/automation/whatsapp/chat",
+		Args: []ArgSpec{
+			argReq("conversation_id", ArgInt, "Conversation id."),
+			arg("limit", ArgInt, "Number of messages (default 50)."),
+			arg("offset", ArgInt, "Offset for pagination."),
+		},
+	},
 	{
-		Name:        "meta_oveqšY]Í·ãkh‘éì¶»§q«^v‚BTØÛÜNˆØÛÜTŞ\İ[K‚BT›İ]Nˆ‹Ø\KÜŞ\İ[KÙØÜÈ‹‚BP\™ÜÎˆ×P\•7V7° –%I•Ä ‰Í±Õ", ArTİš[’Â$Fö7VÖVĞÍ±Õœ¸ˆ¤°($%ô°($%A…Ñ¡ÉÌèmuÍÑÉ¥¹ì‰Í±Õœ‰ô°(%ô°)ô((¼¼İÉ¥Ñ•Q½½°É•…Ñ•Ì…¸•áÁ±¥¥Ñ±ä…±±½İ±¥ÍÑ•µÕÑ…Ñ¥½¸¸Q¡”Á…å±½…¥ÌÍ•¹Ğ(¼¼…ÌÑ¡”)M=8É•ÅÕ•ÍĞ‰½‘äì%ÌÕÍ•‰ä±•…ä1Q½ÍÑ…ÑÕÌ•¹‘Á½¥¹ÑÌÉ•µ…¥¸(¼¼ÅÕ•É ar][Y[G26òW†—7F–ä¡…¹‘±•ÉÌ…¸‰”É•ÕÍ•Õ¹¡…¹•¸)™Õ¹ŒİÉ¥Ñ•Q½½°¡¹…µ”°‘•ÍÉ¥ÁÑ¥½¸°Í½Á”°µ•Ñ¡½°É½ÕÑ”ÍÑÉ¥¹, queryArgs ...strinJHÛÛÜXÈÂ‚X\™ÜÈH×P\•7V7¶&u&W‚…å±½…ˆ°É=‰©•Ğ°€‰)M=8É•ÅÕ•ÍĞ‰½‘ä…•ÁÑ•‰äÑ¡”5$µQ• A$¡…¹‘±•È¸ˆ¥ô(%™½È|°Ä€èôÉ…¹”ÅÕ•ÉåÉs {
-		ar\ÈH\[™
-\™ÜË\™Ô™\JK\•7G&–ä°€‰%‘•´ifier or query value."))
+		Name:        "whatsapp_events",
+		Description: "List WhatsApp automation events.",
+		Scope:       ScopeCommunication,
+		Route:       "/api/automation/whatsapp/events",
+	},
+
+	// --- Marketing (Meta, SMM, Judge.me) ---
+	{
+		Name:        "meta_overview",
+		Description: "Meta marketing overview for a date range.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/meta/overview",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "meta_campaigns",
+		Description: "Meta marketing campaigns for a date range.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/meta/campaigns",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "meta_adsets",
+		Description: "Meta marketing ad sets for a date range.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/meta/adsets",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "meta_ads",
+		Description: "Meta marketing ads for a date range.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/meta/ads",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "smm_overview",
+		Description: "Social media management overview, optionally per platform.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/smm/overview",
+		Args: []ArgSpec{
+			arg("platform", ArgString, "Platform filter."),
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "smm_health",
+		Description: "Social media integration health check.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/smm/health",
+	},
+	{
+		Name:        "smm_post_insights",
+		Description: "Insights for a specific social post.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/smm/post/insights",
+		Args: []ArgSpec{
+			argReq("id", ArgString, "Post id."),
+			arg("media_type", ArgString, "Media type filter."),
+		},
+	},
+	{
+		Name:        "smm_queue",
+		Description: "List queued social media posts.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/smm/queue",
+	},
+	{
+		Name:        "smm_queue_create",
+		Description: "Queue a social post for Google Drive/n8n publishing. Accepts a caption, hashtags, target platforms, and optional public HTTPS media URLs.",
+		Scope:       ScopeMarketingPublish,
+		Route:       "/api/marketing/smm/queue",
+		Write:       true,
+		Args: []ArgSpec{
+			argReq("caption", ArgString, "Post caption."),
+			arg("hashtags", ArgString, "Hashtags to include in the post."),
+			arg("post_type", ArgString, "SINGLE_PHOTO, CAROUSEL, or VIDEO. Inferred when omitted."),
+			arg("target_platforms", ArgString, "Comma-separated platforms: instagram, facebook, threads, x."),
+			arg("media_urls", ArgString, "Comma-separated public HTTPS media URLs."),
+		},
+	},
+	{
+		Name:        "judgeme_published",
+		Description: "List published Judge.me reviews.",
+		Scope:       ScopeMarketing,
+		Route:       "/api/marketing/judgeme/published",
+		Args: []ArgSpec{
+			arg("page", ArgInt, "Page number."),
+			arg("limit", ArgInt, "Page size."),
+			arg("product_id", ArgString, "Product id filter."),
+			arg("search", ArgString, "Free-text search."),
+		},
+	},
+
+	// --- Feedback ---
+	{
+		Name:        "feedback_list",
+		Description: "List customer feedback, optionally filtered by order or phone.",
+		Scope:       ScopeFeedback,
+		Route:       "/api/feedback",
+		Args: []ArgSpec{
+			arg("o", ArgString, "Order id filter."),
+			arg("p", ArgString, "Phone number filter."),
+		},
+	},
+	{
+		Name:        "feedback_config_status",
+		Description: "Feedback configuration status.",
+		Scope:       ScopeFeedback,
+		Route:       "/api/feedback/config-status",
+	},
+
+	// --- Abandoned checkouts ---
+	{
+		Name:        "abandoned_checkouts_list",
+		Description: "List abandoned checkouts with filters and pagination.",
+		Scope:       ScopeAbandonedCheckout,
+		Route:       "/api/abandoned-checkouts",
+		Args: []ArgSpec{
+			arg("page", ArgInt, "Page number."),
+			arg("limit", ArgInt, "Page size."),
+			arg("search", ArgString, "Free-text search."),
+			arg("status", ArgString, "Status filter."),
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+	{
+		Name:        "abandoned_checkouts_analytics",
+		Description: "Abandoned checkout analytics for a date range.",
+		Scope:       ScopeAbandonedCheckout,
+		Route:       "/api/abandoned-checkouts/analytics",
+		Args: []ArgSpec{
+			arg("start_date", ArgString, "ISO date start."),
+			arg("end_date", ArgString, "ISO date end."),
+		},
+	},
+
+	// --- Planner ---
+	{
+		Name:        "planner_boards",
+		Description: "List planner boards.",
+		Scope:       ScopePlanner,
+		Route:       "/api/planner/boards",
+	},
+	{
+		Name:        "planner_tasks",
+		Description: "List planner tasks with optional filters.",
+		Scope:       ScopePlanner,
+		Route:       "/api/planner/tasks",
+		Args: []ArgSpec{
+			arg("board_id", ArgInt, "Board id filter."),
+			arg("sprint_id", ArgString, "Sprint id filter."),
+			arg("status", ArgString, "Status filter."),
+			arg("priority", ArgString, "Priority filter."),
+			arg("search", ArgString, "Free-text search."),
+		},
+	},
+	{
+		Name:        "planner_sprints",
+		Description: "List planner sprints, optionally by status.",
+		Scope:       ScopePlanner,
+		Route:       "/api/planner/sprints",
+		Args: []ArgSpec{
+			arg("status", ArgString, "Status filter."),
+		},
+	},
+	{
+		Name:        "planner_analytics",
+		Description: "Planner analytics for a sprint and/or task.",
+		Scope:       ScopePlanner,
+		Route:       "/api/planner/analytics",
+		Args: []ArgSpec{
+			arg("sprint_id", ArgInt, "Sprint id."),
+			arg("task_id", ArgInt, "Task id."),
+		},
+	},
+
+	// --- Support ---
+	{
+		Name:        "support_tickets",
+		Description: "List support tickets.",
+		Scope:       ScopeSupport,
+		Route:       "/api/support/tickets",
+	},
+
+	// --- AI ---
+	{
+		Name:        "ai_conversations",
+		Description: "List AI conversation history.",
+		Scope:       ScopeAI,
+		Route:       "/api/ai/conversations",
+	},
+	{
+		Name:        "ai_conversation_get",
+		Description: "Fetch a single AI conversation by id.",
+		Scope:       ScopeAI,
+		Route:       "/api/ai/conversations",
+		Args: []ArgSpec{
+			argReq("id", ArgInt, "Conversation id."),
+		},
+	},
+
+	// --- Settings (safe, masked) ---
+	{
+		Name:        "settings_list",
+		Description: "List application settings. Secret values are masked.",
+		Scope:       ScopeSettings,
+		Route:       "/api/settings",
+	},
+	{
+		Name:        "settings_date_range",
+		Description: "Get the current configured date range.",
+		Scope:       ScopeSettings,
+		Route:       "/api/settings/date-range",
+	},
+
+	// --- System health & docs ---
+	{
+		Name:        "system_health",
+		Description: "System health check.",
+		Scope:       ScopeSystem,
+		Route:       "/api/health",
+	},
+	{
+		Name:        "system_docs_list",
+		Description: "List available documentation slugs.",
+		Scope:       ScopeSystem,
+		Route:       "/api/system/docs",
+	},
+	{
+		Name:        "system_doc_get",
+		Description: "Fetch documentation content by slug.",
+		Scope:       ScopeSystem,
+		Route:       "/api/system/docs",
+		Args: []ArgSpec{
+			argReq("slug", ArgString, "Document slug."),
+		},
+		PathArgs: []string{"slug"},
+	},
+}
+
+// writeTool creates an explicitly allowlisted mutation. The payload is sent
+// as the JSON request body; IDs used by legacy DELETE/status endpoints remain
+// query arguments so existing handlers can be reused unchanged.
+func writeTool(name, description, scope, method, route string, queryArgs ...string) ToolSpec {
+	args := []ArgSpec{argReq("payload", ArgObject, "JSON request body accepted by the MI-Tech API handler.")}
+	for _, q := range queryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
 	}
-	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QuerP\™ÜÎˆ]Y\P\™ÜË\™ÜÎˆ\™ÜËÜš]NˆVWĞ§Ğ ¦gVæ2w&—FUFööÄ÷F–öæÅ–ÆöB†æÖRÂFW67&—F–öâÂ66÷RÂÖWF†öBÂ&÷WFR7G&–ä°ÅÕ•ÉåÉÌ€¸¸¹ÍÑÉ¥¹) ToolSpec {
-	args := []ArTÜXŞØ\™Ê–ÆöB"Â&tö&¦V7BÂ$÷F–öæÂ¥4ôâ&WVW7B&öG’66WFVB'’F†RÔ’ÕFV6‚’†æFÆW"â"—Ğ –f÷"òÂ£Ò&ævRVW'”%Ìì($%…És = append(args, argReq(q, ArTİš[’Â$–FVÑ¥™¥•È½ÈÅÕ•ÉäÙ…±Õ”¸ˆ¤¤(%ô(%É•ÑÕÉ¸Q½½±MÁ•í9…µ”è¹…µ”°•ÍÉ¥ÁÑ¥½¸è‘•ÍÉ¥ÁÑ¥½¸°M½Á”èÍ½Á”°5•Ñ¡½èµ•Ñ¡½°I½ÕÑ”èÉ½ÕÑ”°EÕ•ÉArgs: queryArgs, Args: args, Write: tqY_BŸB‚™[˜ÈÜš]UÛÛ]
-˜[YK\ØÜš\[Û‹ØÛÜKY]Ù›İ]K]\’7G&–ær’FööÅ7V2° —&WGW&âFööÅ7V7´æÖS¢æÖRÂFW67&—F–öã¢FW67&—F–öâÂ66÷S¢66÷RÂÖWF†öC¢ÖWF†öBÂ&÷WFS¢&÷WFRÂF„%ÌèmuÍÑÉ¥¹íÁ…Ñ¡Éô°ÉÌèmuÉSpec{argReq( ^[ØY‹\™ÓØš™Xİ’”ÓÓˆ™\]Y\İ›ÙHXØÙ\YHHRKUXÚTH[™\‹ˆŠK\•&W‡F„&rÂ&u7G&–ærÂ%&W6÷W&6R–FVçF–f–W"â"—ÒÂw&—FS¢G'VWĞ§Ğ ¦U¹ŒİÉ¥Ñ•Q½½±A…Ñ¡9½	½‘ä¡¹…µ”°‘•ÍÉ¥ÁÑ¥½¸°Í½Á”°µ•Ñ¡½°É½ÕÑ”°Á…Ñ¡ÉœÍÑÉ¥¹œ¤Q½½±MÁ•Œì(%É•ÑÕÉ¸Q½½±MÁ•í9…µ”è¹…µ”°•ÍÉ¥ÁÑ¥½¸è‘•ÍÉ¥ÁÑ¥½¸°M½Á”èÍ½Á”°5•Ñ¡½èµ•Ñ¡½°I½ÕÑ”èÉ½ÕÑ”°A…Ñ¡ÉÌèmuÍÑÉ¥¹{pathArg}, Args: []ArgSpec{arT™\J]\™Ë\™Ôİš[™Ë”™\Ûİ\˜ÙHY[YšY\‹ˆŠ_KÜš]NˆY_BŸB‚™Væ2w&—FUFööÄæô&öG’†æÖRÂFW67&—F–öâÂ66÷RÂÖWF†öBÂ&÷WFR7G&–ærÂVW%ÉÌ€¸¸³tring) ToolSpec {
-	ar\ÈHXZÙJ×P\•7V2ÂÂÆVâ‡VW'”%Ì¤¤(%™½È|°Ä€èôÉ…¹e queryArgs {
-		args = append(ar\Ë\•&W‡Â&u7G&–ærÂ$–FVçF–f–W"÷"VW$Ù…±Õ”¸ˆ¤¤(%ô(%É•ÑÕÉ¸Q½½±MÁ•í9…µ”è¹…µ”°•ÍÉ¥ÁÑ¥½¸è‘•ÍÉ¥ÁÑ¥½¸°M½Á”èÍ½Á”°5•Ñ¡½èµ•Ñ¡½°I½ÕÑ”èÉ½ÕÑ”°EÕ•ÉåÉs: querP\™ÜË\™ÜÎˆ\™ÜËÜš]NˆY_BŸB‚™Væ2–æ—B‚’° ”FVfVÇD6FÆörÒVæB„FVfVÇD6FÆörÀ ’òò÷&FW'2æB7W7FöÖW($%İÉ¥Ñ•Q½½° ‰½É‘•ÉÍ}É•…Ñ”ˆ°€‰É•…Ñ”…¸½É‘•È¸ˆ°M½Á•=É‘•ÉÍ]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½½É‘•ÉÌˆ¤°($%İÉ¥Ñ•Q½½° ‰½É‘•Ã_update", "Update an order.", ScopeOrdersWrite, "PUT", "/api/orders", "id"),
-		writeTool("ordep×İ\]WÜİ]\È‹•\]H[ˆÜ™\ˆİ]\Ëˆ‹ØÛÜSÜ™\œÕÜš]K”U‹‹Ø\KÛÜ™\2÷7FGW2"Â&–B"’À —w&—FUFööÂ‚&÷&FW}ÕÁ‘…Ñ•}Á…åµ•´_status", "Update an order payment status.", ScopeOrdersWrite, "PUT", "/api/orders/paymem\İ]\È‹šYŠK‚B]Üš]UÛÛ›Ğ›ÙJ›Ü™\5öÖ&µöFVÆ—fW&VB"Â$Ö&²â÷&FW"2FVÆ—fW&VBâ"Â66÷T÷&FW]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½½É‘•ÉÌ½‘•±¥Ù•É•ˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½° ‰ÕÍÑ½µ•ÉÍ}É•…Ñ”ˆ°€‰É•…Ñ”„ÕÍÑ½µ•È¸ˆ°M½Á•ÕÍÑ½µ•ÃWrite, "POST", "/api/customepÈŠK‚B]Üš]UÛÛ
-˜İ\İÛY\œ×Ø[×Ù[]H‹‘[]Hİ\İÛY\œÈ[ˆ[Ëˆ‹ØÛÜPİ\İÛY\4FW7GÑ¥Ù”°€‰A=MPˆ°€ˆ½…Á¤½ÕÍÑ½µ•Ã/a[ËY[]HŠK‚B]Üš]UÛÛ]
-˜İ\İÛY\5÷WFFR"Â%WFFR7W7FöÖW"â"Â66÷T7W7FöÖW'5w&—FRÂ%UB"Â"ö’ö7W7FöÖW¼ˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±A…Ñ¡9½	½‘ä ‰ÕÍÑ½µ•ÉÍ}‘•±•Ñ”ˆ°€‰•±•Ñ”„ÕÍÑ½µ•È‰ä¥¸ˆ°M½Á•ÕÍÑ½µ•ÉÍ•ÍÑÉÕÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½ÕÍÑ½µ•ÉÌ¼ˆ°€‰¥ˆ¤°($$¼¼AÉ½‘ÕĞ¥¹Ù•¹Ñ½Éä…¹ÍÑ½¬Íå¹¡É½¹¥é…Ñ¥½¸($%İÉ¥Ñ•Q½½° ‰¥¹Ù•¹Ñ½Éå}É•…Ñ”ˆ°€‰É•…Ñ”…¸¥¹Ù•¹Ñ½Éä¥Ñ•´¸ˆ°M½Á•%¹Ù•¹Ñ½Éå]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éäˆ¤°($%İÉ¥Ñ•Q½½° ‰¥¶emÜ•ö±­}É•…Ñ”ˆ°€‰É•…Ñ”¥¹Ù•¹Ñ½Éä¥Ñ•µÌ¥¸‰Õ±¬¸ˆ°M½Á•%¹Ù•¹Ñ½Éå]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½‰Õ±¬ˆ¤°($%İÉ¥Ñ•Q½½° ‰¥¹Ù•¹Ñ½Éå}ÕÁ‘…Ñ•}¥Ñ•´ˆ°€‰UÁ‘…Ñ”…¸¥¹Ù•¹Ñ½Éä¥Ñ•´¸ˆ°M½Á•%¶emÜ•w&—FRÂ%UB"Â"ö’ö–çfVçF÷'’ö—FVÒ"’À —w&—FUFööÄæô&öG’‚&–Ù•´orWÜÙ]ÜİØÚÈ‹”Ù]İØÚÈÈ[ˆ^Xİ]X[]Kˆ‹ØÛÜR[™[ÜUÜš]K”ÔÕ‹‹Ø\KÚ[™[ÜKÜİØÚÈ‹šY‹˜[ŠK‚B]Üš]UÛÛ›Ğ›ÙJš[™[ÜWØY\İÜİØÚÈ‹Y\İİØÚÈHH[Kˆ‹ØÛÜR[fVÑ½ÉWrite, "POST", "/api/im™[F÷$½…‘©ÕÍĞˆ°€‰¥ˆ°€‰‘•±Ñ„ˆ¤°($%İÉ¥Ñ•Q½½° ‰¥¶emÜ•ö7&VFUöÖ–ær"Â$7&VFRâW‡FW&æÂ–çfVçF÷'’Ö–ä¸ˆ°M½Á•%¹Ù•¹Ñ½Éå]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½µ…Àˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰¥¹Ù•¹Ñ½Éå}‘•±•Ñ•}µ…ÁÁ¥¹", "Delete an external im™[F÷$µ…ÁÁ¥¹œ¸ˆ°M½Á•%¹Ù•¹Ñ½Éå•ÍÑÉÕÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½µ…Àˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½° ‰¥¹Ù•¹Ñ½Éå}Íå¹}Í¡½Á¥™äˆ°€‰Må¹¡É½¹¥é”¥¶emÜ’v—F‚6†÷–g’â"Â66÷T–çfVçF÷'•w&—FRÂ%õ5B"Â"ö’ö–çfVçF÷'’÷7–æ2×6†÷–g’"’À —w&—FUFööÂ‚&–çfVçF÷'•÷7–æ5÷&–6W2"Â%7–æ6‡&öæ—¦R–çfVçF÷'’&–6W2â"Â66÷T–Ù•´orUÜš]K”ÔÕ‹‹Ø\KÚ[fVÑ½É/sync-prices"),
-		writeToolOptionalPayload("inventory_sync_amazon", "Synchronize im™[F÷$İ¥Ñ µ…é½¸°½ÁÑ¥½¹…±±ä™½È„‘…Ñ”É…¹e.", ScopeInventoryWrite, "POST", "/api/inventory/amazon/sync"),
-		writeToolNoBody("inventory_clear", "Clear all im™[F÷$¸UÍ”½¹±ä™½È…¸¥´em[Û˜[Ø\™Zİ\ÙH™\Ù]ˆ‹ØÛÜR[fVÑ½ÉDestqXİ]™K‘SUH‹‹Ø\KÚ[™[ÜHŠK‚BKËÈ›ÙXİ[ÛˆÚ[Ëİ\Y\œË\˜Ú\ÙHÜ™\œËX[Y˜Xİ\š[ —w&—FUFööÂ‚&ö–Ç5ö7&VFR"Â$7&VFRâö–Â–çfVçF÷'’—FVÒâ"Â66÷U&öGV7F–öåw&—FRÂ%õ5B"Â"ö’ö–çfVçF÷'’öö–Â"’À —w&—FUFööÂ‚&ö–Ç5÷WFFR"Â%WFFRâö–Â–çfVçF÷'’—FVÒâ"Â66÷U&öGV7F–öåw&—FRÂ%UB"Â"ö’ö–Ù•´orKÛÚ[ŠK‚B]Üš]UÛÛ›Ğ›ÙJ›Ú[×Ù[]H‹‘[]H[ˆÚ[[™[ÜH][Kˆ‹ØÛÜT›ÙXİ[Û‘\İXİ]™K‘SUH‹‹Ø\KÚ[™[ÜKÛÚ[‹šYŠK‚B]Üš]UÛÛ
-›Ú[×Ø[×Ù[]H‹‘[]HÚ[[™[ÜH][\È[ˆ[Ëˆ‹ØÛÜT›ÙXİ[Û‘\İXİ]™K”ÔÕ‹‹Ø\KÚ[™[ÜKÛÚ[ØVÆ²ÖFVÆWFR"’À —w&—FUFööÂ‚ÕÁÁ±¥•ÉÍ}É•…Ñ”ˆ°€‰É•…Ñ”„ÍÕÁÁ±¥•È¸ˆ°M½Á•AÉ½‘ÕÑ¥½¹]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½ÍÕÁÁ±¥•ÉÌˆ¤°($%İÉ¥Ñ•Q½½° ‰ÍÕÁÁ±¥•ÉÍ}ÕÁ‘…Ñ”ˆ°€‰UÁ‘…Ñ”„ÍÕÁÁ±¥•È¸ˆ°M½Á•AÉ½‘ÕÑ¥½¹]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½ÍÕÁÁ±¥•Ã"),
-		writeToolNoBody( İ\Y\œ×Ù[]H‹‘[]HHİ\Y\‹ˆ‹ØÛÜT›ÙXİ[Û‘\İXİ]™K‘SUH‹‹Ø\KÚ[fVÑ½É/suppliers", "id"),
-		writeTool("purchase_ordep×ØÜ™X]H‹Ü™X]HH\˜Ú\ÙHÜ™\‹ˆ‹ØÛÜT›ÙXİ[Û•Üš]K”ÔÕ‹‹Ø\KÚ[™[ÜKÜÈŠK‚B]Üš]UÛÛ
-œ\˜Ú\ÙWÛÜ™\œ×Ø[×ØÜ™X]H‹Ü™X]H\˜Ú\ÙHÜ™\2–â±¬¸ˆ°M½Á•AÉ½‘ÕÑ¥½¹]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½¥¶emÜ’÷òö±¬ˆ¤°($%İÉ¥Ñ•Q½½° ‰ÁÕÉ¡…Í•}½É‘•ÉÍ}ÕÁ‘…Ñ”ˆ°€‰UÁ‘…Ñ”„ÁÕÉ¡…Í”½É‘•È¸ˆ°M½Á•AÉ½‘ÕÑ¥½¹]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½Á¼ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰ÁÕÉ¡…Í•}½É‘•ÉÍ}‘•±•Ñ”ˆ°€‰•±•Ñ”„ÁÕÉ¡…Í”½É‘•È¸ˆ°M½Á•AÉ½‘ÕÑ¥½¹•ÍÑÅctive, "DELETE", "/api/inventory/po", "id"),
-		writeTool("manufacturing_create", "Create a manufacturing record.", ScopeProductionWrite, "POST", "/api/inventory/mamY˜Xİ\š[™ÈŠK‚B]Üš]UÛÛ
-›X[Vf7GW&–æu÷WFFR"Â%WFFRÖÕ™…ÑÕÉ¥¹œÉ•½É¸ˆ°M½Á•AÉ½‘ÕÑ¥½¹]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½¥¹Ù•¹Ñ½Éä½µ…µfacturing"),
-		writeToolNoBody("mamY˜Xİ\š[™×Ù[]H‹‘[]HHX[Vf7GW&–ær&V6÷&Bâ"Â66÷U&öGV7F–öäFW7G'V7F—fRÂ$DTÄUDR"Â"ö’ö–çfVçF÷'’öÖÕ™…ÑÕÉ¥¹œˆ°€‰¥ˆ¤°($$¼¼A±…¹¹•È($%İÉ¥Ñ•Q½½° ‰Á±…¹¹•É}Ñ…Í­}É•…Ñ”ˆ°€‰É•…Ñ”„Á±…¹¹•ÈÑ…Í¬¸ˆ°M½Á•A±…¹¹•É]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½Á±…¹¹•È½Ñ…Í­Ìˆ¤°($%İÉ¥Ñ•Q½½° ‰Á±…¹¹•É}Ñ…Í­}ÕÁ‘…Ñ”ˆ°€‰UÁ‘…Ñ”„Á±…¹¹•ÈÑ…Í¬¸ˆ°M½Á•A±…¹¹•É]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½Á±…¹¹•È½Ñ…Í­Ìˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä €lanner_task_delete", "Delete a planner task.", ScopePlannerDestructive, "DELETE", "/api/planner/tasks", "id"),
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
+func writeToolOptionalPayload(name, description, scope, method, route string, queryArgs ...string) ToolSpec {
+	args := []ArgSpec{arg("payload", ArgObject, "Optional JSON request body accepted by the MI-Tech API handler.")}
+	for _, q := range queryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
+	}
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
+func writeToolPath(name, description, scope, method, route, pathArg string) ToolSpec {
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, PathArgs: []string{pathArg}, Args: []ArgSpec{argReq("payload", ArgObject, "JSON request body accepted by the MI-Tech API handler."), argReq(pathArg, ArgString, "Resource identifier.")}, Write: true}
+}
+
+func writeToolPathNoBody(name, description, scope, method, route, pathArg string) ToolSpec {
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, PathArgs: []string{pathArg}, Args: []ArgSpec{argReq(pathArg, ArgString, "Resource identifier.")}, Write: true}
+}
+
+func writeToolNoBody(name, description, scope, method, route string, queryArgs ...string) ToolSpec {
+	args := make([]ArgSpec, 0, len(queryArgs))
+	for _, q := range queryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
+	}
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
+func init() {
+	DefaultCatalog = append(DefaultCatalog,
+		// Orders and customers
+		writeTool("orders_create", "Create an order.", ScopeOrdersWrite, "POST", "/api/orders"),
+		writeTool("orders_update", "Update an order.", ScopeOrdersWrite, "PUT", "/api/orders", "id"),
+		writeTool("orders_update_status", "Update an order status.", ScopeOrdersWrite, "PUT", "/api/orders/status", "id"),
+		writeTool("orders_update_payment_status", "Update an order payment status.", ScopeOrdersWrite, "PUT", "/api/orders/payment-status", "id"),
+		writeToolNoBody("orders_mark_delivered", "Mark an order as delivered.", ScopeOrdersWrite, "PUT", "/api/orders/delivered", "id"),
+		writeTool("customers_create", "Create a customer.", ScopeCustomersWrite, "POST", "/api/customers"),
+		writeTool("customers_bulk_delete", "Delete customers in bulk.", ScopeCustomersDestructive, "POST", "/api/customers/bulk-delete"),
+		writeToolPath("customers_update", "Update a customer.", ScopeCustomersWrite, "PUT", "/api/customers/", "id"),
+		writeToolPathNoBody("customers_delete", "Delete a customer by id.", ScopeCustomersDestructive, "DELETE", "/api/customers/", "id"),
+		// Product inventory and stock synchronization
+		writeTool("inventory_create", "Create an inventory item.", ScopeInventoryWrite, "POST", "/api/inventory"),
+		writeTool("inventory_bulk_create", "Create inventory items in bulk.", ScopeInventoryWrite, "POST", "/api/inventory/bulk"),
+		writeTool("inventory_update_item", "Update an inventory item.", ScopeInventoryWrite, "PUT", "/api/inventory/item"),
+		writeToolNoBody("inventory_set_stock", "Set stock to an exact quantity.", ScopeInventoryWrite, "POST", "/api/inventory/stock", "id", "val"),
+		writeToolNoBody("inventory_adjust_stock", "Adjust stock by a delta.", ScopeInventoryWrite, "POST", "/api/inventory/adjust", "id", "delta"),
+		writeTool("inventory_create_mapping", "Create an external inventory mapping.", ScopeInventoryWrite, "POST", "/api/inventory/map"),
+		writeToolNoBody("inventory_delete_mapping", "Delete an external inventory mapping.", ScopeInventoryDestructive, "DELETE", "/api/inventory/map", "id"),
+		writeTool("inventory_sync_shopify", "Synchronize inventory with Shopify.", ScopeInventoryWrite, "POST", "/api/inventory/sync-shopify"),
+		writeTool("inventory_sync_prices", "Synchronize inventory prices.", ScopeInventoryWrite, "POST", "/api/inventory/sync-prices"),
+		writeToolOptionalPayload("inventory_sync_amazon", "Synchronize inventory with Amazon, optionally for a date range.", ScopeInventoryWrite, "POST", "/api/inventory/amazon/sync"),
+		writeToolNoBody("inventory_clear", "Clear all inventory. Use only for an intentional warehouse reset.", ScopeInventoryDestructive, "DELETE", "/api/inventory"),
+		// Production: oils, suppliers, purchase orders, manufacturing
+		writeTool("oils_create", "Create an oil inventory item.", ScopeProductionWrite, "POST", "/api/inventory/oil"),
+		writeTool("oils_update", "Update an oil inventory item.", ScopeProductionWrite, "PUT", "/api/inventory/oil"),
+		writeToolNoBody("oils_delete", "Delete an oil inventory item.", ScopeProductionDestructive, "DELETE", "/api/inventory/oil", "id"),
+		writeTool("oils_bulk_delete", "Delete oil inventory items in bulk.", ScopeProductionDestructive, "POST", "/api/inventory/oil/bulk-delete"),
+		writeTool("suppliers_create", "Create a supplier.", ScopeProductionWrite, "POST", "/api/inventory/suppliers"),
+		writeTool("suppliers_update", "Update a supplier.", ScopeProductionWrite, "PUT", "/api/inventory/suppliers"),
+		writeToolNoBody("suppliers_delete", "Delete a supplier.", ScopeProductionDestructive, "DELETE", "/api/inventory/suppliers", "id"),
+		writeTool("purchase_orders_create", "Create a purchase order.", ScopeProductionWrite, "POST", "/api/inventory/po"),
+		writeTool("purchase_orders_bulk_create", "Create purchase orders in bulk.", ScopeProductionWrite, "POST", "/api/inventory/po/bulk"),
+		writeTool("purchase_orders_update", "Update a purchase order.", ScopeProductionWrite, "PUT", "/api/inventory/po"),
+		writeToolNoBody("purchase_orders_delete", "Delete a purchase order.", ScopeProductionDestructive, "DELETE", "/api/inventory/po", "id"),
+		writeTool("manufacturing_create", "Create a manufacturing record.", ScopeProductionWrite, "POST", "/api/inventory/manufacturing"),
+		writeTool("manufacturing_update", "Update a manufacturing record.", ScopeProductionWrite, "PUT", "/api/inventory/manufacturing"),
+		writeToolNoBody("manufacturing_delete", "Delete a manufacturing record.", ScopeProductionDestructive, "DELETE", "/api/inventory/manufacturing", "id"),
+		// Planner
+		writeTool("planner_task_create", "Create a planner task.", ScopePlannerWrite, "POST", "/api/planner/tasks"),
+		writeTool("planner_task_update", "Update a planner task.", ScopePlannerWrite, "PUT", "/api/planner/tasks", "id"),
+		writeToolNoBody("planner_task_delete", "Delete a planner task.", ScopePlannerDestructive, "DELETE", "/api/planner/tasks", "id"),
 		writeTool("planner_task_move", "Move a planner task.", ScopePlannerWrite, "POST", "/api/planner/tasks/move"),
-		writeTool( [›™\—ÜÜš[ØÜ™X]H‹Ü™X]HH[›™\ˆÜš[ˆ‹ØÛÜT[›™\•Üš]K”ÔÕ‹‹Ø\KÜ[›™\‹ÜÜš[ÈŠK‚B]Üš]UÛÛ
-ÆææW%÷7&–çE÷WFFR"Â%WFFRÆææW"7&–çBâ"Â66÷UÆææW%w&—FRÂ%UB"Â"ö’÷ÆææW"÷7&–çG2"Â&–B"’À —w&—FUFööÄæô&öG’‚'ÆææW%÷7&–Ñ}‘•±•Ñ”ˆ°€‰•±•Ñ”„Á±…¹¹•ÈÍÁÉ¥¹Ğ¸ˆ°M½Á•A±…¹¹•É•ÍÑÉÕÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½Á±…¹¹•È½ÍÁÉ¥´s", "id"),
+		writeTool("planner_sprint_create", "Create a planner sprint.", ScopePlannerWrite, "POST", "/api/planner/sprints"),
+		writeTool("planner_sprint_update", "Update a planner sprint.", ScopePlannerWrite, "PUT", "/api/planner/sprints", "id"),
+		writeToolNoBody("planner_sprint_delete", "Delete a planner sprint.", ScopePlannerDestructive, "DELETE", "/api/planner/sprints", "id"),
 		// Synchronization and configuration
-		writeToolOptionalPayload("shopify_sync_orders", "Synchronize orders from ShopifKÜ[Û˜[H›ÜˆH]H˜[–Râ"Â66÷T÷&FW'5w&—FRÂ%õ5B"Â"ö’÷6†÷–d½Íå¹Œˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰Í¡½Á¥™å}É•Í•Ñ}½É‘•Ã", "Reset synchronized orders. Destructive operation.", ScopeOrdersDestructive, "POST", "/api/shopify/reset"),
+		writeToolOptionalPayload("shopify_sync_orders", "Synchronize orders from Shopify, optionally for a date range.", ScopeOrdersWrite, "POST", "/api/shopify/sync"),
+		writeToolNoBody("shopify_reset_orders", "Reset synchronized orders. Destructive operation.", ScopeOrdersDestructive, "POST", "/api/shopify/reset"),
 		writeTool("settings_set_date_range", "Set the application date range.", ScopeSettingsWrite, "PUT", "/api/settings/date-range"),
 		// Support and abandoned checkout operations
-		writeTool("support_ticket_create", "Create a suppoqXÚÙ]ˆ‹ØÛÜTİ\ÜÜš]K”ÔÕ‹‹Ø\KÜİ\ÜB÷F–6¶WG2"’À —w&—FUFööÅF‚‚ÕÁÁ½Ä_ticket_update", "Update a support ticket status.", ScopeSupportWrite, "PUT", "/api/support/tickets/", "id"),
+		writeTool("support_ticket_create", "Create a support ticket.", ScopeSupportWrite, "POST", "/api/support/tickets"),
+		writeToolPath("support_ticket_update", "Update a support ticket status.", ScopeSupportWrite, "PUT", "/api/support/tickets/", "id"),
 		writeTool("abandoned_checkout_recover", "Recover an abandoned checkout.", ScopeOrdersWrite, "POST", "/api/abandoned-checkouts/recover"),
-		writeTool("abandoned_checkout_update_status", "Update an abandoned checkout status.", ScopeOrdepÕÜš]K”U‹‹Ø\KØX˜[™Û™YXÚXÚÛİ]ËÜİ]\ÈŠK‚B]Üš]UÛÛ›Ğ›ÙJ˜X˜[™Û™YØÚXÚÛİ]Ù[]H‹‘[]H[ˆX˜[™Û™YÚXÚÛİ]ˆ‹ØÛÜSÜ™\4FW7GÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½…‰…¹‘½¹•µ¡•­½ÕÑÌˆ°€‰¥ˆ¤°($$¼¼ÉÕÍÑ½µ•ÉÌ°¥¶oices, notes, and proformas
+		writeTool("abandoned_checkout_update_status", "Update an abandoned checkout status.", ScopeOrdersWrite, "PUT", "/api/abandoned-checkouts/status"),
+		writeToolNoBody("abandoned_checkout_delete", "Delete an abandoned checkout.", ScopeOrdersDestructive, "DELETE", "/api/abandoned-checkouts", "id"),
+		// B2B customers, invoices, notes, and proformas
 		writeTool("b2b_customer_create", "Create a B2B customer.", ScopeB2BWrite, "POST", "/api/b2b/customers"),
-		writeTool("b2b_customer_update", "Update a B2B customer.", ScopeB2BWrite, "PUT", "/api/b2b/customepÈŠK‚B]Üš]UÛÛ›Ğ›ÙJ˜Œ˜—Øİ\İÛY\—Ù[]H‹‘[]HHŒˆİ\İÛY\‹ˆ‹ØÛÜPŒ‘\İXİ]™K‘SUH‹‹Ø\KØŒ˜‹Øİ\İÛY\œÈ‹šYŠK‚B]Üš]UÛÛ
-˜Œ˜—Ú[›ÚXÙWØÜ™X]H‹Ü™X]HHŒˆ[›ÚXÙKˆ‹ØÛÜPŒ•Üš]K”ÔÕ‹‹Ø\KØŒ˜‹Ú[›ÚXÙ\ÈŠK‚B]Üš]UÛÛ
-˜Œ˜—Ú[fö–6U÷WFFR"Â%WFFR#$"–çfö–6Râ"Â66÷T#$%w&—FRÂ%UB"Â"ö’ö#&"ö–çfö–6W2"’À —w&—FUFööÄæô&öG’‚&#&%ö–çfö–6UöFVÆWFR"Â$FVÆWFR#$"–çfö–6Râ"Â66÷T#$$FW7GÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½ˆÉˆ½¥¶oices", "id"),
-		writeToolNoBody("b2b_invoice_issue", "Issue a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/im›ÚXÙ\ËÚ\ÜİYH‹šYŠK‚B]Üš]UÛÛ›Ğ›ÙJ˜Œ˜—Ú[›ÚXÙWØØ[˜Ù[‹Ø[˜Ù[HŒˆ[fö–6Râ"Â66÷T#$$FW7G'V7F—fRÂ%õ5B"Â"ö’ö#&"ö–çfö–6W2ö6æ6VÂ"Â&–B"’À —w&—FUFööÄæô&öG’‚&#&%ö–çfö–6UöFVGV7Eö–çfVçF÷'’"Â$FVGV7B–çfVçF÷'’f÷"#$"–Ù½¥”¸ˆ°M½Á•É	]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½¥¹Ù½¥•Ì½‘•‘ÕĞµ¥¶emÜ’"Â&–B"’À —w&—FUFööÄæô&öG’‚&#&%ö–Ù½¥•}É•Ù•ÉÑ}¥¶emÜ’"Â%&WfW'B–çfVçF÷'’FVGV7F–öâf÷"#$"–çfö–6Râ"Â66÷T#$%w&—FRÂ%õ5B"Â"ö’ö#&"ö–çfö–6W2÷&WfW'BÖ–çfVçF÷'’"Â&–B"’À —w&—FUFööÂ‚&#&%ö–çfö–6U÷WFFU÷–ÖVĞˆ°€‰I•½É„É¥¹Ù½¥”Á…åµ•¹Ğ¸ˆ°M½Á•É	]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½¥¶oices/payment"),
-		writeTool("b2b_payment_terms_create_or_update", "Create or update B2B paymem\›\Ëˆ‹ØÛÜPŒ•Üš]K”ÔÕ‹‹Ø\KØŒ˜‹Ü^[Y[]\›\ÈŠK‚B]Üš]UÛÛ
-˜Œ˜—Ü^[Y[E÷FW&×5÷WFFR"Â%WFFR#$"–ÖVçBFW&×2â"Â66÷T#$%w&—FRÂ%UB"Â"ö’ö#&"÷–ÖVĞµÑ•ÉµÌˆ¤°($%İÉ¥Ñ•Q½½° ‰ˆÉ‰}É•‘¥Ñ}¹½Ñ•}É•…Ñ”ˆ°€‰É•…Ñ”„ÉÉ•‘¥Ğ¹½Ñ”¸ˆ°M½Á•É	]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½É•‘¥Ğµ¹½Ñ•Ìˆ¤°($%İÉ¥Ñ•Q½½° ‰ˆÉ‰}É•‘¥Ñ}¹½Ñ•}ÕÁ‘…Ñ”ˆ°€‰UÁ‘…Ñ”„ÉÉ•‘¥Ğ¹½Ñ”¸ˆ°M½Á•É	]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½ˆÉˆ½É•‘¥Ğµ¹½Ñ•Ìˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰ˆÉ‰}É•‘¥Ñ}¹½Ñ•}‘•±•Ñ”ˆ°€‰•±•Ñ”„ÉÉ•‘¥Ğ¹½Ñ”¸ˆ°M½Á•É	•ÍÑÉÕÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½ˆÉˆ½É•‘¥Ğµ¹½Ñ•Ìˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰ˆÉ‰}É•‘¥Ñ}¹½Ñ•}¥ÍÍÕ”ˆ°€‰%ÍÍÕ”„ÉÉ•‘¥Ğ¹½Ñ”¸ˆ°M½Á•É	]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½É•‘¥Ğµ¹½Ñ•Ì½¥ÍÍÕ”ˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰ˆÉ‰}É•‘¥Ñ}¹½Ñ•}…¹•°ˆ°€‰…¹•°„ÉÉ•‘¥Ğ¹½Ñ”¸ˆ°M½Á•É	•ÍÑÉÕÑ¥Ù”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½É•‘¥Ğµ¹½Ñ•Ì½…¹•°ˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½° ‰ˆÉ‰}‘•‰¥Ñ}¹½Ñ•}É•…Ñ”ˆ°€‰É•…Ñ”„É‘•‰¥Ğ¹½Ñ”¸ˆ°M½Á•É	]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½‘•‰¥Ğµ¹½Ñ•Ìˆ¤°($%İÉ¥Ñ•Q½½° ‰ˆÉ‰}‘•‰¥Ñ}¹½Ñ•}ÕÁ‘…Ñ”ˆ°€‰UÁ‘…Ñ”„É‘•‰¥Ğ¹½Ñ”¸ˆ°M½Á•É	]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½ˆÉˆ½‘•‰¥Ğµ¹½Ñ•Ìˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰ˆÉ‰}‘•‰¥Ñ}¹½Ñ•}‘•±•Ñ”ˆ°€‰•±•Ñ”„É‘•‰¥Ğ¹½Ñ”¸ˆ°M½Á•É	•ÍÑÅctive, "DELETE", "/api/b2b/debit-notes", "id"),
+		writeTool("b2b_customer_update", "Update a B2B customer.", ScopeB2BWrite, "PUT", "/api/b2b/customers"),
+		writeToolNoBody("b2b_customer_delete", "Delete a B2B customer.", ScopeB2BDestructive, "DELETE", "/api/b2b/customers", "id"),
+		writeTool("b2b_invoice_create", "Create a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices"),
+		writeTool("b2b_invoice_update", "Update a B2B invoice.", ScopeB2BWrite, "PUT", "/api/b2b/invoices"),
+		writeToolNoBody("b2b_invoice_delete", "Delete a B2B invoice.", ScopeB2BDestructive, "DELETE", "/api/b2b/invoices", "id"),
+		writeToolNoBody("b2b_invoice_issue", "Issue a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices/issue", "id"),
+		writeToolNoBody("b2b_invoice_cancel", "Cancel a B2B invoice.", ScopeB2BDestructive, "POST", "/api/b2b/invoices/cancel", "id"),
+		writeToolNoBody("b2b_invoice_deduct_inventory", "Deduct inventory for a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices/deduct-inventory", "id"),
+		writeToolNoBody("b2b_invoice_revert_inventory", "Revert inventory deduction for a B2B invoice.", ScopeB2BWrite, "POST", "/api/b2b/invoices/revert-inventory", "id"),
+		writeTool("b2b_invoice_update_payment", "Record a B2B invoice payment.", ScopeB2BWrite, "POST", "/api/b2b/invoices/payment"),
+		writeTool("b2b_payment_terms_create_or_update", "Create or update B2B payment terms.", ScopeB2BWrite, "POST", "/api/b2b/payment-terms"),
+		writeTool("b2b_payment_terms_update", "Update B2B payment terms.", ScopeB2BWrite, "PUT", "/api/b2b/payment-terms"),
+		writeTool("b2b_credit_note_create", "Create a B2B credit note.", ScopeB2BWrite, "POST", "/api/b2b/credit-notes"),
+		writeTool("b2b_credit_note_update", "Update a B2B credit note.", ScopeB2BWrite, "PUT", "/api/b2b/credit-notes"),
+		writeToolNoBody("b2b_credit_note_delete", "Delete a B2B credit note.", ScopeB2BDestructive, "DELETE", "/api/b2b/credit-notes", "id"),
+		writeToolNoBody("b2b_credit_note_issue", "Issue a B2B credit note.", ScopeB2BWrite, "POST", "/api/b2b/credit-notes/issue", "id"),
+		writeToolNoBody("b2b_credit_note_cancel", "Cancel a B2B credit note.", ScopeB2BDestructive, "POST", "/api/b2b/credit-notes/cancel", "id"),
+		writeTool("b2b_debit_note_create", "Create a B2B debit note.", ScopeB2BWrite, "POST", "/api/b2b/debit-notes"),
+		writeTool("b2b_debit_note_update", "Update a B2B debit note.", ScopeB2BWrite, "PUT", "/api/b2b/debit-notes"),
+		writeToolNoBody("b2b_debit_note_delete", "Delete a B2B debit note.", ScopeB2BDestructive, "DELETE", "/api/b2b/debit-notes", "id"),
 		writeToolNoBody("b2b_debit_note_issue", "Issue a B2B debit note.", ScopeB2BWrite, "POST", "/api/b2b/debit-notes/issue", "id"),
 		writeToolNoBody("b2b_debit_note_cancel", "Cancel a B2B debit note.", ScopeB2BDestructive, "POST", "/api/b2b/debit-notes/cancel", "id"),
 		writeTool("b2b_proforma_create", "Create a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas"),
 		writeTool("b2b_proforma_update", "Update a B2B proforma invoice.", ScopeB2BWrite, "PUT", "/api/b2b/proformas"),
-		writeToolNoBody("b2b_proforma_delete", "Delete a B2B proforma invoice.", ScopeB2BDestqXİ]™K‘SUH‹‹Ø\KØŒ˜‹Ü›Ù›Ü›X\È‹šYŠK‚B]Üš]UÛÛ›Ğ›ÙJ˜Œ˜—Ü›Ù›Ü›XWÚ\ÜİYH‹’\ÜİYHHŒˆ›Ù›Ü›XH[fö–6Râ"Â66÷T#$%w&—FRÂ%õ5B"Â"ö’ö#&"÷&öf÷&Ö2ö—77VR"Â&–B"’À —w&—FUFööÄæô&öG’‚&#&%÷&öf÷&Öö66WB"Â$66WB#$"&öf÷&Ö–çfö–6Râ"Â66÷T#$%w&—FRÂ%õ5B"Â"ö’ö#&"÷&öf÷&Ö2ö66WB"Â&–B"’À —w&—FUFööÄæô&öG’‚&#&%÷&öf÷&Ö÷&V¦V7B"Â%&V¦V7B#$"&öf÷&Ö–Ù½¥”¸ˆ°M½Á•É	]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½ˆÉˆ½ÁÉ½™½Éµ…Ì½É•©•Ğˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰ˆÉ‰}ÁÉ½™½Éµ…}…¹•°ˆ°€‰…¹•°„ÉÁÉ½™½Éµ„¥¹Ù½¥”¸ˆ°M½Á•É	•ÍÑÅctive, "POST", "/api/b2b/proformas/cancel", "id"),
-		writeToolNoBody("b2b_proforma_create_revision", "Create a proforma im›ÚXÙH™]š\Ú[Û‹ˆ‹ØÛÜPŒ•Üš]K”ÔÕ‹‹Ø\KØŒ˜‹Ü›Ù›Ü›X\ËÜ™]š\Ú[Ûˆ‹šYŠK‚B]Üš]UÛÛ›Ğ›ÙJ˜Œ˜—Ü›Ù›Ü›XWØÛÛfW}Ñ½}¥¹Ù½¥”ˆ°€‰½¹Ù•ÉĞ„ÁÉ½™½Éµ„¥¹Ù½¥”Ñ¼„Ñ…à¥¶oice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/convert", "id"),
+		writeToolNoBody("b2b_proforma_delete", "Delete a B2B proforma invoice.", ScopeB2BDestructive, "DELETE", "/api/b2b/proformas", "id"),
+		writeToolNoBody("b2b_proforma_issue", "Issue a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/issue", "id"),
+		writeToolNoBody("b2b_proforma_accept", "Accept a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/accept", "id"),
+		writeToolNoBody("b2b_proforma_reject", "Reject a B2B proforma invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/reject", "id"),
+		writeToolNoBody("b2b_proforma_cancel", "Cancel a B2B proforma invoice.", ScopeB2BDestructive, "POST", "/api/b2b/proformas/cancel", "id"),
+		writeToolNoBody("b2b_proforma_create_revision", "Create a proforma invoice revision.", ScopeB2BWrite, "POST", "/api/b2b/proformas/revision", "id"),
+		writeToolNoBody("b2b_proforma_convert_to_invoice", "Convert a proforma invoice to a tax invoice.", ScopeB2BWrite, "POST", "/api/b2b/proformas/convert", "id"),
 		writeToolNoBody("b2b_proformas_mark_expired", "Mark expired proforma invoices.", ScopeB2BWrite, "POST", "/api/b2b/proformas/check-expiry"),
 		// WhatsApp automation
-		writeTool(!Ú]Ø\İ[\]WØÜ™X]H‹Ü™X]HHÚ]Ğ\[\]Kˆ‹ØÛÜPÛÛ[][šXØ][Û•Üš]K”ÔÕ‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\İ[\]\ÈŠK‚B]Üš]UÛÛ
-Ú]Ø\İ[\]Wİ\]H‹•\]HHÚ]Ğ\[\]HX\[™Ëˆ‹ØÛÜPÛÛ[][šXØ][Û•Üš]K”U‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\İ[\]\ÈŠK‚B]Üš]UÛÛ›Ğ›ÙJÚ]Ø\İ[\]WÙ[]H‹‘[]HHÚ]Ğ\[\]Kˆ‹ØÛÜPÛÛ[][šXØ][Û‘\İXİ]™K‘SUH‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\İ[\]\È‹šYŠK‚B]Üš]UÛÛ›Ğ›ÙJv†G6÷FV×ÆFW5÷7–æ5÷7FGW2"Â%7–æ6‡&öæ—¦Rv†G4FV×ÆFR7FGW6W2g&öÒÖWFâ"Â66÷T6öÖ×Væ–6F–öåw&—FRÂ%õ5B"Â"ö’öWFöÖF–öâ÷v†G6÷FV×ÆFW2÷7–æ2"’À —w&—FUFööÄæô&öG’‚'v†G6÷FV×ÆFW5÷7–æ5öÆÂ"Â%7–æ6‡&öæ—¦RÆÂv†G4FV×ÆFW2â"Â66÷T6öÖ×Væ–6F–öåw&—FRÂ%õ5B"Â"ö’öWFöÖF–öâ÷v†G6÷FV×ÆFW2÷7–æ2ÖÆÂ"’À —w&—FUFööÄæô&öG’‚¡…ÑÍ…ÁÁ}Ñ•µÁ±…Ñ•}Íå¹}Í¥¹±”ˆ°€‰Må¹¡É½¹¥é”½¹”]¡…ÑÍÁÀÑ•µÁ±…Ñ”¸ˆ°M½Á•½µµÕ¹¥…Ñ¥½¹]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½Ñ•µÁ±…Ñ•Ì½Íå¹ŒµÍ¥¹±”ˆ°€‰¹…µ”ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰İ¡…ÑÍ…ÁÁ}Ñ•µÁ±…Ñ•}™•Ñ ˆ°€‰•Ñ „]¡…ÑÍÁÀÑ•µÁ±…Ñ”™É½´5•Ñ„¸ˆ°M½Á•½µµÕ¹¥…Ñ¥½¹]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½Ñ•µÁ±…Ñ•Ì½™•Ñ ˆ°€‰¹…µ”ˆ¤°($%İÉ¥Ñ•Q½½° ‰İ¡…ÑÍ…ÁÁ}ÑÉ¥ger_create", "Create a WhatsApp automation trigY\‹ˆ‹ØÛÜPÛÛ[][šXØ][Û•Üš]K”ÔÕ‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\İšVvW'2"’À —w&—FUFööÂ‚'v†G6÷G&–vvW%÷WFFR"Â$Væ&ÆR÷"F—6&ÆRv†G4WFöÖF–öâG&–u•È¸ˆ°M½Á•½µµÕ¹¥…Ñ¥½¹]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½ÑÉ¥ers"),
-		writeToolNoBody("whatsapp_triYÙ\—Ù[]H‹‘[]HHÚ]Ğ\]]ÛX][ÛˆšYÖW"â"Â66÷T6öÖ×Væ–6F–öäFW7G'V7F—fRÂ$DTÄUDR"Â"ö’öWFöÖF–öâ÷v†G6÷G&–u•ÉÌˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½° ‰İ¡…ÑÍ…ÁÁ}Í•¹‘}µ•ÍÍ…”ˆ°€‰M•¹„™É•”µÑ•áĞ]¡…ÑÍÁÀµ•ÍÍ…”¸ˆ°M½Á•½µµÕ¹¥…Ñ¥½¹]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½Í•¹µµ•ÍÍ…”ˆ¤°($%İÉ¥Ñ•Q½½° ‰İ¡…ÑÍ…ÁÁ}Í•¹‘}µ…µal", "Send a manual WhatsApp message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-mamX[ŠK‚B]Üš]UÛÛ
-Ú]Ø\ÜÙ[™Ø[È‹”Ù[™H[ÈÚ]Ğ\X\šÙ][™ÈY\ÜØYÙKˆ‹ØÛÜPÛÛ[][šXØ][Û•Üš]K”ÔÕ‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\ÜÙ[™X[ÈŠK‚B]Üš]UÛÛ
-Ú]Ø\ØÛÛ™\œØ][Û—Û[ÙWİ\]H‹Ú[™ÙHHÚ]Ğ\ÛÛ™\œØ][Ûˆ™]ÙY[ˆ]]È[™[X[ˆ[ÙKˆ‹ØÛÜPÛÛ[][šXØ][Û•Üš]K”U‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\ØÛÛ™\œØ][ÛœËÛ[ÙHŠK‚B]Üš]UÛÛ
-Ú]Ø\Ù]™[ØÜ™X]H‹Ü™X]HHÚ]Ğ\]]ÛX][Ûˆ]™[ˆ‹ØÛÜPÛÛ[][šXØ][Û•Üš]K”ÔÕ‹‹Ø\KØ]]ÛX][Û‹İÚ]Ø\Ù]™[ÈŠK‚B]Üš]UÛÛ›Ğ›ÙJÚ]Ø\Ù]™[EöFVÆWFR"Â$FVÆWFRv†G4WFöÖF–öâWfVĞ¸ˆ°M½Á•½µµÕ¹¥…Ñ¥½¹•ÍÑÉÕÑ¥Ù”°€‰1Qˆ°€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½•Ù•¹ÑÌˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰İ¡…ÑÍ…ÁÁ}µ•ÑÉ¥Í}Íå¹Œˆ°€‰Må¹¡É½¹¥é”]¡…ÑÍÁÀ…ÕÑ½µ…Ñ¥½¸µ•ÑÉ¥Ì¸ˆ°M½Á•½µµÕ¹¥…Ñ¥½¹]É¥Ñ”°€‰A=MPˆ°€ˆ½…Á¤½…ÕÑ½µ…Ñ¥½¸½İ¡…ÑÍ…ÁÀ½Íå¹Œµµ•ÑÉ¥Ìˆ¤°($$¼¼M½¥…°µ…É­•Ñ¥¹œ…¹É•Ù¥•İÌ($%İÉ¥Ñ•Q½½° ƒmm_post", "Publish content to a social platform.", ScopeMarketingWrite, "POST", "/api/marketing/smm/post"),
-		writeToolNoBody("smm_sync", "Synchronize social marketing metrics and history.", ScopeMarketinUÜš]K”ÔÕ‹‹Ø\KÛX\šÙ][’÷6ÖÒ÷7–æ2"Â±…Ñ™½É´ˆ¤°($%İÉ¥Ñ•Q½½° ‰©Õ‘eme_generate_reviews", "Generate IYÙK›YH™]šY]È˜YËˆ‹ØÛÜSX\šÙ][™ÕÜš]K”ÔÕ‹‹Ø\KÛX\šÙ][™ËÚYVÖRövVæW&FR"’À —w&—FUFööÂ‚&§VE•µ•}ÍÕ‰µ¥Ñ}É•Ù¥•İÌˆ°€‰MÕ‰µ¥Ğ)Õ‘e.me reviews.", ScopeMarketinUÜš]K”ÔÕ‹‹Ø\KÛX\šÙ][’ö§VFvVÖR÷7V&Ö—B"’À ’òòfVVF&6²æB —w&—FUFööÂ‚&fVVF&6µö'VÆµ÷6VæB"Â%6VæBfVVF&6²&WVW7G2f÷"6VÆV7FVB÷&FW'2â"Â66÷TfVVF&6µw&—FRÂ%õ5B"Â"ö’öfVVF&6²ö'VÆ²×6VæB"’À —w&—FUFööÂ‚&fVVF&6µ÷WFFUö6öÖÖVçB"Â%WFFRâ–Ñ•É¹…°™••‘‰…¬½µµ•¹Ğ¸ˆ°M½Á•••‘‰…­]É¥Ñ”°€‰AUPˆ°€ˆ½…Á¤½½É‘•ÉÌ½™••‘‰…¬½½µµ•¹Ğˆ°€‰¥ˆ¤°($%İÉ¥Ñ•Q½½±9½	½‘ä ‰™••‘‰…­}Á½ÍÑ}©Õ‘•µ”ˆ°€‰A½ÍĞ„™••‘‰…¬É•Ù¥•ÜÑ¼)Õ‘e.me.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/post-iYÙ[YH‹šYŠK‚B]Üš]UÛÛ›Ğ›ÙJ™™YY˜XÚ×Ü™\]Y\İÖöõ±•}É•Ù¥•Üˆ°€‰I•ÅÕ•ÍĞ„½½le review from feedback.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/request-google-review", "id"),
+		writeTool("whatsapp_template_create", "Create a WhatsApp template.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates"),
+		writeTool("whatsapp_template_update", "Update a WhatsApp template mapping.", ScopeCommunicationWrite, "PUT", "/api/automation/whatsapp/templates"),
+		writeToolNoBody("whatsapp_template_delete", "Delete a WhatsApp template.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/templates", "id"),
+		writeToolNoBody("whatsapp_templates_sync_status", "Synchronize WhatsApp template statuses from Meta.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/sync"),
+		writeToolNoBody("whatsapp_templates_sync_all", "Synchronize all WhatsApp templates.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/sync-all"),
+		writeToolNoBody("whatsapp_template_sync_single", "Synchronize one WhatsApp template.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/sync-single", "name"),
+		writeToolNoBody("whatsapp_template_fetch", "Fetch a WhatsApp template from Meta.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/templates/fetch", "name"),
+		writeTool("whatsapp_trigger_create", "Create a WhatsApp automation trigger.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/triggers"),
+		writeTool("whatsapp_trigger_update", "Enable or disable a WhatsApp automation trigger.", ScopeCommunicationWrite, "PUT", "/api/automation/whatsapp/triggers"),
+		writeToolNoBody("whatsapp_trigger_delete", "Delete a WhatsApp automation trigger.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/triggers", "id"),
+		writeTool("whatsapp_send_message", "Send a free-text WhatsApp message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-message"),
+		writeTool("whatsapp_send_manual", "Send a manual WhatsApp message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-manual"),
+		writeTool("whatsapp_send_bulk", "Send a bulk WhatsApp marketing message.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/send-bulk"),
+		writeTool("whatsapp_conversation_mode_update", "Change a WhatsApp conversation between auto and human mode.", ScopeCommunicationWrite, "PUT", "/api/automation/whatsapp/conversations/mode"),
+		writeTool("whatsapp_event_create", "Create a WhatsApp automation event.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/events"),
+		writeToolNoBody("whatsapp_event_delete", "Delete a WhatsApp automation event.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/events", "id"),
+		writeToolNoBody("whatsapp_metrics_sync", "Synchronize WhatsApp automation metrics.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/sync-metrics"),
+		// Social marketing and reviews
+		writeTool("smm_post", "Publish content to a social platform.", ScopeMarketingWrite, "POST", "/api/marketing/smm/post"),
+		writeToolNoBody("smm_sync", "Synchronize social marketing metrics and history.", ScopeMarketingWrite, "POST", "/api/marketing/smm/sync", "platform"),
+		writeTool("judgeme_generate_reviews", "Generate Judge.me review drafts.", ScopeMarketingWrite, "POST", "/api/marketing/judgeme/generate"),
+		writeTool("judgeme_submit_reviews", "Submit Judge.me reviews.", ScopeMarketingWrite, "POST", "/api/marketing/judgeme/submit"),
+		// Feedback and AI
+		writeTool("feedback_bulk_send", "Send feedback requests for selected orders.", ScopeFeedbackWrite, "POST", "/api/feedback/bulk-send"),
+		writeTool("feedback_update_comment", "Update an internal feedback comment.", ScopeFeedbackWrite, "PUT", "/api/orders/feedback/comment", "id"),
+		writeToolNoBody("feedback_post_judgeme", "Post a feedback review to Judge.me.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/post-judgeme", "id"),
+		writeToolNoBody("feedback_request_google_review", "Request a Google review from feedback.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/request-google-review", "id"),
 		writeTool("ai_chat", "Send a message to the MI-Tech AI assistant.", ScopeAIWrite, "POST", "/api/ai/chat"),
 		writeToolNoBody("ai_conversation_delete", "Delete an AI conversation.", ScopeAIDestructive, "DELETE", "/api/ai/conversations", "id"),
 	)
@@ -199,5 +945,24 @@ H[™ÙˆH˜[™ÙKˆŠK‚BBX\™ÊœVR"Â&t–çBÂ%vRÕµ‰•È°€Äµ‰…Í•¸ˆ¤°($$%…Éœ ‰±¥
 
 // Lookup returns the tool spec with the given name and whether it was found.
 func (c Catalog) Lookup(name string) (ToolSpec, bool) {
-	for _, spec := ranYHÈÂ‚BZYˆÜXË“˜[YHOH˜[YHÂ‚BB\™]\›ˆÜXËVP —Ğ —Ğ —&WGW&âFööÅ7V7·ÒÂfÇ6P´((¼¼M½Á•ÌÉ•ÑÕÉ¹ÌÑ¡”‘¥ÍÑ¥¹ĞÍ•Ğ½˜Í½Á•ÌÉ•ÅÕ¥É•‰äÑ¡”…Ñ…±½.
-func (c Catalog) Scopes() []strinHÂ‚\ÙY[ˆHXZÙJX\Üİš[•×7GÑíô¤(%Ù…È½ÕĞmuÍÑÉ¥¹œ(%™½È|°ÍÁ•Œ€èôÉ…¹”Œì($%¥˜|°½¬€èôÍ••¹mÍÁ•Œ¹M½Á•tì½¬ì($$%½¹Ñ¥¹Õ”($%ô($%Í••¹mÍÁ•Œ¹M½Á•t€ôÍÑÉÕÑíõíô($%½ÕĞ€ô…ÁÁ•¹¡½ÕĞ°ÍÁ•Œ¹M½Á”¤(%ô(%É•ÑÕÉ¸½ÕĞ-
+	for _, spec := range c {
+		if spec.Name == name {
+			return spec, true
+		}
+	}
+	return ToolSpec{}, false
+}
+
+// Scopes returns the distinct set of scopes required by the catalog.
+func (c Catalog) Scopes() []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, spec := range c {
+		if _, ok := seen[spec.Scope]; ok {
+			continue
+		}
+		seen[spec.Scope] = struct{}{}
+		out = append(out, spec.Scope)
+	}
+	return out
+}
