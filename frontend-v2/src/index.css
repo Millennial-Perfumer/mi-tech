@@ -239,6 +239,7 @@ a:focus-visible,
 }
 
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -253,6 +254,7 @@ a:focus-visible,
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .icon-button {
@@ -696,9 +698,10 @@ a:focus-visible,
 .calendar-popover {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  left: 50%;
   z-index: 30;
   width: min(680px, calc(100vw - 32px));
+  transform: translateX(-50%);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1091,6 +1094,9 @@ a:focus-visible,
 .topbar-period-filter {
   flex: 0 1 auto;
   min-width: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .sr-only {
@@ -2232,6 +2238,8 @@ a:focus-visible,
   .topbar-period-filter {
     order: 4;
     flex: 1 0 100%;
+    position: static;
+    transform: none;
   }
 
   .dashboard-header {
@@ -2289,6 +2297,7 @@ a:focus-visible,
     bottom: calc(12px + env(safe-area-inset-bottom));
     left: 12px;
     width: auto;
+    transform: none;
     max-height: calc(100dvh - 24px - env(safe-area-inset-bottom));
     overflow-y: auto;
     border-radius: 16px;
@@ -2366,6 +2375,9 @@ a:focus-visible,
     display: flex;
     flex: 0 0 160px;
     min-width: 0;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .mobile-brand-logo-full {
