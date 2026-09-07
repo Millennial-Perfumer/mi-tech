@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { CircleAlert, Edit3, FlaskConical, PackagePlus, Plus, RefreshCw, Trash2, Truck, X } from 'lucide-react'
+import { ChevronDown, CircleAlert, Edit3, FlaskConical, PackagePlus, Plus, RefreshCw, Trash2, Truck, X } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, formatMoney, numberValue, textValue } from '../../lib/http'
 
 export type InventorySection = 'oils' | 'suppliers' | 'purchase-orders' | 'manufacturing'
@@ -58,6 +58,15 @@ function nestedName(value: unknown) {
   return value && typeof value === 'object' ? textValue((value as Row).name || (value as Row).title) : '—'
 }
 
+function nestedText(value: unknown, keys: string[], fallback = '—') {
+  if (!value || typeof value !== 'object') return fallback
+  const row = value as Row
+  for (const key of keys) {
+    if (typeof row[key] === 'string' && row[key]) return row[key] as string
+  }
+  return fallback
+}
+
 function inputValue(value: unknown, fallback = '') {
   if (value === null || value === undefined) return fallback
   return String(value)
@@ -78,6 +87,7 @@ export function InventoryOperations({ token, onUnauthorized, section }: Props) {
   const [notice, setNotice] = useState('')
   const [modal, setModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [expandedManufacturingId, setExpandedManufacturingId] = useState<string | null>(null)
   const [oilForm, setOilForm] = useState(emptyOil)
   const [supplierForm, setSupplierForm] = useState(emptySupplier)
   const [poForm, setPOForm] = useState(emptyPO)
@@ -269,6 +279,100 @@ export function InventoryOperations({ token, onUnauthorized, section }: Props) {
       </section>
     </>
   ) : null
+
+  const manufacturingBatchList = (
+    <div className="manufacturing-batch-list" aria-label="Manufacturing records">
+      {isLoading ? <div className="table-state manufacturing-list-state">Loading {title.toLowerCase()}…</div> : rows.length === 0 ? <div className="table-state manufacturing-list-state">No {title.toLowerCase()} records found.</div> : rows.map((row, index) => {
+        const id = inputValue(row.id, String(index))
+        const isExpanded = expandedManufacturingId === id
+        const oilRows = rowList(row.oils)
+        const productRows = rowList(row.products)
+        const totalOilGrams = oilRows.reduce((sum, oil) => sum + numberValue(oil.quantity_grams), 0)
+        const totalUnits = productRows.reduce((sum, product) => sum + numberValue(product.quantity_produced), 0)
+        const batchNumber = inputValue(row.id, String(index + 1)).padStart(4, '0')
+        const notes = textValue(row.notes)
+
+        return <article className={`manufacturing-batch-card${isExpanded ? ' manufacturing-batch-card-expanded' : ''}`} key={id}>
+          <div className="manufacturing-batch-summary">
+            <div className="manufacturing-batch-field manufacturing-batch-date">
+              <span className="metric-label">Manufactured</span>
+              <strong>{formatDate(row.manufacturing_date)}</strong>
+              <small>Batch #{batchNumber}</small>
+            </div>
+            <div className="manufacturing-batch-field manufacturing-batch-products">
+              <span className="metric-label">Products made</span>
+              <div className="manufacturing-product-list">
+                {productRows.length ? productRows.map((product, productIndex) => {
+                  const productName = nestedText(product.inventory_item, ['title', 'name'], `Product ${productIndex + 1}`)
+                  const productSku = nestedText(product.inventory_item, ['mi_sku'], '')
+                  return <span className="manufacturing-product-chip" key={`${id}-product-${inputValue(product.id, String(productIndex))}`} title={productSku ? `${productName} · ${productSku}` : productName}><strong>{productName}</strong><small>{numberValue(product.quantity_produced)}×</small></span>
+                }) : <span className="manufacturing-batch-empty">No products recorded</span>}
+              </div>
+            </div>
+            <div className="manufacturing-batch-field">
+              <span className="metric-label">Materials</span>
+              <strong>{oilRows.length ? `${oilRows.length} oil${oilRows.length === 1 ? '' : 's'} · ${totalOilGrams.toLocaleString('en-IN', { maximumFractionDigits: 2 })}g` : 'No oils recorded'}</strong>
+              <small>{totalUnits.toLocaleString('en-IN')} units produced</small>
+            </div>
+            <div className="manufacturing-batch-field manufacturing-batch-notes">
+              <span className="metric-label">Notes</span>
+              <p title={notes}>{notes}</p>
+            </div>
+            <div className="manufacturing-batch-controls">
+              <div className="table-action-group">
+                <button className="table-link-button" type="button" onClick={() => openEdit(row)}><Edit3 size={13} aria-hidden="true" /> Edit</button>
+                <button className="table-link-button" type="button" onClick={() => void remove(row)} disabled={isWorking}><Trash2 size={13} aria-hidden="true" /> Delete</button>
+              </div>
+              <button className="manufacturing-batch-toggle" type="button" aria-expanded={isExpanded} aria-controls={`manufacturing-details-${id}`} onClick={() => setExpandedManufacturingId(isExpanded ? null : id)}>
+                {isExpanded ? 'Hide details' : 'Details'} <ChevronDown size={14} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+          {isExpanded && <div className="manufacturing-batch-details" id={`manufacturing-details-${id}`}>
+            <section>
+              <p className="eyebrow">Oils used</p>
+              <ul className="manufacturing-detail-list">
+                {oilRows.length ? oilRows.map((oil, oilIndex) => <li key={`${id}-oil-${inputValue(oil.id, String(oilIndex))}`}><strong>{nestedText(oil.oil_inventory, ['name', 'title'], `Oil ${oilIndex + 1}`)}</strong><span>{numberValue(oil.quantity_grams).toLocaleString('en-IN', { maximumFractionDigits: 2 })}g</span></li>) : <li className="manufacturing-batch-empty">No oils recorded</li>}
+              </ul>
+            </section>
+            <section>
+              <p className="eyebrow">Finished products</p>
+              <ul className="manufacturing-detail-list">
+                {productRows.length ? productRows.map((product, productIndex) => <li key={`${id}-detail-product-${inputValue(product.id, String(productIndex))}`}><strong>{nestedText(product.inventory_item, ['title', 'name'], `Product ${productIndex + 1}`)}</strong><span>{numberValue(product.quantity_produced).toLocaleString('en-IN')} units</span></li>) : <li className="manufacturing-batch-empty">No products recorded</li>}
+              </ul>
+            </section>
+          </div>}
+        </article>
+      })}
+    </div>
+  )
+
+  const manufacturingPage = (
+    <section className="inventory-operations">
+      <div className="inventory-operation-actions">
+        <button className="secondary-button" type="button" onClick={() => void load()} disabled={isLoading}><RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" /> Refresh</button>
+        <button className="primary-button" type="button" onClick={openCreate}><Plus size={15} aria-hidden="true" /> Add record</button>
+      </div>
+      {error && !modal && <div className="dashboard-error" role="alert"><CircleAlert size={18} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div>}
+      {notice && <div className="inventory-notice" role="status">{notice}</div>}
+      <div className="inventory-summary-grid">
+        <div className="inventory-summary-card"><span className="metric-label">{summary.primaryLabel}</span><strong>{summary.primary.toLocaleString('en-IN')}</strong><small>Visible records</small></div>
+        <div className="inventory-summary-card"><span className="metric-label">{summary.secondaryLabel}</span><strong>{Number(summary.secondary).toLocaleString('en-IN')}</strong><small>Across this workspace</small></div>
+      </div>
+      <section className="orders-card manufacturing-records-card">
+        <div className="orders-card-heading"><div><p className="eyebrow">{title}</p><h3>{rows.length} records</h3></div><span className="inventory-operation-icon">{icon}</span></div>
+        {manufacturingBatchList}
+      </section>
+      {modal && <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(false) }}><form className="modal-card manufacturing-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-operation-modal" onSubmit={save}>
+        <div className="modal-heading"><div><p className="eyebrow">Inventory / {title}</p><h2 id="inventory-operation-modal">{editingId ? 'Edit' : 'Add'} {title.toLowerCase()}</h2><p className="modal-subtitle">Update the date, materials, and finished products in one record.</p></div><button className="icon-button" type="button" aria-label="Close" onClick={() => setModal(false)}><X size={19} aria-hidden="true" /></button></div>
+        {manufacturingFormContent}
+        <div className="modal-actions">{error && <p className="modal-form-error" role="alert"><CircleAlert size={15} aria-hidden="true" /> {error}</p>}<button className="secondary-button" type="button" onClick={() => setModal(false)}>Cancel</button><button className="primary-button" type="submit" disabled={isWorking}><Plus size={14} aria-hidden="true" /> {isWorking ? 'Saving…' : 'Save record'}</button></div>
+      </form></div>}
+    </section>
+  )
+
+  const renderSection: InventorySection = section
+  if (renderSection === 'manufacturing') return manufacturingPage
 
   return <section className="inventory-operations"><div className="inventory-operation-actions"><button className="secondary-button" type="button" onClick={() => void load()} disabled={isLoading}><RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" /> Refresh</button><button className="primary-button" type="button" onClick={openCreate}><Plus size={15} aria-hidden="true" /> Add record</button></div>{error && !modal && <div className="dashboard-error" role="alert"><CircleAlert size={18} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div>}{notice && <div className="inventory-notice" role="status">{notice}</div>}<div className="inventory-summary-grid"><div className="inventory-summary-card"><span className="metric-label">{summary.primaryLabel}</span><strong>{summary.primary.toLocaleString('en-IN')}</strong><small>Visible records</small></div><div className="inventory-summary-card"><span className="metric-label">{summary.secondaryLabel}</span><strong>{section === 'purchase-orders' ? formatMoney(summary.secondary) : Number(summary.secondary).toLocaleString('en-IN')}</strong><small>Across this workspace</small></div></div><section className="orders-card"><div className="orders-card-heading"><div><p className="eyebrow">{title}</p><h3>{rows.length} records</h3></div><span className="inventory-operation-icon">{icon}</span></div><div className="orders-table-wrap"><table className={`orders-table ${section === 'oils' ? 'oil-inventory-table' : ''}`}><caption className="sr-only">{title}</caption><thead>{section === 'oils' ? <tr><th>Oil</th><th>Supplier</th><th>Stock</th><th>Purchase price</th><th>Actions</th></tr> : section === 'suppliers' ? <tr><th>Supplier</th><th>Contact</th><th>Oils</th><th>Added</th><th>Actions</th></tr> : section === 'purchase-orders' ? <tr><th>Purchase date</th><th>Supplier</th><th>Oil</th><th>Quantity</th><th>Total</th><th>Actions</th></tr> : <tr><th>Manufactured</th><th>Oils used</th><th>Products made</th><th>Notes</th><th>Actions</th></tr>}</thead><tbody>{isLoading ? <tr><td colSpan={6} className="table-state">Loading {title.toLowerCase()}…</td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="table-state">No {title.toLowerCase()} records found.</td></tr> : rows.map((row, index) => { const id = inputValue(row.id, String(index)); const action = <div className="table-action-group"><button className="table-link-button" type="button" onClick={() => openEdit(row)}><Edit3 size={13} aria-hidden="true" /> Edit</button><button className="table-link-button" type="button" onClick={() => void remove(row)} disabled={isWorking}><Trash2 size={13} aria-hidden="true" /> Delete</button></div>; if (section === 'oils') { const oilName = textValue(row.name, 'Unnamed oil'); const linkedProduct = nestedName(row.inventory_item); return <tr key={id}><td className="oil-name-cell"><strong title={oilName}>{oilName}</strong><small className="table-subtext" title={linkedProduct}>{linkedProduct}</small></td><td>{nestedName(row.supplier)}</td><td className="table-money">{numberValue(row.grams_left).toLocaleString('en-IN')} g</td><td className="table-money">{formatMoney(row.purchase_price_per_kg)}/kg</td><td>{action}</td></tr> } if (section === 'suppliers') return <tr key={id}><td><strong>{textValue(row.name, 'Unnamed supplier')}</strong></td><td>{textValue(row.contact_info)}</td><td>{numberValue(row.oils_count)}</td><td>{formatDate(row.created_at)}</td><td>{action}</td></tr>; if (section === 'purchase-orders') return <tr key={id}><td>{formatDate(row.purchase_date)}</td><td>{nestedName(row.supplier)}</td><td>{nestedName(row.oil_inventory)}</td><td>{numberValue(row.quantity_grams).toLocaleString('en-IN')} g</td><td className="table-money">{formatMoney(row.total_price)}</td><td>{action}</td></tr>; return <tr key={id}><td>{formatDate(row.manufacturing_date)}</td><td>{Array.isArray(row.oils) ? row.oils.map((oil) => `${numberValue((oil as Row).quantity_grams)}g`).join(', ') || '—' : '—'}</td><td>{Array.isArray(row.products) ? row.products.map((product) => `${numberValue((product as Row).quantity_produced)}×`).join(', ') || '—' : '—'}</td><td>{textValue(row.notes)}</td><td>{action}</td></tr> })}</tbody></table></div></section>{modal && <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(false) }}><form className={`modal-card ${section === 'manufacturing' ? 'manufacturing-modal' : ''}`} role="dialog" aria-modal="true" aria-labelledby="inventory-operation-modal" onSubmit={save}><div className="modal-heading"><div><p className="eyebrow">Inventory / {title}</p><h2 id="inventory-operation-modal">{editingId ? 'Edit' : 'Add'} {title.toLowerCase()}</h2>{section === 'manufacturing' && <p className="modal-subtitle">Update the date, materials, and finished products in one record.</p>}</div><button className="icon-button" type="button" aria-label="Close" onClick={() => setModal(false)}><X size={19} aria-hidden="true" /></button></div>{section === 'oils' ? <><label className="form-field"><span>Oil name</span><input required value={oilForm.name} onChange={(event) => setOilForm({ ...oilForm, name: event.target.value })} /></label><div className="form-grid-two"><label className="form-field"><span>Product link</span><select value={oilForm.inventory_item_id} onChange={(event) => setOilForm({ ...oilForm, inventory_item_id: event.target.value })}><option value="">Unlinked</option>{products.map((product) => <option key={String(product.id)} value={String(product.id)}>{textValue(product.mi_sku)} · {textValue(product.title)}</option>)}</select></label><label className="form-field"><span>Supplier</span><select value={oilForm.supplier_id} onChange={(event) => setOilForm({ ...oilForm, supplier_id: event.target.value })}><option value="">Unassigned</option>{suppliers.map((supplier) => <option key={String(supplier.id)} value={String(supplier.id)}>{textValue(supplier.name)}</option>)}</select></label><label className="form-field"><span>Purchase price / kg</span><input type="number" min="0" step="0.01" value={oilForm.purchase_price_per_kg} onChange={(event) => setOilForm({ ...oilForm, purchase_price_per_kg: event.target.value })} /></label><label className="form-field"><span>Grams left</span><input type="number" min="0" step="0.01" value={oilForm.grams_left} onChange={(event) => setOilForm({ ...oilForm, grams_left: event.target.value })} /></label></div></> : section === 'suppliers' ? <><label className="form-field"><span>Supplier name</span><input required value={supplierForm.name} onChange={(event) => setSupplierForm({ ...supplierForm, name: event.target.value })} /></label><label className="form-field"><span>Contact information</span><textarea rows={3} value={supplierForm.contact_info} onChange={(event) => setSupplierForm({ ...supplierForm, contact_info: event.target.value })} /></label></> : section === 'purchase-orders' ? <><div className="form-grid-two"><label className="form-field"><span>Supplier</span><select required value={poForm.supplier_id} onChange={(event) => setPOForm({ ...poForm, supplier_id: event.target.value })}><option value="">Select supplier</option>{suppliers.map((supplier) => <option key={String(supplier.id)} value={String(supplier.id)}>{textValue(supplier.name)}</option>)}</select></label><label className="form-field"><span>Oil</span><select required value={poForm.oil_inventory_id} onChange={(event) => setPOForm({ ...poForm, oil_inventory_id: event.target.value })}><option value="">Select oil</option>{oils.map((oil) => <option key={String(oil.id)} value={String(oil.id)}>{textValue(oil.name)}</option>)}</select></label><label className="form-field"><span>Quantity in grams</span><input required type="number" min="0" step="0.01" value={poForm.quantity_grams} onChange={(event) => setPOForm({ ...poForm, quantity_grams: event.target.value })} /></label><label className="form-field"><span>Price per kg</span><input required type="number" min="0" step="0.01" value={poForm.unit_price_per_kg} onChange={(event) => setPOForm({ ...poForm, unit_price_per_kg: event.target.value })} /></label></div><label className="form-field"><span>Purchase date</span><input required type="date" value={poForm.purchase_date} onChange={(event) => setPOForm({ ...poForm, purchase_date: event.target.value })} /></label></> : manufacturingFormContent}<div className="modal-actions">{error && <p className="modal-form-error" role="alert"><CircleAlert size={15} aria-hidden="true" /> {error}</p>}<button className="secondary-button" type="button" onClick={() => setModal(false)}>Cancel</button><button className="primary-button" type="submit" disabled={isWorking}><Plus size={14} aria-hidden="true" /> {isWorking ? 'Saving…' : 'Save record'}</button></div></form></div>}</section>
 }
