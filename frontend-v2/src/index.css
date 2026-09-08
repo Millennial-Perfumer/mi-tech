@@ -6466,6 +6466,110 @@ a:focus-visible,
   gap: 14px;
 }
 
+.machine-permission-picker {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.permission-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.permission-role-option {
+  display: grid;
+  gap: 5px;
+  min-height: 108px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.permission-role-option:hover,
+.permission-role-option:focus-visible {
+  border-color: var(--platform-deep);
+}
+
+.permission-role-option-active {
+  border-color: var(--platform-deep);
+  background: var(--platform-soft);
+  box-shadow: inset 0 0 0 1px var(--platform-deep);
+}
+
+.permission-role-option-full.permission-role-option-active {
+  border-color: var(--danger-deep);
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1px var(--danger-deep);
+}
+
+.permission-role-option strong {
+  font-size: 0.74rem;
+}
+
+.permission-role-option small {
+  min-height: 2.6em;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+
+.permission-role-option > span {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+}
+
+.machine-scope-help {
+  margin: -3px 0 2px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+
+.machine-role-warning {
+  padding: 9px 10px;
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger-deep);
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+
+.machine-scope-disclosure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--platform-deep);
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 750;
+}
+
+.machine-scope-disclosure:hover,
+.machine-scope-disclosure:focus-visible {
+  color: var(--text-main);
+}
+
+.machine-scope-disclosure svg {
+  transition: transform 160ms ease;
+}
+
 .machine-scope-picker,
 .machine-key-secret {
   display: grid;
@@ -6474,6 +6578,38 @@ a:focus-visible,
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-soft);
+}
+
+.machine-scope-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.machine-scope-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.machine-scope-group {
+  display: grid;
+  gap: 8px;
+}
+
+.machine-scope-group-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.machine-scope-group-heading strong {
+  font-size: 0.68rem;
+}
+
+.machine-scope-group-heading small {
+  color: var(--text-faint);
+  font-size: 0.6rem;
 }
 
 .machine-scope-picker h4,
@@ -6544,6 +6680,38 @@ a:focus-visible,
   font-size: 0.74rem;
 }
 
+.machine-key-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.permission-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.permission-role-badge-read_only {
+  border-color: var(--platform-line);
+  background: var(--platform-soft);
+  color: var(--platform-deep);
+}
+
+.permission-role-badge-full_access {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+  color: var(--danger-deep);
+}
+
 .machine-key-row small {
   overflow: hidden;
   color: var(--text-muted);
@@ -6565,7 +6733,8 @@ a:focus-visible,
   }
 
   .planner-sprint-cards,
-  .machine-scope-list {
+  .machine-scope-list,
+  .permission-role-grid {
     grid-template-columns: 1fr;
   }
 
@@ -6582,6 +6751,16 @@ a:focus-visible,
 
   .machine-key-row .table-action-group {
     flex-wrap: wrap;
+  }
+
+  .machine-scope-group-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .machine-scope-actions {
+    align-self: flex-start;
   }
 }
 

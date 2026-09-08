@@ -10,6 +10,7 @@ type MachineAPIKey struct {
 	ID              int64      `gorm:"column:id;primaryKey" json:"id"`
 	Name            string     `gorm:"column:name" json:"name"`
 	KeyHash         string     `gorm:"column:key_hash" json:"-"`
+	PermissionRole  string     `gorm:"column:permission_role" json:"permission_role"`
 	Scopes          []string   `gorm:"column:scopes;type:text[]" json:"scopes"`
 	RateLimitPerMin int        `gorm:"column:rate_limit_per_min" json:"rate_limit_per_min"`
 	ExpiresAt       *time.Time `gorm:"column:expires_at" json:"expires_at"`

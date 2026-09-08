@@ -22,6 +22,7 @@ type machineKeyRow struct {
 	ID              int64      `gorm:"column:id"`
 	Name            string     `gorm:"column:name"`
 	KeyHash         string     `gorm:"column:key_hash"`
+	PermissionRole  string     `gorm:"column:permission_role"`
 	ScopesJSON      string     `gorm:"column:scopes_json"`
 	RateLimitPerMin int        `gorm:"column:rate_limit_per_min"`
 	ExpiresAt       *time.Time `gorm:"column:expires_at"`
@@ -36,6 +37,7 @@ func (r machineKeyRow) entity() (entity.MachineAPIKey, error) {
 		ID:              r.ID,
 		Name:            r.Name,
 		KeyHash:         r.KeyHash,
+		PermissionRole:  r.PermissionRole,
 		RateLimitPerMin: r.RateLimitPerMin,
 		ExpiresAt:       r.ExpiresAt,
 		RevokedAt:       r.RevokedAt,
@@ -53,7 +55,7 @@ func (r machineKeyRow) entity() (entity.MachineAPIKey, error) {
 }
 
 const machineKeySelect = `
-	SELECT id, name, key_hash,
+	SELECT id, name, key_hash, permission_role,
 	       COALESCE(array_to_json(scopes)::text, '[]') AS scopes_json,
 	       rate_limit_per_min, expires_at, revoked_at,
 	       created_at, updated_at, last_used_at
@@ -66,9 +68,9 @@ func NewMachineKeyRepository(db *gorm.DB) MachineKeyRepository {
 
 func (r *gormMachineKeyRepository) Create(key *entity.MachineAPIKey) error {
 	return r.db.Raw(`
-		INSERT INTO machine_api_keys (name, key_hash, scopes, rate_limit_per_min, expires_at, created_at, updated_at)
-		VALUES (?, ?, ?::text[], ?, ?, NOW(), NOW())
-		RETURNING id`, key.Name, key.KeyHash, scopesLiteral(key.Scopes), key.RateLimitPerMin, key.ExpiresAt,
+		INSERT INTO machine_api_keys (name, key_hash, permission_role, scopes, rate_limit_per_min, expires_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?::text[], ?, ?, NOW(), NOW())
+		RETURNING id`, key.Name, key.KeyHash, key.PermissionRole, scopesLiteral(key.Scopes), key.RateLimitPerMin, key.ExpiresAt,
 	).Scan(&key.ID).Error
 }
 
@@ -107,9 +109,9 @@ func (r *gormMachineKeyRepository) List() ([]entity.MachineAPIKey, error) {
 func (r *gormMachineKeyRepository) Update(key *entity.MachineAPIKey) error {
 	return r.db.Exec(`
 		UPDATE machine_api_keys
-		SET scopes = ?::text[], rate_limit_per_min = ?, expires_at = ?, revoked_at = ?, updated_at = NOW()
+		SET permission_role = ?, scopes = ?::text[], rate_limit_per_min = ?, expires_at = ?, revoked_at = ?, updated_at = NOW()
 		WHERE id = ?`,
-		scopesLiteral(key.Scopes), key.RateLimitPerMin, key.ExpiresAt, key.RevokedAt, key.ID,
+		key.PermissionRole, scopesLiteral(key.Scopes), key.RateLimitPerMin, key.ExpiresAt, key.RevokedAt, key.ID,
 	).Error
 }
 

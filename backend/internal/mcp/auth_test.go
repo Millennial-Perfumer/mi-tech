@@ -178,6 +178,26 @@ func TestValidateScopes(t *testing.T) {
 	}
 }
 
+func TestFullAccessRoleExpandsCatalog(t *testing.T) {
+	svc := NewMachineKeyService(&fakeKeyRepo{})
+
+	_, key, err := svc.Generate(KeyOptions{
+		Name:           "full",
+		PermissionRole: PermissionRoleFullAccess,
+		Scopes:         []string{ScopeOrders},
+	})
+	require.NoError(t, err)
+	require.Equal(t, PermissionRoleFullAccess, PermissionRole(key.PermissionRole))
+	require.ElementsMatch(t, DefaultCatalog.Scopes(), key.Scopes)
+}
+
+func TestPartialScopesRemainCustom(t *testing.T) {
+	scopes, role, err := ResolvePermissionRole(PermissionRoleCustom, []string{ScopeOrders})
+	require.NoError(t, err)
+	require.Equal(t, PermissionRoleCustom, role)
+	require.Equal(t, []string{ScopeOrders}, scopes)
+}
+
 func TestHashKeyIsStable(t *testing.T) {
 	a := HashKey("mtk_test")
 	b := HashKey("mtk_test")

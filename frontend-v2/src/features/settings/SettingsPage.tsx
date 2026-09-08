@@ -4,17 +4,61 @@ import { apiJson, apiRequest, arrayFrom, formatDate, numberValue, textValue } fr
 
 type Props = { token: string; onUnauthorized: () => void }
 type Row = Record<string, unknown>
-type MachineKey = Row & { scopes?: string[] }
+type MachineKey = Row & { scopes?: string[]; permission_role?: string }
 type AppConfig = Row & { key?: string; value?: string; is_secret?: boolean; label?: string; category?: string }
 type CustomerScope = readonly [string, string]
+type PermissionRole = 'read_only' | 'full_access' | 'custom'
 type ServiceStatus = { label: 'Configured' | 'Needs attention' | 'Not configured'; tone: 'success' | 'warning' | 'neutral' }
 type ServiceDefinition = { id: string; title: string; description: string; categories: string[]; requiredKeys?: string[]; icon: LucideIcon }
 
-const machineScopes: CustomerScope[] = [
-  ['orders:read', 'Orders'], ['customers:read', 'Customers'], ['metrics:read', 'Metrics'], ['inventory:read', 'Inventory'], ['production:read', 'Production'], ['b2b:read', 'B2B billing'], ['communication:read', 'WhatsApp'], ['marketing:read', 'Marketing'], ['feedback:read', 'Feedback'], ['planner:read', 'Planner'], ['support:read', 'Support'], ['ai:read', 'AI'], ['settings:read', 'Settings'], ['system:read', 'System'],
-  ['orders:write', 'Orders write'], ['customers:write', 'Customers write'], ['inventory:write', 'Inventory write'], ['production:write', 'Production write'], ['planner:write', 'Planner write'], ['b2b:write', 'B2B write'], ['communication:write', 'WhatsApp write'], ['marketing:write', 'Marketing write'], ['feedback:write', 'Feedback write'], ['support:write', 'Support write'], ['ai:write', 'AI write'], ['marketing:publish', 'Social publish'],
-  ['orders:destructive', 'Orders delete'], ['customers:destructive', 'Customers delete'], ['inventory:destructive', 'Inventory delete'], ['production:destructive', 'Production delete'], ['planner:destructive', 'Planner delete'], ['b2b:destructive', 'B2B delete'], ['communication:destructive', 'WhatsApp delete'], ['ai:destructive', 'AI delete'],
+const machineScopeGroups: { id: string; label: string; description: string; scopes: CustomerScope[] }[] = [
+  {
+    id: 'read',
+    label: 'Read access',
+    description: 'View reports and operational data.',
+    scopes: [
+      ['orders:read', 'Orders'], ['customers:read', 'Customers'], ['metrics:read', 'Metrics'], ['gst:read', 'GST reports'],
+      ['inventory:read', 'Inventory'], ['production:read', 'Production'], ['b2b:read', 'B2B billing'], ['communication:read', 'WhatsApp'],
+      ['marketing:read', 'Marketing'], ['feedback:read', 'Feedback'], ['abandoned_checkout:read', 'Abandoned checkouts'], ['planner:read', 'Planner'],
+      ['support:read', 'Support'], ['ai:read', 'AI'], ['settings:read', 'Settings'], ['system:read', 'System'],
+    ],
+  },
+  {
+    id: 'write',
+    label: 'Write access',
+    description: 'Create or update records and run syncs.',
+    scopes: [
+      ['orders:write', 'Orders write'], ['customers:write', 'Customers write'], ['inventory:write', 'Inventory write'], ['production:write', 'Production write'],
+      ['planner:write', 'Planner write'], ['b2b:write', 'B2B write'], ['communication:write', 'WhatsApp write'], ['marketing:write', 'Marketing write'],
+      ['feedback:write', 'Feedback write'], ['support:write', 'Support write'], ['settings:write', 'Settings write'], ['ai:write', 'AI write'], ['marketing:publish', 'Social publish'],
+    ],
+  },
+  {
+    id: 'destructive',
+    label: 'Destructive access',
+    description: 'Delete, reset, or cancel data.',
+    scopes: [
+      ['orders:destructive', 'Orders delete'], ['customers:destructive', 'Customers delete'], ['inventory:destructive', 'Inventory delete'], ['production:destructive', 'Production delete'],
+      ['planner:destructive', 'Planner delete'], ['b2b:destructive', 'B2B delete'], ['communication:destructive', 'WhatsApp delete'], ['ai:destructive', 'AI delete'],
+    ],
+  },
 ]
+
+const machineScopes: CustomerScope[] = machineScopeGroups.flatMap((group) => group.scopes)
+const allScopeIds = machineScopes.map(([scope]) => scope)
+const readOnlyScopeIds = machineScopeGroups.find((group) => group.id === 'read')?.scopes.map(([scope]) => scope) ?? []
+
+const permissionRoleMeta: Record<PermissionRole, { label: string; description: string }> = {
+  read_only: { label: 'Read only', description: 'View data without making changes.' },
+  full_access: { label: 'Full access', description: 'Use every MCP tool, including destructive actions.' },
+  custom: { label: 'Custom', description: 'Choose the exact scopes this client needs.' },
+}
+
+function permissionRoleForKey(key: MachineKey): PermissionRole {
+  if (key.permission_role === 'full_access' || (Array.isArray(key.scopes) && allScopeIds.every((scope) => key.scopes?.includes(scope)))) return 'full_access'
+  if (key.permission_role === 'read_only' || (Array.isArray(key.scopes) && key.scopes.length === readOnlyScopeIds.length && readOnlyScopeIds.every((scope) => key.scopes?.includes(scope)))) return 'read_only'
+  return 'custom'
+}
 
 const serviceDefinitions: ServiceDefinition[] = [
   { id: 'shopify', title: 'Shopify', description: 'Orders, inventory, and customer synchronization.', categories: ['shopify'], requiredKeys: ['shopify_store_url', 'shopify_access_token'], icon: Store },
@@ -105,7 +149,9 @@ function ServiceCard({ definition, fields, expanded, isRevealed, isWorking, onTo
 function MachineKeysPanel({ token, onUnauthorized }: Props) {
   const [keys, setKeys] = useState<MachineKey[]>([])
   const [name, setName] = useState('')
-  const [scopes, setScopes] = useState<string[]>(['orders:read'])
+  const [permissionRole, setPermissionRole] = useState<PermissionRole>('read_only')
+  const [scopes, setScopes] = useState<string[]>(readOnlyScopeIds)
+  const [showScopeDetails, setShowScopeDetails] = useState(false)
   const [rateLimit, setRateLimit] = useState('60')
   const [expiresAt, setExpiresAt] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -128,13 +174,139 @@ function MachineKeysPanel({ token, onUnauthorized }: Props) {
 
   useEffect(() => { void loadKeys() }, [loadKeys])
 
-  const toggleScope = (scope: string) => setScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])
-  const createKey = async (event: FormEvent) => { event.preventDefault(); if (!name.trim() || scopes.length === 0) { setError('Enter a name and choose at least one scope'); return }; setIsWorking(true); setError(''); try { const data = await apiJson<Row>(token, onUnauthorized, '/api/mcp/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), scopes, rate_limit_per_min: Math.max(1, numberValue(rateLimit) || 60), ...(expiresAt ? { expires_at: `${expiresAt}T23:59:59Z` } : {}) }) }); setNewPlaintext(stringValue(data.plaintext)); setNotice('Machine key created. Save the plaintext now; it cannot be recovered later.'); setName(''); setScopes(['orders:read']); setRateLimit('60'); setExpiresAt(''); await loadKeys() } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to create machine key') } finally { setIsWorking(false) } }
+  const selectPermissionRole = (role: PermissionRole) => {
+    setPermissionRole(role)
+    setShowScopeDetails(role === 'custom')
+    if (role === 'full_access') setScopes(allScopeIds)
+    if (role === 'read_only') setScopes(readOnlyScopeIds)
+  }
+  const toggleScope = (scope: string) => {
+    setPermissionRole('custom')
+    setShowScopeDetails(true)
+    setScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])
+  }
+  const scopeSummary = permissionRole === 'full_access'
+    ? 'All current scopes'
+    : permissionRole === 'read_only'
+      ? `${readOnlyScopeIds.length} read scopes`
+      : `${scopes.length} custom scopes`
+  const createKey = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!name.trim() || scopes.length === 0) {
+      setError('Enter a name and choose at least one scope')
+      return
+    }
+    setIsWorking(true)
+    setError('')
+    try {
+      const data = await apiJson<Row>(token, onUnauthorized, '/api/mcp/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          permission_role: permissionRole,
+          scopes,
+          rate_limit_per_min: Math.max(1, numberValue(rateLimit) || 60),
+          ...(expiresAt ? { expires_at: `${expiresAt}T23:59:59Z` } : {}),
+        }),
+      })
+      setNewPlaintext(stringValue(data.plaintext))
+      setNotice('Machine key created. Save the plaintext now; it cannot be recovered later.')
+      setName('')
+      selectPermissionRole('read_only')
+      setRateLimit('60')
+      setExpiresAt('')
+      await loadKeys()
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to create machine key')
+    } finally {
+      setIsWorking(false)
+    }
+  }
   const revokeKey = async (key: MachineKey) => { if (!window.confirm(`Revoke ${textValue(key.name, 'this machine key')}? Connected clients stop working immediately.`)) return; setIsWorking(true); try { await apiRequest(token, onUnauthorized, `/api/mcp/keys/${key.id}`, { method: 'DELETE' }); setNotice('Machine key revoked'); await loadKeys() } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to revoke machine key') } finally { setIsWorking(false) } }
   const rotateKey = async (key: MachineKey) => { if (!window.confirm(`Rotate ${textValue(key.name, 'this machine key')}? The old key stops working immediately.`)) return; setIsWorking(true); try { const data = await apiJson<Row>(token, onUnauthorized, `/api/mcp/keys/${key.id}/rotate`, { method: 'POST' }); setNewPlaintext(stringValue(data.plaintext)); setNotice('Machine key rotated. Save the new plaintext now.'); await loadKeys() } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to rotate machine key') } finally { setIsWorking(false) } }
   const copyKey = async () => { if (!newPlaintext) return; try { await navigator.clipboard.writeText(newPlaintext); setNotice('Machine key copied') } catch { setError('Copy failed. Select the key manually.') } }
 
-  return <section className="settings-card machine-keys-card"><div className="settings-card-heading"><div><p className="eyebrow">Developer access</p><h3><ShieldCheck size={17} aria-hidden="true" /> MCP machine keys</h3><p>Issue scoped keys for Codex or other MCP clients. Plaintext is shown once.</p></div><button className="icon-button" type="button" aria-label="Refresh machine keys" onClick={() => void loadKeys()} disabled={isLoading}><RefreshCw size={16} className={isLoading ? 'spin' : undefined} aria-hidden="true" /></button></div>{error && <div className="settings-inline-error" role="alert">{error}</div>}{notice && <div className="settings-inline-notice" role="status">{notice}</div>}{newPlaintext && <div className="machine-key-secret"><strong>Save this key now</strong><code>{newPlaintext}</code><div className="table-action-group"><button className="secondary-button" type="button" onClick={() => void copyKey()}><Copy size={14} aria-hidden="true" /> Copy</button><button className="table-link-button" type="button" onClick={() => setNewPlaintext('')}>Dismiss</button></div></div>}<form className="machine-key-form" onSubmit={createKey}><div className="form-grid-three"><label className="form-field"><span>Key name</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. reporting client" /></label><label className="form-field"><span>Rate limit / min</span><input type="number" min="1" value={rateLimit} onChange={(event) => setRateLimit(event.target.value)} /></label><label className="form-field"><span>Expires on <small>(optional)</small></span><input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label></div><div className="machine-scope-picker"><div className="b2b-form-section-heading"><div><p className="eyebrow">Permissions</p><h4>{scopes.length} scopes selected</h4></div><button className="table-link-button" type="button" onClick={() => setScopes(['orders:read'])}>Reset</button></div><div className="machine-scope-list">{machineScopes.map(([scope, label]) => <label className="toggle-control" key={scope}><input type="checkbox" checked={scopes.includes(scope)} onChange={() => toggleScope(scope)} /><span>{label}</span><small>{scope}</small></label>)}</div></div><button className="primary-button" type="submit" disabled={isWorking}>{isWorking ? 'Creating…' : 'Generate machine key'}</button></form><div className="machine-key-list"><div className="b2b-form-section-heading"><div><p className="eyebrow">Issued keys</p><h4>{keys.length} keys</h4></div></div>{isLoading ? <p className="table-state">Loading machine keys…</p> : keys.length === 0 ? <p className="settings-muted">No machine keys have been issued.</p> : keys.map((key) => <div className="machine-key-row" key={String(key.id)}><div><strong>{textValue(key.name, 'Unnamed key')}</strong><small>{Array.isArray(key.scopes) ? key.scopes.join(', ') : 'No scopes'} · {textValue(key.revoked_at, '') ? 'Revoked' : textValue(key.expires_at, '') ? `Expires ${formatDate(key.expires_at)}` : 'No expiry'}</small></div><div className="table-action-group"><button className="table-link-button" type="button" onClick={() => void rotateKey(key)} disabled={isWorking}>Rotate</button>{!textValue(key.revoked_at, '') && <button className="table-link-button danger-link" type="button" onClick={() => void revokeKey(key)} disabled={isWorking}>Revoke</button>}</div></div>)}</div></section>
+  return <section className="settings-card machine-keys-card">
+    <div className="settings-card-heading">
+      <div>
+        <p className="eyebrow">Developer access</p>
+        <h3><ShieldCheck size={17} aria-hidden="true" /> MCP machine keys</h3>
+        <p>Issue role-based keys for Codex or other MCP clients. Plaintext is shown once.</p>
+      </div>
+      <button className="icon-button" type="button" aria-label="Refresh machine keys" onClick={() => void loadKeys()} disabled={isLoading}>
+        <RefreshCw size={16} className={isLoading ? 'spin' : undefined} aria-hidden="true" />
+      </button>
+    </div>
+    {error && <div className="settings-inline-error" role="alert">{error}</div>}
+    {notice && <div className="settings-inline-notice" role="status">{notice}</div>}
+    {newPlaintext && <div className="machine-key-secret"><strong>Save this key now</strong><code>{newPlaintext}</code><div className="table-action-group"><button className="secondary-button" type="button" onClick={() => void copyKey()}><Copy size={14} aria-hidden="true" /> Copy</button><button className="table-link-button" type="button" onClick={() => setNewPlaintext('')}>Dismiss</button></div></div>}
+    <form className="machine-key-form" onSubmit={createKey}>
+      <div className="form-grid-three">
+        <label className="form-field"><span>Key name</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. reporting client" /></label>
+        <label className="form-field"><span>Rate limit / min</span><input type="number" min="1" value={rateLimit} onChange={(event) => setRateLimit(event.target.value)} /></label>
+        <label className="form-field"><span>Expires on <small>(optional)</small></span><input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
+      </div>
+
+      <div className="machine-permission-picker">
+        <div className="b2b-form-section-heading">
+          <div><p className="eyebrow">Permission role</p><h4>{permissionRoleMeta[permissionRole].label}</h4></div>
+          <span className="settings-muted">{scopeSummary}</span>
+        </div>
+        <p className="machine-scope-help">Choose a reusable access profile, or use Custom to grant only the scopes this client needs.</p>
+        <div className="permission-role-grid" role="radiogroup" aria-label="Permission role">
+          {(Object.keys(permissionRoleMeta) as PermissionRole[]).map((role) => (
+            <button className={`permission-role-option ${permissionRole === role ? 'permission-role-option-active' : ''} ${role === 'full_access' ? 'permission-role-option-full' : ''}`} type="button" key={role} role="radio" aria-checked={permissionRole === role} onClick={() => selectPermissionRole(role)}>
+              <strong>{permissionRoleMeta[role].label}</strong>
+              <small>{permissionRoleMeta[role].description}</small>
+              <span>{role === 'full_access' ? 'All current scopes' : role === 'read_only' ? `${readOnlyScopeIds.length} read scopes` : 'Choose as needed'}</span>
+            </button>
+          ))}
+        </div>
+        {permissionRole === 'full_access' && <div className="machine-role-warning" role="status">Full access includes write and destructive actions. Use it only for trusted MCP clients.</div>}
+        {permissionRole !== 'custom' && <button className="machine-scope-disclosure" type="button" aria-expanded={showScopeDetails} aria-controls="mcp-scope-editor" onClick={() => setShowScopeDetails((current) => !current)}>
+          {showScopeDetails ? 'Hide included scopes' : 'View included scopes'} <ChevronDown size={14} className={showScopeDetails ? 'settings-chevron-open' : undefined} aria-hidden="true" />
+        </button>}
+      </div>
+
+      {(permissionRole === 'custom' || showScopeDetails) && <div className="machine-scope-picker" id="mcp-scope-editor">
+        <div className="b2b-form-section-heading">
+          <div><p className="eyebrow">Permissions</p><h4>{permissionRole === 'custom' ? `${scopes.length} scopes selected` : 'Included scopes'}</h4></div>
+          <div className="machine-scope-actions">
+            {permissionRole === 'custom' && <>
+              <button className="table-link-button" type="button" onClick={() => selectPermissionRole('full_access')}>Select all current scopes</button>
+              <button className="table-link-button" type="button" onClick={() => selectPermissionRole('read_only')}>Reset to read only</button>
+            </>}
+            {permissionRole !== 'custom' && <button className="table-link-button" type="button" onClick={() => setShowScopeDetails(false)}>Hide scopes</button>}
+          </div>
+        </div>
+        <p className="machine-scope-help">{permissionRole === 'full_access' ? 'Every current MCP scope is included. Editing one scope changes this key to Custom; future scopes are included automatically.' : permissionRole === 'read_only' ? 'Read only includes every current read scope. Editing one scope changes this key to Custom.' : 'Custom lets you mix read, write, and destructive scopes.'}</p>
+        <div className="machine-scope-groups">
+          {machineScopeGroups.map((group) => <section className="machine-scope-group" key={group.id}>
+            <div className="machine-scope-group-heading"><strong>{group.label}</strong><small>{group.description}</small></div>
+            <div className="machine-scope-list">{group.scopes.map(([scope, label]) => <label className="toggle-control" key={scope}><input type="checkbox" checked={scopes.includes(scope)} onChange={() => toggleScope(scope)} /><span>{label}</span><small>{scope}</small></label>)}</div>
+          </section>)}
+        </div>
+      </div>}
+      <button className="primary-button" type="submit" disabled={isWorking}>{isWorking ? 'Creating…' : 'Generate machine key'}</button>
+    </form>
+
+    <div className="machine-key-list">
+      <div className="b2b-form-section-heading"><div><p className="eyebrow">Issued keys</p><h4>{keys.length} keys</h4></div></div>
+      {isLoading ? <p className="table-state">Loading machine keys…</p> : keys.length === 0 ? <p className="settings-muted">No machine keys have been issued.</p> : keys.map((key) => {
+        const keyRole = permissionRoleForKey(key)
+        const keyScopes = Array.isArray(key.scopes) ? key.scopes : []
+        const scopeCount = keyRole === 'full_access' ? allScopeIds.length : keyRole === 'read_only' ? readOnlyScopeIds.length : keyScopes.length
+        return <div className="machine-key-row" key={String(key.id)}>
+          <div>
+            <div className="machine-key-name"><strong>{textValue(key.name, 'Unnamed key')}</strong><span className={`permission-role-badge permission-role-badge-${keyRole}`}>{permissionRoleMeta[keyRole].label}</span></div>
+            <small>{scopeCount} scopes · {textValue(key.revoked_at, '') ? 'Revoked' : textValue(key.expires_at, '') ? `Expires ${formatDate(key.expires_at)}` : 'No expiry'}</small>
+          </div>
+          <div className="table-action-group"><button className="table-link-button" type="button" onClick={() => void rotateKey(key)} disabled={isWorking}>Rotate</button>{!textValue(key.revoked_at, '') && <button className="table-link-button danger-link" type="button" onClick={() => void revokeKey(key)} disabled={isWorking}>Revoke</button>}</div>
+        </div>
+      })}
+    </div>
+  </section>
 }
 
 export function SettingsPage({ token, onUnauthorized }: Props) {

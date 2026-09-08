@@ -24,6 +24,7 @@ func NewMachineKeyHandler(keyService *mcpPkg.MachineKeyService) *MachineKeyHandl
 // createKeyRequest is the body for POST /api/mcp/keys.
 type createKeyRequest struct {
 	Name            string   `json:"name"`
+	PermissionRole  string   `json:"permission_role"`
 	Scopes          []string `json:"scopes"`
 	RateLimitPerMin int      `json:"rate_limit_per_min"`
 	ExpiresAt       string   `json:"expires_at"` // RFC3339 or empty
@@ -67,11 +68,8 @@ func (h *MachineKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if len(req.Scopes) == 0 {
-		http.Error(w, "at least one scope is required", http.StatusBadRequest)
-		return
-	}
-	if err := h.keyService.ValidateScopes(req.Scopes); err != nil {
+	scopes, permissionRole, err := mcpPkg.ResolvePermissionRole(mcpPkg.PermissionRole(req.PermissionRole), req.Scopes)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -88,7 +86,8 @@ func (h *MachineKeyHandler) CreateKey(w http.ResponseWriter, r *http.Request) {
 
 	plaintext, key, err := h.keyService.Generate(mcpPkg.KeyOptions{
 		Name:            req.Name,
-		Scopes:          req.Scopes,
+		PermissionRole:  permissionRole,
+		Scopes:          scopes,
 		RateLimitPerMin: req.RateLimitPerMin,
 		ExpiresAt:       expiresAt,
 	})

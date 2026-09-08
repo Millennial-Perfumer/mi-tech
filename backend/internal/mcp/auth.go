@@ -22,6 +22,17 @@ const (
 	DefaultRateLimitPerMin = 60
 )
 
+// PermissionRole describes the reusable access profiles available to a
+// machine key. Full access is a role rather than a copied list of scopes so
+// it can expand with the catalog as new MCP tools are added.
+type PermissionRole string
+
+const (
+	PermissionRoleReadOnly   PermissionRole = "read_only"
+	PermissionRoleFullAccess PermissionRole = "full_access"
+	PermissionRoleCustom     PermissionRole = "custom"
+)
+
 var (
 	// ErrInvalidKey is returned when a key is malformed or unknown.
 	ErrInvalidKey = errors.New("invalid machine API key")
@@ -38,6 +49,7 @@ var (
 // KeyOptions controls machine key generation.
 type KeyOptions struct {
 	Name            string
+	PermissionRole  PermissionRole
 	Scopes          []string
 	RateLimitPerMin int
 	ExpiresAt       *time.Time
@@ -71,7 +83,8 @@ func NewMachineKeyService(repo repository.MachineKeyRepository) *MachineKeyServi
 // Generate creates a new machine key and returns the plaintext key exactly once.
 // Callers are responsible for showing it to the operator; it is not persisted.
 func (s *MachineKeyService) Generate(opts KeyOptions) (plaintext string, key *entity.MachineAPIKey, err error) {
-	if err := s.ValidateScopes(opts.Scopes); err != nil {
+	scopes, role, err := ResolvePermissionRole(opts.PermissionRole, opts.Scopes)
+	if err != nil {
 		return "", nil, err
 	}
 
@@ -89,7 +102,8 @@ func (s *MachineKeyService) Generate(opts KeyOptions) (plaintext string, key *en
 	key = &entity.MachineAPIKey{
 		Name:            opts.Name,
 		KeyHash:         hash,
-		Scopes:          opts.Scopes,
+		PermissionRole:  string(role),
+		Scopes:          scopes,
 		RateLimitPerMin: rateLimit,
 		ExpiresAt:       opts.ExpiresAt,
 		CreatedAt:       now,
@@ -114,6 +128,12 @@ func (s *MachineKeyService) Authenticate(plaintext string) (*entity.MachineAPIKe
 	if err != nil {
 		return nil, ErrInvalidKey
 	}
+	var resolvedRole PermissionRole
+	key.Scopes, resolvedRole, err = ResolvePermissionRole(PermissionRole(key.PermissionRole), key.Scopes)
+	if err != nil {
+		return nil, err
+	}
+	key.PermissionRole = string(resolvedRole)
 
 	now := s.now()
 	if key.RevokedAt != nil {
@@ -156,6 +176,110 @@ func (s *MachineKeyService) ValidateScopes(scopes []string) error {
 		}
 	}
 	return nil
+}
+
+// ResolvePermissionRole turns a role selection into the exact scopes used for
+// authorization. Empty roles keep legacy callers working by inferring the
+// role from the supplied scopes.
+func ResolvePermissionRole(role PermissionRole, scopes []string) ([]string, PermissionRole, error) {
+	scopes = uniqueStrings(scopes)
+	switch role {
+	case "":
+		if len(scopes) == 0 {
+			return nil, "", fmt.Errorf("%w: at least one scope is required", ErrInvalidScope)
+		}
+		role = PermissionRoleForScopes(scopes)
+	case PermissionRoleFullAccess:
+		scopes = DefaultCatalog.Scopes()
+	case PermissionRoleReadOnly:
+		scopes = readOnlyScopes()
+	case PermissionRoleCustom:
+		if len(scopes) == 0 {
+			return nil, "", fmt.Errorf("%w: at least one scope is required", ErrInvalidScope)
+		}
+	default:
+		return nil, "", fmt.Errorf("%w: unknown permission role %q", ErrInvalidScope, role)
+	}
+
+	if err := validateKnownScopes(scopes); err != nil {
+		return nil, "", err
+	}
+	if role == PermissionRoleCustom {
+		if sameStrings(scopes, DefaultCatalog.Scopes()) {
+			role = PermissionRoleFullAccess
+		} else if sameStrings(scopes, readOnlyScopes()) {
+			role = PermissionRoleReadOnly
+		}
+	}
+	return scopes, role, nil
+}
+
+// PermissionRoleForScopes infers the closest reusable role for legacy keys
+// that predate the permission_role column.
+func PermissionRoleForScopes(scopes []string) PermissionRole {
+	if sameStrings(scopes, DefaultCatalog.Scopes()) {
+		return PermissionRoleFullAccess
+	}
+	if sameStrings(scopes, readOnlyScopes()) {
+		return PermissionRoleReadOnly
+	}
+	return PermissionRoleCustom
+}
+
+func readOnlyScopes() []string {
+	var scopes []string
+	for _, scope := range DefaultCatalog.Scopes() {
+		if strings.HasSuffix(scope, ":read") {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
+}
+
+func validateKnownScopes(scopes []string) error {
+	known := make(map[string]struct{}, len(DefaultCatalog.Scopes()))
+	for _, scope := range DefaultCatalog.Scopes() {
+		known[scope] = struct{}{}
+	}
+	for _, scope := range scopes {
+		if _, ok := known[scope]; !ok {
+			return fmt.Errorf("%w: %s", ErrInvalidScope, scope)
+		}
+	}
+	return nil
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func sameStrings(left, right []string) bool {
+	leftSet := make(map[string]struct{}, len(left))
+	for _, value := range left {
+		leftSet[value] = struct{}{}
+	}
+	rightSet := make(map[string]struct{}, len(right))
+	for _, value := range right {
+		rightSet[value] = struct{}{}
+	}
+	if len(leftSet) != len(rightSet) {
+		return false
+	}
+	for value := range leftSet {
+		if _, ok := rightSet[value]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // Revoke marks a key as revoked.
