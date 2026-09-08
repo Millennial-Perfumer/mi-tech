@@ -9,6 +9,7 @@ import (
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	aiRepoPkg "mi-tech/internal/domain/ai/repository"
 	aiServicePkg "mi-tech/internal/domain/ai/service"
+	amazonHandlerPkg "mi-tech/internal/domain/amazon/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	b2bRepoPkg "mi-tech/internal/domain/b2b/repository"
 	b2bServicePkg "mi-tech/internal/domain/b2b/service"
@@ -200,6 +201,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	plannerHandler := plannerHandlerPkg.NewPlannerHandler(plannerService, agentService)
 	ticketHandler := supportHandlerPkg.NewTicketHandler(ticketService)
 	inventoryHandler := inventoryHandlerPkg.NewInventoryHandler(inventoryService)
+	amazonHandler := amazonHandlerPkg.NewAmazonHandler(amazonClient)
 	oilHandler := productionHandlerPkg.NewOilInventoryHandler(oilService)
 	supplierHandler := productionHandlerPkg.NewSupplierHandler(supplierService)
 	poHandler := productionHandlerPkg.NewPurchaseOrderHandler(poService)
@@ -232,6 +234,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		ticketHandler,
 		feedbackHandler,
 		inventoryHandler,
+		amazonHandler,
 		oilHandler,
 		supplierHandler,
 		poHandler,
@@ -256,6 +259,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		metricsHandler:    metricsHandler,
 		reportHandler:     reportHandler,
 		inventoryHandler:  inventoryHandler,
+		amazonHandler:     amazonHandler,
 		oilHandler:        oilHandler,
 		supplierHandler:   supplierHandler,
 		poHandler:         poHandler,

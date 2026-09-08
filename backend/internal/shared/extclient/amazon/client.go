@@ -8,6 +8,7 @@ import (
 	"mi-tech/internal/shared/config"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -150,6 +151,89 @@ func (c *Client) GetOrderItems(orderID string) ([]map[string]interface{}, error)
 	}
 
 	return result.Payload.OrderItems, nil
+}
+
+// ListingsItemsQuery contains the optional filters supported by
+// searchListingsItems. Seller and marketplace IDs always come from the
+// configured Amazon connection.
+type ListingsItemsQuery struct {
+	PageToken    string
+	PageSize     int
+	IncludedData []string
+	IssueLocale  string
+}
+
+// ListingsItemsPage is one live page returned by Amazon's Listings Items API.
+// NumberOfResults is the total count for the current filter, not just the
+// number of items in this page.
+type ListingsItemsPage struct {
+	NumberOfResults int `json:"numberOfResults"`
+	Pagination      struct {
+		NextToken string `json:"nextToken"`
+	} `json:"pagination"`
+	Items []map[string]interface{} `json:"items"`
+}
+
+// SearchListingsItems fetches a live, read-only page of the seller's Amazon
+// listings using the configured Seller ID and Marketplace ID.
+func (c *Client) SearchListingsItems(query ListingsItemsQuery) (ListingsItemsPage, error) {
+	var result ListingsItemsPage
+
+	sellerID := strings.TrimSpace(c.settings.GetAmazonSellerID())
+	if sellerID == "" {
+		return result, fmt.Errorf("AmazonSellerID is missing in config and environment")
+	}
+
+	marketplaceID := strings.TrimSpace(c.settings.GetAmazonMarketplaceID())
+	if marketplaceID == "" {
+		return result, fmt.Errorf("AmazonMarketplaceID is missing in config and environment")
+	}
+
+	if query.PageSize < 0 || query.PageSize > 20 {
+		return result, fmt.Errorf("page size must be between 1 and 20")
+	}
+
+	params := url.Values{}
+	params.Set("marketplaceIds", marketplaceID)
+	if query.PageToken != "" {
+		params.Set("pageToken", query.PageToken)
+	}
+	if query.PageSize > 0 {
+		params.Set("pageSize", fmt.Sprintf("%d", query.PageSize))
+	}
+	includedData := query.IncludedData
+	if len(includedData) == 0 {
+		includedData = []string{"summaries"}
+	}
+	params.Set("includedData", strings.Join(includedData, ","))
+	if query.IssueLocale != "" {
+		params.Set("issueLocale", query.IssueLocale)
+	}
+
+	u := fmt.Sprintf("%s/listings/2021-08-01/items/%s?%s",
+		c.endpoint, url.PathEscape(sellerID), params.Encode())
+
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return result, err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return result, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return result, fmt.Errorf("amazon listings api error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return result, err
+	}
+
+	return result, nil
 }
 
 // CreateReport requests a new report from Amazon.

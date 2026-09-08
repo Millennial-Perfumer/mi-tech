@@ -15,7 +15,9 @@ func (m *mockConfigRepo) Get(key string) (string, error) {
 	return "mock_value", nil
 }
 
-type mockClientTransport struct{}
+type mockClientTransport struct {
+	listingRequest *http.Request
+}
 
 func (m *mockClientTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if strings.Contains(req.URL.Host, "api.amazon.com") && strings.Contains(req.URL.Path, "token") {
@@ -60,6 +62,20 @@ func (m *mockClientTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		}, nil
 	}
 
+	if strings.Contains(req.URL.Host, "sellingpartnerapi-eu.amazon.com") && strings.Contains(req.URL.Path, "/listings/2021-08-01/items/") {
+		m.listingRequest = req
+		respBody := `{
+			"numberOfResults": 37,
+			"pagination": {"nextToken": "next-page"},
+			"items": [{"sku": "sku-1", "summaries": [{"marketplaceId": "mock_value"}]}]
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(respBody)),
+			Header:     make(http.Header),
+		}, nil
+	}
+
 	return &http.Response{
 		StatusCode: http.StatusNotFound,
 		Body:       io.NopCloser(strings.NewReader("Not Found")),
@@ -83,5 +99,45 @@ func TestClient_GetOrders(t *testing.T) {
 
 	if len(orders) != 1 || orders[0]["AmazonOrderId"] != "123" {
 		t.Errorf("Unexpected orders response: %v", orders)
+	}
+}
+
+func TestClient_SearchListingsItems(t *testing.T) {
+	settings := config.NewSettingsProvider(&mockConfigRepo{})
+	client := NewClient(settings)
+
+	mockTransport := &mockClientTransport{}
+	client.httpClient.Transport = mockTransport
+	client.tokenManager.httpClient.Transport = mockTransport
+	client.stsSigner.httpClient.Transport = mockTransport
+
+	page, err := client.SearchListingsItems(ListingsItemsQuery{
+		PageToken:    "previous-page",
+		PageSize:     20,
+		IncludedData: []string{"summaries", "attributes"},
+		IssueLocale:  "en_IN",
+	})
+	if err != nil {
+		t.Fatalf("SearchListingsItems failed: %v", err)
+	}
+
+	if page.NumberOfResults != 37 || page.Pagination.NextToken != "next-page" || len(page.Items) != 1 {
+		t.Fatalf("unexpected listings response: %+v", page)
+	}
+	if mockTransport.listingRequest == nil {
+		t.Fatal("expected a Listings Items API request")
+	}
+	if mockTransport.listingRequest.URL.Path != "/listings/2021-08-01/items/mock_value" {
+		t.Errorf("unexpected listings path: %s", mockTransport.listingRequest.URL.Path)
+	}
+	params := mockTransport.listingRequest.URL.Query()
+	if params.Get("marketplaceIds") != "mock_value" {
+		t.Errorf("unexpected marketplaceIds: %q", params.Get("marketplaceIds"))
+	}
+	if params.Get("pageToken") != "previous-page" || params.Get("pageSize") != "20" {
+		t.Errorf("unexpected pagination params: %v", params)
+	}
+	if params.Get("includedData") != "summaries,attributes" || params.Get("issueLocale") != "en_IN" {
+		t.Errorf("unexpected optional params: %v", params)
 	}
 }

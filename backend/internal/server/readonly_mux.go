@@ -6,6 +6,7 @@ import (
 
 	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
+	amazonHandlerPkg "mi-tech/internal/domain/amazon/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
 	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
@@ -31,6 +32,7 @@ type readOnlyHandlers struct {
 	metricsHandler    *dashboardHandlerPkg.MetricsHandler
 	reportHandler     *gstHandlerPkg.GSTHandler
 	inventoryHandler  *inventoryHandlerPkg.InventoryHandler
+	amazonHandler     *amazonHandlerPkg.AmazonHandler
 	oilHandler        *productionHandlerPkg.OilInventoryHandler
 	supplierHandler   *productionHandlerPkg.SupplierHandler
 	poHandler         *productionHandlerPkg.PurchaseOrderHandler
@@ -106,6 +108,9 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 	mux.HandleFunc("/api/inventory", ro(h.inventoryHandler.GetDashboard))
 	mux.HandleFunc("/api/inventory/logs", ro(h.inventoryHandler.GetLogs))
 	mux.HandleFunc("/api/inventory/next-sku", ro(h.inventoryHandler.GetNextSKU))
+
+	// Amazon (live, read-only integration data)
+	mux.HandleFunc("/api/amazon/listings", ro(h.amazonHandler.ListListings))
 
 	// Production
 	mux.HandleFunc("/api/inventory/suppliers", ro(h.supplierHandler.ListSuppliers))

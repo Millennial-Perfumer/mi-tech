@@ -34,6 +34,8 @@ var routeMap = map[string]RouteBinding{
 	"inventory_dashboard": {Path: "/api/inventory", Method: "GET"},
 	"inventory_logs":      {Path: "/api/inventory/logs", Method: "GET"},
 	"inventory_next_sku":  {Path: "/api/inventory/next-sku", Method: "GET"},
+	// Amazon
+	"amazon_listings": {Path: "/api/amazon/listings", Method: "GET"},
 	// Production
 	"suppliers_list":       {Path: "/api/inventory/suppliers", Method: "GET"},
 	"oils_list":            {Path: "/api/inventory/oil", Method: "GET"},

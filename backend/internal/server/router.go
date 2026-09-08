@@ -7,6 +7,7 @@ import (
 
 	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
 	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
+	amazonHandlerPkg "mi-tech/internal/domain/amazon/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
 	dashboardHandlerPkg "mi-tech/internal/domain/dashboard/handler"
@@ -57,6 +58,7 @@ func RegisterRoutes(
 	ticketHandler *supportHandlerPkg.TicketHandler,
 	feedbackHandler *feedbackHandlerPkg.FeedbackHandler,
 	inventoryHandler *inventoryHandlerPkg.InventoryHandler,
+	amazonHandler *amazonHandlerPkg.AmazonHandler,
 	oilHandler *productionHandlerPkg.OilInventoryHandler,
 	supplierHandler *productionHandlerPkg.SupplierHandler,
 	poHandler *productionHandlerPkg.PurchaseOrderHandler,
@@ -383,6 +385,7 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/inventory/logs", adminProtected(inventoryHandler.GetLogs))
 	mux.HandleFunc("/api/inventory/amazon/sync", adminProtected(inventoryHandler.SyncAmazon))
 	mux.HandleFunc("/api/inventory/item", adminProtected(inventoryHandler.UpdateItem))
+	mux.HandleFunc("/api/amazon/listings", adminProtected(amazonHandler.ListListings))
 
 	// --- Oil Inventory Routes ---
 	mux.HandleFunc("/api/inventory/oil/bulk-delete", adminProtected(oilHandler.BulkDeleteOils))

@@ -327,6 +327,20 @@ var DefaultCatalog = Catalog{
 		Route:       "/api/inventory/next-sku",
 	},
 
+	// --- Amazon ---
+	{
+		Name:        "amazon_listings",
+		Description: "Fetch a live page of Amazon listings using the configured Seller ID and marketplace ID. Returns the exact matching count and a next page token when more results are available.",
+		Scope:       ScopeInventory,
+		Route:       "/api/amazon/listings",
+		Args: []ArgSpec{
+			arg("page_token", ArgString, "Amazon pagination token from a previous response."),
+			arg("page_size", ArgInt, "Number of listings to return, from 1 to 20."),
+			arg("included_data", ArgString, "Comma-separated Amazon datasets such as summaries, attributes, offers, or fulfillmentAvailability."),
+			arg("issue_locale", ArgString, "Locale for localized listing issues, such as en_IN."),
+		},
+	},
+
 	// --- Production: suppliers, oils, purchase orders, manufacturing ---
 	{
 		Name:        "suppliers_list",
