@@ -78,12 +78,14 @@ venv/
 # --- Assistant / AI Artifacts ---
 .gemini/
 .system_generated/
+graphify-out/
 walkthrough.md
 task.md
 implementation_plan.md
 backfill_task.md
 
 # --- Project Specific ---
+finance-dashboard/
 mi-tech-obsidian/
 scratch/
 temp/
