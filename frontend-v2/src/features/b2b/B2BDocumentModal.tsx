@@ -79,6 +79,8 @@ const DEFAULT_PAYMENT_TERMS: PaymentTerm[] = [
   { name: "Net 60", days: 60 },
 ];
 
+const DEFAULT_UPI_ID = "7904769823@hdfc";
+
 const DEFAULT_CUSTOMER_NOTES = `Thanks for your business.
 
 Payment Terms: Full payment is required before the due date mentioned on the invoice.
@@ -358,7 +360,11 @@ export function B2BDocumentModal({
   const bankName = appConfigs.bank_name || "";
   const bankAccount = appConfigs.bank_account_no || "";
   const bankIfsc = appConfigs.bank_ifsc || "";
-  const upiId = appConfigs.upi_id || "";
+  const configuredUpiId = appConfigs.upi_id?.trim() || "";
+  const upiId =
+    configuredUpiId && configuredUpiId !== "parfumtraders@upi"
+      ? configuredUpiId
+      : DEFAULT_UPI_ID;
 
   const totals = useMemo(() => {
     const lines = form.items.map((item) => {
@@ -739,6 +745,17 @@ export function B2BDocumentModal({
     printableRecord?.total_price !== undefined
       ? printableRecord.total_price
       : totals.total;
+  const printableInvoiceNumber = textValue(
+    printableRecord?.invoice_number,
+    printableForm.invoice_number || "DRAFT",
+  );
+  const printableStatus = textValue(
+    printableRecord?.status,
+    printRequest ? "ISSUED" : status,
+  ).toUpperCase();
+  const printableQrAmount = numberValue(
+    printableRecord?.balance_amount ?? printableTotal,
+  );
 
   const downloadInvoice = () => {
     const previousTitle = document.title;
@@ -1226,7 +1243,7 @@ export function B2BDocumentModal({
                   type="button"
                   onClick={downloadInvoice}
                 >
-                  <Download size={14} aria-hidden="true" /> Download invoice
+                  <Download size={14} aria-hidden="true" /> Download PDF
                 </button>
               )}
               <button
@@ -1816,7 +1833,7 @@ export function B2BDocumentModal({
                   disabled={isWorking}
                   onClick={(event) => void save(event, false, true)}
                 >
-                  <Download size={14} aria-hidden="true" /> Save &amp; download
+                  <Download size={14} aria-hidden="true" /> Save &amp; download PDF
                 </button>
               )}
               <button
@@ -1843,39 +1860,40 @@ export function B2BDocumentModal({
         )}
         {kind === "invoices" && (isReadOnly || printRequest) && (
           <article
-            className="invoice-print-preview"
+            className="invoice-print-preview invoice-pdf-sheet"
             aria-label="Printable invoice"
           >
             <header className="invoice-print-header">
-              <div>
-                <p className="eyebrow">{sellerName}</p>
+              <div className="invoice-print-brand">
+                <p className="invoice-print-kicker">B2B tax invoice</p>
                 <h1>Tax invoice</h1>
-                <small>
-                  {sellerAddress}
-                  {sellerGSTIN && ` · GSTIN: ${sellerGSTIN}`}
-                </small>
+                <strong>{sellerName}</strong>
+                <small>{sellerAddress || "Business address not supplied"}</small>
+                {sellerGSTIN && <small>GSTIN: {sellerGSTIN}</small>}
               </div>
-              <div className="invoice-print-number">
-                <span>Invoice number</span>
-                <strong>
-                  {textValue(
-                    printableRecord?.invoice_number,
-                    printableForm.invoice_number || "DRAFT",
-                  )}
-                </strong>
-                <span>Invoice date</span>
-                <strong>{formatDate(printableForm.invoice_date)}</strong>
-                <span>Due date</span>
-                <strong>
-                  {printableForm.due_date
-                    ? formatDate(printableForm.due_date)
-                    : "—"}
-                </strong>
+              <div className="invoice-print-document-card">
+                <span className="invoice-print-status">{printableStatus}</span>
+                <div className="invoice-print-document-row">
+                  <span>Invoice no.</span>
+                  <strong>{printableInvoiceNumber}</strong>
+                </div>
+                <div className="invoice-print-document-row">
+                  <span>Invoice date</span>
+                  <strong>{formatDate(printableForm.invoice_date)}</strong>
+                </div>
+                <div className="invoice-print-document-row">
+                  <span>Due date</span>
+                  <strong>
+                    {printableForm.due_date
+                      ? formatDate(printableForm.due_date)
+                      : "—"}
+                  </strong>
+                </div>
               </div>
             </header>
             <div className="invoice-print-meta">
-              <div>
-                <span>Bill to</span>
+              <div className="invoice-print-party-card">
+                <span className="invoice-print-section-label">Bill to</span>
                 <strong>
                   {printableForm.customer_name || "Business customer"}
                 </strong>
@@ -1885,27 +1903,38 @@ export function B2BDocumentModal({
                 <small>
                   {printableForm.customer_address || "No billing address"}
                 </small>
-                <span>Ship to</span>
+              </div>
+              <div className="invoice-print-party-card">
+                <span className="invoice-print-section-label">Ship to</span>
                 <small>
                   {printableForm.customer_shipping_address ||
                     printableForm.customer_address ||
                     "Same as billing address"}
                 </small>
               </div>
+            </div>
+            <div className="invoice-print-context">
               <div>
                 <span>Payment terms</span>
                 <strong>{printableForm.terms || "—"}</strong>
+              </div>
+              <div>
                 <span>Order / PO reference</span>
                 <strong>{printableForm.order_number || "—"}</strong>
+              </div>
+              <div>
                 <span>Salesperson</span>
                 <strong>{printableForm.salesperson || "—"}</strong>
+              </div>
+              <div>
                 <span>Subject</span>
                 <strong>{printableForm.subject || "—"}</strong>
               </div>
             </div>
             <div className="invoice-print-items">
               <div className="invoice-print-items-heading">
-                <span>Item / HSN</span>
+                <span>Item details</span>
+                <span>HSN / SAC</span>
                 <span>Qty</span>
                 <span>Rate</span>
                 <span>GST</span>
@@ -1919,9 +1948,10 @@ export function B2BDocumentModal({
                   <span>
                     {item.item_details || "Unnamed item"}
                     <small>
-                      {item.sku || "SKU —"} · HSN {item.hsn_code || "—"}
+                      {item.sku || "SKU —"}
                     </small>
                   </span>
+                  <span>{item.hsn_code || "—"}</span>
                   <span>{item.quantity}</span>
                   <span>{money(item.rate)}</span>
                   <span>{item.gst_rate}%</span>
@@ -1932,39 +1962,52 @@ export function B2BDocumentModal({
               ))}
             </div>
             <div className="invoice-print-lower">
-              <div>
+              <div className="invoice-print-support">
                 {printableForm.customer_notes && (
-                  <>
+                  <div className="invoice-print-notes">
                     <span className="invoice-print-section-label">
                       Notes / terms &amp; conditions
                     </span>
                     <p>{printableForm.customer_notes}</p>
-                  </>
+                  </div>
                 )}
                 {(bankName || bankAccount || bankIfsc || upiId) && (
                   <div className="invoice-print-payment">
-                    <span className="invoice-print-section-label">
-                      Payment details
-                    </span>
-                    {bankName && <small>Bank: {bankName}</small>}
-                    {bankAccount && <small>Account: {bankAccount}</small>}
-                    {bankIfsc && <small>IFSC: {bankIfsc}</small>}
-                    {upiId && <small>UPI ID: {upiId}</small>}
+                    <div className="invoice-print-payment-copy">
+                      <span className="invoice-print-section-label">
+                        Payment details
+                      </span>
+                      <strong>Scan to pay securely</strong>
+                      {bankName && <small>Bank: {bankName}</small>}
+                      {bankAccount && <small>Account: {bankAccount}</small>}
+                      {bankIfsc && <small>IFSC: {bankIfsc}</small>}
+                      {upiId && <small>UPI ID: {upiId}</small>}
+                    </div>
                     {upiId && (
                       <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=${encodeURIComponent(sellerName)}&am=${numberValue(printableRecord?.balance_amount ?? printableTotal).toFixed(2)}&cu=INR`)}`}
-                        alt="UPI payment QR"
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(`upi://pay?pa=${upiId}&pn=${encodeURIComponent(sellerName)}&am=${printableQrAmount.toFixed(2)}&cu=INR`)}`}
+                        alt={`UPI payment QR for ${upiId}`}
                       />
                     )}
                   </div>
                 )}
               </div>
-              {renderSummary(printableRecord)}
+              <div className="invoice-print-summary">
+                <span className="invoice-print-section-label">Invoice summary</span>
+                {renderSummary(printableRecord)}
+              </div>
             </div>
             <div className="invoice-print-total">
-              <span>Total amount</span>
+              <div>
+                <span>Total amount</span>
+                <small>Thank you for your business.</small>
+              </div>
               <strong>{money(printableTotal)}</strong>
             </div>
+            <footer className="invoice-print-footer">
+              <span>Computer-generated invoice · No signature required</span>
+              <span>{sellerName}</span>
+            </footer>
           </article>
         )}
       </section>
