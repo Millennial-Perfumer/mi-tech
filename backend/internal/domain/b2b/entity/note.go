@@ -62,15 +62,16 @@ func (B2BCreditNote) TableName() string {
 
 // B2BCreditNoteItem represents a line item in a Credit Note
 type B2BCreditNoteItem struct {
-	ID           int64   `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	CreditNoteID int64   `gorm:"column:credit_note_id" json:"credit_note_id"`
-	ProductID    *int64  `gorm:"column:product_id" json:"product_id"`
-	ItemDetails  string  `gorm:"column:item_details" json:"item_details"`
-	SKU          *string `gorm:"column:sku" json:"sku"`
-	HSNCode      *string `gorm:"column:hsn_code" json:"hsn_code"`
-	Quantity     float64 `gorm:"column:quantity" json:"quantity"`
-	Rate         float64 `gorm:"column:rate" json:"rate"`
-	Amount       float64 `gorm:"column:amount" json:"amount"`
+	ID           int64    `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	CreditNoteID int64    `gorm:"column:credit_note_id" json:"credit_note_id"`
+	ProductID    *int64   `gorm:"column:product_id" json:"product_id"`
+	ItemDetails  string   `gorm:"column:item_details" json:"item_details"`
+	SKU          *string  `gorm:"column:sku" json:"sku"`
+	HSNCode      *string  `gorm:"column:hsn_code" json:"hsn_code"`
+	GSTRate      *float64 `gorm:"column:gst_rate;default:18" json:"gst_rate"`
+	Quantity     float64  `gorm:"column:quantity" json:"quantity"`
+	Rate         float64  `gorm:"column:rate" json:"rate"`
+	Amount       float64  `gorm:"column:amount" json:"amount"`
 }
 
 func (B2BCreditNoteItem) TableName() string {
@@ -135,15 +136,16 @@ func (B2BDebitNote) TableName() string {
 
 // B2BDebitNoteItem represents a line item in a Debit Note
 type B2BDebitNoteItem struct {
-	ID          int64   `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	DebitNoteID int64   `gorm:"column:debit_note_id" json:"debit_note_id"`
-	ProductID   *int64  `gorm:"column:product_id" json:"product_id"`
-	ItemDetails string  `gorm:"column:item_details" json:"item_details"`
-	SKU         *string `gorm:"column:sku" json:"sku"`
-	HSNCode     *string `gorm:"column:hsn_code" json:"hsn_code"`
-	Quantity    float64 `gorm:"column:quantity" json:"quantity"`
-	Rate        float64 `gorm:"column:rate" json:"rate"`
-	Amount      float64 `gorm:"column:amount" json:"amount"`
+	ID          int64    `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	DebitNoteID int64    `gorm:"column:debit_note_id" json:"debit_note_id"`
+	ProductID   *int64   `gorm:"column:product_id" json:"product_id"`
+	ItemDetails string   `gorm:"column:item_details" json:"item_details"`
+	SKU         *string  `gorm:"column:sku" json:"sku"`
+	HSNCode     *string  `gorm:"column:hsn_code" json:"hsn_code"`
+	GSTRate     *float64 `gorm:"column:gst_rate;default:18" json:"gst_rate"`
+	Quantity    float64  `gorm:"column:quantity" json:"quantity"`
+	Rate        float64  `gorm:"column:rate" json:"rate"`
+	Amount      float64  `gorm:"column:amount" json:"amount"`
 }
 
 func (B2BDebitNoteItem) TableName() string {

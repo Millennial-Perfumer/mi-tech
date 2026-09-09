@@ -27,6 +27,13 @@ type gormAbandonedCheckoutRepository struct {
 	db *gorm.DB
 }
 
+func percentage(numerator, denominator int64) float64 {
+	if denominator <= 0 {
+		return 0
+	}
+	return float64(numerator) / float64(denominator) * 100
+}
+
 func NewAbandonedCheckoutRepository(db *gorm.DB) AbandonedCheckoutRepository {
 	return &gormAbandonedCheckoutRepository{db: db}
 }
@@ -251,10 +258,16 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 
 	// KPI Aggregation
 	var stats struct {
-		TotalAbandonedRevenue float64
-		RecoveredRevenue      float64
-		AbandonedCartCount    int64
-		RecoveredCartCount    int64
+		TotalAbandonedRevenue      float64
+		RecoveredRevenue           float64
+		AbandonedCartCount         int64
+		RecoveredCartCount         int64
+		AverageCartValue           float64
+		ContactableCartCount       int64
+		MarketingConsentCount      int64
+		SMSConsentCount            int64
+		AverageRecoveryTimeMinutes float64
+		AverageAttemptsToRecovery  float64
 	}
 
 	err := baseQuery.Select(
@@ -262,7 +275,24 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 		"COALESCE(SUM(CASE WHEN completed = true THEN total_price ELSE 0 END), 0) as recovered_revenue",
 		"COUNT(id) as abandoned_cart_count",
 		"COUNT(CASE WHEN completed = true THEN id ELSE NULL END) as recovered_cart_count",
-	).Row().Scan(&stats.TotalAbandonedRevenue, &stats.RecoveredRevenue, &stats.AbandonedCartCount, &stats.RecoveredCartCount)
+		"COALESCE(AVG(total_price), 0) as average_cart_value",
+		"COUNT(CASE WHEN NULLIF(phone, '') IS NOT NULL THEN id ELSE NULL END) as contactable_cart_count",
+		"COUNT(CASE WHEN marketing_consent = true THEN id ELSE NULL END) as marketing_consent_count",
+		"COUNT(CASE WHEN sms_consent = true THEN id ELSE NULL END) as sms_consent_count",
+		"COALESCE(AVG(EXTRACT(EPOCH FROM (completed_at - abandoned_at)) / 60) FILTER (WHERE completed = true AND completed_at IS NOT NULL), 0) as average_recovery_time_minutes",
+		"COALESCE(AVG(recovery_attempts) FILTER (WHERE completed = true), 0) as average_attempts_to_recovery",
+	).Row().Scan(
+		&stats.TotalAbandonedRevenue,
+		&stats.RecoveredRevenue,
+		&stats.AbandonedCartCount,
+		&stats.RecoveredCartCount,
+		&stats.AverageCartValue,
+		&stats.ContactableCartCount,
+		&stats.MarketingConsentCount,
+		&stats.SMSConsentCount,
+		&stats.AverageRecoveryTimeMinutes,
+		&stats.AverageAttemptsToRecovery,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +325,6 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 		addCartToCheckoutRate = (float64(stats.AbandonedCartCount) / float64(cartsCreatedCount)) * 100
 		addCartToOrderRate = (float64(stats.RecoveredCartCount) / float64(cartsCreatedCount)) * 100
 	}
-
 
 	// WhatsApp Status Aggregation
 	msgQuery := r.db.WithContext(ctx).Table("automation_messages").Where("store_id = ? AND order_id = 0", storeID)
@@ -400,11 +429,15 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 		Date            string
 		AbandonedAmount float64
 		RecoveredAmount float64
+		AbandonedCount  int64
+		RecoveredCount  int64
 	}
 	err = baseQuery.Select(
 		"TO_CHAR(abandoned_at, 'YYYY-MM-DD') as date",
 		"COALESCE(SUM(total_price), 0) as abandoned_amount",
 		"COALESCE(SUM(CASE WHEN completed = true THEN total_price ELSE 0 END), 0) as recovered_amount",
+		"COUNT(id) as abandoned_count",
+		"COUNT(CASE WHEN completed = true THEN id ELSE NULL END) as recovered_count",
 	).Group("TO_CHAR(abandoned_at, 'YYYY-MM-DD')").Order("TO_CHAR(abandoned_at, 'YYYY-MM-DD') ASC").Scan(&timelineDb).Error
 
 	revenueTimeline := []acDto.RevenueTimelineItem{}
@@ -414,6 +447,8 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 				Date:            t.Date,
 				AbandonedAmount: t.AbandonedAmount,
 				RecoveredAmount: t.RecoveredAmount,
+				AbandonedCount:  t.AbandonedCount,
+				RecoveredCount:  t.RecoveredCount,
 			})
 		}
 	}
@@ -426,6 +461,7 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 	if err == nil {
 		for _, lc := range lostCartsDb {
 			topLostCarts = append(topLostCarts, acDto.TopLostCartItem{
+				ID:             lc.ID,
 				CustomerName:   lc.CustomerName,
 				Phone:          lc.Phone,
 				TotalPrice:     lc.TotalPrice,
@@ -438,15 +474,22 @@ func (r *gormAbandonedCheckoutRepository) GetAnalytics(ctx context.Context, stor
 	}
 
 	return &acDto.AbandonedCheckoutAnalyticsResponse{
-		TotalAbandonedRevenue: stats.TotalAbandonedRevenue,
-		RecoveredRevenue:      stats.RecoveredRevenue,
-		PendingRevenue:        pendingRevenue,
-		AbandonedCartCount:    stats.AbandonedCartCount,
-		RecoveredCartCount:    stats.RecoveredCartCount,
-		RecoveryRate:          recoveryRate,
-		CartsCreatedCount:     cartsCreatedCount,
-		AddCartToCheckoutRate: addCartToCheckoutRate,
-		AddCartToOrderRate:    addCartToOrderRate,
+		TotalAbandonedRevenue:      stats.TotalAbandonedRevenue,
+		RecoveredRevenue:           stats.RecoveredRevenue,
+		PendingRevenue:             pendingRevenue,
+		AbandonedCartCount:         stats.AbandonedCartCount,
+		RecoveredCartCount:         stats.RecoveredCartCount,
+		RecoveryRate:               recoveryRate,
+		CartsCreatedCount:          cartsCreatedCount,
+		AddCartToCheckoutRate:      addCartToCheckoutRate,
+		AddCartToOrderRate:         addCartToOrderRate,
+		AverageCartValue:           stats.AverageCartValue,
+		ContactableCartCount:       stats.ContactableCartCount,
+		ContactabilityRate:         percentage(stats.ContactableCartCount, stats.AbandonedCartCount),
+		AverageRecoveryTimeMinutes: stats.AverageRecoveryTimeMinutes,
+		AverageAttemptsToRecovery:  stats.AverageAttemptsToRecovery,
+		MarketingConsentCount:      stats.MarketingConsentCount,
+		SMSConsentCount:            stats.SMSConsentCount,
 		WhatsappStats: acDto.WhatsappStats{
 			Sent:      sentCount,
 			Delivered: deliveredCount,
@@ -505,4 +548,3 @@ func (r *gormAbandonedCheckoutRepository) UpsertCart(ctx context.Context, cart *
 
 	return r.db.WithContext(ctx).Exec(query, cart.StoreID, cart.CartToken, cart.LineItems, now, now).Error
 }
-

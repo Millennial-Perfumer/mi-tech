@@ -63,15 +63,16 @@ func (B2BProformaInvoice) TableName() string {
 
 // B2BProformaInvoiceItem represents a line item in a Proforma invoice
 type B2BProformaInvoiceItem struct {
-	ID                int64   `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
-	ProformaInvoiceID int64   `gorm:"column:proforma_invoice_id" json:"proforma_invoice_id"`
-	ProductID         *int64  `gorm:"column:product_id" json:"product_id"`
-	ItemDetails       string  `gorm:"column:item_details" json:"item_details"`
-	SKU               *string `gorm:"column:sku" json:"sku"`
-	HSNCode           *string `gorm:"column:hsn_code" json:"hsn_code"`
-	Quantity          float64 `gorm:"column:quantity" json:"quantity"`
-	Rate              float64 `gorm:"column:rate" json:"rate"`
-	Amount            float64 `gorm:"column:amount" json:"amount"`
+	ID                int64    `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	ProformaInvoiceID int64    `gorm:"column:proforma_invoice_id" json:"proforma_invoice_id"`
+	ProductID         *int64   `gorm:"column:product_id" json:"product_id"`
+	ItemDetails       string   `gorm:"column:item_details" json:"item_details"`
+	SKU               *string  `gorm:"column:sku" json:"sku"`
+	HSNCode           *string  `gorm:"column:hsn_code" json:"hsn_code"`
+	GSTRate           *float64 `gorm:"column:gst_rate;default:18" json:"gst_rate"`
+	Quantity          float64  `gorm:"column:quantity" json:"quantity"`
+	Rate              float64  `gorm:"column:rate" json:"rate"`
+	Amount            float64  `gorm:"column:amount" json:"amount"`
 }
 
 func (B2BProformaInvoiceItem) TableName() string {

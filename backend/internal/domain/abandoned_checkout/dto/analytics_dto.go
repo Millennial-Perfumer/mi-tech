@@ -12,6 +12,8 @@ type RevenueTimelineItem struct {
 	Date            string  `json:"date"`
 	AbandonedAmount float64 `json:"abandonedAmount"`
 	RecoveredAmount float64 `json:"recoveredAmount"`
+	AbandonedCount  int64   `json:"abandonedCount"`
+	RecoveredCount  int64   `json:"recoveredCount"`
 }
 
 type StatusBreakdownItem struct {
@@ -21,6 +23,7 @@ type StatusBreakdownItem struct {
 }
 
 type TopLostCartItem struct {
+	ID             int     `json:"id"`
 	CustomerName   string  `json:"customer_name"`
 	Phone          string  `json:"phone"`
 	TotalPrice     float64 `json:"total_price"`
@@ -31,18 +34,24 @@ type TopLostCartItem struct {
 }
 
 type AbandonedCheckoutAnalyticsResponse struct {
-	TotalAbandonedRevenue float64               `json:"totalAbandonedRevenue"`
-	RecoveredRevenue      float64               `json:"recoveredRevenue"`
-	PendingRevenue        float64               `json:"pendingRevenue"`
-	AbandonedCartCount    int64                 `json:"abandonedCartCount"`
-	RecoveredCartCount    int64                 `json:"recoveredCartCount"`
-	RecoveryRate          float64               `json:"recoveryRate"`
-	CartsCreatedCount     int64                 `json:"cartsCreatedCount"`
-	AddCartToCheckoutRate float64               `json:"addCartToCheckoutRate"`
-	AddCartToOrderRate    float64               `json:"addCartToOrderRate"`
-	WhatsappStats         WhatsappStats         `json:"whatsappStats"`
-	RevenueTimeline       []RevenueTimelineItem `json:"revenueTimeline"`
-	StatusBreakdown       []StatusBreakdownItem `json:"statusBreakdown"`
-	TopLostCarts          []TopLostCartItem     `json:"topLostCarts"`
+	TotalAbandonedRevenue      float64               `json:"totalAbandonedRevenue"`
+	RecoveredRevenue           float64               `json:"recoveredRevenue"`
+	PendingRevenue             float64               `json:"pendingRevenue"`
+	AbandonedCartCount         int64                 `json:"abandonedCartCount"`
+	RecoveredCartCount         int64                 `json:"recoveredCartCount"`
+	RecoveryRate               float64               `json:"recoveryRate"`
+	CartsCreatedCount          int64                 `json:"cartsCreatedCount"`
+	AddCartToCheckoutRate      float64               `json:"addCartToCheckoutRate"`
+	AddCartToOrderRate         float64               `json:"addCartToOrderRate"`
+	AverageCartValue           float64               `json:"averageCartValue"`
+	ContactableCartCount       int64                 `json:"contactableCartCount"`
+	ContactabilityRate         float64               `json:"contactabilityRate"`
+	AverageRecoveryTimeMinutes float64               `json:"averageRecoveryTimeMinutes"`
+	AverageAttemptsToRecovery  float64               `json:"averageAttemptsToRecovery"`
+	MarketingConsentCount      int64                 `json:"marketingConsentCount"`
+	SMSConsentCount            int64                 `json:"smsConsentCount"`
+	WhatsappStats              WhatsappStats         `json:"whatsappStats"`
+	RevenueTimeline            []RevenueTimelineItem `json:"revenueTimeline"`
+	StatusBreakdown            []StatusBreakdownItem `json:"statusBreakdown"`
+	TopLostCarts               []TopLostCartItem     `json:"topLostCarts"`
 }
-

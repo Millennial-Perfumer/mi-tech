@@ -383,6 +383,10 @@ func (s *B2BService) calculateCreditNoteTotals(cn *entity.B2BCreditNote) error {
 
 	var subtotal float64
 	for i := range cn.Items {
+		if cn.Items[i].GSTRate == nil {
+			defaultTaxRate := 18.0
+			cn.Items[i].GSTRate = &defaultTaxRate
+		}
 		cn.Items[i].Amount = cn.Items[i].Quantity * cn.Items[i].Rate
 		subtotal += cn.Items[i].Amount
 	}
@@ -394,7 +398,6 @@ func (s *B2BService) calculateCreditNoteTotals(cn *entity.B2BCreditNote) error {
 	taxableAmount := cn.SubtotalPrice - cn.DiscountAmount
 
 	var totalTax float64
-	var defaultTaxRate float64 = 18.00
 
 	cn.CGSTRate = 0
 	cn.CGSTAmount = 0
@@ -403,17 +406,24 @@ func (s *B2BService) calculateCreditNoteTotals(cn *entity.B2BCreditNote) error {
 	cn.IGSTRate = 0
 	cn.IGSTAmount = 0
 
-	if cn.SellerStateCode == cn.CustomerStateCode {
-		cn.CGSTRate = defaultTaxRate / 2.00
-		cn.CGSTAmount = (taxableAmount * cn.CGSTRate) / 100.00
-		cn.SGSTRate = defaultTaxRate / 2.00
-		cn.SGSTAmount = (taxableAmount * cn.SGSTRate) / 100.00
-		totalTax = cn.CGSTAmount + cn.SGSTAmount
-	} else {
-		cn.IGSTRate = defaultTaxRate
-		cn.IGSTAmount = (taxableAmount * cn.IGSTRate) / 100.00
-		totalTax = cn.IGSTAmount
+	discountRatio := 1.0
+	if cn.SubtotalPrice > 0 {
+		discountRatio = taxableAmount / cn.SubtotalPrice
 	}
+	for _, item := range cn.Items {
+		lineTaxable := item.Amount * discountRatio
+		lineRate := lineGSTRate(item.GSTRate)
+		if cn.SellerStateCode == cn.CustomerStateCode {
+			cn.CGSTRate = lineRate / 2.00
+			cn.SGSTRate = lineRate / 2.00
+			cn.CGSTAmount += (lineTaxable * cn.CGSTRate) / 100.00
+			cn.SGSTAmount += (lineTaxable * cn.SGSTRate) / 100.00
+		} else {
+			cn.IGSTRate = lineRate
+			cn.IGSTAmount += (lineTaxable * cn.IGSTRate) / 100.00
+		}
+	}
+	totalTax = cn.CGSTAmount + cn.SGSTAmount + cn.IGSTAmount
 
 	cn.TotalPrice = taxableAmount + totalTax
 	return nil
@@ -451,6 +461,10 @@ func (s *B2BService) calculateDebitNoteTotals(dn *entity.B2BDebitNote) error {
 
 	var subtotal float64
 	for i := range dn.Items {
+		if dn.Items[i].GSTRate == nil {
+			defaultTaxRate := 18.0
+			dn.Items[i].GSTRate = &defaultTaxRate
+		}
 		dn.Items[i].Amount = dn.Items[i].Quantity * dn.Items[i].Rate
 		subtotal += dn.Items[i].Amount
 	}
@@ -462,7 +476,6 @@ func (s *B2BService) calculateDebitNoteTotals(dn *entity.B2BDebitNote) error {
 	taxableAmount := dn.SubtotalPrice - dn.DiscountAmount
 
 	var totalTax float64
-	var defaultTaxRate float64 = 18.00
 
 	dn.CGSTRate = 0
 	dn.CGSTAmount = 0
@@ -471,17 +484,24 @@ func (s *B2BService) calculateDebitNoteTotals(dn *entity.B2BDebitNote) error {
 	dn.IGSTRate = 0
 	dn.IGSTAmount = 0
 
-	if dn.SellerStateCode == dn.CustomerStateCode {
-		dn.CGSTRate = defaultTaxRate / 2.00
-		dn.CGSTAmount = (taxableAmount * dn.CGSTRate) / 100.00
-		dn.SGSTRate = defaultTaxRate / 2.00
-		dn.SGSTAmount = (taxableAmount * dn.SGSTRate) / 100.00
-		totalTax = dn.CGSTAmount + dn.SGSTAmount
-	} else {
-		dn.IGSTRate = defaultTaxRate
-		dn.IGSTAmount = (taxableAmount * dn.IGSTRate) / 100.00
-		totalTax = dn.IGSTAmount
+	discountRatio := 1.0
+	if dn.SubtotalPrice > 0 {
+		discountRatio = taxableAmount / dn.SubtotalPrice
 	}
+	for _, item := range dn.Items {
+		lineTaxable := item.Amount * discountRatio
+		lineRate := lineGSTRate(item.GSTRate)
+		if dn.SellerStateCode == dn.CustomerStateCode {
+			dn.CGSTRate = lineRate / 2.00
+			dn.SGSTRate = lineRate / 2.00
+			dn.CGSTAmount += (lineTaxable * dn.CGSTRate) / 100.00
+			dn.SGSTAmount += (lineTaxable * dn.SGSTRate) / 100.00
+		} else {
+			dn.IGSTRate = lineRate
+			dn.IGSTAmount += (lineTaxable * dn.IGSTRate) / 100.00
+		}
+	}
+	totalTax = dn.CGSTAmount + dn.SGSTAmount + dn.IGSTAmount
 
 	dn.TotalPrice = taxableAmount + totalTax
 	return nil

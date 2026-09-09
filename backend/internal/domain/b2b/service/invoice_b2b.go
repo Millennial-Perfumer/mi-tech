@@ -271,6 +271,10 @@ func (s *B2BService) calculateInvoiceTotals(inv *entity.B2BInvoice) error {
 	// Compute subtotal from items
 	var subtotal float64
 	for i := range inv.Items {
+		if inv.Items[i].GSTRate == nil {
+			defaultTaxRate := 18.0
+			inv.Items[i].GSTRate = &defaultTaxRate
+		}
 		inv.Items[i].Amount = inv.Items[i].Quantity * inv.Items[i].Rate
 		subtotal += inv.Items[i].Amount
 	}
@@ -284,7 +288,6 @@ func (s *B2BService) calculateInvoiceTotals(inv *entity.B2BInvoice) error {
 
 	// Determine Tax splits
 	var totalTax float64
-	var defaultTaxRate float64 = 18.00 // Default B2B invoice tax rate is 18%
 
 	// Reset tax splits
 	inv.CGSTRate = 0
@@ -294,19 +297,25 @@ func (s *B2BService) calculateInvoiceTotals(inv *entity.B2BInvoice) error {
 	inv.IGSTRate = 0
 	inv.IGSTAmount = 0
 
-	if inv.SellerStateCode == inv.CustomerStateCode {
-		// Intra-state
-		inv.CGSTRate = defaultTaxRate / 2.00
-		inv.CGSTAmount = (taxableAmount * inv.CGSTRate) / 100.00
-		inv.SGSTRate = defaultTaxRate / 2.00
-		inv.SGSTAmount = (taxableAmount * inv.SGSTRate) / 100.00
-		totalTax = inv.CGSTAmount + inv.SGSTAmount
-	} else {
-		// Inter-state
-		inv.IGSTRate = defaultTaxRate
-		inv.IGSTAmount = (taxableAmount * inv.IGSTRate) / 100.00
-		totalTax = inv.IGSTAmount
+	// Apply each line's GST rate after distributing the invoice discount.
+	discountRatio := 1.0
+	if inv.SubtotalPrice > 0 {
+		discountRatio = taxableAmount / inv.SubtotalPrice
 	}
+	for _, item := range inv.Items {
+		lineTaxable := item.Amount * discountRatio
+		lineRate := lineGSTRate(item.GSTRate)
+		if inv.SellerStateCode == inv.CustomerStateCode {
+			inv.CGSTRate = lineRate / 2.00
+			inv.SGSTRate = lineRate / 2.00
+			inv.CGSTAmount += (lineTaxable * inv.CGSTRate) / 100.00
+			inv.SGSTAmount += (lineTaxable * inv.SGSTRate) / 100.00
+		} else {
+			inv.IGSTRate = lineRate
+			inv.IGSTAmount += (lineTaxable * inv.IGSTRate) / 100.00
+		}
+	}
+	totalTax = inv.CGSTAmount + inv.SGSTAmount + inv.IGSTAmount
 
 	// TDS/TCS calculation
 	inv.TDSTCSAmount = 0

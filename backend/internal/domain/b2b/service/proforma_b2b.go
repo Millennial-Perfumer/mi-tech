@@ -295,6 +295,7 @@ func (s *B2BService) CreateRevision(id int64) (*entity.B2BProformaInvoice, error
 				ItemDetails: item.ItemDetails,
 				SKU:         item.SKU,
 				HSNCode:     item.HSNCode,
+				GSTRate:     item.GSTRate,
 				Quantity:    item.Quantity,
 				Rate:        item.Rate,
 				Amount:      item.Amount,
@@ -389,6 +390,7 @@ func (s *B2BService) ConvertToTaxInvoice(id int64) (*entity.B2BInvoice, error) {
 				ItemDetails: item.ItemDetails,
 				SKU:         item.SKU,
 				HSNCode:     item.HSNCode,
+				GSTRate:     item.GSTRate,
 				Quantity:    item.Quantity,
 				Rate:        item.Rate,
 				Amount:      item.Amount,
@@ -416,8 +418,11 @@ func (s *B2BService) ConvertToTaxInvoice(id int64) (*entity.B2BInvoice, error) {
 
 // MarkExpiredProformas marks proforma invoices as EXPIRED if their valid_until date is in the past
 func (s *B2BService) MarkExpiredProformas() (int64, error) {
+	// The application operates in India time while some PostgreSQL instances
+	// run in UTC. Compare against the business calendar so a date entered as
+	// yesterday is not left active until the database crosses midnight.
 	tx := s.db.Model(&entity.B2BProformaInvoice{}).
-		Where("status IN ('DRAFT', 'SENT') AND valid_until < CURRENT_DATE").
+		Where("status IN ('DRAFT', 'SENT') AND valid_until < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date").
 		Update("status", "EXPIRED")
 	return tx.RowsAffected, tx.Error
 }
@@ -476,6 +481,10 @@ func (s *B2BService) calculateProformaTotals(pf *entity.B2BProformaInvoice) erro
 
 	var subtotal float64
 	for i := range pf.Items {
+		if pf.Items[i].GSTRate == nil {
+			defaultTaxRate := 18.0
+			pf.Items[i].GSTRate = &defaultTaxRate
+		}
 		pf.Items[i].Amount = pf.Items[i].Quantity * pf.Items[i].Rate
 		subtotal += pf.Items[i].Amount
 	}
@@ -487,7 +496,6 @@ func (s *B2BService) calculateProformaTotals(pf *entity.B2BProformaInvoice) erro
 	taxableAmount := pf.SubtotalPrice - pf.DiscountAmount
 
 	var totalTax float64
-	var defaultTaxRate float64 = 18.00
 
 	pf.CGSTRate = 0
 	pf.CGSTAmount = 0
@@ -496,17 +504,24 @@ func (s *B2BService) calculateProformaTotals(pf *entity.B2BProformaInvoice) erro
 	pf.IGSTRate = 0
 	pf.IGSTAmount = 0
 
-	if pf.SellerStateCode == pf.CustomerStateCode {
-		pf.CGSTRate = defaultTaxRate / 2.00
-		pf.CGSTAmount = (taxableAmount * pf.CGSTRate) / 100.00
-		pf.SGSTRate = defaultTaxRate / 2.00
-		pf.SGSTAmount = (taxableAmount * pf.SGSTRate) / 100.00
-		totalTax = pf.CGSTAmount + pf.SGSTAmount
-	} else {
-		pf.IGSTRate = defaultTaxRate
-		pf.IGSTAmount = (taxableAmount * pf.IGSTRate) / 100.00
-		totalTax = pf.IGSTAmount
+	discountRatio := 1.0
+	if pf.SubtotalPrice > 0 {
+		discountRatio = taxableAmount / pf.SubtotalPrice
 	}
+	for _, item := range pf.Items {
+		lineTaxable := item.Amount * discountRatio
+		lineRate := lineGSTRate(item.GSTRate)
+		if pf.SellerStateCode == pf.CustomerStateCode {
+			pf.CGSTRate = lineRate / 2.00
+			pf.SGSTRate = lineRate / 2.00
+			pf.CGSTAmount += (lineTaxable * pf.CGSTRate) / 100.00
+			pf.SGSTAmount += (lineTaxable * pf.SGSTRate) / 100.00
+		} else {
+			pf.IGSTRate = lineRate
+			pf.IGSTAmount += (lineTaxable * pf.IGSTRate) / 100.00
+		}
+	}
+	totalTax = pf.CGSTAmount + pf.SGSTAmount + pf.IGSTAmount
 
 	pf.TotalPrice = taxableAmount + totalTax
 	return nil
