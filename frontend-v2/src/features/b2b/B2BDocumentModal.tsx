@@ -756,6 +756,18 @@ export function B2BDocumentModal({
   const printableQrAmount = numberValue(
     printableRecord?.balance_amount ?? printableTotal,
   );
+  const printableSubtotal = printableForm.items.reduce(
+    (sum, item) =>
+      sum + numberValue(item.quantity) * numberValue(item.rate),
+    0,
+  );
+  const printableDiscountRatio =
+    printableSubtotal > 0
+      ? Math.max(
+          0,
+          1 - numberValue(printableForm.discount_percent) / 100,
+        )
+      : 1;
 
   const downloadInvoice = () => {
     const previousTitle = document.title;
@@ -1006,7 +1018,8 @@ export function B2BDocumentModal({
                 <span>Item / HSN</span>
                 <span>Qty</span>
                 <span>Rate</span>
-                <span>GST</span>
+                <span>GST rate</span>
+                <span>GST amount</span>
                 <span>Amount</span>
               </div>
               {form.items.map((item, index) => (
@@ -1023,6 +1036,14 @@ export function B2BDocumentModal({
                   <span>{item.quantity}</span>
                   <span>{money(item.rate)}</span>
                   <span>{item.gst_rate}%</span>
+                  <span>
+                    {money(
+                      numberValue(item.quantity) *
+                        numberValue(item.rate) *
+                        printableDiscountRatio *
+                        (numberValue(item.gst_rate) / 100),
+                    )}
+                  </span>
                   <span>
                     {money(numberValue(item.quantity) * numberValue(item.rate))}
                   </span>
@@ -1937,7 +1958,8 @@ export function B2BDocumentModal({
                 <span>HSN / SAC</span>
                 <span>Qty</span>
                 <span>Rate</span>
-                <span>GST</span>
+                <span>GST rate</span>
+                <span>GST amount</span>
                 <span>Amount</span>
               </div>
               {printableForm.items.map((item, index) => (
@@ -1955,6 +1977,14 @@ export function B2BDocumentModal({
                   <span>{item.quantity}</span>
                   <span>{money(item.rate)}</span>
                   <span>{item.gst_rate}%</span>
+                  <span>
+                    {money(
+                      numberValue(item.quantity) *
+                        numberValue(item.rate) *
+                        printableDiscountRatio *
+                        (numberValue(item.gst_rate) / 100),
+                    )}
+                  </span>
                   <span>
                     {money(numberValue(item.quantity) * numberValue(item.rate))}
                   </span>

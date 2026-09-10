@@ -6401,7 +6401,7 @@ a:focus-visible,
 .b2b-items-table-header,
 .b2b-items-table-row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) 70px 90px 100px;
+  grid-template-columns: minmax(0, 2.4fr) 65px 80px 78px 95px 100px;
   gap: 12px;
   align-items: center;
   padding: 11px 14px;
@@ -7737,6 +7737,7 @@ a:focus-visible,
   box-sizing: border-box;
   width: min(100%, 940px);
   max-width: 940px;
+  min-width: 0;
   margin: 0 auto;
   padding: 32px;
   overflow: hidden;
@@ -7916,11 +7917,12 @@ a:focus-visible,
 .invoice-pdf-sheet .invoice-print-items-row {
   grid-template-columns:
     minmax(0, 2.5fr)
-    minmax(72px, 0.7fr)
-    minmax(44px, 0.45fr)
-    minmax(88px, 0.8fr)
-    minmax(58px, 0.6fr)
-    minmax(110px, 1fr);
+    70px
+    38px
+    72px
+    48px
+    82px
+    90px;
   gap: 12px;
   padding: 13px 14px;
 }
@@ -8147,10 +8149,12 @@ a:focus-visible,
 
   .invoice-pdf-sheet {
     position: absolute;
-    inset: auto;
+    top: 0;
+    left: 0;
     display: block;
-    width: 100%;
-    max-width: none;
+    width: 190mm;
+    max-width: 190mm;
+    min-width: 0;
     margin: 0;
     padding: 0;
     overflow: visible;
