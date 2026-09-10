@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Check, CircleAlert, RefreshCw } from 'lucide-react'
 import { API_BASE, dateToBoundary } from '../../lib/api'
 import { usePeriodFilter } from '../../lib/usePeriodFilter'
+import { StateOrdersModal } from '../orders/StateOrdersModal'
 
 type DashboardPageProps = {
   token: string
@@ -112,6 +113,7 @@ export function DashboardPage({ token, onUnauthorized }: DashboardPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [selectedState, setSelectedState] = useState<string | null>(null)
   const { startDate, endDate } = usePeriodFilter()
 
   const fetchDashboardData = useCallback(async (silent = false) => {
@@ -287,7 +289,9 @@ export function DashboardPage({ token, onUnauthorized }: DashboardPageProps) {
           <div className="dashboard-card-heading"><div><p className="eyebrow">Geography</p><h3>Top regions</h3></div></div>
           <div className="dashboard-list">
             {regions.map((region) => (
-              <div className="region-row" key={region.state}><span>{region.state}</span><div><strong>{number(region.orders)} orders</strong><small>{currency(region.revenue)}</small></div></div>
+              <button className="region-row region-row-clickable" type="button" key={region.state} onClick={() => setSelectedState(region.state)} title={`View ${region.state} orders`}>
+                <span>{region.state}</span><div><strong>{number(region.orders)} orders</strong><small>{currency(region.revenue)}</small></div>
+              </button>
             ))}
             {!regions.length && <DashboardEmpty label="No regional data for this range." />}
           </div>
@@ -304,6 +308,18 @@ export function DashboardPage({ token, onUnauthorized }: DashboardPageProps) {
           <div className="discount-callout"><span>Discount leakage</span><strong>{currency(safeMetrics.total_discount)}</strong><small>{(safeMetrics.discount_percent || 0).toFixed(1)}% of gross revenue</small></div>
         </article>
       </div>
+
+      {selectedState && (
+        <StateOrdersModal
+          state={selectedState}
+          startDate={startDate}
+          endDate={endDate}
+          selectedChannels={selectedChannels}
+          token={token}
+          onUnauthorized={onUnauthorized}
+          onClose={() => setSelectedState(null)}
+        />
+      )}
     </section>
   )
 }

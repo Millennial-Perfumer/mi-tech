@@ -72,7 +72,11 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 		query = query.Where("fulfillment_status = ?", filter.FulfillmentStatus)
 	}
 	if filter.State != "" {
-		query = query.Where("customer_state ILIKE ?", filter.State)
+		if strings.EqualFold(strings.TrimSpace(filter.State), "n/a") {
+			query = query.Where("customer_state IS NULL OR BTRIM(customer_state) = '' OR LOWER(BTRIM(customer_state)) = ?", "n/a")
+		} else {
+			query = query.Where("customer_state ILIKE ?", filter.State)
+		}
 	}
 	if filter.Status != "" {
 		statusLower := strings.ToLower(filter.Status)
@@ -81,6 +85,9 @@ func (r *gormOrderRepository) List(filter OrderFilter) ([]entity.Order, int, err
 		} else {
 			query = query.Where("LOWER(status) = ?", statusLower)
 		}
+	}
+	if filter.ExcludeCancelled {
+		query = query.Where("NOT (LOWER(COALESCE(status, '')) IN ('cancelled', 'canceled') OR LOWER(COALESCE(fulfillment_status, '')) IN ('cancelled', 'canceled'))")
 	}
 
 	// Count total matching

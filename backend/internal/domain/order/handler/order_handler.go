@@ -46,6 +46,7 @@ func NewOrderHandler(orderService *orderServicePkg.OrderService, invoiceService 
 // @Param source query string false "Order source"
 // @Param financial_status query string false "Financial status"
 // @Param fulfillment_status query string false "Fulfillment status"
+// @Param exclude_cancelled query bool false "Exclude cancelled orders"
 // @Param sort_by query string false "Sort by field"
 // @Param sort_order query string false "Sort order (asc/desc)"
 // @Success 200 {object} map[string]interface{}
@@ -65,11 +66,12 @@ func (h *OrderHandler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	finStatus := r.URL.Query().Get("financial_status")
 	fulStatus := r.URL.Query().Get("fulfillment_status")
 	status := r.URL.Query().Get("status")
+	excludeCancelled := strings.EqualFold(r.URL.Query().Get("exclude_cancelled"), "true")
 	sortBy := r.URL.Query().Get("sort_by")
 	sortOrder := r.URL.Query().Get("sort_order")
 	state := r.URL.Query().Get("state")
 
-	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, status, sortBy, sortOrder, state)
+	orders, totalCount, err := h.orderService.ListOrders(startDate, endDate, page, limit, search, source, finStatus, fulStatus, status, sortBy, sortOrder, state, excludeCancelled)
 	if err != nil {
 		http.Error(w, "Failed to retrieve orders", http.StatusInternalServerError)
 		return

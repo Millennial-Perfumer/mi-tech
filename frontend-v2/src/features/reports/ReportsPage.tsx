@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, CircleAlert, Download, FileJson, RefreshCw, Table2 } from 'lucide-react'
 import { API_BASE, dateToBoundary } from '../../lib/api'
 import { usePeriodFilter } from '../../lib/usePeriodFilter'
+import { StateOrdersModal } from '../orders/StateOrdersModal'
 
 type ReportsPageProps = {
   token: string
@@ -163,6 +164,8 @@ export function ReportsPage({ token, onUnauthorized }: ReportsPageProps) {
   const [gstin, setGstin] = useState('33AUSPR1909H1ZC')
   const [sortField, setSortField] = useState('')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [selectedState, setSelectedState] = useState<string | null>(null)
+  const stateOrderSources = selectedSources.length ? selectedSources.filter((source) => source !== 'b2b') : allSources.filter((source) => source !== 'b2b')
 
   const queryString = useMemo(() => {
     const query = new URLSearchParams()
@@ -451,7 +454,21 @@ export function ReportsPage({ token, onUnauthorized }: ReportsPageProps) {
               </tr></thead>
               <tbody>
                 {isLoading ? <tr><td colSpan={8} className="table-state">Loading state-wise report…</td></tr> : sortedStateData.length === 0 ? <tr><td colSpan={8} className="table-state">No state-wise data for this period.</td></tr> : sortedStateData.map((row) => (
-                  <tr key={row.state}><td><strong>{row.state || 'Unknown'}</strong></td><td>{formatNumber(row.orders)}</td><td className="table-money">{formatCurrency(row.taxable_value)}</td><td className="table-money">{formatCurrency(row.igst)}</td><td className="table-money">{formatCurrency(row.cgst)}</td><td className="table-money">{formatCurrency(row.sgst)}</td><td className="table-money">{formatCurrency(row.total_gst)}</td><td className="table-money"><strong>{formatCurrency(row.revenue)}</strong></td></tr>
+                  <tr
+                    key={row.state}
+                    className="reports-clickable-row"
+                    tabIndex={row.state ? 0 : undefined}
+                    title={row.state ? `View ${row.state} orders` : undefined}
+                    onClick={() => row.state && setSelectedState(row.state)}
+                    onKeyDown={(event) => {
+                      if (row.state && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault()
+                        setSelectedState(row.state)
+                      }
+                    }}
+                  >
+                    <td><strong>{row.state || 'Unknown'}</strong></td><td>{formatNumber(row.orders)}</td><td className="table-money">{formatCurrency(row.taxable_value)}</td><td className="table-money">{formatCurrency(row.igst)}</td><td className="table-money">{formatCurrency(row.cgst)}</td><td className="table-money">{formatCurrency(row.sgst)}</td><td className="table-money">{formatCurrency(row.total_gst)}</td><td className="table-money"><strong>{formatCurrency(row.revenue)}</strong></td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -533,6 +550,18 @@ export function ReportsPage({ token, onUnauthorized }: ReportsPageProps) {
             </ul>
           </section>
         </div>
+      )}
+
+      {selectedState && (
+        <StateOrdersModal
+          state={selectedState}
+          startDate={startDate}
+          endDate={endDate}
+          selectedChannels={stateOrderSources}
+          token={token}
+          onUnauthorized={onUnauthorized}
+          onClose={() => setSelectedState(null)}
+        />
       )}
     </section>
   )

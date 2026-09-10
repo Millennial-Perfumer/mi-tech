@@ -20,6 +20,7 @@ type OrderFilter struct {
 	SortOrder         string
 	Status            string
 	State             string
+	ExcludeCancelled  bool
 }
 
 // OrderRepository defines all data access operations for the orders table.

@@ -2068,6 +2068,35 @@ a:focus-visible,
   font-size: 0.8rem;
 }
 
+
+.region-row-clickable {
+  width: 100%;
+  padding-top: 0;
+  padding-right: 0;
+  padding-left: 0;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.region-row-clickable:hover,
+.region-row-clickable:focus-visible {
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.reports-clickable-row {
+  cursor: pointer;
+}
+
+.reports-clickable-row:focus-visible {
+  outline: 2px solid var(--platform);
+  outline-offset: -2px;
+}
 .region-row:last-child {
   padding-bottom: 0;
   border-bottom: 0;
@@ -6108,6 +6137,14 @@ a:focus-visible,
   box-shadow: var(--shadow-float);
 }
 
+
+.state-orders-modal {
+  width: min(100%, 960px);
+}
+
+.state-orders-table-wrap {
+  max-height: min(52dvh, 520px);
+}
 .modal-heading,
 .modal-actions {
   display: flex;
