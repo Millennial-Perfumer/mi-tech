@@ -7,7 +7,8 @@ type Row = Record<string, unknown>
 type Draft = { id: string; product_id: string; product_title: string; reviewer_name: string; gender: string; email: string; rating: number; title: string; body: string; shop_domain: string }
 type Product = Row
 
-const emptyDraft: Draft = { id: '', product_id: '', product_title: '', reviewer_name: '', gender: '', email: '', rating: 5, title: '', body: '', shop_domain: '' }
+const DEFAULT_REVIEWER_EMAIL = 'hari.crze.101@gmail.com'
+const emptyDraft: Draft = { id: '', product_id: '', product_title: '', reviewer_name: '', gender: '', email: DEFAULT_REVIEWER_EMAIL, rating: 5, title: '', body: '', shop_domain: '' }
 
 function Stars({ value }: { value: number }) { return <span className="feedback-stars" aria-label={`${value} out of 5 stars`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} size={14} fill={index < value ? 'currentColor' : 'none'} aria-hidden="true" />)}</span> }
 
@@ -35,7 +36,7 @@ export function JudgeMePage({ token, onUnauthorized }: Props) {
   const [isGenerateOpen, setIsGenerateOpen] = useState(false)
   const [isManualOpen, setIsManualOpen] = useState(false)
   const [shopDomain, setShopDomain] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(DEFAULT_REVIEWER_EMAIL)
   const [aliasEmail, setAliasEmail] = useState(false)
   const [reviewsPerProduct, setReviewsPerProduct] = useState('1')
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])

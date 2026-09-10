@@ -4348,40 +4348,118 @@ a:focus-visible,
   gap: 18px;
 }
 
-.feedback-modal blockquote {
-  margin: 0;
-  padding: 14px 16px;
-  border-left: 3px solid var(--platform);
+.feedback-modal {
+  width: min(100%, 660px);
+  gap: 20px;
+  padding: 26px;
+}
+
+.feedback-modal-heading {
+  align-items: flex-start;
+}
+
+.feedback-modal-heading h2 {
+  margin-top: 6px;
+  font-size: 1.45rem;
+}
+
+.feedback-detail-rating {
+  gap: 9px;
+  padding: 0 2px;
+}
+
+.feedback-detail-rating strong {
+  color: var(--text-main);
+  font-size: 0.72rem;
+}
+
+.feedback-detail-rating > span:last-child {
+  margin-left: auto;
+}
+
+.feedback-review-section,
+.feedback-note-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   background: var(--surface-soft);
+}
+
+.feedback-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feedback-section-heading > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.feedback-section-heading .metric-label {
+  color: var(--text-main);
+}
+
+.feedback-review-section blockquote {
+  margin: 0;
+  padding: 0 0 0 13px;
+  border-left: 3px solid var(--platform);
+  background: transparent;
   color: var(--text-secondary);
-  font-size: 0.84rem;
-  line-height: 1.6;
+  font-size: 0.86rem;
+  line-height: 1.65;
 }
 
 .feedback-action-row {
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.feedback-action-row .secondary-button {
+  min-height: 40px;
 }
 
 .feedback-action-row a {
   text-decoration: none;
 }
 
+.feedback-note-section .form-field {
+  gap: 0;
+}
+
+.feedback-note-section textarea {
+  min-height: 88px;
+}
+
+.feedback-note-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.feedback-note-actions .secondary-button,
+.feedback-integration-action {
+  min-height: 40px;
+}
+
 .feedback-integrations {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding-top: 4px;
+  gap: 12px;
 }
 
 .feedback-integrations > div {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
-  padding: 13px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
 
 .feedback-integrations p,
@@ -4393,24 +4471,40 @@ a:focus-visible,
 }
 
 .feedback-email-row {
-  align-items: stretch;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.feedback-email-field {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
 }
 
 .feedback-email-row input {
   min-width: 0;
   width: 100%;
-  padding: 0 9px;
+  min-height: 40px;
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: 7px;
   outline: 0;
   background: var(--surface);
   color: var(--text-main);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .feedback-email-row input:focus {
   border-color: var(--platform);
   box-shadow: var(--focus-ring);
+}
+
+.feedback-email-row .primary-button {
+  min-height: 40px;
 }
 
 .scan-modal {
