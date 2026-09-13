@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, CircleAlert, Edit3, Package, RefreshCw, Search, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
+import { apiJson, apiRequest, arrayFrom } from '../../lib/http'
 
 type InventoryPageProps = {
   token: string
@@ -11,6 +12,7 @@ type InventoryPageProps = {
 type InventoryMapping = {
   platform: string
   external_sku: string
+  external_variant_id?: string
 }
 
 type InventoryItem = {
@@ -29,6 +31,16 @@ type InventoryResponse = {
 }
 
 const pageSize = 10
+
+type SyncMode = 'shopify' | 'amazon'
+
+function stagedVariantId(item: InventoryItem) {
+  return item.mappings?.find((mapping) => mapping.external_variant_id)?.external_variant_id || item.mappings?.[0]?.external_variant_id || ''
+}
+
+function stagedSku(item: InventoryItem) {
+  return item.mappings?.find((mapping) => mapping.external_sku)?.external_sku || item.mappings?.[0]?.external_sku || '—'
+}
 
 function formatMoney(value: number | undefined) {
   return `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
@@ -98,6 +110,27 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
   const [editingId, setEditingId] = useState<number | null>(null)
   const [isSavingStock, setIsSavingStock] = useState(false)
   const [notice, setNotice] = useState('')
+  const [manualSyncEnabled, setManualSyncEnabled] = useState(false)
+  const [isLoadingSyncConfig, setIsLoadingSyncConfig] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncMode, setSyncMode] = useState<SyncMode | null>(null)
+  const [stagedProducts, setStagedProducts] = useState<InventoryItem[]>([])
+  const [selectedStagedIds, setSelectedStagedIds] = useState<Set<string>>(new Set())
+
+  const fetchSyncConfig = useCallback(async () => {
+    setIsLoadingSyncConfig(true)
+    try {
+      const data = await apiJson<unknown>(token, onUnauthorized, '/api/configs')
+      const configs = arrayFrom(data, 'configs')
+      const manualSync = configs.find((config) => String(config.key || '') === 'show_sync_button')
+      setManualSyncEnabled(String(manualSync?.value || '').trim().toLowerCase() === 'true')
+    } catch {
+      // Keep the controls hidden when the configuration cannot be read.
+      setManualSyncEnabled(false)
+    } finally {
+      setIsLoadingSyncConfig(false)
+    }
+  }, [onUnauthorized, token])
 
   const fetchInventory = useCallback(async () => {
     setIsLoading(true)
@@ -130,6 +163,10 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
     void fetchInventory()
   }, [fetchInventory])
 
+  useEffect(() => {
+    void fetchSyncConfig()
+  }, [fetchSyncConfig])
+
   const totalPages = Math.max(Math.ceil(total / pageSize), 1)
   const lowStockCount = useMemo(() => items.filter((item) => item.current_stock > 0 && item.current_stock <= 10).length, [items])
   const outOfStockCount = useMemo(() => items.filter((item) => item.current_stock <= 0).length, [items])
@@ -157,6 +194,99 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
     }
   }
 
+  const startShopifySync = async () => {
+    setSyncMode('shopify')
+    setStagedProducts([])
+    setSelectedStagedIds(new Set())
+    setIsSyncing(true)
+    setError('')
+    try {
+      const data = await apiJson<unknown>(token, onUnauthorized, '/api/inventory/sync-shopify', { method: 'POST' })
+      setStagedProducts(Array.isArray(data) ? data as InventoryItem[] : [])
+    } catch (caughtError) {
+      setSyncMode(null)
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to fetch products from Shopify')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  const startAmazonSync = async () => {
+    setSyncMode('amazon')
+    setIsSyncing(true)
+    setError('')
+    try {
+      await apiRequest(token, onUnauthorized, '/api/inventory/amazon/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      setNotice('Amazon sync triggered. Inventory will update in the background.')
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to trigger Amazon sync')
+    } finally {
+      setIsSyncing(false)
+      setSyncMode(null)
+    }
+  }
+
+  const toggleStagedProduct = (variantId: string) => {
+    setSelectedStagedIds((current) => {
+      const next = new Set(current)
+      if (next.has(variantId)) next.delete(variantId)
+      else next.add(variantId)
+      return next
+    })
+  }
+
+  const toggleAllStagedProducts = () => {
+    const selectableIds = stagedProducts
+      .filter((product) => !items.some((item) => item.mappings?.some((mapping) => mapping.external_sku === stagedSku(product))))
+      .map(stagedVariantId)
+      .filter(Boolean)
+    setSelectedStagedIds((current) => current.size === selectableIds.length ? new Set() : new Set(selectableIds))
+  }
+
+  const importSelectedShopifyProducts = async () => {
+    const selected = stagedProducts.filter((product) => selectedStagedIds.has(stagedVariantId(product)))
+    if (selected.length === 0) {
+      setError('Select at least one Shopify product to import')
+      return
+    }
+
+    setIsSyncing(true)
+    setError('')
+    try {
+      await apiRequest(token, onUnauthorized, '/api/inventory/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selected),
+      })
+      setNotice(`${selected.length} Shopify product${selected.length === 1 ? '' : 's'} imported`)
+      setSyncMode(null)
+      setStagedProducts([])
+      setSelectedStagedIds(new Set())
+      await fetchInventory()
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to import Shopify products')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  const syncActions = !isLoadingSyncConfig && manualSyncEnabled && (
+    <div className="inventory-sync-actions" aria-label="Manual inventory synchronization">
+      <button className="secondary-button" type="button" onClick={() => void startShopifySync()} disabled={isSyncing}>
+        <RefreshCw size={15} className={isSyncing && syncMode === 'shopify' ? 'spin' : undefined} aria-hidden="true" />
+        Sync Shopify
+      </button>
+      <button className="secondary-button" type="button" onClick={() => void startAmazonSync()} disabled={isSyncing}>
+        <RefreshCw size={15} className={isSyncing && syncMode === 'amazon' ? 'spin' : undefined} aria-hidden="true" />
+        Sync Amazon
+      </button>
+    </div>
+  )
+
   return (
     <section className="workspace-page inventory-page" aria-labelledby="inventory-heading">
       {!embedded && <header className="workspace-page-header">
@@ -165,10 +295,13 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
           <h2 id="inventory-heading">Products</h2>
           <p>Review products, stock levels, and inventory details.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={() => void fetchInventory()} disabled={isLoading}>
-          <RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" />
-          Refresh catalogue
-        </button>
+        <div className="inventory-page-actions">
+          {syncActions}
+          <button className="secondary-button" type="button" onClick={() => void fetchInventory()} disabled={isLoading}>
+            <RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" />
+            Refresh catalogue
+          </button>
+        </div>
       </header>}
 
       <div className="inventory-summary-grid" aria-label="Inventory summary">
@@ -194,6 +327,7 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
           </select>
         </label>
         <span className="filter-count">{total.toLocaleString('en-IN')} products</span>
+        {embedded && syncActions}
       </div>
 
       {error && <div className="dashboard-error" role="alert"><CircleAlert size={18} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => void fetchInventory()}>Try again</button></div>}
@@ -232,6 +366,40 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
           <div><button type="button" aria-label="Previous inventory page" disabled={page <= 1 || isLoading} onClick={() => setPage((current) => current - 1)}><ChevronLeft size={16} aria-hidden="true" /></button><button type="button" aria-label="Next inventory page" disabled={page >= totalPages || isLoading} onClick={() => setPage((current) => current + 1)}><ChevronRight size={16} aria-hidden="true" /></button></div>
         </div>
       </div>
+
+      {syncMode === 'shopify' && (
+        <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isSyncing) setSyncMode(null) }}>
+          <section className="modal-card inventory-sync-modal" role="dialog" aria-modal="true" aria-labelledby="shopify-sync-heading" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Inventory synchronization</p>
+                <h2 id="shopify-sync-heading">Import from Shopify</h2>
+              </div>
+              <button className="icon-button" type="button" aria-label="Close Shopify sync" onClick={() => { if (!isSyncing) setSyncMode(null) }} disabled={isSyncing}>
+                <X size={19} aria-hidden="true" />
+              </button>
+            </div>
+            <p>Select the Shopify products to add to the local warehouse.</p>
+            {isSyncing && stagedProducts.length === 0 ? <p className="table-state">Fetching products from Shopify…</p> : stagedProducts.length === 0 ? <p className="table-state">No Shopify products available to import.</p> : (
+              <div className="orders-table-wrap inventory-sync-table-wrap">
+                <table className="orders-table">
+                  <thead><tr><th><input type="checkbox" aria-label="Select all Shopify products" checked={selectedStagedIds.size > 0 && selectedStagedIds.size === stagedProducts.filter((product) => !items.some((item) => item.mappings?.some((mapping) => mapping.external_sku === stagedSku(product)))).length} onChange={toggleAllStagedProducts} /></th><th>Product / variant</th><th>Shopify SKU</th><th>Status</th></tr></thead>
+                  <tbody>{stagedProducts.map((product) => {
+                    const variantId = stagedVariantId(product)
+                    const sku = stagedSku(product)
+                    const alreadyMapped = items.some((item) => item.mappings?.some((mapping) => mapping.external_sku === sku))
+                    return <tr key={variantId || `${product.id}-${sku}`}><td><input type="checkbox" aria-label={`Select ${product.title || sku}`} disabled={alreadyMapped || !variantId} checked={selectedStagedIds.has(variantId)} onChange={() => toggleStagedProduct(variantId)} /></td><td><strong>{product.title || 'Untitled product'}</strong><small>{variantId || 'No variant ID'}</small></td><td>{sku}</td><td>{alreadyMapped ? 'Already imported' : 'Ready to import'}</td></tr>
+                  })}</tbody>
+                </table>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="secondary-button" type="button" onClick={() => setSyncMode(null)} disabled={isSyncing}>Cancel</button>
+              <button className="primary-button" type="button" onClick={() => void importSelectedShopifyProducts()} disabled={isSyncing || stagedProducts.length === 0}>{isSyncing ? 'Importing…' : `Import ${selectedStagedIds.size || ''} product${selectedStagedIds.size === 1 ? '' : 's'}`}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   )
 }

@@ -5402,6 +5402,41 @@ a:focus-visible,
   background: var(--surface-soft);
 }
 
+.inventory-page-actions,
+.inventory-sync-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inventory-sync-actions {
+  margin-left: auto;
+}
+
+.inventory-sync-modal {
+  width: min(100%, 900px);
+}
+
+.inventory-sync-table-wrap {
+  max-height: 390px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.inventory-sync-table-wrap table {
+  min-width: 680px;
+}
+
+.inventory-sync-table-wrap td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+}
+
 .inventory-notice {
   padding: 10px 12px;
   border: 1px solid var(--platform-line);
@@ -6198,6 +6233,19 @@ a:focus-visible,
 @media (max-width: 720px) {
   .inventory-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .inventory-page-actions,
+  .inventory-page-actions .inventory-sync-actions,
+  .inventory-page-actions .secondary-button,
+  .inventory-sync-actions,
+  .inventory-sync-actions .secondary-button {
+    width: 100%;
+  }
+
+  .inventory-page-actions .secondary-button,
+  .inventory-sync-actions .secondary-button {
+    flex: 1 1 140px;
   }
 
   .inbox-shell {
