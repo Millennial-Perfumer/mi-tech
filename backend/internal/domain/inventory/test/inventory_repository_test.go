@@ -183,6 +183,60 @@ func (s *InventoryRepositoryTestSuite) TestBulkCreateItem() {
 	assert.NotZero(s.T(), mappings[1].InventoryItemID)
 }
 
+func (s *InventoryRepositoryTestSuite) TestUpdateItemRenamesPOSMapping() {
+	item := &entity.InventoryItem{
+		MISKU:        "mi-01",
+		Title:        "Guidance Perfume",
+		CurrentStock: 10,
+	}
+	assert.NoError(s.T(), s.repo.CreateItem(item))
+
+	posSKU := item.MISKU
+	assert.NoError(s.T(), s.repo.CreateMapping(&entity.InventoryMapping{
+		InventoryItemID: item.ID,
+		Platform:        "pos",
+		ExternalSKU:     posSKU,
+	}))
+
+	item.MISKU = "mi-77"
+	assert.NoError(s.T(), s.repo.UpdateItem(item))
+
+	var mapping entity.InventoryMapping
+	assert.NoError(s.T(), s.db.Where("inventory_item_id = ? AND platform = ?", item.ID, "pos").First(&mapping).Error)
+	assert.Equal(s.T(), "mi-77", mapping.ExternalSKU)
+}
+
+func (s *InventoryRepositoryTestSuite) TestDeleteItemCascadesInventoryRecords() {
+	item := &entity.InventoryItem{
+		MISKU:        "mi-01",
+		Title:        "Guidance Perfume",
+		CurrentStock: 10,
+	}
+	assert.NoError(s.T(), s.repo.CreateItem(item))
+
+	assert.NoError(s.T(), s.repo.CreateMapping(&entity.InventoryMapping{
+		InventoryItemID: item.ID,
+		Platform:        "amazon",
+		ExternalSKU:     "AMAZON-SKU",
+	}))
+	assert.NoError(s.T(), s.repo.LogAdjustment(&entity.InventoryLog{
+		InventoryItemID: item.ID,
+		Delta:           -1,
+		Reason:          "sale",
+		Platform:        "amazon",
+	}))
+
+	assert.NoError(s.T(), s.repo.DeleteItem(item.ID))
+
+	var itemCount, mappingCount, logCount int64
+	s.db.Model(&entity.InventoryItem{}).Where("id = ?", item.ID).Count(&itemCount)
+	s.db.Model(&entity.InventoryMapping{}).Where("inventory_item_id = ?", item.ID).Count(&mappingCount)
+	s.db.Model(&entity.InventoryLog{}).Where("inventory_item_id = ?", item.ID).Count(&logCount)
+	assert.Equal(s.T(), int64(0), itemCount)
+	assert.Equal(s.T(), int64(0), mappingCount)
+	assert.Equal(s.T(), int64(0), logCount)
+}
+
 func TestInventoryRepositorySuite(t *testing.T) {
 	suite.Run(t, new(InventoryRepositoryTestSuite))
 }

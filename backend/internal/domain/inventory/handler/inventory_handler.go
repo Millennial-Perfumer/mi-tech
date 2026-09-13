@@ -2,11 +2,13 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"gorm.io/gorm"
 	"mi-tech/internal/domain/inventory/entity"
 	"mi-tech/internal/domain/inventory/service"
 )
@@ -298,4 +300,36 @@ func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// DeleteItem removes one local inventory product by ID.
+func (h *InventoryHandler) DeleteItem(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id <= 0 {
+		var req struct {
+			ID int `json:"id"`
+		}
+		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr == nil {
+			id = req.ID
+		} else {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+	}
+	if id <= 0 {
+		http.Error(w, "Invalid inventory item ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeleteItem(r.Context(), id); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, "Inventory item not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("InventoryHandler.DeleteItem error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

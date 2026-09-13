@@ -16,6 +16,7 @@ type InventoryRepository interface {
 	GetItemsByIDs(ids []int) ([]entity.InventoryItem, error)
 	CreateItem(item *entity.InventoryItem) error
 	UpdateItem(item *entity.InventoryItem) error
+	DeleteItem(id int) error
 	AdjustStock(id int, delta int) error
 	UpdateStockCount(id int, val int) error
 	GetMaxMISKU() (string, error) // For auto-generation
@@ -116,7 +117,28 @@ func (r *gormInventoryRepository) CreateItem(item *entity.InventoryItem) error {
 }
 
 func (r *gormInventoryRepository) UpdateItem(item *entity.InventoryItem) error {
-	return r.db.Save(item).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var existing entity.InventoryItem
+		if err := tx.First(&existing, item.ID).Error; err != nil {
+			return err
+		}
+
+		// Imported products may have a POS mapping that mirrors the canonical MI SKU.
+		// Keep that mapping usable after an MI SKU edit.
+		if existing.MISKU != item.MISKU {
+			if err := tx.Model(&entity.InventoryMapping{}).
+				Where("inventory_item_id = ? AND platform = ?", item.ID, "pos").
+				Update("external_sku", item.MISKU).Error; err != nil {
+				return err
+			}
+		}
+
+		return tx.Omit(clause.Associations).Save(item).Error
+	})
+}
+
+func (r *gormInventoryRepository) DeleteItem(id int) error {
+	return r.db.Delete(&entity.InventoryItem{}, id).Error
 }
 
 func (r *gormInventoryRepository) AdjustStock(id int, delta int) error {

@@ -276,7 +276,11 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
     setProductModalError('')
     setError('')
     try {
-      await apiRequest(token, onUnauthorized, `/api/inventory/item?id=${selectedProduct.id}`, { method: 'DELETE' })
+      await apiRequest(token, onUnauthorized, '/api/inventory/item/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedProduct.id }),
+      })
       setNotice(`${selectedProduct.mi_sku} deleted`)
       setSelectedProduct(null)
       await fetchInventory()

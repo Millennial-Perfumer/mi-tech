@@ -86,14 +86,28 @@ func (s *InventoryService) UpdateItem(ctx context.Context, item *entity.Inventor
 		return err
 	}
 
-	if item.MISKU != "" {
-		existing.MISKU = item.MISKU
+	if strings.TrimSpace(item.MISKU) != "" {
+		existing.MISKU = strings.TrimSpace(item.MISKU)
 	}
 	if item.Title != "" {
 		existing.Title = item.Title
 	}
 
 	return s.repo.UpdateItem(&existing)
+}
+
+// DeleteItem removes a local inventory item and its database-owned mappings,
+// logs, and manufacturing references through the configured foreign keys.
+func (s *InventoryService) DeleteItem(ctx context.Context, id int) error {
+	if id <= 0 {
+		return fmt.Errorf("invalid inventory item id")
+	}
+
+	if _, err := s.repo.GetItemByID(id); err != nil {
+		return err
+	}
+
+	return s.repo.DeleteItem(id)
 }
 
 // MapProduct links an external SKU to an internal item.
