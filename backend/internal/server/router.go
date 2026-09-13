@@ -377,7 +377,16 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/inventory/adjust", adminProtected(inventoryHandler.AdjustStock))
 	mux.HandleFunc("/api/inventory/logs", adminProtected(inventoryHandler.GetLogs))
 	mux.HandleFunc("/api/inventory/amazon/sync", adminProtected(inventoryHandler.SyncAmazon))
-	mux.HandleFunc("/api/inventory/item", adminProtected(inventoryHandler.UpdateItem))
+	mux.HandleFunc("/api/inventory/item", adminProtected(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			inventoryHandler.DeleteItem(w, r)
+		case http.MethodPatch, http.MethodPut:
+			inventoryHandler.UpdateItem(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	// --- Oil Inventory Routes ---
 	mux.HandleFunc("/api/inventory/oil/bulk-delete", adminProtected(oilHandler.BulkDeleteOils))

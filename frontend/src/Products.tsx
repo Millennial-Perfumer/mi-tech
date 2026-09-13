@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE } from './api';
 import { useToast } from './ToastContext';
+import { useConfirm } from './ConfirmContext';
 
 interface InventoryItem {
   id: number;
@@ -17,7 +18,7 @@ interface InventoryMapping {
   id: number;
   platform: string;
   external_sku: string;
-  external_variant_id: string;
+  external_variant_id?: string | null;
 }
 
 interface InventoryLog {
@@ -60,15 +61,18 @@ const parseShopifyRichText = (input: string) => {
   }
 };
 
-// Helper to extract SKU by platform
+// Helpers to read the current platform mapping while preserving its variant ID on edits.
+const getMappingForPlatform = (mappings: InventoryMapping[] | undefined, platform: string) => {
+  return mappings?.find(m => m.platform.toLowerCase() === platform.toLowerCase());
+};
+
 const getSKUForPlatform = (mappings: InventoryMapping[] | undefined, platform: string) => {
-  if (!mappings) return '—';
-  const mapping = mappings.find(m => m.platform.toLowerCase() === platform.toLowerCase());
-  return mapping ? mapping.external_sku : '—';
+  return getMappingForPlatform(mappings, platform)?.external_sku || '—';
 };
 
 export const Products: React.FC<{ token: string | null, userRole?: string, appConfigs?: any }> = ({ token, userRole = 'admin', appConfigs = {} }) => {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { confirm } = useConfirm();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [inventoryTotal, setInventoryTotal] = useState(0);
   const [inventoryPage, setInventoryPage] = useState(1);
@@ -77,7 +81,7 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
   const [productLogs, setProductLogs] = useState<InventoryLog[]>([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
-  const [amazonSKUInput, setAmazonSKUInput] = useState('');
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [sortBy, setSortBy] = useState<string>('mi-sku-asc');
@@ -201,12 +205,28 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     );
   };
 
-  const EditableSKU = ({ itemID, currentSKU, platform }: { itemID: number, currentSKU: string, platform: string }) => {
+  const EditableSKU = ({ itemID, currentSKU, platform, variantID }: { itemID: number, currentSKU: string, platform: string, variantID?: string | null }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [val, setVal] = useState(currentSKU === '—' ? '' : currentSKU);
+    const skipBlurRef = useRef(false);
 
     const handleSave = async () => {
-      if (val === (currentSKU === '—' ? '' : currentSKU)) {
+      if (skipBlurRef.current) {
+        skipBlurRef.current = false;
+        return;
+      }
+
+      const originalSKU = currentSKU === '—' ? '' : currentSKU;
+      const nextSKU = val.trim();
+
+      if (nextSKU === originalSKU) {
+        setIsEditing(false);
+        return;
+      }
+
+      if (!nextSKU) {
+        toastError(`${platform.toUpperCase()} SKU cannot be empty. Delete the mapping to clear it.`);
+        setVal(originalSKU);
         setIsEditing(false);
         return;
       }
@@ -218,8 +238,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           body: JSON.stringify({
             internal_item_id: itemID,
             platform: platform,
-            external_sku: val,
-            variant_id: 'default'
+            external_sku: nextSKU,
+            variant_id: variantID || 'default'
           })
         });
         if (resp.ok) {
@@ -227,10 +247,11 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           fetchInventory();
         } else {
           toastError(`Failed to update ${platform} SKU`);
-          setVal(currentSKU === '—' ? '' : currentSKU);
+          setVal(originalSKU);
         }
       } catch (err) {
         toastError('Error updating SKU');
+        setVal(originalSKU);
       }
       setIsEditing(false);
     };
@@ -245,8 +266,12 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           onChange={(e) => setVal(e.target.value)}
           onBlur={handleSave}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
             if (e.key === 'Escape') {
+              skipBlurRef.current = true;
               setVal(currentSKU === '—' ? '' : currentSKU);
               setIsEditing(false);
             }
@@ -267,8 +292,18 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
 
     return (
-      <div 
-        onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); skipBlurRef.current = false; setIsEditing(true); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            skipBlurRef.current = false;
+            setIsEditing(true);
+          }
+        }}
+        aria-label={`Edit ${platform} SKU`}
         className="editable-sku-trigger"
         style={{ 
           cursor: 'pointer',
@@ -278,14 +313,127 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
           alignItems: 'center',
           gap: '4px',
           transition: 'all 0.2s',
-          border: '1px solid transparent'
+          border: '1px solid transparent',
+          background: 'transparent',
+          color: 'inherit',
+          font: 'inherit'
         }}
       >
         <code style={{ fontSize: '0.8rem', color: currentSKU === '—' ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}>
           {currentSKU}
         </code>
         <span style={{ fontSize: '0.6rem', opacity: 0.2 }}>✎</span>
-      </div>
+      </button>
+    );
+  };
+
+  const EditableMISKU = ({ itemID, currentSKU }: { itemID: number, currentSKU: string }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [val, setVal] = useState(currentSKU);
+    const skipBlurRef = useRef(false);
+
+    const handleSave = async () => {
+      if (skipBlurRef.current) {
+        skipBlurRef.current = false;
+        return;
+      }
+
+      const nextSKU = val.trim();
+      if (nextSKU === currentSKU) {
+        setIsEditing(false);
+        return;
+      }
+
+      if (!nextSKU) {
+        toastError('MI SKU cannot be empty');
+        setVal(currentSKU);
+        setIsEditing(false);
+        return;
+      }
+
+      try {
+        const resp = await fetchWithAuth(`${API_BASE}/api/inventory/item`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: itemID, mi_sku: nextSKU })
+        });
+
+        if (resp.ok) {
+          toastSuccess('MI SKU updated');
+          fetchInventory();
+        } else {
+          toastError('Failed to update MI SKU');
+          setVal(currentSKU);
+        }
+      } catch (err) {
+        toastError('Error updating MI SKU');
+        setVal(currentSKU);
+      }
+      setIsEditing(false);
+    };
+
+    if (isEditing) {
+      return (
+        <input
+          type="text"
+          autoFocus
+          aria-label="Edit MI SKU"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+            if (e.key === 'Escape') {
+              skipBlurRef.current = true;
+              setVal(currentSKU);
+              setIsEditing(false);
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: '100px',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            border: '1px solid var(--accent-color)',
+            background: 'var(--surface-color-secondary)',
+            color: 'var(--text-primary)',
+            fontSize: '0.8rem',
+            outline: 'none'
+          }}
+        />
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); skipBlurRef.current = false; setIsEditing(true); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            skipBlurRef.current = false;
+            setIsEditing(true);
+          }
+        }}
+        aria-label="Edit MI SKU"
+        className="badge-pill badge-pill-gray"
+        style={{
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          border: '1px solid transparent',
+          background: 'var(--surface-color-secondary)',
+          color: 'var(--text-secondary)',
+          font: 'inherit'
+        }}
+      >
+        {currentSKU}
+        <span style={{ fontSize: '0.6rem', opacity: 0.45, marginLeft: '4px' }}>✎</span>
+      </button>
     );
   };
 
@@ -362,31 +510,6 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
     }
   };
 
-  const handleAddAmazonMapping = async (itemID: number) => {
-    if (!amazonSKUInput.trim()) return;
-    try {
-      const resp = await fetchWithAuth(`${API_BASE}/api/inventory/map`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          internal_item_id: itemID,
-          platform: 'amazon',
-          external_sku: amazonSKUInput,
-          variant_id: 'default' // Amazon doesn't use variant ID in our mapping logic yet
-        })
-      });
-      if (resp.ok) {
-        toastSuccess('Amazon SKU mapped successfully');
-        setAmazonSKUInput('');
-        fetchInventory();
-      } else {
-        toastError('Failed to map Amazon SKU');
-      }
-    } catch (err) {
-      toastError('Failed to map Amazon SKU');
-    }
-  };
-
   const handleDeleteMapping = async (mappingID: number) => {
     try {
       const resp = await fetchWithAuth(`${API_BASE}/api/inventory/map?id=${mappingID}`, {
@@ -400,6 +523,43 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       }
     } catch (err) {
       toastError('Failed to delete mapping');
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct || isDeletingProduct) return;
+
+    const confirmed = await confirm({
+      title: 'Delete imported product?',
+      message: `This will remove ${selectedProduct.title} from local inventory, including its SKU mappings and stock history. Shopify and Amazon listings will not be deleted.`,
+      confirmLabel: 'Delete Product',
+      variant: 'danger'
+    });
+
+    if (!confirmed) return;
+
+    setIsDeletingProduct(true);
+    try {
+      const resp = await fetchWithAuth(`${API_BASE}/api/inventory/item?id=${selectedProduct.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!resp.ok) {
+        toastError('Failed to delete product');
+        return;
+      }
+
+      toastSuccess('Product deleted from inventory');
+      setSelectedProduct(null);
+      if (items.length === 1 && inventoryPage > 1) {
+        setInventoryPage(page => Math.max(1, page - 1));
+      } else {
+        fetchInventory();
+      }
+    } catch (err) {
+      toastError('Error deleting product');
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -525,6 +685,8 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
       setSelectedStagedIds(new Set(stagedProducts.map(p => p.mappings?.[0]?.external_variant_id!).filter(Boolean)));
     }
   };
+
+  const selectedAmazonMapping = selectedProduct?.mappings?.find(m => m.platform.toLowerCase() === 'amazon');
 
   useEffect(() => {
     fetchInventory();
@@ -746,27 +908,42 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
               </tr>
             ) : (
               items.map(item => (
-                <tr key={item.id} className="hover-row" style={{ cursor: 'pointer' }} onClick={() => handleSetSelected(item)}>
+                <tr
+                  key={item.id}
+                  className="hover-row"
+                  tabIndex={0}
+                  aria-label={`Open ${item.title}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleSetSelected(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSetSelected(item);
+                    }
+                  }}
+                >
                   <td style={{ paddingLeft: '2rem' }}>
                     <div style={{ fontWeight: 700, color: 'var(--text-primary)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.title}
                     </div>
                   </td>
                    <td>
-                    <span className="badge-pill badge-pill-gray" style={{ fontSize: '0.7rem', fontWeight: 700 }}>
-                      {item.mi_sku}
-                    </span>
+                    <EditableMISKU itemID={item.id} currentSKU={item.mi_sku} />
                   </td>
                   <td>
-                    <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      {getSKUForPlatform(item.mappings, 'shopify')}
-                    </code>
+                    <EditableSKU
+                      itemID={item.id}
+                      currentSKU={getSKUForPlatform(item.mappings, 'shopify')}
+                      platform="shopify"
+                      variantID={getMappingForPlatform(item.mappings, 'shopify')?.external_variant_id}
+                    />
                   </td>
                   <td>
                     <EditableSKU 
                       itemID={item.id} 
                       currentSKU={getSKUForPlatform(item.mappings, 'amazon')} 
                       platform="amazon" 
+                      variantID={getMappingForPlatform(item.mappings, 'amazon')?.external_variant_id}
                     />
                   </td>
                   <td style={{ paddingRight: '2rem' }}>
@@ -868,17 +1045,18 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
                 <div>
                   <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Internal SKU</label>
                   <div style={{ marginTop: '0.4rem' }}>
-                    <span className="badge-pill badge-pill-gray" style={{ fontSize: '0.8rem', fontWeight: 700, padding: '4px 10px' }}>
-                      {selectedProduct.mi_sku}
-                    </span>
+                    <EditableMISKU itemID={selectedProduct.id} currentSKU={selectedProduct.mi_sku} />
                   </div>
                 </div>
                 <div>
                   <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Shopify SKU</label>
                   <div style={{ marginTop: '0.4rem' }}>
-                    <code style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      {getSKUForPlatform(selectedProduct.mappings, 'shopify')}
-                    </code>
+                    <EditableSKU
+                      itemID={selectedProduct.id}
+                      currentSKU={getSKUForPlatform(selectedProduct.mappings, 'shopify')}
+                      platform="shopify"
+                      variantID={getMappingForPlatform(selectedProduct.mappings, 'shopify')?.external_variant_id}
+                    />
                   </div>
                 </div>
               </div>
@@ -958,103 +1136,80 @@ export const Products: React.FC<{ token: string | null, userRole?: string, appCo
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                    Amazon India Mappings
+                    Amazon India SKU
                   </label>
                   <span className="badge-pill badge-pill-gray" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
-                    {(selectedProduct.mappings?.filter(m => m.platform === 'amazon') || []).length} Active
+                    {selectedAmazonMapping ? '1 Active' : '0 Active'}
                   </span>
                 </div>
 
-                {(selectedProduct.mappings?.filter(m => m.platform === 'amazon') || []).length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {(selectedProduct.mappings?.filter(m => m.platform === 'amazon') || []).map(mapping => (
-                      <div 
-                        key={mapping.id}
-                        className="glass-card-premium"
-                        style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          padding: '0.6rem 0.8rem', 
-                          borderRadius: '10px',
-                          border: '1px solid var(--border-color)',
-                          background: 'var(--bg-input)'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.9rem', color: 'var(--accent-color)' }}>📦</span>
-                          <code style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {mapping.external_sku}
-                          </code>
-                        </div>
-                        <button 
-                          className="toolbar-btn" 
-                          onClick={() => handleDeleteMapping(mapping.id)}
-                          style={{ 
-                            padding: '4px 8px', 
-                            fontSize: '0.75rem', 
-                            color: 'var(--status-danger)',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--status-danger)';
-                            e.currentTarget.style.color = '#fff';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                            e.currentTarget.style.color = 'var(--status-danger)';
-                          }}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                          Delete
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <input 
-                      type="text" 
-                      placeholder="Add new Amazon SKU..."
-                      value={amazonSKUInput}
-                      onChange={(e) => setAmazonSKUInput(e.target.value)}
-                      style={{ 
-                        height: '38px',
-                        fontSize: '0.85rem',
-                        border: '1px solid var(--border-color)',
-                        background: 'var(--bg-input)',
-                        paddingLeft: '1rem',
-                        borderRadius: '8px'
-                      }}
+                <div
+                  className="glass-card-premium"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-input)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.9rem', color: 'var(--accent-color)' }}>📦</span>
+                    <EditableSKU
+                      itemID={selectedProduct.id}
+                      currentSKU={selectedAmazonMapping?.external_sku || '—'}
+                      platform="amazon"
+                      variantID={selectedAmazonMapping?.external_variant_id}
                     />
                   </div>
-                  <button 
-                    className="btn-primary" 
-                    style={{ height: '38px', padding: '0 1rem', fontSize: '0.8rem', borderRadius: '8px' }}
-                    onClick={() => handleAddAmazonMapping(selectedProduct.id)}
-                  >
-                    Add Mapping
-                  </button>
+                  {selectedAmazonMapping && (
+                    <button
+                      type="button"
+                      aria-label="Delete Amazon SKU mapping"
+                      className="toolbar-btn"
+                      onClick={() => handleDeleteMapping(selectedAmazonMapping.id)}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        color: 'var(--status-danger)',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      Delete
+                    </button>
+                  )}
                 </div>
                 
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', margin: 0 }}>
-                  Linking Amazon SKUs enables real-time stock sync for this product. You can map multiple SKUs if the same product is sold under different listings.
+                  Click any SKU to edit it. Delete the Amazon mapping to clear it; the product itself remains in your local inventory.
                 </p>
               </div>
             </div>
 
-            <div style={{ marginTop: '1.75rem' }}>
+            <div style={{ marginTop: '1.75rem', display: 'grid', gap: '0.65rem' }}>
+              {userRole === 'admin' && (
+                <button
+                  type="button"
+                  className="btn-danger"
+                  style={{ width: '100%' }}
+                  onClick={handleDeleteProduct}
+                  disabled={isDeletingProduct}
+                >
+                  {isDeletingProduct ? 'Deleting Product...' : 'Delete Imported Product'}
+                </button>
+              )}
               <button className="btn-primary" style={{ width: '100%' }} onClick={() => setSelectedProduct(null)}>Close Overview</button>
             </div>
           </div>

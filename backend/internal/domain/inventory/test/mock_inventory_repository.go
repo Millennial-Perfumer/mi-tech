@@ -46,6 +46,11 @@ func (m *MockInventoryRepository) UpdateItem(item *entity.InventoryItem) error {
 	return args.Error(0)
 }
 
+func (m *MockInventoryRepository) DeleteItem(id int) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
 func (m *MockInventoryRepository) AdjustStock(id int, delta int) error {
 	args := m.Called(id, delta)
 	return args.Error(0)
