@@ -5514,6 +5514,51 @@ a:focus-visible,
   min-width: 220px;
 }
 
+.inventory-product-link {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.inventory-product-link:hover strong,
+.inventory-product-link:focus-visible strong {
+  color: var(--platform-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inventory-product-link:focus-visible {
+  outline: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+
+.inventory-product-modal {
+  width: min(100%, 720px);
+}
+
+.inventory-product-modal-copy {
+  margin: -4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.inventory-product-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.inventory-product-detail-grid .form-field {
+  min-width: 0;
+}
+
 .inventory-product-cell > span:last-child {
   display: grid;
   gap: 3px;

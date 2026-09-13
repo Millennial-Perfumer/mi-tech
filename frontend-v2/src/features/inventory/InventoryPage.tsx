@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, CircleAlert, Edit3, Package, RefreshCw, Search, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Edit3, Package, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 import { apiJson, apiRequest, arrayFrom } from '../../lib/http'
 
@@ -10,6 +10,7 @@ type InventoryPageProps = {
 }
 
 type InventoryMapping = {
+  id?: number
   platform: string
   external_sku: string
   external_variant_id?: string
@@ -46,8 +47,12 @@ function formatMoney(value: number | undefined) {
   return `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 }
 
+function getMappingRecord(item: InventoryItem, platform: string) {
+  return item.mappings?.find((mapping) => mapping.platform.toLowerCase() === platform)
+}
+
 function getMapping(item: InventoryItem, platform: string) {
-  return item.mappings?.find((mapping) => mapping.platform.toLowerCase() === platform)?.external_sku || '—'
+  return getMappingRecord(item, platform)?.external_sku || '—'
 }
 
 function stockLabel(stock: number) {
@@ -116,6 +121,13 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
   const [syncMode, setSyncMode] = useState<SyncMode | null>(null)
   const [stagedProducts, setStagedProducts] = useState<InventoryItem[]>([])
   const [selectedStagedIds, setSelectedStagedIds] = useState<Set<string>>(new Set())
+  const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null)
+  const [editMiSku, setEditMiSku] = useState('')
+  const [editShopifySku, setEditShopifySku] = useState('')
+  const [editAmazonSku, setEditAmazonSku] = useState('')
+  const [isSavingProduct, setIsSavingProduct] = useState(false)
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false)
+  const [productModalError, setProductModalError] = useState('')
 
   const fetchSyncConfig = useCallback(async () => {
     setIsLoadingSyncConfig(true)
@@ -191,6 +203,87 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
       setError(caughtError instanceof Error ? caughtError.message : 'Unable to update stock')
     } finally {
       setIsSavingStock(false)
+    }
+  }
+
+  const openProductDetails = (item: InventoryItem) => {
+    setSelectedProduct(item)
+    setEditMiSku(item.mi_sku)
+    setEditShopifySku(getMappingRecord(item, 'shopify')?.external_sku || '')
+    setEditAmazonSku(getMappingRecord(item, 'amazon')?.external_sku || '')
+    setProductModalError('')
+  }
+
+  const saveChannelSku = async (item: InventoryItem, platform: string, sku: string) => {
+    const existing = getMappingRecord(item, platform)
+    const nextSku = sku.trim()
+
+    if (existing?.external_sku === nextSku) return
+
+    if (existing?.id) {
+      await apiRequest(token, onUnauthorized, `/api/inventory/map?id=${existing.id}`, { method: 'DELETE' })
+    }
+
+    if (!nextSku) return
+
+    await apiRequest(token, onUnauthorized, '/api/inventory/map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        internal_item_id: item.id,
+        platform,
+        external_sku: nextSku,
+        variant_id: existing?.external_variant_id || '',
+      }),
+    })
+  }
+
+  const saveProductDetails = async () => {
+    if (!selectedProduct) return
+    const nextMiSku = editMiSku.trim()
+    if (!nextMiSku) {
+      setProductModalError('MI SKU is required')
+      return
+    }
+
+    setIsSavingProduct(true)
+    setProductModalError('')
+    setError('')
+    try {
+      if (nextMiSku !== selectedProduct.mi_sku) {
+        await apiRequest(token, onUnauthorized, '/api/inventory/item', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: selectedProduct.id, mi_sku: nextMiSku }),
+        })
+      }
+      await saveChannelSku(selectedProduct, 'shopify', editShopifySku)
+      await saveChannelSku(selectedProduct, 'amazon', editAmazonSku)
+      setNotice(`${nextMiSku} updated`)
+      setSelectedProduct(null)
+      await fetchInventory()
+    } catch (caughtError) {
+      setProductModalError(caughtError instanceof Error ? caughtError.message : 'Unable to save product details')
+    } finally {
+      setIsSavingProduct(false)
+    }
+  }
+
+  const deleteSelectedProduct = async () => {
+    if (!selectedProduct || !window.confirm(`Delete ${selectedProduct.mi_sku}? This removes the local product and its SKU mappings.`)) return
+
+    setIsDeletingProduct(true)
+    setProductModalError('')
+    setError('')
+    try {
+      await apiRequest(token, onUnauthorized, `/api/inventory/item?id=${selectedProduct.id}`, { method: 'DELETE' })
+      setNotice(`${selectedProduct.mi_sku} deleted`)
+      setSelectedProduct(null)
+      await fetchInventory()
+    } catch (caughtError) {
+      setProductModalError(caughtError instanceof Error ? caughtError.message : 'Unable to delete product')
+    } finally {
+      setIsDeletingProduct(false)
     }
   }
 
@@ -345,7 +438,7 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
             <tbody>
               {isLoading ? <tr><td className="table-state" colSpan={5}>Loading inventory…</td></tr> : items.length === 0 ? <tr><td className="table-state" colSpan={5}>No products match this search.</td></tr> : items.map((item) => (
                 <tr key={item.id}>
-                  <td><div className="inventory-product-cell"><span className="inventory-product-icon"><Package size={16} aria-hidden="true" /></span><span><strong>{item.title || 'Untitled product'}</strong><small>{item.mi_sku}</small></span></div></td>
+                  <td><button className="inventory-product-link" type="button" onClick={() => openProductDetails(item)} aria-label={`Open details for ${item.title || item.mi_sku}`}><span className="inventory-product-cell"><span className="inventory-product-icon"><Package size={16} aria-hidden="true" /></span><span><strong>{item.title || 'Untitled product'}</strong><small>{item.mi_sku}</small></span></span></button></td>
                   <td>
                     {editingId === item.id ? <StockEditor item={item} onSave={(value) => { if (!isSavingStock) void updateStock(item, value) }} onCancel={() => setEditingId(null)} /> : (
                       <button className={`inventory-stock-button inventory-stock-${item.current_stock <= 0 ? 'empty' : item.current_stock <= 10 ? 'low' : 'ready'}`} type="button" onClick={() => setEditingId(item.id)} disabled={isSavingStock}>
@@ -396,6 +489,34 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
             <div className="modal-actions">
               <button className="secondary-button" type="button" onClick={() => setSyncMode(null)} disabled={isSyncing}>Cancel</button>
               <button className="primary-button" type="button" onClick={() => void importSelectedShopifyProducts()} disabled={isSyncing || stagedProducts.length === 0}>{isSyncing ? 'Importing…' : `Import ${selectedStagedIds.size || ''} product${selectedStagedIds.size === 1 ? '' : 's'}`}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {selectedProduct && (
+        <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isSavingProduct && !isDeletingProduct) setSelectedProduct(null) }}>
+          <section className="modal-card inventory-product-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-product-heading" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Product specifications</p>
+                <h2 id="inventory-product-heading">{selectedProduct.title || 'Untitled product'}</h2>
+              </div>
+              <button className="icon-button" type="button" aria-label="Close product details" onClick={() => { if (!isSavingProduct && !isDeletingProduct) setSelectedProduct(null) }} disabled={isSavingProduct || isDeletingProduct}>
+                <X size={19} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="inventory-product-modal-copy">Update the warehouse SKU and channel mappings for this product.</p>
+            <div className="inventory-product-detail-grid">
+              <label className="form-field"><span>MI SKU</span><input value={editMiSku} onChange={(event) => setEditMiSku(event.target.value)} disabled={isSavingProduct || isDeletingProduct} /></label>
+              <label className="form-field"><span>Shopify SKU</span><input value={editShopifySku} onChange={(event) => setEditShopifySku(event.target.value)} placeholder="Not mapped" disabled={isSavingProduct || isDeletingProduct} /></label>
+              <label className="form-field"><span>Amazon SKU</span><input value={editAmazonSku} onChange={(event) => setEditAmazonSku(event.target.value)} placeholder="Not mapped" disabled={isSavingProduct || isDeletingProduct} /></label>
+            </div>
+            {productModalError && <p className="modal-form-error" role="alert"><CircleAlert size={15} aria-hidden="true" />{productModalError}</p>}
+            <div className="modal-actions">
+              <button className="secondary-button danger-link" type="button" onClick={() => void deleteSelectedProduct()} disabled={isSavingProduct || isDeletingProduct}><Trash2 size={15} aria-hidden="true" />{isDeletingProduct ? 'Deleting…' : 'Delete product'}</button>
+              <button className="secondary-button" type="button" onClick={() => setSelectedProduct(null)} disabled={isSavingProduct || isDeletingProduct}>Cancel</button>
+              <button className="primary-button" type="button" onClick={() => void saveProductDetails()} disabled={isSavingProduct || isDeletingProduct}>{isSavingProduct ? 'Saving…' : 'Save changes'}</button>
             </div>
           </section>
         </div>
