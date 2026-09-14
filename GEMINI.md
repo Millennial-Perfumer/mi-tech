@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository is split into three app surfaces plus infrastructure. `backend/` contains the Go API: `cmd/` for entrypoints, `internal/handler/` for HTTP transport, `internal/service/` for business logic, `internal/repository/` for persistence, and `internal/database/migrations/` for SQL migrations. `frontend/` is the main Vite + React admin UI. `frontend-mobile/` is a separate mobile-focused Vite + React client. Infra and ops files live in `nginx/`, `monitoring/`, root `docker-compose*.yml`, and [`architecture.md`](/Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/architecture.md).
+This repository is split into three app surfaces plus infrastructure. `backend/` contains the Go API: `cmd/` for entrypoints, `internal/handler/` for HTTP transport, `internal/service/` for business logic, `internal/repository/` for persistence, and `internal/database/migrations/` for SQL migrations. `frontend/` is the primary v2 Vite + React admin UI, while `frontend-legacy/` preserves the previous admin UI. `frontend-mobile/` is a separate mobile-focused Vite + React client. Infra and ops files live in `nginx/`, `monitoring/`, root `docker-compose*.yml`, and [`architecture.md`](/Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/architecture.md).
 
 ## Build, Test, and Development Commands
 Use the root `Makefile` for the main local workflow:
@@ -46,4 +46,3 @@ This repository follows a strict **Doc-as-Code** mandate to ensure accuracy and 
 
 ## Security & Configuration Tips
 Do not commit secrets from `backend/.env`. Add new settings to `backend/.env.example` when needed, and prefer migration files over ad hoc database edits.
-

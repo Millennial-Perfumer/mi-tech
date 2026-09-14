@@ -7,8 +7,8 @@ MI Tech is a multi-service commerce operations platform. The repository contains
 | Service | Path | Technology | Responsibility |
 | --- | --- | --- | --- |
 | API | `backend/` | Go, PostgreSQL | Core business domains, integrations, authentication, invoices, and webhooks. |
-| Operations UI | `frontend/` | React, Vite | Legacy internal operations interface at `mi-tech.millennialperfumer.in`. |
-| Operations UI v2 | `frontend-v2/` | React, Vite | New internal operations interface at `mi-tech.v2.millennialperfumer.in`. |
+| Operations UI | `frontend/` | React, Vite | Primary internal operations interface at `mi-tech.millennialperfumer.in` (v2 shell). |
+| Legacy Operations UI | `frontend-legacy/` | React, Vite | Preserved legacy interface; not included in the default production deployment. |
 | Feedback UI | `frontend-feedback/` | React, Vite | Customer feedback experience. |
 | Shopify chat agent | `shop-chat-agent/` | React Router, Prisma | Shopify product-listing assistant. |
 | Review checker | `amazon-review-checker/` | Go | Standalone Amazon-review utility. |

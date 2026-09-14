@@ -236,12 +236,16 @@ func UploadInMemoryPackageToDrive(accessToken string, parentFolderID string, fol
 
 	// 2. Upload caption.txt in-memory
 	if cleanCap != "" {
-		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "caption.txt", []byte(cleanCap), "text/plain; charset=utf-8")
+		if err := uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "caption.txt", []byte(cleanCap), "text/plain; charset=utf-8"); err != nil {
+			return "", fmt.Errorf("caption upload failed: %w", err)
+		}
 	}
 
 	// 3. Upload hashtags.txt in-memory
 	if cleanHash != "" {
-		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "hashtags.txt", []byte(cleanHash), "text/plain; charset=utf-8")
+		if err := uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, "hashtags.txt", []byte(cleanHash), "text/plain; charset=utf-8"); err != nil {
+			return "", fmt.Errorf("hashtags upload failed: %w", err)
+		}
 	}
 
 	// 4. Upload media files with AI / C2PA metadata stripped and professional camera naming
@@ -271,7 +275,9 @@ func UploadInMemoryPackageToDrive(accessToken string, parentFolderID string, fol
 			vidCount++
 		}
 
-		_ = uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, cleanFileName, fileBytes, mimeType)
+		if err := uploadInMemoryBytesToDrive(client, accessToken, createdFolderID, cleanFileName, fileBytes, mimeType); err != nil {
+			return "", fmt.Errorf("media upload failed for %s: %w", cleanFileName, err)
+		}
 	}
 
 	return createdFolderID, nil
@@ -565,7 +571,7 @@ func stripImageMetadata(inputBytes []byte, ext string) ([]byte, string, error) {
 			a8 := uint8(a >> 8)
 
 			// Subtle pseudo-random photon noise simulation on low-order bits
-			noise := int(((x * 374761393) ^ (y * 668265263)) & 3) - 1 // values -1, 0, 1, 2
+			noise := int(((x*374761393)^(y*668265263))&3) - 1 // values -1, 0, 1, 2
 
 			nr := clampUint8(int(r8) + noise)
 			ng := clampUint8(int(g8) + noise)
@@ -606,4 +612,3 @@ func clampUint8(val int) uint8 {
 	}
 	return uint8(val)
 }
-

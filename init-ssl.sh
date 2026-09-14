@@ -78,8 +78,8 @@ docker compose -f $COMPOSE_FILE exec nginx nginx -s reload
 
 echo ""
 echo "✅ SSL bootstrap complete!"
-echo "   https://$DOMAIN        → Frontend"
-echo "   https://$V2_DOMAIN     → Frontend v2"
+echo "   https://$DOMAIN        → Primary v2 frontend"
+echo "   https://$V2_DOMAIN     → Primary v2 frontend (compatibility alias)"
 echo "   https://$API_DOMAIN    → API"
 echo ""
 echo "   The certbot container will now handle renewals every 12 hours automatically."

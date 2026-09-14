@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,14 +15,15 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@shopify/app-bridge-react": "^4.2.10",
     "@shopify/polaris": "^13.9.5",
-    "@types/react-router-dom": "^5.3.3",
     "axios": "^1.13.6",
     "date-fns": "^4.1.0",
+    "lucide-react": "^1.7.0",
     "react": "^19.2.0",
     "react-date-range": "^2.0.1",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
-    "recharts": "^3.7.0"
+    "recharts": "^3.7.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

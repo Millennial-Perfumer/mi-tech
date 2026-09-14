@@ -21,6 +21,8 @@ type SMMHandler struct {
 	socialService service.SocialService
 }
 
+const defaultGDriveAutomationFolderURL = "https://drive.google.com/drive/folders/1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
+
 func NewSMMHandler(socialService service.SocialService) *SMMHandler {
 	return &SMMHandler{socialService: socialService}
 }
@@ -257,7 +259,9 @@ func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stream files directly from RAM memory into Google Drive (Zero Disk Writes)
+	// Stream files directly from RAM memory into Google Drive (Zero Disk Writes).
+	// The response is returned only after Drive confirms the folder and files exist;
+	// otherwise the UI can show success while nothing was uploaded.
 	if post != nil {
 		for _, fHeader := range fileHeaders {
 			file, err := fHeader.Open()
@@ -309,46 +313,82 @@ func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 			n8nWebhookURL = os.Getenv("N8N_WEBHOOK_URL")
 		}
 
-		parentFolderID := "1djXkok8cuP3efyurTd2nOwoKRo-HpEC3"
+		folderURL, _ := h.socialService.GetAppConfig("gdrive_automation_folder_url")
+		if folderURL == "" {
+			folderURL = os.Getenv("GDRIVE_AUTOMATION_FOLDER_URL")
+		}
+		if folderURL == "" {
+			folderURL = defaultGDriveAutomationFolderURL
+		}
 
-		// Execute Direct Google Drive REST API Streaming in Background (100% In-Memory)
-		go func(rToken, cID, cSecret, sa, token, pID, fName, caption, hashtags string, memFiles []service.InMemoryFile) {
-			activeToken := token
+		parentFolderID, err := extractDriveFolderID(folderURL)
+		if err != nil {
+			message := fmt.Sprintf("Google Drive folder configuration is invalid: %v", err)
+			_ = h.socialService.UpdateQueueItemStatus(post.ID, "FAILED", message, "")
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": message, "post": post})
+			return
+		}
 
-			// 1. Try Refresh Token Exchange (Highest Priority - 24/7 User Account Upload)
-			if rToken != "" {
-				freshToken, err := service.GetAccessTokenFromRefreshToken(cID, cSecret, rToken)
-				if err == nil && freshToken != "" {
-					activeToken = freshToken
-					log.Printf("[GDrive Auth Success] Generated fresh Google OAuth access token using Refresh Token")
-				} else {
-					log.Printf("[GDrive Refresh Token Error] %v", err)
-				}
-			}
-
-			// 2. Fallback to Service Account JSON
-			if activeToken == "" && sa != "" {
-				freshToken, err := service.GetAccessTokenFromServiceAccountJSON(sa)
-				if err != nil {
-					log.Printf("[GDrive Service Account Error] Failed to generate access token: %v", err)
-					return
-				}
-				activeToken = freshToken
-			}
-
-			if activeToken == "" {
-				log.Printf("[SMM Queue Log] Notice: Neither gdrive_refresh_token, gdrive_service_account_json nor gdrive_access_token is configured in Settings. Direct upload skipped.")
+		// Prefer the same Google Service Account identity used by n8n. When it is
+		// configured, do not silently fall back to legacy user OAuth credentials:
+		// that can hide a service-account permission/configuration problem and can
+		// reuse an expired access token.
+		activeToken := ""
+		if saJSON != "" {
+			freshToken, tokenErr := service.GetAccessTokenFromServiceAccountJSON(saJSON)
+			if tokenErr != nil {
+				message := fmt.Sprintf("Google Drive service-account authentication failed: %v", tokenErr)
+				_ = h.socialService.UpdateQueueItemStatus(post.ID, "FAILED", message, "")
+				w.WriteHeader(http.StatusBadGateway)
+				json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": message, "post": post})
 				return
 			}
+			activeToken = freshToken
+			log.Printf("[GDrive Auth Success] Generated access token using Google Service Account")
+		}
 
-			log.Printf("[SMM Queue Log] Starting 100%% in-memory Google Drive stream for folder %s into parent %s...", fName, pID)
-			folderID, err := service.UploadInMemoryPackageToDrive(activeToken, pID, fName, caption, hashtags, memFiles)
-			if err != nil {
-				log.Printf("[GDrive Stream Error] %v", err)
+		// Legacy fallback for deployments that have not migrated to a service account.
+		if activeToken == "" && refreshToken != "" {
+			freshToken, tokenErr := service.GetAccessTokenFromRefreshToken(clientID, clientSecret, refreshToken)
+			if tokenErr == nil && freshToken != "" {
+				activeToken = freshToken
+				log.Printf("[GDrive Auth Success] Generated fresh Google OAuth access token using Refresh Token")
 			} else {
-				log.Printf("[GDrive Stream Success] Streamed subfolder %s (ID: %s) directly to Google Drive (Zero Disk Writes)", fName, folderID)
+				log.Printf("[GDrive Refresh Token Error] %v", tokenErr)
 			}
-		}(refreshToken, clientID, clientSecret, saJSON, driveToken, parentFolderID, post.FolderName, post.Caption, post.Hashtags, inMemoryFiles)
+		}
+
+		// Last-resort legacy access token. This is intentionally after both
+		// renewable authentication methods so a stale token cannot mask them.
+		if activeToken == "" {
+			activeToken = driveToken
+		}
+
+		if activeToken == "" {
+			message := "Google Drive authentication is not configured. Add a refresh token, service-account JSON, or access token in Settings."
+			_ = h.socialService.UpdateQueueItemStatus(post.ID, "FAILED", message, "")
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": message, "post": post})
+			return
+		}
+
+		log.Printf("[SMM Queue Log] Starting 100%% in-memory Google Drive stream for folder %s into parent %s...", post.FolderName, parentFolderID)
+		folderID, err := service.UploadInMemoryPackageToDrive(activeToken, parentFolderID, post.FolderName, post.Caption, post.Hashtags, inMemoryFiles)
+		if err != nil {
+			message := fmt.Sprintf("Google Drive upload failed: %v", err)
+			log.Printf("[GDrive Stream Error] %s", message)
+			_ = h.socialService.UpdateQueueItemStatus(post.ID, "FAILED", message, "")
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": message, "post": post})
+			return
+		}
+
+		if err := h.socialService.UpdateQueueItemStatus(post.ID, "QUEUED", "", folderID); err != nil {
+			log.Printf("[SMM Queue Log] Drive upload succeeded but queue status update failed: %v", err)
+		}
+		post.GDriveFolderID = folderID
+		log.Printf("[GDrive Stream Success] Streamed subfolder %s (ID: %s) directly to Google Drive (Zero Disk Writes)", post.FolderName, folderID)
 
 		// 2. n8n Webhook Trigger
 		if n8nWebhookURL == "" {
@@ -362,6 +402,26 @@ func (h *SMMHandler) QueuePost(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"post":    post,
 	})
+}
+
+func extractDriveFolderID(rawURL string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return "", err
+	}
+
+	if id := parsed.Query().Get("id"); id != "" {
+		return id, nil
+	}
+
+	segments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	for i, segment := range segments {
+		if segment == "folders" && i+1 < len(segments) && segments[i+1] != "" {
+			return segments[i+1], nil
+		}
+	}
+
+	return "", fmt.Errorf("expected a Google Drive folder URL such as https://drive.google.com/drive/folders/<folder-id>")
 }
 
 const maxMCPQueueMediaBytes = 50 << 20

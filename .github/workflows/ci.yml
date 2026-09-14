@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        directory: [ 'frontend', 'frontend-v2', 'frontend-feedback' ]
+        directory: [ 'frontend', 'frontend-legacy', 'frontend-feedback' ]
 
     steps:
       - name: Checkout repository
@@ -84,7 +84,7 @@ jobs:
       - name: Install dependencies
         run: |
           cd ${{ matrix.directory }}
-          if [ "${{ matrix.directory }}" = "frontend" ] || [ "${{ matrix.directory }}" = "frontend-v2" ]; then
+          if [ "${{ matrix.directory }}" = "frontend" ] || [ "${{ matrix.directory }}" = "frontend-legacy" ]; then
             npm install --legacy-peer-deps
           else
             npm install

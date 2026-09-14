@@ -790,33 +790,23 @@ export function SettingsTab({ fetchWithAuth, userRole }: SettingsTabProps) {
       sort_order: 10
     },
     {
-      key: 'gdrive_refresh_token',
+      key: 'gdrive_service_account_json',
       value: '',
       is_secret: true,
-      label: 'Google Drive Refresh Token (24/7 Direct Auto-Upload Token)',
+      label: 'Google Drive Service Account JSON',
       category: 'auto_queue',
       sort_order: 11
-    },
-    {
-      key: 'gdrive_client_id',
-      value: '',
-      is_secret: false,
-      label: 'Google OAuth Client ID',
-      category: 'auto_queue',
-      sort_order: 12
-    },
-    {
-      key: 'gdrive_client_secret',
-      value: '',
-      is_secret: true,
-      label: 'Google OAuth Client Secret',
-      category: 'auto_queue',
-      sort_order: 13
     }
   ];
 
   const mergedConfigs = configs
-    .filter(c => c.key !== 'gdrive_service_account_json' && c.key !== 'gdrive_access_token' && c.key !== 'n8n_webhook_url')
+    .filter(c => ![
+      'gdrive_refresh_token',
+      'gdrive_client_id',
+      'gdrive_client_secret',
+      'gdrive_access_token',
+      'n8n_webhook_url'
+    ].includes(c.key))
     .map(c => {
       const def = defaultAppConfigs.find(d => d.key === c.key);
       const updated = { ...c };
@@ -824,9 +814,7 @@ export function SettingsTab({ fetchWithAuth, userRole }: SettingsTabProps) {
       if (def?.is_secret !== undefined && updated.is_secret === undefined) updated.is_secret = def.is_secret;
       if (
         c.key === 'gdrive_automation_folder_url' ||
-        c.key === 'gdrive_refresh_token' ||
-        c.key === 'gdrive_client_id' ||
-        c.key === 'gdrive_client_secret'
+        c.key === 'gdrive_service_account_json'
       ) {
         updated.category = 'auto_queue';
       }
@@ -1065,6 +1053,30 @@ export function SettingsTab({ fetchWithAuth, userRole }: SettingsTabProps) {
                                   onKeyDown={e => {
                                     if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
                                     if (e.key === 'Escape') handleCancelEdit();
+                                  }}
+                                />
+                              ) : cfg.key === 'gdrive_service_account_json' ? (
+                                <textarea
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  autoFocus
+                                  rows={10}
+                                  spellCheck={false}
+                                  placeholder="Paste the complete Google Cloud service-account JSON"
+                                  style={{
+                                    width: '100%',
+                                    minHeight: '180px',
+                                    padding: '0.75rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--accent-color)',
+                                    fontSize: '0.8rem',
+                                    lineHeight: 1.45,
+                                    fontFamily: 'monospace',
+                                    outline: 'none',
+                                    resize: 'vertical',
+                                    boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
+                                    color: 'var(--text-primary)',
+                                    backgroundColor: 'var(--bg-input)'
                                   }}
                                 />
                               ) : (

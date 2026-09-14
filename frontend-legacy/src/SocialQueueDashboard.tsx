@@ -235,8 +235,12 @@ export const SocialQueueDashboard: React.FC<SocialQueueDashboardProps> = ({
                       {item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) : 'Recently'}
                     </td>
                     <td style={{ padding: '1rem 1.25rem', borderRadius: '0 14px 14px 0', textAlign: 'right' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-color)' }}>
-                        Synced to GDrive ✓
+                      <span style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: item.status === 'FAILED' ? 'var(--status-danger)' : item.gdrive_folder_id ? 'var(--accent-color)' : 'var(--text-tertiary)'
+                      }}>
+                        {item.status === 'FAILED' ? 'Drive upload failed' : item.gdrive_folder_id ? 'Synced to GDrive ✓' : 'Awaiting Drive upload'}
                       </span>
                     </td>
                   </tr>

@@ -19,6 +19,7 @@ type SocialRepository interface {
 	GetPlatformSummary(platform string, startDate, endDate string) (map[string]interface{}, error)
 	CreateQueuePost(post entity.SocialQueuePost) (entity.SocialQueuePost, error)
 	ListQueuePosts(limit int) ([]entity.SocialQueuePost, error)
+	UpdateQueuePostStatus(id int, status string, errorMessage string, gdriveFolderID string) error
 	GetAppConfig(key string) (string, error)
 }
 
@@ -140,6 +141,20 @@ func (r *gormSocialRepository) ListQueuePosts(limit int) ([]entity.SocialQueuePo
 	return posts, err
 }
 
+func (r *gormSocialRepository) UpdateQueuePostStatus(id int, status string, errorMessage string, gdriveFolderID string) error {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.Model(&entity.SocialQueuePost{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":           status,
+			"error_message":    errorMessage,
+			"gdrive_folder_id": gdriveFolderID,
+			"updated_at":       time.Now(),
+		}).Error
+}
+
 func (r *gormSocialRepository) GetAppConfig(key string) (string, error) {
 	if r.db == nil {
 		return "", nil
@@ -153,4 +168,3 @@ func (r *gormSocialRepository) GetAppConfig(key string) (string, error) {
 	}
 	return cfg.Value, nil
 }
-

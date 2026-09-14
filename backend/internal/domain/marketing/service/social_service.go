@@ -27,6 +27,7 @@ type SocialService interface {
 	CheckAssetHealth() (*AssetHealth, error)
 	CreateQueueItem(input CreateQueueInput) (*entity.SocialQueuePost, error)
 	GetQueueItems(limit int) ([]entity.SocialQueuePost, error)
+	UpdateQueueItemStatus(id int, status string, errorMessage string, gdriveFolderID string) error
 	GetAppConfig(key string) (string, error)
 }
 
@@ -407,6 +408,10 @@ func (s *socialService) CreateQueueItem(input CreateQueueInput) (*entity.SocialQ
 
 func (s *socialService) GetQueueItems(limit int) ([]entity.SocialQueuePost, error) {
 	return s.repo.ListQueuePosts(limit)
+}
+
+func (s *socialService) UpdateQueueItemStatus(id int, status string, errorMessage string, gdriveFolderID string) error {
+	return s.repo.UpdateQueuePostStatus(id, status, errorMessage, gdriveFolderID)
 }
 
 func (s *socialService) CheckAssetHealth() (*AssetHealth, error) {

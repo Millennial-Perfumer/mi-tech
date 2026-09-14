@@ -93,7 +93,8 @@ out/
 db_backup_*.sql
 *.sql.gz
 *.html
-!frontend-v2/index.html
+!frontend/index.html
+!frontend-legacy/index.html
 meta_raw_debug.json
 backend/tmp/
 

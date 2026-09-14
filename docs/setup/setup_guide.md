@@ -17,7 +17,7 @@ make install
 # Start local PostgreSQL
 make db-up
 
-# Start database, Go API (Air), and Web Frontend
+# Start database, Go API (Air), and the primary v2 Web Frontend
 make run
 ```
 
@@ -39,7 +39,7 @@ cd backend && go test ./...
 ### Frontend
 ```bash
 cd frontend && npm run lint
-cd frontend-mobile && npm run lint
+cd frontend-legacy && npm run lint
 ```
 
 ## 📜 Repository Guidelines
