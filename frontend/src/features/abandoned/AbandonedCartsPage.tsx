@@ -133,11 +133,11 @@ const statusOptions = [
   "RECOVERED",
 ];
 const statusColors: Record<string, string> = {
-  Recovered: "#10b981",
-  "Message Sent": "#3b82f6",
-  Pending: "#f59e0b",
-  Failed: "#ef4444",
-  Expired: "#6b7280",
+  Recovered: "var(--accent-teal)",
+  "Message Sent": "var(--accent-blue)",
+  Pending: "var(--accent-yellow)",
+  Failed: "var(--accent-coral)",
+  Expired: "var(--text-muted)",
 };
 
 function numberValue(value: number | string | undefined) {
@@ -1134,8 +1134,8 @@ function AnalyticsPanel({
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.22} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--accent-coral)" stopOpacity={0.22} />
+                    <stop offset="95%" stopColor="var(--accent-coral)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient
                     id="recoveredRevenueFill"
@@ -1144,8 +1144,8 @@ function AnalyticsPanel({
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.22} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--accent-teal)" stopOpacity={0.22} />
+                    <stop offset="95%" stopColor="var(--accent-teal)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
@@ -1167,7 +1167,7 @@ function AnalyticsPanel({
                 <Area
                   type="monotone"
                   dataKey="abandonedAmount"
-                  stroke="#ef4444"
+                  stroke="var(--accent-coral)"
                   strokeWidth={2}
                   fill="url(#abandonedRevenueFill)"
                   name="Abandoned"
@@ -1175,7 +1175,7 @@ function AnalyticsPanel({
                 <Area
                   type="monotone"
                   dataKey="recoveredAmount"
-                  stroke="#10b981"
+                  stroke="var(--accent-teal)"
                   strokeWidth={2}
                   fill="url(#recoveredRevenueFill)"
                   name="Recovered"
@@ -1242,7 +1242,7 @@ function AnalyticsPanel({
                     {pieData.map((entry) => (
                       <Cell
                         key={entry.name}
-                        fill={statusColors[entry.name] || "#888888"}
+                        fill={statusColors[entry.name] || "var(--text-muted)"}
                       />
                     ))}
                   </Pie>
@@ -1255,7 +1255,7 @@ function AnalyticsPanel({
                     <span
                       className="abandoned-status-dot"
                       style={{
-                        background: statusColors[entry.name] || "#888888",
+                        background: statusColors[entry.name] || "var(--text-muted)",
                       }}
                     />
                     <span>

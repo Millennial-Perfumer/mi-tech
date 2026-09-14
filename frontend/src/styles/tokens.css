@@ -11,35 +11,51 @@
   --font-sans: var(--font-display);
   --font-mono: 'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 
-  /* Mi Tech light-first palette */
-  --canvas: #f8f8f6;
+  /* InLoop warm-neutral palette */
+  --canvas: #fbfaf7;
   --surface: #ffffff;
-  --surface-soft: #f4f4f1;
-  --surface-hover: #eef1f1;
-  --surface-selected: #edf1f1;
-  --text-main: #121212;
-  --text-secondary: #383838;
-  --text-muted: #73736f;
-  --text-faint: #a4a49e;
-  --border: #e6e6e1;
-  --border-strong: #cfcfc9;
-  --status: #4c4c48;
-  --danger: #8d3b34;
-  --danger-deep: #7d332e;
-  --danger-line: #d6aaa5;
-  --danger-soft: #fbf3f2;
+  --surface-soft: #f3f1eb;
+  --surface-hover: #f3f1eb;
+  --surface-selected: #e6f4f1;
+  --text-main: #292722;
+  --text-secondary: #5d5951;
+  --text-muted: #77736b;
+  --text-faint: #a39e94;
+  --border: #e5e1d8;
+  --border-strong: #d1cbc0;
 
-  /* InLoop-inspired restrained interaction accent */
-  --platform: #687478;
-  --platform-deep: #536064;
-  --platform-soft: #edf1f1;
-  --platform-line: #cbd5d6;
+  /* Brand teal */
+  --platform: #0f766e;
+  --platform-deep: #0b5f5b;
+  --platform-soft: #e6f4f1;
+  --platform-line: #b9d8d4;
+  --accent-teal: #0f766e;
+
+  /* Semantic accents */
+  --accent-purple: #8764b8;
+  --accent-coral: #d86b68;
+  --accent-yellow: #c99432;
+  --accent-blue: #4d7cfe;
+  --status: var(--platform);
+  --status-active: var(--accent-teal);
+  --status-warning: var(--accent-yellow);
+  --warning: var(--accent-yellow);
+  --danger: var(--accent-coral);
+  --danger-deep: #b95754;
+  --danger-line: #e4b2af;
+  --danger-soft: #fbeeed;
+
+  /* Compatibility aliases for older v2 components */
+  --font-ui: var(--font-sans);
+  --text-primary: var(--text-main);
+  --chart-grid: rgb(209 203 192 / 70%);
+  --chart-axis: var(--text-muted);
 
   /* Effects */
-  --overlay: rgb(18 18 18 / 24%);
-  --focus-ring: 0 0 0 3px rgb(76 76 72 / 18%);
-  --shadow-panel: 0 1px 2px rgb(18 18 18 / 4%);
-  --shadow-float: 0 12px 30px rgb(18 18 18 / 10%);
+  --overlay: rgb(41 39 34 / 24%);
+  --focus-ring: 0 0 0 3px rgb(15 118 110 / 20%);
+  --shadow-panel: 0 1px 2px rgb(41 39 34 / 5%);
+  --shadow-float: 0 12px 30px rgb(41 39 34 / 12%);
 
   /* Layout */
   --sidebar-width: 224px;
