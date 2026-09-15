@@ -56,36 +56,29 @@ const (
 	ScopeB2B                = "b2b:read"
 	ScopeCommunication      = "communication:read"
 	ScopeMarketing          = "marketing:read"
-	ScopeMarketingPublish   = "marketing:publish"
 	ScopeFeedback           = "feedback:read"
 	ScopeAbandonedCheckout  = "abandoned_checkout:read"
-	ScopePlanner            = "planner:read"
 	ScopeSupport            = "support:read"
-	ScopeAI                 = "ai:read"
 	ScopeSettings           = "settings:read"
 	ScopeSystem             = "system:read"
 	ScopeOrdersWrite        = "orders:write"
 	ScopeCustomersWrite     = "customers:write"
 	ScopeInventoryWrite     = "inventory:write"
 	ScopeProductionWrite    = "production:write"
-	ScopePlannerWrite       = "planner:write"
 	ScopeB2BWrite           = "b2b:write"
 	ScopeCommunicationWrite = "communication:write"
 	ScopeMarketingWrite     = "marketing:write"
 	ScopeFeedbackWrite      = "feedback:write"
 	ScopeSupportWrite       = "support:write"
 	ScopeSettingsWrite      = "settings:write"
-	ScopeAIWrite            = "ai:write"
 	// Destructive scopes are separate from ordinary operational writes so a
 	// leaked or narrowly delegated key cannot delete/reset data by default.
 	ScopeOrdersDestructive        = "orders:destructive"
 	ScopeCustomersDestructive     = "customers:destructive"
 	ScopeInventoryDestructive     = "inventory:destructive"
 	ScopeProductionDestructive    = "production:destructive"
-	ScopePlannerDestructive       = "planner:destructive"
 	ScopeB2BDestructive           = "b2b:destructive"
 	ScopeCommunicationDestructive = "communication:destructive"
-	ScopeAIDestructive            = "ai:destructive"
 )
 
 // arg is a shorthand constructor for an optional ArgSpec.
@@ -549,7 +542,7 @@ var DefaultCatalog = Catalog{
 		Route:       "/api/automation/whatsapp/events",
 	},
 
-	// --- Marketing (Meta, SMM, Judge.me) ---
+	// --- Marketing (Meta, Judge.me) ---
 	{
 		Name:        "meta_overview",
 		Description: "Meta marketing overview for a date range.",
@@ -588,54 +581,6 @@ var DefaultCatalog = Catalog{
 		Args: []ArgSpec{
 			arg("start_date", ArgString, "ISO date start."),
 			arg("end_date", ArgString, "ISO date end."),
-		},
-	},
-	{
-		Name:        "smm_overview",
-		Description: "Social media management overview, optionally per platform.",
-		Scope:       ScopeMarketing,
-		Route:       "/api/marketing/smm/overview",
-		Args: []ArgSpec{
-			arg("platform", ArgString, "Platform filter."),
-			arg("start_date", ArgString, "ISO date start."),
-			arg("end_date", ArgString, "ISO date end."),
-		},
-	},
-	{
-		Name:        "smm_health",
-		Description: "Social media integration health check.",
-		Scope:       ScopeMarketing,
-		Route:       "/api/marketing/smm/health",
-	},
-	{
-		Name:        "smm_post_insights",
-		Description: "Insights for a specific social post.",
-		Scope:       ScopeMarketing,
-		Route:       "/api/marketing/smm/post/insights",
-		Args: []ArgSpec{
-			argReq("id", ArgString, "Post id."),
-			arg("media_type", ArgString, "Media type filter."),
-		},
-	},
-	{
-		Name:        "smm_queue",
-		Description: "List queued social media posts.",
-		Scope:       ScopeMarketing,
-		Route:       "/api/marketing/smm/queue",
-	},
-	{
-		Name:        "smm_queue_create",
-		Description: "Queue a social post for Google Drive/n8n publishing. Accepts a caption, hashtags, target platforms, and optional public HTTPS media URLs.",
-		Scope:       ScopeMarketingPublish,
-		Route:       "/api/marketing/smm/queue",
-		Write:       true,
-		Args: []ArgSpec{
-			argReq("caption", ArgString, "Post caption."),
-			arg("hashtags", ArgString, "Hashtags to include in the post."),
-			arg("post_type", ArgString, "SINGLE_PHOTO, CAROUSEL, or VIDEO. Inferred when omitted."),
-			arg("target_platforms", ArgString, "Comma-separated platforms: instagram, facebook, threads, x."),
-			arg("media_urls", ArgString, "Comma-separated public HTTPS media URLs."),
-			arg("media_files", ArgArray, "Absolute local file paths to upload as media."),
 		},
 	},
 	{
@@ -695,69 +640,12 @@ var DefaultCatalog = Catalog{
 		},
 	},
 
-	// --- Planner ---
-	{
-		Name:        "planner_boards",
-		Description: "List planner boards.",
-		Scope:       ScopePlanner,
-		Route:       "/api/planner/boards",
-	},
-	{
-		Name:        "planner_tasks",
-		Description: "List planner tasks with optional filters.",
-		Scope:       ScopePlanner,
-		Route:       "/api/planner/tasks",
-		Args: []ArgSpec{
-			arg("board_id", ArgInt, "Board id filter."),
-			arg("sprint_id", ArgString, "Sprint id filter."),
-			arg("status", ArgString, "Status filter."),
-			arg("priority", ArgString, "Priority filter."),
-			arg("search", ArgString, "Free-text search."),
-		},
-	},
-	{
-		Name:        "planner_sprints",
-		Description: "List planner sprints, optionally by status.",
-		Scope:       ScopePlanner,
-		Route:       "/api/planner/sprints",
-		Args: []ArgSpec{
-			arg("status", ArgString, "Status filter."),
-		},
-	},
-	{
-		Name:        "planner_analytics",
-		Description: "Planner analytics for a sprint and/or task.",
-		Scope:       ScopePlanner,
-		Route:       "/api/planner/analytics",
-		Args: []ArgSpec{
-			arg("sprint_id", ArgInt, "Sprint id."),
-			arg("task_id", ArgInt, "Task id."),
-		},
-	},
-
 	// --- Support ---
 	{
 		Name:        "support_tickets",
 		Description: "List support tickets.",
 		Scope:       ScopeSupport,
 		Route:       "/api/support/tickets",
-	},
-
-	// --- AI ---
-	{
-		Name:        "ai_conversations",
-		Description: "List AI conversation history.",
-		Scope:       ScopeAI,
-		Route:       "/api/ai/conversations",
-	},
-	{
-		Name:        "ai_conversation_get",
-		Description: "Fetch a single AI conversation by id.",
-		Scope:       ScopeAI,
-		Route:       "/api/ai/conversations",
-		Args: []ArgSpec{
-			argReq("id", ArgInt, "Conversation id."),
-		},
 	},
 
 	// --- Settings (safe, masked) ---
@@ -873,14 +761,6 @@ func init() {
 		writeTool("manufacturing_create", "Create a manufacturing record.", ScopeProductionWrite, "POST", "/api/inventory/manufacturing"),
 		writeTool("manufacturing_update", "Update a manufacturing record.", ScopeProductionWrite, "PUT", "/api/inventory/manufacturing"),
 		writeToolNoBody("manufacturing_delete", "Delete a manufacturing record.", ScopeProductionDestructive, "DELETE", "/api/inventory/manufacturing", "id"),
-		// Planner
-		writeTool("planner_task_create", "Create a planner task.", ScopePlannerWrite, "POST", "/api/planner/tasks"),
-		writeTool("planner_task_update", "Update a planner task.", ScopePlannerWrite, "PUT", "/api/planner/tasks", "id"),
-		writeToolNoBody("planner_task_delete", "Delete a planner task.", ScopePlannerDestructive, "DELETE", "/api/planner/tasks", "id"),
-		writeTool("planner_task_move", "Move a planner task.", ScopePlannerWrite, "POST", "/api/planner/tasks/move"),
-		writeTool("planner_sprint_create", "Create a planner sprint.", ScopePlannerWrite, "POST", "/api/planner/sprints"),
-		writeTool("planner_sprint_update", "Update a planner sprint.", ScopePlannerWrite, "PUT", "/api/planner/sprints", "id"),
-		writeToolNoBody("planner_sprint_delete", "Delete a planner sprint.", ScopePlannerDestructive, "DELETE", "/api/planner/sprints", "id"),
 		// Synchronization and configuration
 		writeToolOptionalPayload("shopify_sync_orders", "Synchronize orders from Shopify, optionally for a date range.", ScopeOrdersWrite, "POST", "/api/shopify/sync"),
 		writeToolNoBody("shopify_reset_orders", "Reset synchronized orders. Destructive operation.", ScopeOrdersDestructive, "POST", "/api/shopify/reset"),
@@ -943,18 +823,14 @@ func init() {
 		writeTool("whatsapp_event_create", "Create a WhatsApp automation event.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/events"),
 		writeToolNoBody("whatsapp_event_delete", "Delete a WhatsApp automation event.", ScopeCommunicationDestructive, "DELETE", "/api/automation/whatsapp/events", "id"),
 		writeToolNoBody("whatsapp_metrics_sync", "Synchronize WhatsApp automation metrics.", ScopeCommunicationWrite, "POST", "/api/automation/whatsapp/sync-metrics"),
-		// Social marketing and reviews
-		writeTool("smm_post", "Publish content to a social platform.", ScopeMarketingWrite, "POST", "/api/marketing/smm/post"),
-		writeToolNoBody("smm_sync", "Synchronize social marketing metrics and history.", ScopeMarketingWrite, "POST", "/api/marketing/smm/sync", "platform"),
+		// Marketing and reviews
 		writeTool("judgeme_generate_reviews", "Generate Judge.me review drafts.", ScopeMarketingWrite, "POST", "/api/marketing/judgeme/generate"),
 		writeTool("judgeme_submit_reviews", "Submit Judge.me reviews.", ScopeMarketingWrite, "POST", "/api/marketing/judgeme/submit"),
-		// Feedback and AI
+		// Feedback and reviews
 		writeTool("feedback_bulk_send", "Send feedback requests for selected orders.", ScopeFeedbackWrite, "POST", "/api/feedback/bulk-send"),
 		writeTool("feedback_update_comment", "Update an internal feedback comment.", ScopeFeedbackWrite, "PUT", "/api/orders/feedback/comment", "id"),
 		writeToolNoBody("feedback_post_judgeme", "Post a feedback review to Judge.me.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/post-judgeme", "id"),
 		writeToolNoBody("feedback_request_google_review", "Request a Google review from feedback.", ScopeFeedbackWrite, "POST", "/api/orders/feedback/request-google-review", "id"),
-		writeTool("ai_chat", "Send a message to the MI-Tech AI assistant.", ScopeAIWrite, "POST", "/api/ai/chat"),
-		writeToolNoBody("ai_conversation_delete", "Delete an AI conversation.", ScopeAIDestructive, "DELETE", "/api/ai/conversations", "id"),
 	)
 }
 
@@ -968,10 +844,10 @@ func (c Catalog) Lookup(name string) (ToolSpec, bool) {
 	return ToolSpec{}, false
 }
 
-// Scopes returns the distinct set of scopes required by the catalog.
+// Scopes returns the distinct scopes represented by the catalog in first-seen order.
 func (c Catalog) Scopes() []string {
-	seen := make(map[string]struct{})
-	var out []string
+	seen := make(map[string]struct{}, len(c))
+	out := make([]string, 0, len(c))
 	for _, spec := range c {
 		if _, ok := seen[spec.Scope]; ok {
 			continue

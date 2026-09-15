@@ -14,9 +14,6 @@ import { AbandonedCartsPage } from './features/abandoned/AbandonedCartsPage'
 import { MarketingPage } from './features/marketing/MarketingPage'
 import { B2BPage } from './features/b2b/B2BPage'
 import { AutomationPage } from './features/automation/AutomationPage'
-import { SocialPage } from './features/social/SocialPage'
-import { PlannerPage } from './features/planner/PlannerPage'
-import { AIPage } from './features/ai/AIPage'
 import { UsersPage } from './features/users/UsersPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { JudgeMePage } from './features/judgeme/JudgeMePage'
@@ -36,7 +33,6 @@ import {
   Search,
   Settings,
   ShoppingBag,
-  Sparkles,
   Star,
   Ticket,
   Users,
@@ -56,11 +52,7 @@ type ViewId =
   | 'automation'
   | 'abandoned-carts'
   | 'marketing'
-  | 'social'
-  | 'social-queue'
   | 'judgeme'
-  | 'planner'
-  | 'ai-analysis'
   | 'users'
   | 'settings'
 
@@ -95,8 +87,6 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     label: 'Growth',
     items: [
       { id: 'marketing', label: 'Marketing', icon: BarChart3 },
-      { id: 'social', label: 'Social media', icon: BarChart3 },
-      { id: 'social-queue', label: 'Auto queue', icon: Boxes },
       { id: 'judgeme', label: 'Judge.me reviews', icon: Star },
     ],
   },
@@ -104,8 +94,6 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     label: 'Automation & planning',
     items: [
       { id: 'automation', label: 'Automation', icon: CheckCircle2 },
-      { id: 'planner', label: 'Planner', icon: LayoutDashboard },
-      { id: 'ai-analysis', label: 'AI analysis', icon: Sparkles },
     ],
   },
 ]
@@ -123,11 +111,7 @@ const pageTitles: Record<ViewId, string> = {
   automation: 'Automation',
   'abandoned-carts': 'Abandoned carts',
   marketing: 'Marketing',
-  social: 'Social media',
-  'social-queue': 'Auto queue',
   judgeme: 'Judge.me reviews',
-  planner: 'Planner',
-  'ai-analysis': 'AI analysis',
   users: 'User roles',
   settings: 'Settings',
 }
@@ -145,16 +129,12 @@ const pageDescriptions: Record<ViewId, string> = {
   automation: 'Manage templates, triggers, and messaging automation.',
   'abandoned-carts': 'Review abandoned checkouts and recovery messages.',
   marketing: 'Review paid marketing performance.',
-  social: 'Manage social channels and publishing activity.',
-  'social-queue': 'Manage scheduled social content and queues.',
   judgeme: 'Review and manage Judge.me feedback.',
-  planner: 'Organize work across boards, sprints, and tasks.',
-  'ai-analysis': 'Analyze business data with AI assistance.',
   users: 'Manage workspace access and roles.',
   settings: 'Manage integrations, store data, and workspace preferences.',
 }
 
-const periodFilteredViews: ViewId[] = ['dashboard', 'shopify', 'reports', 'abandoned-carts', 'marketing', 'automation', 'social']
+const periodFilteredViews: ViewId[] = ['dashboard', 'shopify', 'reports', 'abandoned-carts', 'marketing', 'automation']
 
 function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
@@ -337,16 +317,8 @@ function App() {
             <B2BPage token={token} onUnauthorized={handleLogout} />
           ) : activeView === 'automation' ? (
             <AutomationPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'social' ? (
-            <SocialPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'social-queue' ? (
-            <SocialPage token={token} onUnauthorized={handleLogout} initialTab="queue" />
           ) : activeView === 'judgeme' ? (
             <JudgeMePage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'planner' ? (
-            <PlannerPage token={token} onUnauthorized={handleLogout} />
-          ) : activeView === 'ai-analysis' ? (
-            <AIPage token={token} onUnauthorized={handleLogout} />
           ) : activeView === 'users' ? (
             <UsersPage token={token} onUnauthorized={handleLogout} />
           ) : activeView === 'settings' ? (

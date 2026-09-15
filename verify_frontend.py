@@ -25,17 +25,13 @@ def verify_frontend():
         page.evaluate(f"localStorage.setItem('token', '{mock_token}')")
         page.reload()
 
-        # Navigate to Social Media tab
-        page.click("text=Social Media")
+        # Navigate to the paid marketing tab
+        page.click("text=Marketing")
         time.sleep(2) # Wait for tab to load
 
-        # Open Compose modal
-        page.click("text=Compose")
-        time.sleep(1)
-
-        # Take screenshot of the improved modal
-        page.screenshot(path="improved_composer_modal.png")
-        print("Screenshot saved to improved_composer_modal.png")
+        # Take a screenshot of the paid marketing dashboard
+        page.screenshot(path="marketing_dashboard.png")
+        print("Screenshot saved to marketing_dashboard.png")
 
         browser.close()
 

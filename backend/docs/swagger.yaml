@@ -336,17 +336,6 @@ definitions:
           $ref: '#/definitions/mi-tech_internal_domain_gst_dto.HSNRow'
         type: array
     type: object
-  mi-tech_internal_domain_marketing_service.AssetHealth:
-    properties:
-      error:
-        type: string
-      instagram_authorized:
-        type: boolean
-      instagram_linked:
-        type: boolean
-      page_authorized:
-        type: boolean
-    type: object
   mi-tech_internal_domain_order_dto.LineItemCreateRequest:
     properties:
       discount:
@@ -1198,102 +1187,6 @@ paths:
       summary: Meta Marketing Overview
       tags:
       - marketing
-  /marketing/smm/health:
-    get:
-      description: Audit the visibility and linkage of configured Meta Page and Instagram
-        IDs.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/mi-tech_internal_domain_marketing_service.AssetHealth'
-      security:
-      - Bearer: []
-      summary: SMM Health Check
-      tags:
-      - social
-  /marketing/smm/overview:
-    get:
-      description: Fetch historical engagement metrics and growth insights for FB,
-        IG, or Threads.
-      parameters:
-      - description: Platform (facebook, instagram, threads)
-        in: query
-        name: platform
-        required: true
-        type: string
-      - description: Start date
-        in: query
-        name: start_date
-        type: string
-      - description: End date
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Social Media Overview
-      tags:
-      - social
-  /marketing/smm/post:
-    post:
-      consumes:
-      - application/json
-      description: Publish content to FB, IG, or Threads.
-      parameters:
-      - description: Post content
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties:
-            type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Cross-platform Post
-      tags:
-      - social
-  /marketing/smm/sync:
-    post:
-      description: Manually trigger a deep sync of metrics and post history.
-      parameters:
-      - description: Platform (facebook, instagram, threads)
-        in: query
-        name: platform
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - Bearer: []
-      summary: Sync Social Data
-      tags:
-      - social
   /orders:
     get:
       consumes:

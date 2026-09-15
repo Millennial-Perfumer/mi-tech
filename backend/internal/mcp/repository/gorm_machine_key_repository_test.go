@@ -11,13 +11,13 @@ func TestMachineKeyRowEntityDecodesScopes(t *testing.T) {
 		ID:         42,
 		Name:       "codex",
 		KeyHash:    "hash",
-		ScopesJSON: `["orders:read","marketing:publish"]`,
+		ScopesJSON: `["orders:read","marketing:write"]`,
 	}
 
 	key, err := row.entity()
 	require.NoError(t, err)
 	require.Equal(t, int64(42), key.ID)
-	require.Equal(t, []string{"orders:read", "marketing:publish"}, key.Scopes)
+	require.Equal(t, []string{"orders:read", "marketing:write"}, key.Scopes)
 }
 
 func TestMachineKeyRowEntityHandlesEmptyScopes(t *testing.T) {

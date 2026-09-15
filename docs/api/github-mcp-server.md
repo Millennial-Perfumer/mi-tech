@@ -7,9 +7,6 @@ service behind the existing MCP Nginx host:
 https://mcp.millennialperfumer.in/github-mcp-server
 ```
 
-The Meta connector remains at
-`https://mcp.millennialperfumer.in/meta-mcp-server`.
-
 ## Required runtime values
 
 Set these as GitHub Actions organization secrets for the normal deployment
@@ -20,7 +17,7 @@ workflow:
 # Fine-grained GitHub PAT with only the repository/org permissions required.
 PAT_GITHUB=github_pat_...
 
-# Organization secret shared by the Meta and GitHub MCP services.
+# Organization secret used by the GitHub MCP service.
 MCP_HTTP_AUTH_TOKEN=replace-with-a-random-secret
 ```
 

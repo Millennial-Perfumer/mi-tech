@@ -445,24 +445,6 @@
 .priority-mini.high { background: #ef4444; }
 .priority-mini.urgent { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
 
-.task-link-badge {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    font-size: 0.6rem;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.task-link-badge:hover {
-    background: var(--accent-subtle);
-    color: var(--accent-color);
-    border-color: var(--accent-subtle);
-}
-
 /* DATE SEPARATOR */
 /* BUBBLE DESIGN OVERHAUL (NATIVE WHATSAPP) */
 .message-bubble {

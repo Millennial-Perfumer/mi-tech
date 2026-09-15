@@ -15,20 +15,16 @@ import { SettingsTab } from './SettingsTab';
 import { Customers } from './Customers';
 import { Users } from './Users';
 import { MarketingDashboard } from './MarketingDashboard';
-import { SocialDashboard } from './SocialDashboard';
-import { Planner } from './Planner';
 import { Tickets } from './Tickets';
 import { WhatsAppChat } from './WhatsAppChat';
 import Feedback from './Feedback';
 import OrderDetailsModal from './OrderDetailsModal';
 import { ConvertToB2BModal } from './ConvertToB2BModal';
 import { InventoryHub } from './InventoryHub';
-import { AIAnalysis } from './AIAnalysis';
 import { CreateOrderModal } from './CreateOrderModal';
 import { DashboardOrdersModal } from './DashboardOrdersModal';
 import { AbandonedCarts } from './AbandonedCarts';
 import { JudgeMeReviews } from './JudgeMeReviews';
-import { SocialQueuePage } from './SocialQueuePage';
 
 import { useToast } from './ToastContext';
 import { useConfirm } from './ConfirmContext';
@@ -137,13 +133,53 @@ const AVAILABLE_COLUMNS: (ColumnOption & { isDefault: boolean })[] = [
 
 const DEFAULT_VISIBLE_COLUMNS = AVAILABLE_COLUMNS.filter(c => c.isDefault).map(c => c.id);
 
+const PAGE_TITLES: Record<string, string> = {
+  dashboard: 'Overview',
+  shopify: 'Orders',
+  reports: 'GST Reports',
+  b2b: 'B2B Billing',
+  inventory: 'Inventory Hub',
+  automation: 'Automation Engine',
+  communication: 'Communication Hub',
+  tickets: 'Support Tickets',
+  customers: 'Customers',
+  marketing: 'Ads Intelligence',
+  users: 'User Roles',
+  feedback: 'Customer Sentiment',
+  'abandoned-carts': 'Abandoned Carts',
+  settings: 'Settings',
+};
+
+const PAGE_SUBTITLES: Record<string, string> = {
+  dashboard: "Welcome back. Here's what's happening today.",
+  reports: 'Review your GST collection and generate filing reports.',
+  b2b: 'Generate GST-compliant B2B invoices and manage customer registries.',
+  inventory: 'Manage your canonical SKUs and global warehouse inventory.',
+  automation: 'Manage templates, triggers, and orchestration logic.',
+  communication: 'Active customer conversations across WhatsApp and more.',
+  tickets: 'Track and resolve customer concerns with formal ticketing.',
+  shopify: 'Real-time orders synced via Shopify Webhooks.',
+  customers: 'Manage your customer list and import historical data.',
+  marketing: 'Scale your growth with Meta Ads and performance marketing.',
+  users: 'Manage system access and roles across your team.',
+  'abandoned-carts': 'Recover lost sales by tracking abandoned checkouts and triggering WhatsApp messages.',
+  settings: 'Manage your store data and preferences.',
+};
+
+const VALID_TABS = new Set([
+  'dashboard', 'shopify', 'reports', 'b2b', 'inventory', 'automation',
+  'communication', 'tickets', 'customers', 'marketing', 'users', 'feedback',
+  'abandoned-carts', 'judgeme', 'settings',
+]);
+
 function App() {
   const { success: toastSuccess, error: toastError } = useToast();
   const { } = useConfirm();
 
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState<string>(() => {
-    return localStorage.getItem('gstAppActiveTab') || 'dashboard';
+    const savedTab = localStorage.getItem('gstAppActiveTab');
+    return savedTab && VALID_TABS.has(savedTab) ? savedTab : 'dashboard';
   });
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('appTheme') as 'light' | 'dark') || 'light';
@@ -230,11 +266,7 @@ function App() {
   const [, setAppSettings] = useState<Record<string, string>>({});
   const [appConfigs, setAppConfigs] = useState<Record<string, string>>({});
 
-  // Handle auto-redirection if a module is disabled via config
   useEffect(() => {
-    if (activeTab === 'planner' && appConfigs['kanban_enabled'] === 'false') {
-      setActiveTab('dashboard');
-    }
     if (activeTab === 'users' && userRole !== 'admin') {
       setActiveTab('dashboard');
     }
@@ -291,8 +323,8 @@ function App() {
   const defaultEndDate = getTodayIST();
 
   // Initialize with values from LocalStorage if available, otherwise defaults
-  const [startDate, setStartDate] = useState(() => localStorage.getItem('socialSmmStartDate') || defaultStartDate);
-  const [endDate, setEndDate] = useState(() => localStorage.getItem('socialSmmEndDate') || defaultEndDate);
+  const [startDate, setStartDate] = useState(() => localStorage.getItem('periodFilterStartDate') || defaultStartDate);
+  const [endDate, setEndDate] = useState(() => localStorage.getItem('periodFilterEndDate') || defaultEndDate);
 
   // Load saved date range from backend on startup
   useEffect(() => {
@@ -304,8 +336,8 @@ function App() {
           console.log('DEBUG: Loaded date range from backend:', data.start_date, data.end_date);
           setStartDate(data.start_date);
           setEndDate(data.end_date);
-          localStorage.setItem('socialSmmStartDate', data.start_date);
-          localStorage.setItem('socialSmmEndDate', data.end_date);
+          localStorage.setItem('periodFilterStartDate', data.start_date);
+          localStorage.setItem('periodFilterEndDate', data.end_date);
         }
       })
       .catch((err) => console.error('Failed to load date range:', err));
@@ -316,8 +348,8 @@ function App() {
     setPage(1);
     setStartDate(start);
     setEndDate(end);
-    localStorage.setItem('socialSmmStartDate', start);
-    localStorage.setItem('socialSmmEndDate', end);
+    localStorage.setItem('periodFilterStartDate', start);
+    localStorage.setItem('periodFilterEndDate', end);
     // Persist date range to backend
     fetchWithAuth(`${API_BASE}/api/settings/date-range`, {
       method: 'PUT',
@@ -876,36 +908,11 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h2M11 9h2M11 13h2M11 17h2M7 9h10v10c0 1.1-.9 2-2 2H9c-1.1 0-2-.9-2-2V9zM18 5c1.1 0 2 .9 2 2v2H4V7c0-1.1.9-2 2-2h12z" /></svg>
             <span>Ads</span>
           </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'social' ? 'active' : ''}`} onClick={() => setActiveTab('social')} title={isSidebarCollapsed ? "Social Media" : ""} style={{ animationDelay: '450ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
-            <span>Social Media</span>
-          </a>
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'social-queue' ? 'active' : ''}`} onClick={() => setActiveTab('social-queue')} title={isSidebarCollapsed ? "Auto Queue" : ""} style={{ animationDelay: '455ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            <span>Auto Queue</span>
-          </a>
           <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'judgeme' ? 'active' : ''}`} onClick={() => setActiveTab('judgeme')} title={isSidebarCollapsed ? "Judge.me Reviews" : ""} style={{ animationDelay: '460ms' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
             <span>Judge.me Reviews</span>
           </a>
 
-          {(appConfigs['kanban_enabled'] === 'true' || userRole === 'admin') && (
-            <div className="nav-group-label" style={{ animationDelay: '475ms' }}>SYSTEM</div>
-          )}
-          {appConfigs['kanban_enabled'] === 'true' && (
-            <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} title={isSidebarCollapsed ? "Planner" : ""} style={{ animationDelay: '500ms' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              <span>Planner</span>
-            </a>
-          )}
-          <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'ai-analysis' ? 'active' : ''}`} onClick={() => setActiveTab('ai-analysis')} title={isSidebarCollapsed ? "AI Analysis" : ""} style={{ animationDelay: '510ms' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
-              <path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5 5 3Z"></path>
-              <path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5Z"></path>
-            </svg>
-            {!isSidebarCollapsed && <span className="nav-label">AI Analysis</span>}
-          </a>
 
           {userRole === 'admin' && (
             <a href="#" className={`nav-item nav-item-stagger ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')} title={isSidebarCollapsed ? "RBAC" : ""} style={{ animationDelay: '525ms' }}>
@@ -996,12 +1003,6 @@ function App() {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
           <span>More</span>
         </button>
-        {appConfigs['kanban_enabled'] === 'true' && (
-          <button className={`tab-btn nav-item-stagger ${activeTab === 'planner' ? 'active' : ''}`} onClick={() => setActiveTab('planner')} style={{ animationDelay: '350ms' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            <span>Plan</span>
-          </button>
-        )}
       </nav>
 
       <main className="main-content">
@@ -1049,15 +1050,15 @@ function App() {
         {activeTab !== 'judgeme' && (
         <header className="page-header">
           <div>
-            <h1 className="page-title">{activeTab === 'dashboard' ? 'Overview' : activeTab === 'shopify' ? 'Orders' : activeTab === 'reports' ? 'GST Reports' : activeTab === 'b2b' ? 'B2B Billing' : activeTab === 'inventory' ? 'Inventory Hub' : activeTab === 'automation' ? 'Automation Engine' : activeTab === 'communication' ? 'Communication Hub' : activeTab === 'tickets' ? 'Support Tickets' : activeTab === 'customers' ? 'Customers' : activeTab === 'marketing' ? 'Ads Intelligence' : activeTab === 'social' ? 'Social Command Center' : activeTab === 'social-queue' ? 'Auto Queue Engine' : activeTab === 'planner' ? 'Minimalist Planner' : activeTab === 'users' ? 'User Roles' : activeTab === 'feedback' ? 'Customer Sentiment' : activeTab === 'ai-analysis' ? 'AI Business Insights' : activeTab === 'abandoned-carts' ? 'Abandoned Carts' : 'Settings'}</h1>
+            <h1 className="page-title">{PAGE_TITLES[activeTab] || 'Settings'}</h1>
             <p className="page-subtitle">
-              {activeTab === 'dashboard' ? "Welcome back. Here's what's happening today." : activeTab === 'reports' ? "Review your GST collection and generate filing reports." : activeTab === 'b2b' ? "Generate GST-compliant B2B invoices and manage customer registries." : activeTab === 'inventory' ? "Manage your canonical SKUs and global warehouse inventory." : activeTab === 'automation' ? "Manage templates, triggers, and orchestration logic." : activeTab === 'communication' ? "Active customer conversations across WhatsApp and more." : activeTab === 'tickets' ? "Track and resolve customer concerns with formal ticketing." : activeTab === 'shopify' ? "Real-time orders synced via Shopify Webhooks." : activeTab === 'customers' ? "Manage your customer list and import historical data." : activeTab === 'marketing' ? "Scale your growth with Meta Ads and performance marketing." : activeTab === 'social-queue' ? "Manage Google Drive automated social media queues and scheduled posts." : activeTab === 'planner' ? "High-performance Kanban board with execution analytics." : activeTab === 'users' ? "Manage system access and roles across your team." : activeTab === 'ai-analysis' ? "AI-powered analysis of your business data and trends." : activeTab === 'abandoned-carts' ? "Recover lost sales by tracking abandoned checkouts and triggering WhatsApp messages." : activeTab === 'settings' ? "Manage your store data and preferences." : ""}
+              {PAGE_SUBTITLES[activeTab] || ''}
             </p>
           </div>
         </header>
         )}
 
-        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'planner' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'ai-analysis' && activeTab !== 'b2b' && activeTab !== 'judgeme' && activeTab !== 'social-queue' && (
+        {activeTab !== 'automation' && activeTab !== 'settings' && activeTab !== 'customers' && activeTab !== 'users' && activeTab !== 'marketing' && activeTab !== 'communication' && activeTab !== 'tickets' && activeTab !== 'feedback' && activeTab !== 'inventory' && activeTab !== 'b2b' && activeTab !== 'judgeme' && (
           <div className="date-range-header-bar" style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1074,18 +1075,16 @@ function App() {
                 {activeTab === 'dashboard' ? 'Business Overview' :
                   activeTab === 'reports' ? 'GST Reports' :
                     activeTab === 'customers' ? 'Customer Directory' :
-                      activeTab === 'marketing' ? 'Social Marketing Pulse' :
-                        activeTab === 'social' ? 'Social Channel Pulse' :
-                          activeTab === 'abandoned-carts' ? 'Abandoned Cart Recovery' :
+                      activeTab === 'marketing' ? 'Paid Marketing Performance' :
+                        activeTab === 'abandoned-carts' ? 'Abandoned Cart Recovery' :
                             'Shopify Orders'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 500 }}>
                 {activeTab === 'dashboard' ? 'Monitor your revenue and order metrics' :
                   activeTab === 'reports' ? 'Generate and export GST-ready reports' :
                     activeTab === 'customers' ? 'Manage and analyze your customer base' :
-                      activeTab === 'marketing' ? 'Analyze and manage social media engagement' :
-                        activeTab === 'social' ? 'Unified management for all your social channels' :
-                          activeTab === 'abandoned-carts' ? 'Track and recover abandoned checkouts' :
+                      activeTab === 'marketing' ? 'Analyze paid marketing performance' :
+                        activeTab === 'abandoned-carts' ? 'Track and recover abandoned checkouts' :
                             'Manage your Shopify store orders'}
               </p>
             </div>
@@ -2049,24 +2048,6 @@ function App() {
             />
           )}
 
-          {activeTab === 'social' && (
-            <SocialDashboard
-              fetchWithAuth={fetchWithAuth}
-              userRole={userRole}
-              startDate={startDate}
-              endDate={endDate}
-              onUpdateDateRange={handleUpdateDateRange}
-            />
-          )}
-
-          {activeTab === 'social-queue' && (
-            <SocialQueuePage
-              fetchWithAuth={fetchWithAuth}
-              appConfigs={appConfigs}
-              onNavigate={(tab) => setActiveTab(tab)}
-            />
-          )}
-
           {activeTab === 'feedback' && (
             <Feedback
               API_BASE={API_BASE}
@@ -2088,10 +2069,6 @@ function App() {
 
 
 
-          {activeTab === 'planner' && appConfigs['kanban_enabled'] === 'true' && (
-            <Planner fetchWithAuth={fetchWithAuth} />
-          )}
-
           {activeTab === 'users' && userRole === 'admin' && (
             <Users
               fetchWithAuth={fetchWithAuth}
@@ -2100,10 +2077,6 @@ function App() {
 
           {activeTab === 'inventory' && (
             <InventoryHub token={token} userRole={userRole} appConfigs={appConfigs} />
-          )}
-
-          {activeTab === 'ai-analysis' && (
-            <AIAnalysis fetchWithAuth={fetchWithAuth} API_BASE={API_BASE} />
           )}
 
           {activeTab === 'judgeme' && (

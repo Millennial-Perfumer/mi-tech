@@ -663,9 +663,9 @@ export const MarketingDashboard: React.FC<MarketingDashboardProps> = ({ fetchWit
                 </div>
               </div>
 
-              {/* Social Engagement */}
+              {/* Campaign engagement */}
               <div className="modal-section" style={{ background: 'var(--bg-input)', padding: '1.5rem', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-                <h3 style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '1.5rem', letterSpacing: '1px' }}>Social Engagement</h3>
+                <h3 style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '1.5rem', letterSpacing: '1px' }}>Campaign Engagement</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginBottom: '4px' }}>CLICKS</div>

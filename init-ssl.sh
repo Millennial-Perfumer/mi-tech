@@ -12,7 +12,6 @@ API_DOMAIN="mi-tech-api.millennialperfumer.in"
 MONITORING_DOMAIN="mi-tech-monitoring.millennialperfumer.in"
 FEEDBACK_DOMAIN="feedback-form.millennialperfumer.in"
 AGENT_DOMAIN="shop-chat-agent.millennialperfumer.in"
-N8N_DOMAIN="n8n.millennialperfumer.in"
 MCP_DOMAIN="mcp.millennialperfumer.in"
 EMAIL="${LETSENCRYPT_EMAIL:-millennialperfumer.cc@gmail.com}"
 CERT_PATH="./certbot/conf/live/$DOMAIN"
@@ -69,7 +68,6 @@ docker compose -f $COMPOSE_FILE run --rm certbot certonly \
   -d $MONITORING_DOMAIN \
   -d $FEEDBACK_DOMAIN \
   -d $AGENT_DOMAIN \
-  -d $N8N_DOMAIN \
   -d $MCP_DOMAIN \
   -d $V2_DOMAIN
 

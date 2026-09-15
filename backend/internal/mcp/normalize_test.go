@@ -14,7 +14,7 @@ func TestNormalizeArgsDateRangeValid(t *testing.T) {
 }
 
 func TestNormalizeArgsRequiresDeclaredArguments(t *testing.T) {
-	tool, ok := DefaultCatalog.Lookup("planner_sprint_update")
+	tool, ok := DefaultCatalog.Lookup("orders_update_status")
 	require.True(t, ok)
 
 	err := normalizeArgs(tool, map[string]any{"payload": map[string]any{}})

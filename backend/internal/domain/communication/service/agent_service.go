@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	repository "mi-tech/internal/domain/communication/repository"
-	plannerDto "mi-tech/internal/domain/planner/dto"
-	plannerServicePkg "mi-tech/internal/domain/planner/service"
 	supportDto "mi-tech/internal/domain/support/dto"
 	supportServicePkg "mi-tech/internal/domain/support/service"
 	"mi-tech/internal/shared/config"
@@ -18,7 +16,6 @@ import (
 
 type AgentService struct {
 	settings       *config.SettingsProvider
-	plannerService *plannerServicePkg.PlannerService
 	supportService *supportServicePkg.TicketService
 	httpClient     *resty.Client
 	repo           repository.MessagesRepository
@@ -28,7 +25,6 @@ type AgentService struct {
 
 func NewNewAgentService(
 	settings *config.SettingsProvider,
-	plannerService *plannerServicePkg.PlannerService,
 	supportService *supportServicePkg.TicketService,
 	repo repository.MessagesRepository,
 	metaClient *MetaClient,
@@ -36,7 +32,6 @@ func NewNewAgentService(
 ) *AgentService {
 	return &AgentService{
 		settings:       settings,
-		plannerService: plannerService,
 		supportService: supportService,
 		httpClient:     resty.New(),
 		repo:           repo,
@@ -51,15 +46,6 @@ type AgentResponse struct {
 	ShouldCreateTask bool   `json:"should_create_task"`
 	TaskTitle        string `json:"task_title,omitempty"`
 	TaskPriority     string `json:"task_priority,omitempty"`
-}
-
-type ToolCall struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Function struct {
-		Name      string `json:"name"`
-		Arguments string `json:"arguments"`
-	} `json:"function"`
 }
 
 func (s *AgentService) ProcessMessage(convID int, contactName, text string) error {
@@ -113,50 +99,12 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 		})
 	}
 
-	// 3. Get Tools
-	var tools []interface{}
-
-	// Add Native Kanban Tools
-	nativeTools := []interface{}{
-		map[string]interface{}{
-			"type": "function",
-			"function": map[string]interface{}{
-				"name":        "list_kanban_columns",
-				"description": "List all columns in the 'Support Tickets' board to know where to move tickets.",
-				"parameters": map[string]interface{}{
-					"type":       "object",
-					"properties": map[string]interface{}{},
-				},
-			},
-		},
-		map[string]interface{}{
-			"type": "function",
-			"function": map[string]interface{}{
-				"name":        "move_kanban_task",
-				"description": "Move a task to a different column in the Kanban board.",
-				"parameters": map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"task_id":   map[string]interface{}{"type": "number"},
-						"column_id": map[string]interface{}{"type": "number"},
-					},
-					"required": []string{"task_id", "column_id"},
-				},
-			},
-		},
-	}
-	tools = append(tools, nativeTools...)
-
-	// 4. LLM Loop
+	// 3. LLM Loop
 	for turn := 0; turn < 10; turn++ {
 		payload := map[string]interface{}{
 			"model":    "kimi-k2.5",
 			"messages": messages,
 		}
-		if len(tools) > 0 {
-			payload["tools"] = tools
-		}
-
 		resp, err := s.httpClient.R().
 			SetHeader("Authorization", "Bearer "+apiKey).
 			SetBody(payload).
@@ -169,9 +117,8 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 		var completion struct {
 			Choices []struct {
 				Message struct {
-					Content   string     `json:"content"`
-					ToolCalls []ToolCall `json:"tool_calls"`
-					Role      string     `json:"role"`
+					Content string `json:"content"`
+					Role    string `json:"role"`
 				} `json:"message"`
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
@@ -188,51 +135,6 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 			"content": choice.Message.Content,
 		}
 		messages = append(messages, msg)
-
-		if choice.FinishReason == "tool_calls" {
-			for _, tc := range choice.Message.ToolCalls {
-				resContent := "Error executing tool"
-
-				// Handle Native Tools
-				if tc.Function.Name == "list_kanban_columns" {
-					boards, _ := s.plannerService.ListBoards()
-					var targetBoardID uint
-					for _, b := range boards {
-						if b.Name == "WhatsApp Support" {
-							targetBoardID = b.ID
-							break
-						}
-					}
-					if targetBoardID > 0 {
-						board, _ := s.plannerService.GetBoard(targetBoardID)
-						data, _ := json.Marshal(board.Columns)
-						resContent = string(data)
-					}
-				} else if tc.Function.Name == "move_kanban_task" {
-					var args struct {
-						TaskID   uint `json:"task_id"`
-						ColumnID uint `json:"column_id"`
-					}
-					json.Unmarshal([]byte(tc.Function.Arguments), &args)
-					err := s.plannerService.MoveTask(args.TaskID, args.ColumnID, 0)
-					if err == nil {
-						resContent = "Task moved successfully"
-					} else {
-						resContent = fmt.Sprintf("Failed to move task: %v", err)
-					}
-				} else {
-					resContent = "Native tool executed"
-				}
-
-				messages = append(messages, map[string]string{
-					"role":         "tool",
-					"tool_call_id": tc.ID,
-					"name":         tc.Function.Name,
-					"content":      resContent,
-				})
-			}
-			continue
-		}
 
 		// Parse Final JSON
 		if err := json.Unmarshal([]byte(choice.Message.Content), &result); err != nil {
@@ -257,7 +159,7 @@ NOTE: When should_create_task is true, it will generate a formal support ticket.
 	}
 
 	if result.ShouldCreateTask {
-		s.CreateKanbanTask(convID, contactName, text, result)
+		s.CreateSupportTicket(convID, contactName, text, result)
 	}
 
 	return nil
@@ -267,7 +169,7 @@ func (s *AgentService) SendReply(convID int, text string) {
 	log.Printf("AI Replying to Conv %d: %s", convID, text)
 }
 
-func (s *AgentService) CreateKanbanTask(convID int, contactName, text string, res AgentResponse) {
+func (s *AgentService) CreateSupportTicket(convID int, contactName, text string, res AgentResponse) {
 	s.supportService.CreateTicket(supportDto.CreateTicketRequest{
 		Title:       res.TaskTitle,
 		Description: fmt.Sprintf("Reported by %s: %s (conv_id: %d)", contactName, text, convID),
@@ -339,123 +241,4 @@ func (s *AgentService) GenerateDailyConcernsSummary() (string, error) {
 	}
 
 	return "Failed to generate summary.", fmt.Errorf("empty response from LLM")
-}
-
-func (s *AgentService) ProcessTaskAI(taskID uint, text string) error {
-	task, err := s.plannerService.GetTaskByID(taskID)
-	if err != nil {
-		return err
-	}
-
-	messages := []map[string]string{
-		{
-			"role": "system",
-			"content": `You are the Mi-Tech AI Assistant. You are currently acting on a Kanban Task.
-You have access to Shopify store data and Kanban board tools.
-Identify the user's intent after the '@ai' mention and execute.
-Always provide a concise update to be appended to the task description.
-If you moved a task or performed an action, state it clearly.`,
-		},
-		{
-			"role":    "user",
-			"content": fmt.Sprintf("Task Context:\nTitle: %s\nDescription: %s\nStatus: %s\n\nLatest Request: %s", task.Title, task.Description, task.Status, text),
-		},
-	}
-
-	// 3. Get Tools
-	var tools []interface{}
-
-	nativeTools := []interface{}{
-		map[string]interface{}{
-			"type": "function",
-			"function": map[string]interface{}{
-				"name":        "list_kanban_columns",
-				"description": "List all columns in the board.",
-				"parameters":  map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
-			},
-		},
-		map[string]interface{}{
-			"type": "function",
-			"function": map[string]interface{}{
-				"name":        "move_kanban_task",
-				"description": "Move the current task to a different column.",
-				"parameters": map[string]interface{}{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"column_id": map[string]interface{}{"type": "number"},
-					},
-					"required": []string{"column_id"},
-				},
-			},
-		},
-	}
-	tools = append(tools, nativeTools...)
-
-	var aiReply string
-	apiKey := s.settings.Get("opencode_api_key")
-	baseURL := "https://opencode.ai/api/v1"
-
-	for turn := 0; turn < 5; turn++ {
-		resp, err := s.httpClient.R().
-			SetHeader("Authorization", "Bearer "+apiKey).
-			SetBody(map[string]interface{}{
-				"model":    "kimi-k2.5",
-				"messages": messages,
-				"tools":    tools,
-			}).
-			Post(baseURL + "/chat/completions")
-
-		if err != nil {
-			return err
-		}
-
-		var completion struct {
-			Choices []struct {
-				Message struct {
-					Content   string     `json:"content"`
-					ToolCalls []ToolCall `json:"tool_calls"`
-					Role      string     `json:"role"`
-				} `json:"message"`
-				FinishReason string `json:"finish_reason"`
-			} `json:"choices"`
-		}
-		json.Unmarshal(resp.Body(), &completion)
-
-		if len(completion.Choices) == 0 {
-			break
-		}
-		choice := completion.Choices[0]
-		messages = append(messages, map[string]string{"role": choice.Message.Role, "content": choice.Message.Content})
-
-		if choice.FinishReason == "tool_calls" {
-			for _, tc := range choice.Message.ToolCalls {
-				resContent := "Error"
-				if tc.Function.Name == "list_kanban_columns" {
-					board, _ := s.plannerService.GetBoard(task.BoardID)
-					data, _ := json.Marshal(board.Columns)
-					resContent = string(data)
-				} else if tc.Function.Name == "move_kanban_task" {
-					var args struct {
-						ColumnID uint `json:"column_id"`
-					}
-					json.Unmarshal([]byte(tc.Function.Arguments), &args)
-					s.plannerService.MoveTask(taskID, args.ColumnID, 0)
-					resContent = "Task moved successfully"
-				} else {
-					resContent = "Action recorded"
-				}
-				messages = append(messages, map[string]string{"role": "tool", "tool_call_id": tc.ID, "name": tc.Function.Name, "content": resContent})
-			}
-			continue
-		}
-		aiReply = choice.Message.Content
-		break
-	}
-
-	if aiReply != "" {
-		newDesc := task.Description + "\n\n--- AI RESPONSE ---\n" + aiReply
-		s.plannerService.UpdateTask(taskID, plannerDto.UpdateTaskRequest{Description: &newDesc})
-	}
-
-	return nil
 }

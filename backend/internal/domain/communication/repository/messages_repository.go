@@ -353,7 +353,7 @@ func (r *sqlMessagesRepository) GetFailedCount(storeID string, startDate, endDat
 }
 
 func (r *sqlMessagesRepository) GetConversations() ([]entity.Conversation, error) {
-	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, active_task_id, priority, created_at, updated_at 
+	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, priority, created_at, updated_at
 	          FROM whatsapp_conversations ORDER BY last_message_at DESC`
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -365,7 +365,7 @@ func (r *sqlMessagesRepository) GetConversations() ([]entity.Conversation, error
 	for rows.Next() {
 		var c entity.Conversation
 		var contactName, lastMessage sql.NullString
-		err := rows.Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.ActiveTaskID, &c.Priority, &c.CreatedAt, &c.UpdatedAt)
+		err := rows.Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.Priority, &c.CreatedAt, &c.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -451,11 +451,11 @@ func (r *sqlMessagesRepository) SaveChatMessage(m entity.ChatMessage) (int, erro
 }
 
 func (r *sqlMessagesRepository) GetConversationByPhone(phoneNumber string) (*entity.Conversation, error) {
-	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, active_task_id, priority, created_at, updated_at 
+	query := `SELECT id, phone_number, contact_name, last_message, last_message_at, mode, priority, created_at, updated_at
 	          FROM whatsapp_conversations WHERE phone_number = $1`
 	var c entity.Conversation
 	var contactName, lastMessage sql.NullString
-	err := r.db.QueryRow(query, phoneNumber).Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.ActiveTaskID, &c.Priority, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(query, phoneNumber).Scan(&c.ID, &c.PhoneNumber, &contactName, &lastMessage, &c.LastMessageAt, &c.Mode, &c.Priority, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Bot, Building2, ChevronDown, CircleAlert, Copy, CreditCard, Eye, EyeOff, KeyRound, MessageCircle, Megaphone, RefreshCw, Save, Settings2, ShieldCheck, ShoppingBag, Store, Workflow, Wrench, type LucideIcon } from 'lucide-react'
+import { Building2, ChevronDown, CircleAlert, Copy, CreditCard, Eye, EyeOff, KeyRound, MessageCircle, Megaphone, RefreshCw, Save, Settings2, ShieldCheck, ShoppingBag, Store, Workflow, Wrench, type LucideIcon } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, numberValue, textValue } from '../../lib/http'
 
 type Props = { token: string; onUnauthorized: () => void }
@@ -11,14 +11,6 @@ type PermissionRole = 'read_only' | 'full_access' | 'custom'
 type ServiceStatus = { label: 'Configured' | 'Needs attention' | 'Not configured'; tone: 'success' | 'warning' | 'neutral' }
 type ServiceDefinition = { id: string; title: string; description: string; categories: string[]; requiredKeys?: string[]; icon: LucideIcon }
 
-const hiddenConfigKeys = new Set([
-  'gdrive_refresh_token',
-  'gdrive_client_id',
-  'gdrive_client_secret',
-  'gdrive_access_token',
-  'n8n_webhook_url',
-])
-
 const machineScopeGroups: { id: string; label: string; description: string; scopes: CustomerScope[] }[] = [
   {
     id: 'read',
@@ -27,8 +19,8 @@ const machineScopeGroups: { id: string; label: string; description: string; scop
     scopes: [
       ['orders:read', 'Orders'], ['customers:read', 'Customers'], ['metrics:read', 'Metrics'], ['gst:read', 'GST reports'],
       ['inventory:read', 'Inventory'], ['production:read', 'Production'], ['b2b:read', 'B2B billing'], ['communication:read', 'WhatsApp'],
-      ['marketing:read', 'Marketing'], ['feedback:read', 'Feedback'], ['abandoned_checkout:read', 'Abandoned checkouts'], ['planner:read', 'Planner'],
-      ['support:read', 'Support'], ['ai:read', 'AI'], ['settings:read', 'Settings'], ['system:read', 'System'],
+      ['marketing:read', 'Marketing'], ['feedback:read', 'Feedback'], ['abandoned_checkout:read', 'Abandoned checkouts'],
+      ['support:read', 'Support'], ['settings:read', 'Settings'], ['system:read', 'System'],
     ],
   },
   {
@@ -37,8 +29,8 @@ const machineScopeGroups: { id: string; label: string; description: string; scop
     description: 'Create or update records and run syncs.',
     scopes: [
       ['orders:write', 'Orders write'], ['customers:write', 'Customers write'], ['inventory:write', 'Inventory write'], ['production:write', 'Production write'],
-      ['planner:write', 'Planner write'], ['b2b:write', 'B2B write'], ['communication:write', 'WhatsApp write'], ['marketing:write', 'Marketing write'],
-      ['feedback:write', 'Feedback write'], ['support:write', 'Support write'], ['settings:write', 'Settings write'], ['ai:write', 'AI write'], ['marketing:publish', 'Social publish'],
+      ['b2b:write', 'B2B write'], ['communication:write', 'WhatsApp write'], ['marketing:write', 'Marketing write'],
+      ['feedback:write', 'Feedback write'], ['support:write', 'Support write'], ['settings:write', 'Settings write'],
     ],
   },
   {
@@ -47,7 +39,7 @@ const machineScopeGroups: { id: string; label: string; description: string; scop
     description: 'Delete, reset, or cancel data.',
     scopes: [
       ['orders:destructive', 'Orders delete'], ['customers:destructive', 'Customers delete'], ['inventory:destructive', 'Inventory delete'], ['production:destructive', 'Production delete'],
-      ['planner:destructive', 'Planner delete'], ['b2b:destructive', 'B2B delete'], ['communication:destructive', 'WhatsApp delete'], ['ai:destructive', 'AI delete'],
+      ['b2b:destructive', 'B2B delete'], ['communication:destructive', 'WhatsApp delete'],
     ],
   },
 ]
@@ -72,12 +64,10 @@ const serviceDefinitions: ServiceDefinition[] = [
   { id: 'shopify', title: 'Shopify', description: 'Orders, inventory, and customer synchronization.', categories: ['shopify'], requiredKeys: ['shopify_store_url', 'shopify_access_token'], icon: Store },
   { id: 'amazon', title: 'Amazon', description: 'Marketplace orders and seller account synchronization.', categories: ['amazon'], requiredKeys: ['amazon_lwa_client_id', 'amazon_lwa_client_secret', 'amazon_lwa_refresh_token'], icon: ShoppingBag },
   { id: 'whatsapp', title: 'WhatsApp', description: 'Customer messaging, invoices, and automation.', categories: ['whatsapp'], requiredKeys: ['whatsapp_phone_number_id', 'whatsapp_waba_id'], icon: MessageCircle },
-  { id: 'meta', title: 'Meta services', description: 'Shared Meta credentials, marketing, and social publishing.', categories: ['meta_shared', 'marketing', 'social_media'], requiredKeys: ['meta_app_id', 'meta_system_user_token'], icon: Megaphone },
-  { id: 'ai', title: 'AI provider', description: 'Cloud and local model configuration.', categories: ['ai'], requiredKeys: ['ai_provider', 'ai_enabled'], icon: Bot },
+  { id: 'meta', title: 'Meta services', description: 'Shared Meta credentials and paid marketing.', categories: ['meta_shared', 'marketing'], requiredKeys: ['meta_app_id', 'meta_system_user_token'], icon: Megaphone },
   { id: 'payments', title: 'Payments', description: 'Payment collection and webhook configuration.', categories: ['payment'], requiredKeys: ['razorpay_key_id', 'razorpay_key_secret'], icon: CreditCard },
-  { id: 'automation', title: 'Feedback & automation', description: 'Feedback links, Google Drive queue, recovery, and scheduled automation.', categories: ['feedback', 'auto_queue', 'abandoned_cart'], icon: Workflow },
+  { id: 'automation', title: 'Feedback & automation', description: 'Feedback links, recovery, and scheduled automation.', categories: ['feedback', 'abandoned_cart'], icon: Workflow },
   { id: 'business', title: 'Business profile', description: 'Business identity, tax, and billing details.', categories: ['business', 'b2b'], icon: Building2 },
-  { id: 'planning', title: 'Planning', description: 'Planner and board defaults.', categories: ['kanban'], icon: Settings2 },
 ]
 
 const advancedDefinition: ServiceDefinition = {
@@ -95,10 +85,6 @@ function stringValue(value: unknown, fallback = '') {
 
 function configKey(config: AppConfig, index = 0) {
   return stringValue(config.key, String(index))
-}
-
-function isVisibleConfig(config: AppConfig) {
-  return !hiddenConfigKeys.has(stringValue(config.key))
 }
 
 function configLabel(config: AppConfig, index = 0) {
@@ -135,9 +121,7 @@ function ConfigEditor({ config, index, isRevealed, isWorking, onChange, onSave, 
   const current = stringValue(config.value)
   const secret = isSecretConfig(config)
   const masked = secret && !isRevealed
-  const isServiceAccountJson = key === 'gdrive_service_account_json'
-
-  return <form className="settings-row settings-service-row" onSubmit={(event) => { event.preventDefault(); if (masked) { onRequestReveal(); return } onSave(key, current) }}><label className="form-field"><span>{configLabel(config, index)}</span>{isServiceAccountJson ? <textarea className="settings-service-json-input" rows={10} value={current} readOnly={masked} onChange={(event) => onChange(key, event.target.value)} placeholder="Paste the complete Google Cloud service-account JSON" spellCheck={false} aria-describedby={masked ? `${key}-masked-note` : undefined} /> : <input type={masked ? 'password' : 'text'} value={current} readOnly={masked} onChange={(event) => onChange(key, event.target.value)} aria-describedby={masked ? `${key}-masked-note` : undefined} />}</label><button className="icon-button" type="submit" aria-label={masked ? `Reveal ${configLabel(config, index)}` : `Save ${configLabel(config, index)}`} disabled={isWorking || masked}><Save size={16} aria-hidden="true" /></button>{masked && <span className="settings-secret-note" id={`${key}-masked-note`}>Reveal to edit</span>}</form>
+  return <form className="settings-row settings-service-row" onSubmit={(event) => { event.preventDefault(); if (masked) { onRequestReveal(); return } onSave(key, current) }}><label className="form-field"><span>{configLabel(config, index)}</span><input type={masked ? 'password' : 'text'} value={current} readOnly={masked} onChange={(event) => onChange(key, event.target.value)} aria-describedby={masked ? `${key}-masked-note` : undefined} /></label><button className="icon-button" type="submit" aria-label={masked ? `Reveal ${configLabel(config, index)}` : `Save ${configLabel(config, index)}`} disabled={isWorking || masked}><Save size={16} aria-hidden="true" /></button>{masked && <span className="settings-secret-note" id={`${key}-masked-note`}>Reveal to edit</span>}</form>
 }
 
 function ServiceCard({ definition, fields, expanded, isRevealed, isWorking, onToggle, onChange, onSave, onRequestReveal }: {
@@ -342,7 +326,7 @@ export function SettingsPage({ token, onUnauthorized }: Props) {
     try {
       const [settingsData, configsData, rangeData] = await Promise.all([apiJson<Row>(token, onUnauthorized, '/api/settings'), apiJson<unknown>(token, onUnauthorized, '/api/configs'), apiJson<Row>(token, onUnauthorized, '/api/settings/date-range')])
       setSettings((settingsData.settings || {}) as Row)
-      setConfigs((arrayFrom(configsData, 'configs') as AppConfig[]).filter(isVisibleConfig))
+      setConfigs(arrayFrom(configsData, 'configs') as AppConfig[])
       setDateRange({ start_date: stringValue(rangeData.start_date), end_date: stringValue(rangeData.end_date) })
       setIsRevealed(false)
     } catch (caughtError) {
@@ -357,7 +341,7 @@ export function SettingsPage({ token, onUnauthorized }: Props) {
   const saveSetting = async (event: FormEvent, key: string) => { event.preventDefault(); setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value: stringValue(settings[key]) }) }); setNotice('Workspace setting saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save setting') } finally { setIsWorking(false) } }
   const saveConfig = async (key: string, value: string) => { setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/configs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }); setNotice('Service setting saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save service setting') } finally { setIsWorking(false) } }
   const saveRange = async (event: FormEvent) => { event.preventDefault(); setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/settings/date-range', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dateRange) }); setNotice('Default date range saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save date range') } finally { setIsWorking(false) } }
-  const reveal = async (event: FormEvent) => { event.preventDefault(); setIsWorking(true); setError(''); try { const data = await apiJson<unknown>(token, onUnauthorized, '/api/configs/reveal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: revealPassword }) }); setConfigs((arrayFrom(data, 'configs') as AppConfig[]).filter(isVisibleConfig)); setIsRevealed(true); setNotice('Secret values revealed for this session') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to reveal integration settings') } finally { setIsWorking(false) } }
+  const reveal = async (event: FormEvent) => { event.preventDefault(); setIsWorking(true); setError(''); try { const data = await apiJson<unknown>(token, onUnauthorized, '/api/configs/reveal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: revealPassword }) }); setConfigs(arrayFrom(data, 'configs') as AppConfig[]); setIsRevealed(true); setNotice('Secret values revealed for this session') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to reveal integration settings') } finally { setIsWorking(false) } }
 
   const serviceGroups = useMemo(() => serviceDefinitions.map((definition) => ({ definition, fields: configs.filter((config) => definition.categories.includes(stringValue(config.category))) })), [configs])
   const groupedKeys = useMemo(() => new Set(serviceGroups.flatMap(({ fields }) => fields.map((field, index) => configKey(field, index)))), [serviceGroups])

@@ -9,7 +9,6 @@ interface Conversation {
   last_message: string;
   last_message_at: string;
   mode: 'auto' | 'human';
-  active_task_id?: number;
   priority?: string;
 }
 
@@ -473,9 +472,6 @@ export function WhatsAppChat({ fetchWithAuth }: WhatsAppChatProps) {
                          <span className={`priority-mini ${conv.priority}`}></span>
                          {conv.priority.toUpperCase()}
                       </span>
-                    )}
-                    {conv.active_task_id && (
-                      <span className="task-link-badge">Task #{conv.active_task_id}</span>
                     )}
                   </div>
                 </div>

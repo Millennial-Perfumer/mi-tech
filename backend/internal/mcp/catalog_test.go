@@ -24,7 +24,7 @@ func TestCatalogToolNamesUnique(t *testing.T) {
 // scope.
 func TestCatalogScopesReadOnly(t *testing.T) {
 	for _, spec := range DefaultCatalog {
-		isWriteScope := strings.HasSuffix(spec.Scope, ":write") || strings.HasSuffix(spec.Scope, ":destructive") || spec.Scope == ScopeMarketingPublish
+		isWriteScope := strings.HasSuffix(spec.Scope, ":write") || strings.HasSuffix(spec.Scope, ":destructive")
 		if !strings.HasSuffix(spec.Scope, ":read") && !isWriteScope {
 			t.Errorf("tool %s has non-read-only scope: %s", spec.Name, spec.Scope)
 		}
@@ -131,16 +131,6 @@ func TestWriteToolContracts(t *testing.T) {
 		t.Errorf("orders_mark_delivered args = %#v, want only id", markDelivered.Args)
 	}
 
-	for _, name := range []string{"planner_sprint_update", "planner_sprint_delete"} {
-		spec, ok := DefaultCatalog.Lookup(name)
-		if !ok {
-			t.Fatalf("%s missing from catalog", name)
-		}
-		if len(spec.QueryArgs) != 1 || spec.QueryArgs[0] != "id" {
-			t.Errorf("%s query args = %#v, want [id]", name, spec.QueryArgs)
-		}
-	}
-
 	for _, name := range []string{"whatsapp_template_sync_single", "whatsapp_template_fetch"} {
 		spec, ok := DefaultCatalog.Lookup(name)
 		if !ok {
@@ -161,7 +151,7 @@ func TestWriteToolContracts(t *testing.T) {
 		t.Error("generic settings_update must not have a route binding")
 	}
 
-	for _, name := range []string{"inventory_clear", "shopify_reset_orders", "customers_delete", "ai_conversation_delete"} {
+	for _, name := range []string{"inventory_clear", "shopify_reset_orders", "customers_delete"} {
 		spec, ok := DefaultCatalog.Lookup(name)
 		if !ok {
 			t.Fatalf("%s missing from catalog", name)
@@ -230,7 +220,7 @@ func TestScopes(t *testing.T) {
 			t.Errorf("duplicate scope in Scopes(): %s", s)
 		}
 		seen[s] = true
-		if !strings.HasSuffix(s, ":read") && s != ScopeMarketingPublish && !strings.HasSuffix(s, ":write") && !strings.HasSuffix(s, ":destructive") {
+		if !strings.HasSuffix(s, ":read") && !strings.HasSuffix(s, ":write") && !strings.HasSuffix(s, ":destructive") {
 			t.Errorf("non-read-only scope derived: %s", s)
 		}
 	}

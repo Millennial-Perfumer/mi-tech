@@ -65,16 +65,11 @@ var routeMap = map[string]RouteBinding{
 	"whatsapp_conversations":  {Path: "/api/automation/whatsapp/conversations", Method: "GET"},
 	"whatsapp_chat":           {Path: "/api/automation/whatsapp/chat", Method: "GET"},
 	"whatsapp_events":         {Path: "/api/automation/whatsapp/events", Method: "GET"},
-	// Marketing (Meta, SMM, Judge.me)
+	// Marketing (Meta, Judge.me)
 	"meta_overview":     {Path: "/api/marketing/meta/overview", Method: "GET"},
 	"meta_campaigns":    {Path: "/api/marketing/meta/campaigns", Method: "GET"},
 	"meta_adsets":       {Path: "/api/marketing/meta/adsets", Method: "GET"},
 	"meta_ads":          {Path: "/api/marketing/meta/ads", Method: "GET"},
-	"smm_overview":      {Path: "/api/marketing/smm/overview", Method: "GET"},
-	"smm_health":        {Path: "/api/marketing/smm/health", Method: "GET"},
-	"smm_post_insights": {Path: "/api/marketing/smm/post/insights", Method: "GET"},
-	"smm_queue":         {Path: "/api/marketing/smm/queue", Method: "GET"},
-	"smm_queue_create":  {Path: "/api/marketing/smm/queue", Method: "POST"},
 	"judgeme_published": {Path: "/api/marketing/judgeme/published", Method: "GET"},
 	// Feedback
 	"feedback_list":          {Path: "/api/feedback", Method: "GET"},
@@ -82,16 +77,8 @@ var routeMap = map[string]RouteBinding{
 	// Abandoned checkouts
 	"abandoned_checkouts_list":      {Path: "/api/abandoned-checkouts", Method: "GET"},
 	"abandoned_checkouts_analytics": {Path: "/api/abandoned-checkouts/analytics", Method: "GET"},
-	// Planner
-	"planner_boards":    {Path: "/api/planner/boards", Method: "GET"},
-	"planner_tasks":     {Path: "/api/planner/tasks", Method: "GET"},
-	"planner_sprints":   {Path: "/api/planner/sprints", Method: "GET"},
-	"planner_analytics": {Path: "/api/planner/analytics", Method: "GET"},
 	// Support
 	"support_tickets": {Path: "/api/support/tickets", Method: "GET"},
-	// AI
-	"ai_conversations":    {Path: "/api/ai/conversations", Method: "GET"},
-	"ai_conversation_get": {Path: "/api/ai/conversations", Method: "GET"},
 	// Settings
 	"settings_list":       {Path: "/api/settings", Method: "GET"},
 	"settings_date_range": {Path: "/api/settings/date-range", Method: "GET"},
@@ -136,14 +123,6 @@ var routeMap = map[string]RouteBinding{
 	"manufacturing_create":        {Path: "/api/inventory/manufacturing", Method: "POST"},
 	"manufacturing_update":        {Path: "/api/inventory/manufacturing", Method: "PUT"},
 	"manufacturing_delete":        {Path: "/api/inventory/manufacturing", Method: "DELETE"},
-	// Planner (write)
-	"planner_task_create":   {Path: "/api/planner/tasks", Method: "POST"},
-	"planner_task_update":   {Path: "/api/planner/tasks", Method: "PUT"},
-	"planner_task_delete":   {Path: "/api/planner/tasks", Method: "DELETE"},
-	"planner_task_move":     {Path: "/api/planner/tasks/move", Method: "POST"},
-	"planner_sprint_create": {Path: "/api/planner/sprints", Method: "POST"},
-	"planner_sprint_update": {Path: "/api/planner/sprints", Method: "PUT"},
-	"planner_sprint_delete": {Path: "/api/planner/sprints", Method: "DELETE"},
 	// Synchronization and settings (write)
 	"shopify_sync_orders":     {Path: "/api/shopify/sync", Method: "POST"},
 	"shopify_reset_orders":    {Path: "/api/shopify/reset", Method: "POST"},
@@ -206,18 +185,14 @@ var routeMap = map[string]RouteBinding{
 	"whatsapp_event_create":             {Path: "/api/automation/whatsapp/events", Method: "POST"},
 	"whatsapp_event_delete":             {Path: "/api/automation/whatsapp/events", Method: "DELETE"},
 	"whatsapp_metrics_sync":             {Path: "/api/automation/whatsapp/sync-metrics", Method: "POST"},
-	// Social marketing and reviews (write)
-	"smm_post":                 {Path: "/api/marketing/smm/post", Method: "POST"},
-	"smm_sync":                 {Path: "/api/marketing/smm/sync", Method: "POST"},
+	// Judge.me (write)
 	"judgeme_generate_reviews": {Path: "/api/marketing/judgeme/generate", Method: "POST"},
 	"judgeme_submit_reviews":   {Path: "/api/marketing/judgeme/submit", Method: "POST"},
-	// Feedback and AI (write)
+	// Feedback (write)
 	"feedback_bulk_send":             {Path: "/api/feedback/bulk-send", Method: "POST"},
 	"feedback_update_comment":        {Path: "/api/orders/feedback/comment", Method: "PUT"},
 	"feedback_post_judgeme":          {Path: "/api/orders/feedback/post-judgeme", Method: "POST"},
 	"feedback_request_google_review": {Path: "/api/orders/feedback/request-google-review", Method: "POST"},
-	"ai_chat":                        {Path: "/api/ai/chat", Method: "POST"},
-	"ai_conversation_delete":         {Path: "/api/ai/conversations", Method: "DELETE"},
 }
 
 // RouteFor returns the binding for a tool name and whether it exists.

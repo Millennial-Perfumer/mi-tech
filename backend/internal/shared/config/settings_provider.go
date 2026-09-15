@@ -145,18 +145,6 @@ func (p *SettingsProvider) GetMetaAppSecret() string {
 	return p.Get("meta_app_secret")
 }
 
-func (p *SettingsProvider) GetFacebookPageID() string {
-	return p.Get("facebook_page_id")
-}
-
-func (p *SettingsProvider) GetInstagramBusinessID() string {
-	return p.Get("instagram_business_id")
-}
-
-func (p *SettingsProvider) GetThreadsUserID() string {
-	return p.Get("threads_user_id")
-}
-
 func (p *SettingsProvider) GetFeedbackBaseURL() string {
 	val := p.Get("feedback_base_url")
 	if val == "" {
@@ -275,46 +263,6 @@ func (p *SettingsProvider) IsInventorySyncEnabled() bool {
 		return true // Default to true if not explicitly set
 	}
 	return val == "true"
-}
-
-func (p *SettingsProvider) GetAIProvider() string {
-	val := p.Get("ai_provider")
-	if val == "" {
-		return "cloud"
-	}
-	return val
-}
-
-func (p *SettingsProvider) IsAIEnabled() bool {
-	return p.Get("ai_enabled") == "true"
-}
-
-func (p *SettingsProvider) GetOpenAIAPIKey() string {
-	return p.Get("openai_api_key")
-}
-
-func (p *SettingsProvider) GetAICloudModel() string {
-	val := p.Get("ai_cloud_model")
-	if val == "" {
-		return "gpt-5.4-nano"
-	}
-	return val
-}
-
-func (p *SettingsProvider) GetAILocalURL() string {
-	val := p.Get("ai_local_url")
-	if val == "" {
-		return "http://localhost:11434"
-	}
-	return val
-}
-
-func (p *SettingsProvider) GetAILocalModel() string {
-	val := p.Get("ai_local_model")
-	if val == "" {
-		return "gemma4"
-	}
-	return val
 }
 
 func (p *SettingsProvider) IsFeedbackAutoTriggerEnabled() bool {

@@ -12,7 +12,6 @@ type Conversation struct {
 	LastMessage   string    `json:"last_message"`
 	LastMessageAt time.Time `json:"last_message_at"`
 	Mode          string    `json:"mode"`
-	ActiveTaskID  *int      `json:"active_task_id,omitempty"`
 	Priority      string    `json:"priority"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

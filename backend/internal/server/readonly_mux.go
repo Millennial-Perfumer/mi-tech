@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
-	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	amazonHandlerPkg "mi-tech/internal/domain/amazon/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
@@ -15,7 +14,6 @@ import (
 	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
-	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
 	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
@@ -40,13 +38,10 @@ type readOnlyHandlers struct {
 	b2bHandler        *b2bHandlerPkg.B2BHandler
 	automationHandler *communicationHandlerPkg.AutomationHandler
 	marketingHandler  *marketingHandlerPkg.MarketingHandler
-	smmHandler        *marketingHandlerPkg.SMMHandler
 	judgeMeHandler    *marketingHandlerPkg.JudgeMeHandler
 	feedbackHandler   *feedbackHandlerPkg.FeedbackHandler
 	acHandler         *abandonedCheckoutHandlerPkg.AbandonedCheckoutHandler
-	plannerHandler    *plannerHandlerPkg.PlannerHandler
 	ticketHandler     *supportHandlerPkg.TicketHandler
-	aiHandler         *aiHandlerPkg.AIHandler
 	settingsHandler   *configHandlerPkg.SettingsHandler
 	systemHandler     *systemHandlerPkg.SystemHandler
 	syncHandler       *syncHandlerPkg.SyncHandler
@@ -144,15 +139,11 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 	mux.HandleFunc("/api/automation/whatsapp/chat", ro(h.automationHandler.GetChatMessages))
 	mux.HandleFunc("/api/automation/whatsapp/events", ro(h.automationHandler.GetEvents))
 
-	// Marketing (Meta, SMM, Judge.me)
+	// Marketing (Meta, Judge.me)
 	mux.HandleFunc("/api/marketing/meta/overview", ro(h.marketingHandler.GetMetaOverview))
 	mux.HandleFunc("/api/marketing/meta/campaigns", ro(h.marketingHandler.GetMetaCampaigns))
 	mux.HandleFunc("/api/marketing/meta/adsets", ro(h.marketingHandler.GetMetaAdSets))
 	mux.HandleFunc("/api/marketing/meta/ads", ro(h.marketingHandler.GetMetaAds))
-	mux.HandleFunc("/api/marketing/smm/overview", ro(h.smmHandler.GetOverview))
-	mux.HandleFunc("/api/marketing/smm/health", ro(h.smmHandler.CheckHealth))
-	mux.HandleFunc("/api/marketing/smm/post/insights", ro(h.smmHandler.GetPostInsights))
-	mux.HandleFunc("/api/marketing/smm/queue", ro(h.smmHandler.GetQueue))
 	mux.HandleFunc("/api/marketing/judgeme/published", ro(h.judgeMeHandler.GetPublishedReviews))
 
 	// Feedback
@@ -163,23 +154,8 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 	mux.HandleFunc("/api/abandoned-checkouts", ro(h.acHandler.GetAbandonedCheckouts))
 	mux.HandleFunc("/api/abandoned-checkouts/analytics", ro(h.acHandler.GetAbandonedCheckoutAnalytics))
 
-	// Planner
-	mux.HandleFunc("/api/planner/boards", ro(h.plannerHandler.GetBoards))
-	mux.HandleFunc("/api/planner/tasks", ro(h.plannerHandler.GetTasks))
-	mux.HandleFunc("/api/planner/sprints", ro(h.plannerHandler.GetSprints))
-	mux.HandleFunc("/api/planner/analytics", ro(h.plannerHandler.GetAnalytics))
-
 	// Support
 	mux.HandleFunc("/api/support/tickets", ro(h.ticketHandler.HandleTickets))
-
-	// AI
-	mux.HandleFunc("/api/ai/conversations", ro(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("id") != "" {
-			h.aiHandler.GetConversation(w, r)
-		} else {
-			h.aiHandler.ListConversations(w, r)
-		}
-	}))
 
 	// Settings (masked)
 	mux.HandleFunc("/api/settings", ro(h.settingsHandler.GetAllSettings))
@@ -304,33 +280,6 @@ func registerMCPWriteRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 		}
 	})
 
-	// Planner
-	mux.HandleFunc("/api/planner/tasks", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			h.plannerHandler.CreateTask(w, r)
-		case http.MethodPut:
-			h.plannerHandler.UpdateTask(w, r)
-		case http.MethodDelete:
-			h.plannerHandler.DeleteTask(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/planner/tasks/move", h.plannerHandler.MoveTask)
-	mux.HandleFunc("/api/planner/sprints", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			h.plannerHandler.CreateSprint(w, r)
-		case http.MethodPut:
-			h.plannerHandler.UpdateSprint(w, r)
-		case http.MethodDelete:
-			h.plannerHandler.DeleteSprint(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
 	// B2B billing and proformas
 	mux.HandleFunc("/api/b2b/customers", h.b2bHandler.HandleCustomers)
 	mux.HandleFunc("/api/b2b/invoices", h.b2bHandler.HandleInvoices)
@@ -412,17 +361,13 @@ func registerMCPWriteRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 	})
 	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", h.automationHandler.SyncAutomationMetrics)
 
-	// Social marketing and reviews
-	mux.HandleFunc("/api/marketing/smm/post", h.smmHandler.PostContent)
-	mux.HandleFunc("/api/marketing/smm/sync", h.smmHandler.Sync)
+	// Marketing reviews
 	mux.HandleFunc("/api/marketing/judgeme/generate", h.judgeMeHandler.GenerateReviews)
 	mux.HandleFunc("/api/marketing/judgeme/submit", h.judgeMeHandler.SubmitReviews)
 
-	// Feedback and AI
+	// Feedback
 	mux.HandleFunc("/api/feedback/bulk-send", h.feedbackHandler.BulkSendFeedbackRequests)
 	mux.HandleFunc("/api/orders/feedback/comment", h.feedbackHandler.UpdateFeedbackAdminComment)
 	mux.HandleFunc("/api/orders/feedback/post-judgeme", h.feedbackHandler.PostJudgeMeReview)
 	mux.HandleFunc("/api/orders/feedback/request-google-review", h.feedbackHandler.RequestGoogleReview)
-	mux.HandleFunc("/api/ai/chat", h.aiHandler.Chat)
-	mux.HandleFunc("/api/ai/conversations", h.aiHandler.DeleteConversation)
 }

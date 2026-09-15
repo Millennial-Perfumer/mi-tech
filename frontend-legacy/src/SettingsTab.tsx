@@ -49,9 +49,7 @@ const MCP_READ_SCOPES = [
   ['marketing:read', 'Marketing'],
   ['feedback:read', 'Feedback'],
   ['abandoned_checkout:read', 'Abandoned checkouts'],
-  ['planner:read', 'Planner'],
   ['support:read', 'Support tickets'],
-  ['ai:read', 'AI conversations'],
   ['settings:read', 'Settings'],
   ['system:read', 'System docs']
 ] as const;
@@ -60,19 +58,16 @@ const MCP_READ_SCOPES = [
 // while operators who need the newly deployed mutation tools can grant only
 // the specific write/destructive scopes required by their client.
 const MCP_WRITE_SCOPES = [
-  ['marketing:publish', 'Publish to social queue'],
   ['orders:write', 'Orders write'],
   ['customers:write', 'Customers write'],
   ['inventory:write', 'Inventory write'],
   ['production:write', 'Production write'],
-  ['planner:write', 'Planner write'],
   ['b2b:write', 'B2B write'],
   ['communication:write', 'WhatsApp write'],
   ['marketing:write', 'Marketing write'],
   ['feedback:write', 'Feedback write'],
   ['support:write', 'Support write'],
-  ['settings:write', 'Settings write'],
-  ['ai:write', 'AI write']
+  ['settings:write', 'Settings write']
 ] as const;
 
 const MCP_DESTRUCTIVE_SCOPES = [
@@ -80,10 +75,8 @@ const MCP_DESTRUCTIVE_SCOPES = [
   ['customers:destructive', 'Customers destructive'],
   ['inventory:destructive', 'Inventory destructive'],
   ['production:destructive', 'Production destructive'],
-  ['planner:destructive', 'Planner destructive'],
   ['b2b:destructive', 'B2B destructive'],
-  ['communication:destructive', 'WhatsApp destructive'],
-  ['ai:destructive', 'AI destructive']
+  ['communication:destructive', 'WhatsApp destructive']
 ] as const;
 
 const MCP_SCOPES = [...MCP_READ_SCOPES, ...MCP_WRITE_SCOPES, ...MCP_DESTRUCTIVE_SCOPES] as const;
@@ -322,11 +315,6 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
     color: '#0ea5e9'
   },
-  social_media: {
-    title: 'Social Media',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>,
-    color: '#E4405F'
-  },
   feedback: {
     title: 'Feedback',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M9 10L11 12L15 8"></path></svg>,
@@ -347,11 +335,6 @@ const CATEGORY_META: Record<string, { title: string; icon: React.ReactNode; colo
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><circle cx="16" cy="11" r="3"></circle><path d="M16 10v2h2"></path></svg>,
     color: '#f43f5e'
   },
-  auto_queue: {
-    title: 'Auto Queue',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>,
-    color: '#10b981'
-  }
 };
 
 const formatTime12h = (timeStr: string) => {
@@ -779,53 +762,7 @@ export function SettingsTab({ fetchWithAuth, userRole }: SettingsTabProps) {
     }));
   };
 
-  // Ensure default fallback configs exist if not present in DB
-  const defaultAppConfigs: AppConfig[] = [
-    {
-      key: 'gdrive_automation_folder_url',
-      value: 'https://drive.google.com/drive/folders/1djXkok8cuP3efyurTd2nOwoKRo-HpEC3',
-      is_secret: false,
-      label: 'Google Drive Automation Folder URL',
-      category: 'auto_queue',
-      sort_order: 10
-    },
-    {
-      key: 'gdrive_service_account_json',
-      value: '',
-      is_secret: true,
-      label: 'Google Drive Service Account JSON',
-      category: 'auto_queue',
-      sort_order: 11
-    }
-  ];
-
-  const mergedConfigs = configs
-    .filter(c => ![
-      'gdrive_refresh_token',
-      'gdrive_client_id',
-      'gdrive_client_secret',
-      'gdrive_access_token',
-      'n8n_webhook_url'
-    ].includes(c.key))
-    .map(c => {
-      const def = defaultAppConfigs.find(d => d.key === c.key);
-      const updated = { ...c };
-      if (!updated.label && def?.label) updated.label = def.label;
-      if (def?.is_secret !== undefined && updated.is_secret === undefined) updated.is_secret = def.is_secret;
-      if (
-        c.key === 'gdrive_automation_folder_url' ||
-        c.key === 'gdrive_service_account_json'
-      ) {
-        updated.category = 'auto_queue';
-      }
-      return updated;
-    });
-
-  defaultAppConfigs.forEach(def => {
-    if (!mergedConfigs.some(c => c.key === def.key)) {
-      mergedConfigs.push(def);
-    }
-  });
+  const mergedConfigs = configs;
 
   // Group configs by category
   const groupedConfigs: Record<string, AppConfig[]> = {};
@@ -834,8 +771,8 @@ export function SettingsTab({ fetchWithAuth, userRole }: SettingsTabProps) {
     groupedConfigs[cfg.category].push(cfg);
   });
 
-  // Sort categories: Business > Shopify > Amazon > Inventory > Meta Shared > Marketing > Social Media > Auto Queue > WhatsApp > System
-  const categoryOrder = ['business', 'shopify', 'amazon', 'inventory', 'meta_shared', 'marketing', 'social_media', 'auto_queue', 'whatsapp', 'abandoned_cart', 'feedback', 'system'];
+  // Sort categories: Business > Shopify > Amazon > Inventory > Meta Shared > Marketing > WhatsApp > System
+  const categoryOrder = ['business', 'shopify', 'amazon', 'inventory', 'meta_shared', 'marketing', 'whatsapp', 'abandoned_cart', 'feedback', 'system'];
   const sortedCategories = Object.keys(groupedConfigs).sort((a, b) => {
     const idxA = categoryOrder.indexOf(a);
     const idxB = categoryOrder.indexOf(b);
@@ -1053,30 +990,6 @@ export function SettingsTab({ fetchWithAuth, userRole }: SettingsTabProps) {
                                   onKeyDown={e => {
                                     if (e.key === 'Enter') handleSaveConfig(cfg.key, editValue);
                                     if (e.key === 'Escape') handleCancelEdit();
-                                  }}
-                                />
-                              ) : cfg.key === 'gdrive_service_account_json' ? (
-                                <textarea
-                                  value={editValue}
-                                  onChange={e => setEditValue(e.target.value)}
-                                  autoFocus
-                                  rows={10}
-                                  spellCheck={false}
-                                  placeholder="Paste the complete Google Cloud service-account JSON"
-                                  style={{
-                                    width: '100%',
-                                    minHeight: '180px',
-                                    padding: '0.75rem',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--accent-color)',
-                                    fontSize: '0.8rem',
-                                    lineHeight: 1.45,
-                                    fontFamily: 'monospace',
-                                    outline: 'none',
-                                    resize: 'vertical',
-                                    boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
-                                    color: 'var(--text-primary)',
-                                    backgroundColor: 'var(--bg-input)'
                                   }}
                                 />
                               ) : (

@@ -31,9 +31,7 @@ other bearer tokens are rejected by `MachineKeyMiddleware`
 
 Scopes are applied per session: only catalog tools whose scope is present in
 the key's scopes are registered for that connection. Under-scoped tool calls
-return an "insufficient scope" error. The `marketing:publish` scope is required
-for posting to the Google Drive/n8n social queue; `marketing:read` only lists
-queued posts.
+return an "insufficient scope" error.
 
 ## Tools & Scopes
 
@@ -41,13 +39,11 @@ Read-only tools map to a single `GET` route in the internal mux and carry one
 read scope (e.g. `orders:read`, `customers:read`, `metrics:read`,
 `gst:read`, `inventory:read`, `production:read`, `b2b:read`,
 `communication:read`, `marketing:read`, `feedback:read`,
-`abandoned_checkout:read`, `planner:read`, `support:read`, `ai:read`,
-`settings:read`, `system:read`). Operational mutations use separate write
+`abandoned_checkout:read`, `support:read`, `settings:read`, `system:read`).
+Operational mutations use separate write
 scopes: `orders:write`, `customers:write`, `inventory:write`,
-`production:write`, `planner:write`, `b2b:write`, `communication:write`,
-`marketing:write`, `feedback:write`, `support:write`, `settings:write`, and
-`ai:write`. The existing social queue publisher continues to use
-`marketing:publish`.
+`production:write`, `b2b:write`, `communication:write`, `marketing:write`,
+`feedback:write`, `support:write`, and `settings:write`.
 
 The order/customer/inventory read catalog also includes:
 
@@ -69,21 +65,12 @@ use query identifiers expose those identifiers as explicit tool arguments.
 The generic settings setter is not exposed; `settings:write` only covers the
 date-range operation. Destructive tools additionally require one of
 `orders:destructive`, `customers:destructive`, `inventory:destructive`,
-`production:destructive`, `planner:destructive`, `b2b:destructive`,
-`communication:destructive`, or `ai:destructive`. Every catalog tool
+`production:destructive`, `b2b:destructive`, or
+`communication:destructive`. Every catalog tool
 invocation is audited.
 
 Path-based tools (e.g. `system_doc_get`) take the path segment as a named
 argument and are mapped to `GET /api/.../{arg}`.
-
-### Publishing to the Google Drive social queue
-
-Use the `smm_queue_create` MCP tool with a caption, optional hashtags, target
-platforms, and optional comma-separated public HTTPS media URLs. Supported
-platforms include `instagram`, `facebook`, `threads`, and `x`. Media is
-downloaded in memory, limited to 50 MB per file, and placed in the generated
-Google Drive queue folder using the same flow as the web uploader. The tool
-requires a machine key containing `marketing:publish`.
 
 ## Response Normalization (Phase 5)
 
@@ -256,10 +243,9 @@ above, replacing `https://<your-host>/mcp` with the production URL).
 Valid scopes include the read-only MCP scopes (e.g. `orders:read`, `customers:read`,
 `metrics:read`, `gst:read`, `inventory:read`, `production:read`, `b2b:read`,
 `communication:read`, `marketing:read`, `feedback:read`, `abandoned_checkout:read`,
-`planner:read`, `support:read`, `ai:read`, `settings:read`, `system:read`) and
-the corresponding operational `:write` scopes plus the dedicated
-`:destructive` scopes documented above. `marketing:publish` enables
-`smm_queue_create`.
+`support:read`, `settings:read`, `system:read`) and the corresponding
+operational `:write` scopes plus the dedicated `:destructive` scopes documented
+above.
 
 ### List Machine API Keys
 `GET /api/mcp/keys`

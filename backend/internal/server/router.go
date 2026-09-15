@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	abandonedCheckoutHandlerPkg "mi-tech/internal/domain/abandoned_checkout/handler"
-	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
 	amazonHandlerPkg "mi-tech/internal/domain/amazon/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	communicationHandlerPkg "mi-tech/internal/domain/communication/handler"
@@ -16,7 +15,6 @@ import (
 	inventoryHandlerPkg "mi-tech/internal/domain/inventory/handler"
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
-	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
 	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
@@ -53,8 +51,6 @@ func RegisterRoutes(
 	marketingHandler *marketingHandlerPkg.MarketingHandler,
 	marketingWebhookHandler *marketingHandlerPkg.MarketingWebhookHandler,
 	systemHandler *systemHandlerPkg.SystemHandler,
-	smmHandler *marketingHandlerPkg.SMMHandler,
-	plannerHandler *plannerHandlerPkg.PlannerHandler,
 	ticketHandler *supportHandlerPkg.TicketHandler,
 	feedbackHandler *feedbackHandlerPkg.FeedbackHandler,
 	inventoryHandler *inventoryHandlerPkg.InventoryHandler,
@@ -63,7 +59,6 @@ func RegisterRoutes(
 	supplierHandler *productionHandlerPkg.SupplierHandler,
 	poHandler *productionHandlerPkg.PurchaseOrderHandler,
 	mfgHandler *productionHandlerPkg.ManufacturingHandler,
-	aiHandler *aiHandlerPkg.AIHandler,
 	b2bHandler *b2bHandlerPkg.B2BHandler,
 	acHandler *abandonedCheckoutHandlerPkg.AbandonedCheckoutHandler,
 	judgeMeHandler *marketingHandlerPkg.JudgeMeHandler,
@@ -92,21 +87,6 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/marketing/meta/ads", protected(marketingHandler.GetMetaAds))
 	mux.HandleFunc("/api/marketing/meta/webhook", metrics(cors(marketingWebhookHandler.MetaWebhook)).ServeHTTP)
 
-	// Social Media Management (SMM) Routes
-	mux.HandleFunc("/api/marketing/smm/overview", protected(smmHandler.GetOverview))
-	mux.HandleFunc("/api/marketing/smm/health", protected(smmHandler.CheckHealth))
-	mux.HandleFunc("/api/marketing/smm/post", protected(smmHandler.PostContent))
-	mux.HandleFunc("/api/marketing/smm/sync", protected(smmHandler.Sync))
-	mux.HandleFunc("/api/marketing/smm/post/insights", protected(smmHandler.GetPostInsights))
-	mux.HandleFunc("/api/marketing/smm/queue", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			smmHandler.QueuePost(w, r)
-		default:
-			smmHandler.GetQueue(w, r)
-		}
-	}))
-
 	// Judge.me Review Generator Routes
 	if judgeMeHandler != nil {
 		mux.HandleFunc("/api/marketing/judgeme/generate", protected(judgeMeHandler.GenerateReviews))
@@ -114,7 +94,7 @@ func RegisterRoutes(
 		mux.HandleFunc("/api/marketing/judgeme/published", protected(judgeMeHandler.GetPublishedReviews))
 	}
 
-	log.Println("DEBUG: Marketing, SMM & Judge.me Routes Registered")
+	log.Println("DEBUG: Marketing & Judge.me Routes Registered")
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
 	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))
@@ -323,35 +303,6 @@ func RegisterRoutes(
 	mux.HandleFunc("/api/system/docs", protected(systemHandler.ListDocs))
 	mux.HandleFunc("/api/system/docs/", protected(systemHandler.GetDoc))
 
-	// --- Planner Routes ---
-	mux.HandleFunc("/api/planner/boards", protected(plannerHandler.GetBoards))
-	mux.HandleFunc("/api/planner/tasks", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			adminProtected(plannerHandler.CreateTask)(w, r)
-		case http.MethodPut:
-			adminProtected(plannerHandler.UpdateTask)(w, r)
-		case http.MethodDelete:
-			adminProtected(plannerHandler.DeleteTask)(w, r)
-		default:
-			plannerHandler.GetTasks(w, r)
-		}
-	}))
-	mux.HandleFunc("/api/planner/tasks/move", adminProtected(plannerHandler.MoveTask))
-	mux.HandleFunc("/api/planner/sprints", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			adminProtected(plannerHandler.CreateSprint)(w, r)
-		case http.MethodPut:
-			adminProtected(plannerHandler.UpdateSprint)(w, r)
-		case http.MethodDelete:
-			adminProtected(plannerHandler.DeleteSprint)(w, r)
-		default:
-			plannerHandler.GetSprints(w, r)
-		}
-	}))
-	mux.HandleFunc("/api/planner/analytics", protected(plannerHandler.GetAnalytics))
-
 	// --- Support Ticket Routes ---
 	mux.HandleFunc("/api/support/tickets", protected(ticketHandler.HandleTickets))
 	mux.HandleFunc("/api/support/tickets/", protected(ticketHandler.UpdateTicketStatus))
@@ -452,21 +403,6 @@ func RegisterRoutes(
 			adminProtected(mfgHandler.Delete)(w, r)
 		default:
 			mfgHandler.List(w, r)
-		}
-	}))
-
-	// --- AI Analysis Routes ---
-	mux.HandleFunc("/api/ai/chat", protected(aiHandler.Chat))
-	mux.HandleFunc("/api/ai/conversations", protected(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			if r.URL.Query().Get("id") != "" {
-				aiHandler.GetConversation(w, r)
-			} else {
-				aiHandler.ListConversations(w, r)
-			}
-		case http.MethodDelete:
-			aiHandler.DeleteConversation(w, r)
 		}
 	}))
 

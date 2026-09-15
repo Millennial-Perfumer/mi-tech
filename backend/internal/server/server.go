@@ -6,9 +6,6 @@ import (
 	abandonedCheckoutHandler "mi-tech/internal/domain/abandoned_checkout/handler"
 	abandonedCheckoutRepo "mi-tech/internal/domain/abandoned_checkout/repository"
 	abandonedCheckoutService "mi-tech/internal/domain/abandoned_checkout/service"
-	aiHandlerPkg "mi-tech/internal/domain/ai/handler"
-	aiRepoPkg "mi-tech/internal/domain/ai/repository"
-	aiServicePkg "mi-tech/internal/domain/ai/service"
 	amazonHandlerPkg "mi-tech/internal/domain/amazon/handler"
 	b2bHandlerPkg "mi-tech/internal/domain/b2b/handler"
 	b2bRepoPkg "mi-tech/internal/domain/b2b/repository"
@@ -29,14 +26,10 @@ import (
 	inventoryRepoPkg "mi-tech/internal/domain/inventory/repository"
 	inventoryServicePkg "mi-tech/internal/domain/inventory/service"
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
-	marketingRepoPkg "mi-tech/internal/domain/marketing/repository"
 	marketingServicePkg "mi-tech/internal/domain/marketing/service"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
 	orderRepoPkg "mi-tech/internal/domain/order/repository"
 	orderServicePkg "mi-tech/internal/domain/order/service"
-	plannerHandlerPkg "mi-tech/internal/domain/planner/handler"
-	plannerRepoPkg "mi-tech/internal/domain/planner/repository"
-	plannerServicePkg "mi-tech/internal/domain/planner/service"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
 	productionRepoPkg "mi-tech/internal/domain/production/repository"
 	productionServicePkg "mi-tech/internal/domain/production/service"
@@ -113,8 +106,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	configsRepo := configRepoPkg.NewConfigsRepository(db)
 	settingsRepo := configRepoPkg.NewSettingsRepository(db)
 	customerRepo := orderRepoPkg.NewCustomerRepository(db)
-	socialRepo := marketingRepoPkg.NewSocialRepository(db)
-	plannerRepo := plannerRepoPkg.NewPlannerRepository(db)
 	inventoryRepo := inventoryRepoPkg.NewInventoryRepository(db)
 	oilRepo := productionRepoPkg.NewOilInventoryRepository(db)
 	supplierRepo := productionRepoPkg.NewSupplierRepository(db)
@@ -123,9 +114,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	feedbackRepo := feedbackRepoPkg.NewFeedbackRepository(db)
 	userRepo := userRepoPkg.NewUserRepository(db)
 	ticketRepo := supportRepoPkg.NewTicketRepository(db)
-	aiReadRepo := aiRepoPkg.NewAIReadRepository(db)
-	aiConvRepo := aiRepoPkg.NewAIConversationRepository(db)
-	aiMemRepo := aiRepoPkg.NewAIMemoryRepository(db)
 	b2bRepo := b2bRepoPkg.NewB2BRepository(db)
 	acRepo := abandonedCheckoutRepo.NewAbandonedCheckoutRepository(db)
 	machineKeyRepo := mcpRepoPkg.NewMachineKeyRepository(db)
@@ -154,7 +142,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	syncService := syncServicePkg.NewSyncService(shopifyClient, orderRepo, customerService, syncOrchestrator)
 	webhookService := webhookServicePkg.NewWebhookService(orderService, shopifyClient, webhookEventRepo, webhookStatusRepo)
 	amazonOrderPoller := syncServicePkg.NewAmazonOrderPoller(amazonClient, orderRepo, inventoryRepo, syncOrchestrator)
-	plannerService := plannerServicePkg.NewPlannerService(plannerRepo)
 	ticketService := supportServicePkg.NewTicketService(ticketRepo)
 	inventoryService := inventoryServicePkg.NewInventoryService(inventoryRepo, shopifyClient, syncOrchestrator, settingsProvider, amazonOrderPoller)
 	oilService := productionServicePkg.NewOilInventoryService(oilRepo)
@@ -163,13 +150,11 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	mfgService := productionServicePkg.NewManufacturingService(db, mfgRepo, oilRepo, syncOrchestrator)
 	whatsappService := communicationServicePkg.NewTemplatesService(whatsappRepo, settingsProvider)
 	notifService := communicationServicePkg.NewNotificationService(settingsProvider)
-	agentService := communicationServicePkg.NewNewAgentService(settingsProvider, plannerService, ticketService, messagesRepo, communicationServicePkg.NewMetaClient(settingsProvider), notifService)
+	agentService := communicationServicePkg.NewNewAgentService(settingsProvider, ticketService, messagesRepo, communicationServicePkg.NewMetaClient(settingsProvider), notifService)
 	messagesService := communicationServicePkg.NewMessagesService(messagesRepo, settingsProvider, customerRepo, agentService)
 	authService := userServicePkg.NewAuthService(userRepo, settingsProvider, messagesService)
 	metaMarketingClient := marketingServicePkg.NewMetaMarketingClient(settingsProvider)
-	socialService := marketingServicePkg.NewSocialService(socialRepo, metaMarketingClient)
 	systemService := systemServicePkg.NewSystemService("../docs")
-	aiService := aiServicePkg.NewAIService(aiReadRepo, aiConvRepo, aiMemRepo, settingsProvider)
 	machineKeyService := mcpServicePkg.NewMachineKeyService(machineKeyRepo)
 	auditService := mcpServicePkg.NewAuditService(auditLogRepo, 256)
 	b2bService := b2bServicePkg.NewB2BService(b2bRepo, settingsProvider, db)
@@ -179,7 +164,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	marketingHandler := marketingHandlerPkg.NewMarketingHandler(metaMarketingClient)
 	marketingWebhookHandler := marketingHandlerPkg.NewMarketingWebhookHandler(metaMarketingClient, settingsProvider)
 	systemHandler := systemHandlerPkg.NewSystemHandler(systemService)
-	smmHandler := marketingHandlerPkg.NewSMMHandler(socialService)
 	mappingService := communicationServicePkg.NewWebhookMappingService(whatsappRepo, messagesService, invoiceService, settingsRepo, lineItemRepo, settingsProvider, orderRepo)
 
 	// Handlers
@@ -198,7 +182,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	feedbackHandler := feedbackHandlerPkg.NewFeedbackHandler(feedbackService, settingsProvider, mappingService, whatsappRepo)
 
 	userHandler := userHandlerPkg.NewUserHandler(userService)
-	plannerHandler := plannerHandlerPkg.NewPlannerHandler(plannerService, agentService)
 	ticketHandler := supportHandlerPkg.NewTicketHandler(ticketService)
 	inventoryHandler := inventoryHandlerPkg.NewInventoryHandler(inventoryService)
 	amazonHandler := amazonHandlerPkg.NewAmazonHandler(amazonClient)
@@ -206,7 +189,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	supplierHandler := productionHandlerPkg.NewSupplierHandler(supplierService)
 	poHandler := productionHandlerPkg.NewPurchaseOrderHandler(poService)
 	mfgHandler := productionHandlerPkg.NewManufacturingHandler(mfgService)
-	aiHandler := aiHandlerPkg.NewAIHandler(aiService)
 	b2bHandler := b2bHandlerPkg.NewB2BHandler(b2bService)
 	judgeMeHandler := marketingHandlerPkg.NewJudgeMeHandler(judgeMeService)
 	machineKeyHandler := mcpHandlerPkg.NewMachineKeyHandler(machineKeyService)
@@ -229,8 +211,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		marketingHandler,
 		marketingWebhookHandler,
 		systemHandler,
-		smmHandler,
-		plannerHandler,
 		ticketHandler,
 		feedbackHandler,
 		inventoryHandler,
@@ -239,7 +219,6 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		supplierHandler,
 		poHandler,
 		mfgHandler,
-		aiHandler,
 		b2bHandler,
 		acHandler,
 		judgeMeHandler,
@@ -267,13 +246,10 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		b2bHandler:        b2bHandler,
 		automationHandler: automationHandler,
 		marketingHandler:  marketingHandler,
-		smmHandler:        smmHandler,
 		judgeMeHandler:    judgeMeHandler,
 		feedbackHandler:   feedbackHandler,
 		acHandler:         acHandler,
-		plannerHandler:    plannerHandler,
 		ticketHandler:     ticketHandler,
-		aiHandler:         aiHandler,
 		settingsHandler:   settingsHandler,
 		systemHandler:     systemHandler,
 	})
@@ -286,23 +262,12 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		supplierHandler:   supplierHandler,
 		poHandler:         poHandler,
 		mfgHandler:        mfgHandler,
-		plannerHandler:    plannerHandler,
 		b2bHandler:        b2bHandler,
 		settingsHandler:   settingsHandler,
 		syncHandler:       syncHandler,
 		automationHandler: automationHandler,
-		smmHandler:        smmHandler,
 		judgeMeHandler:    judgeMeHandler,
 		feedbackHandler:   feedbackHandler,
-		aiHandler:         aiHandler,
-	})
-	// The social queue publisher is retained as an explicit write endpoint.
-	mcpWriteMux.HandleFunc("/api/marketing/smm/queue", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		smmHandler.QueuePost(w, r)
 	})
 	mcpWriteHandler := http.Handler(mcpWriteMux)
 	mcpExecutor := mcpServicePkg.NewMuxExecutorWithWriteHandler(readOnlyMux, mcpWriteHandler)
