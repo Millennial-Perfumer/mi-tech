@@ -101,6 +101,11 @@ func (m *MockInventoryRepository) GetLogsByItemID(itemID int) ([]entity.Inventor
 	return args.Get(0).([]entity.InventoryLog), args.Error(1)
 }
 
+func (m *MockInventoryRepository) GetLogsPageByItemID(itemID, page, limit int) ([]entity.InventoryLog, int64, error) {
+	args := m.Called(itemID, page, limit)
+	return args.Get(0).([]entity.InventoryLog), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *MockInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
 	args := m.Called(externalOrderID)
 	return args.Get(0).([]entity.InventoryLog), args.Error(1)

@@ -243,6 +243,33 @@ func (h *InventoryHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 
 	idStr := r.URL.Query().Get("id")
 	id, _ := strconv.Atoi(idStr)
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+	if pageStr != "" || limitStr != "" {
+		page, _ := strconv.Atoi(pageStr)
+		limit, _ := strconv.Atoi(limitStr)
+		logs, total, err := h.service.GetLogsPage(id, page, limit)
+		if err != nil {
+			log.Printf("InventoryHandler.GetLogs paged error: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 10
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(struct {
+			Items []entity.InventoryLog `json:"items"`
+			Page  int                   `json:"page"`
+			Limit int                   `json:"limit"`
+			Total int64                 `json:"total"`
+		}{Items: logs, Page: page, Limit: limit, Total: total})
+		return
+	}
 
 	logs, err := h.service.GetLogs(id)
 	if err != nil {

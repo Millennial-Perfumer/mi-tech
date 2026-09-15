@@ -498,6 +498,17 @@ func (s *InventoryService) GetLogs(itemID int) ([]entity.InventoryLog, error) {
 	return s.repo.GetLogsByItemID(itemID)
 }
 
+// GetLogsPage returns one page of stock movements for an item.
+func (s *InventoryService) GetLogsPage(itemID, page, limit int) ([]entity.InventoryLog, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	return s.repo.GetLogsPageByItemID(itemID, page, limit)
+}
+
 // GetLogsByExternalOrderID returns stock movements caused by an external
 // order identifier, including historical adjustments linked to that order.
 func (s *InventoryService) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {

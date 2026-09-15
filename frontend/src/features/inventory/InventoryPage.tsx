@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, CircleAlert, Edit3, Package, RefreshCw, Search, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowDownRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, Edit3, History, Package, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 import { apiJson, apiRequest, arrayFrom } from '../../lib/http'
 
@@ -31,7 +31,29 @@ type InventoryResponse = {
   message?: string
 }
 
+type InventoryLog = {
+  id: number
+  inventory_item_id: number
+  delta: number
+  reason: string
+  platform: string
+  external_order_id?: string | null
+  order_id?: number | null
+  stock_before?: number | null
+  stock_after?: number | null
+  created_at: string
+}
+
+type InventoryLogPageResponse = {
+  items?: InventoryLog[]
+  page?: number
+  limit?: number
+  total?: number
+}
+
 const pageSize = 10
+const recentLogLimit = 5
+const historyPageSize = 10
 
 type SyncMode = 'shopify' | 'amazon'
 
@@ -59,6 +81,89 @@ function stockLabel(stock: number) {
   if (stock <= 0) return 'Out of stock'
   if (stock <= 10) return 'Low stock'
   return 'In stock'
+}
+
+function formatMovementDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown date'
+  return date.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function movementReason(reason: string) {
+  return reason
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function movementKind(delta: number) {
+  if (delta > 0) return 'addition'
+  if (delta < 0) return 'deduction'
+  return 'correction'
+}
+
+function movementContext(log: InventoryLog) {
+  if (log.external_order_id) return `${log.platform} · Order ${log.external_order_id}`
+  if (log.platform) return log.platform
+  return 'Internal'
+}
+
+function StockActivity({
+  logs,
+  totalCount,
+  isLoading,
+  error,
+  accessDenied,
+  onViewFullHistory,
+  onRetry,
+}: {
+  logs: InventoryLog[]
+  totalCount: number
+  isLoading: boolean
+  error: string
+  accessDenied: boolean
+  onViewFullHistory: () => void
+  onRetry: () => void
+}) {
+  return (
+    <section className="inventory-activity-section" aria-labelledby="inventory-activity-heading">
+      <div className="inventory-activity-heading">
+        <div>
+          <p className="eyebrow">Stock ledger</p>
+          <h3 id="inventory-activity-heading">Recent stock activity</h3>
+          <p>Track deductions, additions, and corrections for this product.</p>
+        </div>
+        {totalCount > 0 && <button className="table-link-button" type="button" onClick={onViewFullHistory}>
+          <History size={14} aria-hidden="true" />
+          View full history
+        </button>}
+      </div>
+
+      {accessDenied ? <div className="inventory-history-note" role="note"><CircleAlert size={16} aria-hidden="true" /><span>Stock history is available to administrators only.</span></div> : error ? <div className="inventory-history-error" role="alert"><CircleAlert size={16} aria-hidden="true" /><span>{error}</span><button type="button" onClick={onRetry}>Try again</button></div> : isLoading ? <p className="table-state inventory-activity-state">Loading stock activity…</p> : logs.length === 0 ? <p className="table-state inventory-activity-state">No stock movements recorded yet.</p> : <div className="inventory-activity-list" aria-label="Stock movement history">
+        {logs.map((log) => {
+          const kind = movementKind(log.delta)
+          const deltaLabel = log.delta > 0 ? `+${log.delta}` : String(log.delta)
+          const hasStockRange = log.stock_before !== null && log.stock_before !== undefined && log.stock_after !== null && log.stock_after !== undefined
+          return <article className={`inventory-activity-row inventory-activity-${kind}`} key={log.id}>
+            <span className="inventory-activity-icon" aria-hidden="true">{log.delta > 0 ? <ArrowUpRight size={16} /> : log.delta < 0 ? <ArrowDownRight size={16} /> : <History size={15} />}</span>
+            <div className="inventory-activity-main">
+              <div className="inventory-activity-title"><strong>{movementReason(log.reason)}</strong><span>{movementContext(log)}</span></div>
+              <small>{formatMovementDate(log.created_at)}</small>
+            </div>
+            <div className="inventory-activity-change">
+              <strong>{deltaLabel}</strong>
+              {hasStockRange && <small>{log.stock_before} → {log.stock_after}</small>}
+            </div>
+          </article>
+        })}
+      </div>}
+    </section>
+  )
 }
 
 function StockEditor({
@@ -128,6 +233,20 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
   const [isSavingProduct, setIsSavingProduct] = useState(false)
   const [isDeletingProduct, setIsDeletingProduct] = useState(false)
   const [productModalError, setProductModalError] = useState('')
+  const [productLogs, setProductLogs] = useState<InventoryLog[]>([])
+  const [isLoadingProductLogs, setIsLoadingProductLogs] = useState(false)
+  const [productLogsError, setProductLogsError] = useState('')
+  const [productLogsAccessDenied, setProductLogsAccessDenied] = useState(false)
+  const [productLogsTotal, setProductLogsTotal] = useState(0)
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const [historyLogs, setHistoryLogs] = useState<InventoryLog[]>([])
+  const [historyPage, setHistoryPage] = useState(1)
+  const [historyTotal, setHistoryTotal] = useState(0)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [historyAccessDenied, setHistoryAccessDenied] = useState(false)
+  const productLogsRequest = useRef(0)
+  const historyRequest = useRef(0)
 
   const fetchSyncConfig = useCallback(async () => {
     setIsLoadingSyncConfig(true)
@@ -206,13 +325,101 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
     }
   }
 
+  const loadProductLogs = async (itemId: number) => {
+    const requestId = productLogsRequest.current + 1
+    productLogsRequest.current = requestId
+    setIsLoadingProductLogs(true)
+    setProductLogs([])
+    setProductLogsTotal(0)
+    setProductLogsError('')
+    setProductLogsAccessDenied(false)
+
+    try {
+      const response = await fetch(`${API_BASE}/api/inventory/logs?id=${itemId}&page=1&limit=${recentLogLimit}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (response.status === 401) {
+        onUnauthorized()
+        throw new Error('Your session has expired. Please sign in again.')
+      }
+      if (response.status === 403) {
+        if (requestId === productLogsRequest.current) setProductLogsAccessDenied(true)
+        return
+      }
+      if (!response.ok) throw new Error(`Stock history request failed with status ${response.status}`)
+      const data = await response.json() as InventoryLogPageResponse | InventoryLog[]
+      const logs = Array.isArray(data) ? data : data.items || []
+      const totalCount = Array.isArray(data) ? logs.length : data.total ?? logs.length
+      if (requestId === productLogsRequest.current) {
+        setProductLogs(logs)
+        setProductLogsTotal(totalCount)
+      }
+    } catch (caughtError) {
+      if (requestId === productLogsRequest.current) setProductLogsError(caughtError instanceof Error ? caughtError.message : 'Unable to load stock activity')
+    } finally {
+      if (requestId === productLogsRequest.current) setIsLoadingProductLogs(false)
+    }
+  }
+
+  const loadHistoryPage = async (itemId: number, nextPage: number) => {
+    const requestId = historyRequest.current + 1
+    historyRequest.current = requestId
+    setIsLoadingHistory(true)
+    setHistoryError('')
+    setHistoryAccessDenied(false)
+
+    try {
+      const response = await fetch(`${API_BASE}/api/inventory/logs?id=${itemId}&page=${nextPage}&limit=${historyPageSize}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (response.status === 401) {
+        onUnauthorized()
+        throw new Error('Your session has expired. Please sign in again.')
+      }
+      if (response.status === 403) {
+        if (requestId === historyRequest.current) setHistoryAccessDenied(true)
+        return
+      }
+      if (!response.ok) throw new Error(`Stock history request failed with status ${response.status}`)
+      const data = await response.json() as InventoryLogPageResponse | InventoryLog[]
+      const logs = Array.isArray(data) ? data : data.items || []
+      const totalCount = Array.isArray(data) ? logs.length : data.total ?? logs.length
+      if (requestId === historyRequest.current) {
+        setHistoryLogs(logs)
+        setHistoryPage(nextPage)
+        setHistoryTotal(totalCount)
+      }
+    } catch (caughtError) {
+      if (requestId === historyRequest.current) setHistoryError(caughtError instanceof Error ? caughtError.message : 'Unable to load stock history')
+    } finally {
+      if (requestId === historyRequest.current) setIsLoadingHistory(false)
+    }
+  }
+
   const openProductDetails = (item: InventoryItem) => {
     setSelectedProduct(item)
     setEditMiSku(item.mi_sku)
     setEditShopifySku(getMappingRecord(item, 'shopify')?.external_sku || '')
     setEditAmazonSku(getMappingRecord(item, 'amazon')?.external_sku || '')
     setProductModalError('')
+    setIsHistoryModalOpen(false)
+    void loadProductLogs(item.id)
   }
+
+  const openHistoryModal = () => {
+    if (!selectedProduct) return
+    setHistoryLogs([])
+    setHistoryPage(1)
+    setHistoryTotal(0)
+    setHistoryError('')
+    setHistoryAccessDenied(false)
+    setIsHistoryModalOpen(true)
+    void loadHistoryPage(selectedProduct.id, 1)
+  }
+
+  const historyTotalPages = Math.max(Math.ceil(historyTotal / historyPageSize), 1)
+  const historyStart = historyLogs.length ? (historyPage - 1) * historyPageSize + 1 : 0
+  const historyEnd = historyLogs.length ? historyStart + historyLogs.length - 1 : 0
 
   const saveChannelSku = async (item: InventoryItem, platform: string, sku: string) => {
     const existing = getMappingRecord(item, platform)
@@ -498,7 +705,7 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
         </div>
       )}
 
-      {selectedProduct && (
+      {selectedProduct && !isHistoryModalOpen && (
         <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isSavingProduct && !isDeletingProduct) setSelectedProduct(null) }}>
           <section className="modal-card inventory-product-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-product-heading" onClick={(event) => event.stopPropagation()}>
             <div className="modal-heading">
@@ -516,11 +723,67 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
               <label className="form-field"><span>Shopify SKU</span><input value={editShopifySku} onChange={(event) => setEditShopifySku(event.target.value)} placeholder="Not mapped" disabled={isSavingProduct || isDeletingProduct} /></label>
               <label className="form-field"><span>Amazon SKU</span><input value={editAmazonSku} onChange={(event) => setEditAmazonSku(event.target.value)} placeholder="Not mapped" disabled={isSavingProduct || isDeletingProduct} /></label>
             </div>
+            <StockActivity
+              logs={productLogs}
+              totalCount={productLogsTotal}
+              isLoading={isLoadingProductLogs}
+              error={productLogsError}
+              accessDenied={productLogsAccessDenied}
+              onViewFullHistory={openHistoryModal}
+              onRetry={() => { if (selectedProduct) void loadProductLogs(selectedProduct.id) }}
+            />
             {productModalError && <p className="modal-form-error" role="alert"><CircleAlert size={15} aria-hidden="true" />{productModalError}</p>}
             <div className="modal-actions">
               <button className="secondary-button danger-link" type="button" onClick={() => void deleteSelectedProduct()} disabled={isSavingProduct || isDeletingProduct}><Trash2 size={15} aria-hidden="true" />{isDeletingProduct ? 'Deleting…' : 'Delete product'}</button>
               <button className="secondary-button" type="button" onClick={() => setSelectedProduct(null)} disabled={isSavingProduct || isDeletingProduct}>Cancel</button>
               <button className="primary-button" type="button" onClick={() => void saveProductDetails()} disabled={isSavingProduct || isDeletingProduct}>{isSavingProduct ? 'Saving…' : 'Save changes'}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {selectedProduct && isHistoryModalOpen && (
+        <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isLoadingHistory) setIsHistoryModalOpen(false) }}>
+          <section className="modal-card inventory-history-modal" role="dialog" aria-modal="true" aria-labelledby="inventory-history-heading" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Stock ledger</p>
+                <h2 id="inventory-history-heading">Inventory history</h2>
+                <p className="inventory-history-product">{selectedProduct.title || selectedProduct.mi_sku} · {selectedProduct.mi_sku}</p>
+              </div>
+              <button className="icon-button" type="button" aria-label="Close inventory history" onClick={() => setIsHistoryModalOpen(false)} disabled={isLoadingHistory}>
+                <X size={19} aria-hidden="true" />
+              </button>
+            </div>
+
+            {historyAccessDenied ? <div className="inventory-history-note" role="note"><CircleAlert size={16} aria-hidden="true" /><span>Stock history is available to administrators only.</span></div> : historyError ? <div className="inventory-history-error" role="alert"><CircleAlert size={16} aria-hidden="true" /><span>{historyError}</span><button type="button" onClick={() => void loadHistoryPage(selectedProduct.id, historyPage)}>Try again</button></div> : isLoadingHistory && historyLogs.length === 0 ? <p className="table-state inventory-activity-state">Loading stock history…</p> : historyLogs.length === 0 ? <p className="table-state inventory-activity-state">No stock movements recorded yet.</p> : (
+              <>
+                <div className="orders-table-wrap inventory-history-table-wrap">
+                  <table className="orders-table inventory-history-table">
+                    <caption className="sr-only">Inventory movement history for {selectedProduct.mi_sku}</caption>
+                    <thead><tr><th>Date</th><th>Change</th><th>Reason</th><th>Channel / reference</th><th>Stock</th></tr></thead>
+                    <tbody>{historyLogs.map((log) => {
+                      const kind = movementKind(log.delta)
+                      const deltaLabel = log.delta > 0 ? `+${log.delta}` : String(log.delta)
+                      const hasStockRange = log.stock_before !== null && log.stock_before !== undefined && log.stock_after !== null && log.stock_after !== undefined
+                      return <tr key={log.id}>
+                        <td className="inventory-history-date" data-label="Date">{formatMovementDate(log.created_at)}</td>
+                        <td data-label="Change"><span className={`inventory-history-change inventory-history-change-${kind}`}>{deltaLabel}</span></td>
+                        <td data-label="Reason"><strong>{movementReason(log.reason)}</strong></td>
+                        <td className="inventory-history-reference" data-label="Channel / reference">{movementContext(log)}</td>
+                        <td className="inventory-history-stock" data-label="Stock">{hasStockRange ? `${log.stock_before} → ${log.stock_after}` : '—'}</td>
+                      </tr>
+                    })}</tbody>
+                  </table>
+                </div>
+                <div className="orders-pagination inventory-history-pagination">
+                  <span>Showing {historyStart}–{historyEnd} of {historyTotal}</span>
+                  <div><button type="button" aria-label="Previous history page" disabled={historyPage <= 1 || isLoadingHistory} onClick={() => void loadHistoryPage(selectedProduct.id, historyPage - 1)}><ChevronLeft size={16} aria-hidden="true" /></button><span className="inventory-history-page-number">Page {historyPage} of {historyTotalPages}</span><button type="button" aria-label="Next history page" disabled={historyPage >= historyTotalPages || isLoadingHistory} onClick={() => void loadHistoryPage(selectedProduct.id, historyPage + 1)}><ChevronRight size={16} aria-hidden="true" /></button></div>
+                </div>
+              </>
+            )}
+            <div className="modal-actions">
+              <button className="secondary-button" type="button" onClick={() => setIsHistoryModalOpen(false)} disabled={isLoadingHistory}>Back to product details</button>
             </div>
           </section>
         </div>

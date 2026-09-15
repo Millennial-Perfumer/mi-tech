@@ -29,6 +29,7 @@ type InventoryRepository interface {
 	// Logs
 	LogAdjustment(log *entity.InventoryLog) error
 	GetLogsByItemID(itemID int) ([]entity.InventoryLog, error)
+	GetLogsPageByItemID(itemID, page, limit int) ([]entity.InventoryLog, int64, error)
 	GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error)
 
 	// Utilities
@@ -241,6 +242,19 @@ func (r *gormInventoryRepository) GetLogsByItemID(itemID int) ([]entity.Inventor
 	var logs []entity.InventoryLog
 	err := r.db.Where("inventory_item_id = ?", itemID).Order("created_at DESC").Find(&logs).Error
 	return logs, err
+}
+
+func (r *gormInventoryRepository) GetLogsPageByItemID(itemID, page, limit int) ([]entity.InventoryLog, int64, error) {
+	var logs []entity.InventoryLog
+	query := r.db.Model(&entity.InventoryLog{}).Where("inventory_item_id = ?", itemID)
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return logs, 0, err
+	}
+
+	err := query.Order("created_at DESC").Order("id DESC").Limit(limit).Offset((page - 1) * limit).Find(&logs).Error
+	return logs, total, err
 }
 
 func (r *gormInventoryRepository) GetLogsByExternalOrderID(externalOrderID string) ([]entity.InventoryLog, error) {
