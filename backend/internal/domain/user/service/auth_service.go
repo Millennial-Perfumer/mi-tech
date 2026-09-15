@@ -29,6 +29,8 @@ type AuthService struct {
 	messagesService Messenger
 }
 
+const jwtLifetime = 7 * 24 * time.Hour
+
 // NewAuthService constructs a new AuthService.
 func NewAuthService(repo repository.UserRepository, settings *config.SettingsProvider, messagesService Messenger) *AuthService {
 	return &AuthService{
@@ -155,7 +157,7 @@ func (s *AuthService) GenerateToken(user entity.User) (string, error) {
 		"user_id":  user.ID,
 		"username": user.Username,
 		"role":     user.Role,
-		"exp":      time.Now().Add(time.Hour * 72).Unix(),
+		"exp":      time.Now().Add(jwtLifetime).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

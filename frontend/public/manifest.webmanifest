@@ -1,0 +1,20 @@
+{
+  "name": "MI-Tech Operations Workspace",
+  "short_name": "MI-Tech",
+  "description": "Millennial Perfumer operations workspace for inventory, orders, reporting, and automation.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F8F8F6",
+  "theme_color": "#F8F8F6",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/pwa-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
