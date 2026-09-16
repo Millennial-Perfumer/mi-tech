@@ -1,9 +1,12 @@
-const CACHE_NAME = 'mi-tech-shell-v1'
+const CACHE_NAME = 'mi-tech-shell-v2'
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icons/pwa-icon.svg',
+  '/icons/pwa-icon-180.png',
+  '/icons/pwa-icon-192.png',
+  '/icons/pwa-icon-512.png',
 ]
 
 self.addEventListener('install', (event) => {
@@ -17,7 +20,11 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key)),
+      ))
       .then(() => self.clients.claim()),
   )
 })
@@ -34,7 +41,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (request.destination === 'script' || request.destination === 'style' || request.destination === 'image' || request.destination === 'font' || url.pathname.startsWith('/assets/')) {
+  if (
+    request.destination === 'script'
+    || request.destination === 'style'
+    || request.destination === 'image'
+    || request.destination === 'font'
+    || url.pathname.startsWith('/assets/')
+  ) {
     event.respondWith(cacheFirst(request))
   }
 })
