@@ -479,8 +479,30 @@ func (s *InventoryService) GetInventoryDashboardPage(search, sort string, page, 
 
 // AdjustStock handles manual stock updates and triggers sync.
 func (s *InventoryService) AdjustStock(id int, delta int) error {
+	return s.AdjustStockWithMetadata(id, delta, "internal", "manual_adjustment", nil)
+}
+
+// AdjustStockWithMetadata handles manual stock updates while preserving the
+// audit metadata supplied by an API or MCP caller.
+func (s *InventoryService) AdjustStockWithMetadata(id int, delta int, sourcePlatform, reason string, externalOrderID *string) error {
+	sourcePlatform = strings.TrimSpace(strings.ToLower(sourcePlatform))
+	if sourcePlatform == "" {
+		sourcePlatform = "internal"
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "manual_adjustment"
+	}
+	if externalOrderID != nil {
+		value := strings.TrimSpace(*externalOrderID)
+		if value == "" {
+			externalOrderID = nil
+		} else {
+			externalOrderID = &value
+		}
+	}
 	if s.orchestrator != nil {
-		return s.orchestrator.AdjustStock(context.Background(), id, delta, "internal", "manual_adjustment", nil)
+		return s.orchestrator.AdjustStock(context.Background(), id, delta, sourcePlatform, reason, externalOrderID)
 	}
 	return s.repo.AdjustStock(id, delta)
 }

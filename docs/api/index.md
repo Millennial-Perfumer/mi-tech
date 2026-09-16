@@ -7,6 +7,7 @@ Comprehensive documentation for the Mi-Tech GST Invoice Manager REST API. All en
 - **[Authentication](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/auth.md)**: Login, OTP, and session verification.
 - **[Orders](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/orders.md)**: Listing, status updates, and invoice generation.
 - **[Customers](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/customers.md)**: CRM, CSV imports, and bulk management.
+- **[Inventory](inventory.md)**: Stock adjustments, mappings, synchronization, and movement history.
 - **[Shopify Sync](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/sync.md)**: Manual and automatic synchronization with Shopify.
 - **[Reports](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/reports.md)**: GST, State-wise, and HSN-wise analytics.
 - **[WhatsApp Automation](file:///Users/siddiqs_office/Documents/Personal%20Dev/GST%20Invoice%20Manager/docs/api/automation.md)**: Templates, triggers, and conversation management.

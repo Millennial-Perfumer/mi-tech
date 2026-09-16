@@ -168,3 +168,28 @@ func TestMuxExecutorDispatchesQueryOnlyWriteArguments(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, `{"success":true}`, string(data))
 }
+
+func TestMuxExecutorDispatchesOptionalInventoryAuditArguments(t *testing.T) {
+	writeHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "66", r.URL.Query().Get("id"))
+		require.Equal(t, "-1", r.URL.Query().Get("delta"))
+		require.Equal(t, "sale", r.URL.Query().Get("reason"))
+		require.Equal(t, "flipkart", r.URL.Query().Get("platform"))
+		require.Equal(t, "FK-123", r.URL.Query().Get("external_order_id"))
+		_, _ = w.Write([]byte(`{"success":true}`))
+	})
+	exec := NewMuxExecutorWithWriteHandler(http.NewServeMux(), writeHandler)
+	tool, ok := DefaultCatalog.Lookup("inventory_adjust_stock")
+	require.True(t, ok)
+
+	data, err := exec.Dispatch(context.Background(), tool, map[string]any{
+		"id":                66,
+		"delta":             -1,
+		"reason":            "sale",
+		"platform":          "flipkart",
+		"external_order_id": "FK-123",
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"success":true}`, string(data))
+}

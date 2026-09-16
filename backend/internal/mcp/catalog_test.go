@@ -131,6 +131,28 @@ func TestWriteToolContracts(t *testing.T) {
 		t.Errorf("orders_mark_delivered args = %#v, want only id", markDelivered.Args)
 	}
 
+	if adjustStock, ok := DefaultCatalog.Lookup("inventory_adjust_stock"); !ok {
+		t.Fatal("inventory_adjust_stock missing from catalog")
+	} else {
+		if len(adjustStock.Args) != 5 {
+			t.Fatalf("inventory_adjust_stock args = %#v, want id, delta, reason, platform, external_order_id", adjustStock.Args)
+		}
+		for _, name := range []string{"id", "delta"} {
+			for _, a := range adjustStock.Args {
+				if a.Name == name && !a.Required {
+					t.Errorf("inventory_adjust_stock arg %q should be required", name)
+				}
+			}
+		}
+		for _, name := range []string{"reason", "platform", "external_order_id"} {
+			for _, a := range adjustStock.Args {
+				if a.Name == name && a.Required {
+					t.Errorf("inventory_adjust_stock arg %q should be optional", name)
+				}
+			}
+		}
+	}
+
 	for _, name := range []string{"whatsapp_template_sync_single", "whatsapp_template_fetch"} {
 		spec, ok := DefaultCatalog.Lookup(name)
 		if !ok {

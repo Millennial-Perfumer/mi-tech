@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -195,13 +196,50 @@ func (h *InventoryHandler) DeleteMapping(w http.ResponseWriter, r *http.Request)
 
 // AdjustStock handles manual stock updates.
 func (h *InventoryHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get("id")
-	deltaStr := r.URL.Query().Get("delta")
+	if r.Method != http.MethodPost && r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-	id, _ := strconv.Atoi(idStr)
-	delta, _ := strconv.Atoi(deltaStr)
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid inventory item ID", http.StatusBadRequest)
+		return
+	}
+	delta, err := strconv.Atoi(r.URL.Query().Get("delta"))
+	if err != nil || delta == 0 {
+		http.Error(w, "Invalid stock delta", http.StatusBadRequest)
+		return
+	}
 
-	if err := h.service.AdjustStock(id, delta); err != nil {
+	reason := strings.TrimSpace(r.URL.Query().Get("reason"))
+	if reason == "" {
+		reason = "manual_adjustment"
+	}
+	if len(reason) > 50 {
+		http.Error(w, "Reason is too long", http.StatusBadRequest)
+		return
+	}
+
+	platform := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("platform")))
+	if platform == "" {
+		platform = "internal"
+	}
+	if len(platform) > 50 {
+		http.Error(w, "Platform is too long", http.StatusBadRequest)
+		return
+	}
+
+	var externalOrderID *string
+	if value := strings.TrimSpace(r.URL.Query().Get("external_order_id")); value != "" {
+		if len(value) > 100 {
+			http.Error(w, "External order ID is too long", http.StatusBadRequest)
+			return
+		}
+		externalOrderID = &value
+	}
+
+	if err := h.service.AdjustStockWithMetadata(id, delta, platform, reason, externalOrderID); err != nil {
 		log.Printf("InventoryHandler.AdjustStock error: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return

@@ -722,6 +722,23 @@ func writeToolNoBody(name, description, scope, method, route string, queryArgs .
 	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
 }
 
+// writeToolNoBodyWithOptionalQuery creates a bodyless mutation with required
+// query arguments followed by optional query arguments. Optional values are
+// omitted from the dispatched request when the MCP caller does not provide
+// them.
+func writeToolNoBodyWithOptionalQuery(name, description, scope, method, route string, requiredQueryArgs []string, optionalQueryArgs ...string) ToolSpec {
+	queryArgs := append([]string{}, requiredQueryArgs...)
+	queryArgs = append(queryArgs, optionalQueryArgs...)
+	args := make([]ArgSpec, 0, len(queryArgs))
+	for _, q := range requiredQueryArgs {
+		args = append(args, argReq(q, ArgString, "Identifier or query value."))
+	}
+	for _, q := range optionalQueryArgs {
+		args = append(args, arg(q, ArgString, "Optional audit metadata."))
+	}
+	return ToolSpec{Name: name, Description: description, Scope: scope, Method: method, Route: route, QueryArgs: queryArgs, Args: args, Write: true}
+}
+
 func init() {
 	DefaultCatalog = append(DefaultCatalog,
 		// Orders and customers
@@ -739,7 +756,7 @@ func init() {
 		writeTool("inventory_bulk_create", "Create inventory items in bulk.", ScopeInventoryWrite, "POST", "/api/inventory/bulk"),
 		writeTool("inventory_update_item", "Update an inventory item.", ScopeInventoryWrite, "PUT", "/api/inventory/item"),
 		writeToolNoBody("inventory_set_stock", "Set stock to an exact quantity.", ScopeInventoryWrite, "POST", "/api/inventory/stock", "id", "val"),
-		writeToolNoBody("inventory_adjust_stock", "Adjust stock by a delta.", ScopeInventoryWrite, "POST", "/api/inventory/adjust", "id", "delta"),
+		writeToolNoBodyWithOptionalQuery("inventory_adjust_stock", "Adjust stock by a delta and record optional audit metadata.", ScopeInventoryWrite, "POST", "/api/inventory/adjust", []string{"id", "delta"}, "reason", "platform", "external_order_id"),
 		writeTool("inventory_create_mapping", "Create an external inventory mapping.", ScopeInventoryWrite, "POST", "/api/inventory/map"),
 		writeToolNoBody("inventory_delete_mapping", "Delete an external inventory mapping.", ScopeInventoryDestructive, "DELETE", "/api/inventory/map", "id"),
 		writeTool("inventory_sync_shopify", "Synchronize inventory with Shopify.", ScopeInventoryWrite, "POST", "/api/inventory/sync-shopify"),

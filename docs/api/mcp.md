@@ -54,6 +54,12 @@ The order/customer/inventory read catalog also includes:
 - `inventory_logs` — inventory movement logs, optionally scoped by item or
   external order ID.
 
+Write catalog tools include:
+
+- `inventory_adjust_stock` — adjusts stock by a signed delta. It requires `id`
+  and `delta`, and accepts optional `reason`, `platform`, and
+  `external_order_id` audit metadata.
+
 AWBs remain on the existing order record as the current snapshot. Historical
 AWB values are preserved in `order_events` when tracking changes; this design
 intentionally does not add a separate `order_shipments` table.
