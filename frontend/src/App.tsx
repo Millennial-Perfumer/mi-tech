@@ -12,6 +12,7 @@ import { SupportPage } from './features/support/SupportPage'
 import { FeedbackPage } from './features/feedback/FeedbackPage'
 import { AbandonedCartsPage } from './features/abandoned/AbandonedCartsPage'
 import { MarketingPage } from './features/marketing/MarketingPage'
+import { SMMQueuePage } from './features/smm-queue/SMMQueuePage'
 import { B2BPage } from './features/b2b/B2BPage'
 import { AutomationPage } from './features/automation/AutomationPage'
 import { UsersPage } from './features/users/UsersPage'
@@ -26,6 +27,7 @@ import {
   ChevronRight,
   CircleUserRound,
   FileText,
+  ImagePlus,
   LayoutDashboard,
   Menu,
   MessageSquare,
@@ -52,6 +54,7 @@ type ViewId =
   | 'automation'
   | 'abandoned-carts'
   | 'marketing'
+  | 'smm-queue'
   | 'judgeme'
   | 'users'
   | 'settings'
@@ -88,6 +91,7 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     items: [
       { id: 'marketing', label: 'Marketing', icon: BarChart3 },
       { id: 'judgeme', label: 'Judge.me reviews', icon: Star },
+      { id: 'smm-queue', label: 'SMM Queue', icon: ImagePlus },
     ],
   },
   {
@@ -111,6 +115,7 @@ const pageTitles: Record<ViewId, string> = {
   automation: 'Automation',
   'abandoned-carts': 'Abandoned carts',
   marketing: 'Marketing',
+  'smm-queue': 'SMM Queue',
   judgeme: 'Judge.me reviews',
   users: 'User roles',
   settings: 'Settings',
@@ -129,6 +134,7 @@ const pageDescriptions: Record<ViewId, string> = {
   automation: 'Manage templates, triggers, and messaging automation.',
   'abandoned-carts': 'Review abandoned checkouts and recovery messages.',
   marketing: 'Review paid marketing performance.',
+  'smm-queue': 'Prepare carousel content for automated social publishing.',
   judgeme: 'Review and manage Judge.me feedback.',
   users: 'Manage workspace access and roles.',
   settings: 'Manage integrations, store data, and workspace preferences.',
@@ -313,6 +319,8 @@ function App() {
             <AbandonedCartsPage token={token} onUnauthorized={handleLogout} />
           ) : activeView === 'marketing' ? (
             <MarketingPage token={token} onUnauthorized={handleLogout} />
+          ) : activeView === 'smm-queue' ? (
+            <SMMQueuePage token={token} onUnauthorized={handleLogout} />
           ) : activeView === 'b2b' ? (
             <B2BPage token={token} onUnauthorized={handleLogout} />
           ) : activeView === 'automation' ? (

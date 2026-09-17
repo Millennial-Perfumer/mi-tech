@@ -12,6 +12,12 @@ type Config struct {
 	Port  string
 	DBDSN string
 
+	// Azure Blob Storage / SMM Queue Config
+	AzureStorageConnectionString string
+	AzureStorageAccountName      string
+	AzureStorageSASToken         string
+	SMMQueueContainer            string
+
 	// Amazon SP-API Config
 	AmazonLWAClientID     string
 	AmazonLWAClientSecret string
@@ -39,6 +45,15 @@ func Load() *Config {
 		port = "8080"
 	}
 
+	smmQueueContainer := os.Getenv("SMM_QUEUE_CONTAINER")
+	if smmQueueContainer == "" {
+		smmQueueContainer = "mp-smm-queue"
+	}
+	azureStorageAccountName := os.Getenv("AZURE_STORAGE_ACCOUNT_NAME")
+	if azureStorageAccountName == "" {
+		azureStorageAccountName = "mptechstg"
+	}
+
 	// Prefer individual components for robustness against special characters
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASSWORD")
@@ -56,8 +71,12 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port:  port,
-		DBDSN: dbDSN,
+		Port:                         port,
+		DBDSN:                        dbDSN,
+		AzureStorageConnectionString: os.Getenv("AZURE_STORAGE_CONNECTION_STRING"),
+		AzureStorageAccountName:      azureStorageAccountName,
+		AzureStorageSASToken:         os.Getenv("AZURE_STORAGE_SAS_TOKEN"),
+		SMMQueueContainer:            smmQueueContainer,
 
 		AmazonLWAClientID:     os.Getenv("AMAZON_LWA_CLIENT_ID"),
 		AmazonLWAClientSecret: os.Getenv("AMAZON_LWA_CLIENT_SECRET"),

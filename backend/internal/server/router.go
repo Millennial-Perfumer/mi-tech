@@ -16,6 +16,7 @@ import (
 	marketingHandlerPkg "mi-tech/internal/domain/marketing/handler"
 	orderHandlerPkg "mi-tech/internal/domain/order/handler"
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
+	smmQueueHandlerPkg "mi-tech/internal/domain/smm_queue/handler"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
 	syncHandlerPkg "mi-tech/internal/domain/sync/handler"
 	userHandlerPkg "mi-tech/internal/domain/user/handler"
@@ -64,6 +65,7 @@ func RegisterRoutes(
 	judgeMeHandler *marketingHandlerPkg.JudgeMeHandler,
 	machineKeyHandler *mcpHandlerPkg.MachineKeyHandler,
 	authService *userServicePkg.AuthService,
+	smmQueueHandler *smmQueueHandlerPkg.SMMQueueHandler,
 ) {
 	log.Println("DEBUG: Registering API Routes...")
 	cors := middleware.CORSMiddleware
@@ -98,6 +100,12 @@ func RegisterRoutes(
 
 	// Metrics endpoint (unprotected for scraping, but could be internal-only)
 	mux.Handle("/api/metrics", cors(promhttp.Handler().ServeHTTP))
+
+	// --- SMM Queue Routes ---
+	// Queue submissions are admin-only because they publish content for the
+	// connected social media accounts.
+	mux.HandleFunc("/api/smm-queue", adminProtected(smmQueueHandler.Handle))
+	mux.HandleFunc("/api/smm-queue/", adminProtected(smmQueueHandler.HandleItem))
 
 	// Health check
 	mux.HandleFunc("/api/health", metrics(cors(func(w http.ResponseWriter, r *http.Request) {

@@ -33,6 +33,9 @@ import (
 	productionHandlerPkg "mi-tech/internal/domain/production/handler"
 	productionRepoPkg "mi-tech/internal/domain/production/repository"
 	productionServicePkg "mi-tech/internal/domain/production/service"
+	smmQueueHandlerPkg "mi-tech/internal/domain/smm_queue/handler"
+	smmQueueRepoPkg "mi-tech/internal/domain/smm_queue/repository"
+	smmQueueServicePkg "mi-tech/internal/domain/smm_queue/service"
 	supportHandlerPkg "mi-tech/internal/domain/support/handler"
 	supportRepoPkg "mi-tech/internal/domain/support/repository"
 	supportServicePkg "mi-tech/internal/domain/support/service"
@@ -193,6 +196,13 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	judgeMeHandler := marketingHandlerPkg.NewJudgeMeHandler(judgeMeService)
 	machineKeyHandler := mcpHandlerPkg.NewMachineKeyHandler(machineKeyService)
 
+	// SMM Queue storage reads its credential and container from the database
+	// settings provider for each operation, so Settings changes take effect
+	// without restarting the API. Environment variables remain a compatibility
+	// fallback inside the provider.
+	var smmQueueStore smmQueueServicePkg.BlobStore = smmQueueRepoPkg.NewSettingsAzureBlobStore(settingsProvider)
+	smmQueueHandler := smmQueueHandlerPkg.NewSMMQueueHandler(smmQueueServicePkg.NewSMMQueueService(smmQueueStore))
+
 	RegisterRoutes(
 		mux,
 		orderHandler,
@@ -224,6 +234,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		judgeMeHandler,
 		machineKeyHandler,
 		authService,
+		smmQueueHandler,
 	)
 
 	// Mount the MCP server over Streamable HTTP, behind machine-key auth.

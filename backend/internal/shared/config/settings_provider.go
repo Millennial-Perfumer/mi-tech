@@ -145,6 +145,44 @@ func (p *SettingsProvider) GetMetaAppSecret() string {
 	return p.Get("meta_app_secret")
 }
 
+// GetAzureStorageConnectionString returns the SMM Queue storage connection
+// string. Database settings take precedence, while the environment variable
+// remains available as a compatibility fallback for existing deployments.
+func (p *SettingsProvider) GetAzureStorageConnectionString() string {
+	return p.getWithEnvFallback("azure_storage_connection_string", "AZURE_STORAGE_CONNECTION_STRING")
+}
+
+// GetAzureStorageAccountName returns the Azure Storage account name.
+func (p *SettingsProvider) GetAzureStorageAccountName() string {
+	value := p.getWithEnvFallback("azure_storage_account_name", "AZURE_STORAGE_ACCOUNT_NAME")
+	if value == "" {
+		return "mptechstg"
+	}
+	return value
+}
+
+// GetAzureStorageSASToken returns an optional SAS token for the SMM Queue
+// container. The token may be entered with or without a leading question mark.
+func (p *SettingsProvider) GetAzureStorageSASToken() string {
+	return p.getWithEnvFallback("azure_storage_sas_token", "AZURE_STORAGE_SAS_TOKEN")
+}
+
+// GetSMMQueueContainer returns the private container used by the SMM Queue.
+func (p *SettingsProvider) GetSMMQueueContainer() string {
+	value := p.getWithEnvFallback("smm_queue_container", "SMM_QUEUE_CONTAINER")
+	if value == "" {
+		return "mp-smm-queue"
+	}
+	return value
+}
+
+func (p *SettingsProvider) getWithEnvFallback(key, envKey string) string {
+	if value := p.Get(key); value != "" {
+		return value
+	}
+	return os.Getenv(envKey)
+}
+
 func (p *SettingsProvider) GetFeedbackBaseURL() string {
 	val := p.Get("feedback_base_url")
 	if val == "" {

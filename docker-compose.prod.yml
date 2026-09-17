@@ -29,6 +29,10 @@ services:
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS},https://mi-tech.v2.millennialperfumer.in"
       ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-tempo:4317}
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING:-}
+      AZURE_STORAGE_ACCOUNT_NAME: ${AZURE_STORAGE_ACCOUNT_NAME:-mptechstg}
+      AZURE_STORAGE_SAS_TOKEN: ${AZURE_STORAGE_SAS_TOKEN:-}
+      SMM_QUEUE_CONTAINER: ${SMM_QUEUE_CONTAINER:-mp-smm-queue}
       # Add other necessary backend environment variables here
     depends_on:
       - db

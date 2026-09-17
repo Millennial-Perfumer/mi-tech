@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, ChevronDown, CircleAlert, Copy, CreditCard, Eye, EyeOff, KeyRound, MessageCircle, Megaphone, RefreshCw, Save, Settings2, ShieldCheck, ShoppingBag, Store, Workflow, Wrench, type LucideIcon } from 'lucide-react'
+import { Building2, ChevronDown, CircleAlert, CloudUpload, Copy, CreditCard, Eye, EyeOff, KeyRound, MessageCircle, Megaphone, RefreshCw, Save, Settings2, ShieldCheck, ShoppingBag, Store, Workflow, Wrench, type LucideIcon } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, numberValue, textValue } from '../../lib/http'
 
 type Props = { token: string; onUnauthorized: () => void }
@@ -9,7 +9,7 @@ type AppConfig = Row & { key?: string; value?: string; is_secret?: boolean; labe
 type CustomerScope = readonly [string, string]
 type PermissionRole = 'read_only' | 'full_access' | 'custom'
 type ServiceStatus = { label: 'Configured' | 'Needs attention' | 'Not configured'; tone: 'success' | 'warning' | 'neutral' }
-type ServiceDefinition = { id: string; title: string; description: string; categories: string[]; requiredKeys?: string[]; icon: LucideIcon }
+type ServiceDefinition = { id: string; title: string; description: string; categories: string[]; requiredKeys?: string[]; isConfigured?: (fields: AppConfig[]) => boolean; icon: LucideIcon }
 
 const machineScopeGroups: { id: string; label: string; description: string; scopes: CustomerScope[] }[] = [
   {
@@ -65,6 +65,21 @@ const serviceDefinitions: ServiceDefinition[] = [
   { id: 'amazon', title: 'Amazon', description: 'Marketplace orders and seller account synchronization.', categories: ['amazon'], requiredKeys: ['amazon_lwa_client_id', 'amazon_lwa_client_secret', 'amazon_lwa_refresh_token'], icon: ShoppingBag },
   { id: 'whatsapp', title: 'WhatsApp', description: 'Customer messaging, invoices, and automation.', categories: ['whatsapp'], requiredKeys: ['whatsapp_phone_number_id', 'whatsapp_waba_id'], icon: MessageCircle },
   { id: 'meta', title: 'Meta services', description: 'Shared Meta credentials and paid marketing.', categories: ['meta_shared', 'marketing'], requiredKeys: ['meta_app_id', 'meta_system_user_token'], icon: Megaphone },
+  {
+    id: 'smm_queue',
+    title: 'SMM Queue',
+    description: 'Upload carousel media and post copy to the private Azure queue.',
+    categories: ['smm_queue'],
+    isConfigured: (fields) => {
+      const valueFor = (key: string) => fields.find((field) => configKey(field) === key)?.value?.trim() ?? ''
+      const accountName = valueFor('azure_storage_account_name')
+      const connectionString = valueFor('azure_storage_connection_string')
+      const sasToken = valueFor('azure_storage_sas_token')
+      const container = valueFor('smm_queue_container')
+      return container !== '' && (connectionString !== '' || (accountName !== '' && sasToken !== ''))
+    },
+    icon: CloudUpload,
+  },
   { id: 'payments', title: 'Payments', description: 'Payment collection and webhook configuration.', categories: ['payment'], requiredKeys: ['razorpay_key_id', 'razorpay_key_secret'], icon: CreditCard },
   { id: 'automation', title: 'Feedback & automation', description: 'Feedback links, recovery, and scheduled automation.', categories: ['feedback', 'abandoned_cart'], icon: Workflow },
   { id: 'business', title: 'Business profile', description: 'Business identity, tax, and billing details.', categories: ['business', 'b2b'], icon: Building2 },
@@ -100,8 +115,9 @@ function hasConfigValue(config: AppConfig) {
   return stringValue(config.value).trim() !== ''
 }
 
-function getServiceStatus(fields: AppConfig[], requiredKeys: string[] = []): ServiceStatus {
+function getServiceStatus(fields: AppConfig[], requiredKeys: string[] = [], isConfigured?: (fields: AppConfig[]) => boolean): ServiceStatus {
   if (!fields.length || !fields.some(hasConfigValue)) return { label: 'Not configured', tone: 'neutral' }
+  if (isConfigured) return isConfigured(fields) ? { label: 'Configured', tone: 'success' } : { label: 'Needs attention', tone: 'warning' }
   const complete = requiredKeys.length > 0
     ? requiredKeys.every((key) => fields.some((field) => configKey(field) === key && hasConfigValue(field)))
     : fields.every(hasConfigValue)
@@ -136,7 +152,7 @@ function ServiceCard({ definition, fields, expanded, isRevealed, isWorking, onTo
   onRequestReveal: () => void
 }) {
   const Icon = definition.icon
-  const status = getServiceStatus(fields, definition.requiredKeys)
+  const status = getServiceStatus(fields, definition.requiredKeys, definition.isConfigured)
   const configuredCount = fields.filter(hasConfigValue).length
   const hasSecrets = fields.some(isSecretConfig)
 
