@@ -49,6 +49,8 @@ The order/customer/inventory read catalog also includes:
 
 - `orders_history` — paginated append-only order events, including historical
   AWB/tracking values searchable through `search`.
+- `customers_get` — fetch one complete current customer profile by internal id,
+  including contact, address, source, and lifetime order metrics.
 - `customers_history` — paginated customer change events, optionally scoped to
   an order or historical phone value.
 - `inventory_logs` — inventory movement logs, optionally scoped by item or

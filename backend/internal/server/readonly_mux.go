@@ -85,6 +85,7 @@ func registerReadOnlyRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 	// Customers
 	mux.HandleFunc("/api/customers", ro(h.customerHandler.ListCustomers))
 	mux.HandleFunc("/api/customers/history", ro(h.historyHandler.GetCustomerHistory))
+	mux.HandleFunc("/api/customers/", ro(h.customerHandler.GetCustomer))
 
 	// Dashboard metrics
 	mux.HandleFunc("/api/dashboard/metrics", ro(h.metricsHandler.GetDashboardMetrics))
@@ -263,111 +264,4 @@ func registerMCPWriteRoutes(mux *http.ServeMux, h readOnlyHandlers) {
 		case http.MethodDelete:
 			h.poHandler.Delete(w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/inventory/po/bulk", h.poHandler.BulkCreate)
-	mux.HandleFunc("/api/inventory/manufacturing", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			h.mfgHandler.Create(w, r)
-		case http.MethodPut:
-			h.mfgHandler.Update(w, r)
-		case http.MethodDelete:
-			h.mfgHandler.Delete(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	// B2B billing and proformas
-	mux.HandleFunc("/api/b2b/customers", h.b2bHandler.HandleCustomers)
-	mux.HandleFunc("/api/b2b/invoices", h.b2bHandler.HandleInvoices)
-	mux.HandleFunc("/api/b2b/invoices/issue", h.b2bHandler.IssueInvoice)
-	mux.HandleFunc("/api/b2b/invoices/cancel", h.b2bHandler.CancelInvoice)
-	mux.HandleFunc("/api/b2b/invoices/deduct-inventory", h.b2bHandler.DeductInventory)
-	mux.HandleFunc("/api/b2b/invoices/revert-inventory", h.b2bHandler.RevertInventory)
-	mux.HandleFunc("/api/b2b/invoices/payment", h.b2bHandler.UpdatePayment)
-	mux.HandleFunc("/api/b2b/payment-terms", h.b2bHandler.HandlePaymentTerms)
-	mux.HandleFunc("/api/b2b/credit-notes", h.b2bHandler.HandleCreditNotes)
-	mux.HandleFunc("/api/b2b/credit-notes/issue", h.b2bHandler.IssueCreditNote)
-	mux.HandleFunc("/api/b2b/credit-notes/cancel", h.b2bHandler.CancelCreditNote)
-	mux.HandleFunc("/api/b2b/debit-notes", h.b2bHandler.HandleDebitNotes)
-	mux.HandleFunc("/api/b2b/debit-notes/issue", h.b2bHandler.IssueDebitNote)
-	mux.HandleFunc("/api/b2b/debit-notes/cancel", h.b2bHandler.CancelDebitNote)
-	mux.HandleFunc("/api/b2b/proformas", h.b2bHandler.HandleProformas)
-	mux.HandleFunc("/api/b2b/proformas/issue", h.b2bHandler.IssueProforma)
-	mux.HandleFunc("/api/b2b/proformas/accept", h.b2bHandler.AcceptProforma)
-	mux.HandleFunc("/api/b2b/proformas/reject", h.b2bHandler.RejectProforma)
-	mux.HandleFunc("/api/b2b/proformas/cancel", h.b2bHandler.CancelProforma)
-	mux.HandleFunc("/api/b2b/proformas/revision", h.b2bHandler.CreateRevision)
-	mux.HandleFunc("/api/b2b/proformas/convert", h.b2bHandler.ConvertToTaxInvoice)
-	mux.HandleFunc("/api/b2b/proformas/check-expiry", h.b2bHandler.CheckExpiredProformas)
-
-	// Synchronization and settings
-	mux.HandleFunc("/api/shopify/sync", h.syncHandler.SyncOrders)
-	mux.HandleFunc("/api/shopify/reset", h.syncHandler.ResetOrders)
-	mux.HandleFunc("/api/settings/date-range", h.settingsHandler.SetDateRange)
-
-	// Support and abandoned checkouts
-	mux.HandleFunc("/api/support/tickets", h.ticketHandler.HandleTickets)
-	mux.HandleFunc("/api/support/tickets/", h.ticketHandler.UpdateTicketStatus)
-	mux.HandleFunc("/api/abandoned-checkouts", h.acHandler.GetAbandonedCheckouts)
-	mux.HandleFunc("/api/abandoned-checkouts/recover", h.acHandler.RecoverCheckout)
-	mux.HandleFunc("/api/abandoned-checkouts/status", h.acHandler.UpdateCheckoutStatus)
-
-	// WhatsApp automation
-	mux.HandleFunc("/api/automation/whatsapp/templates", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			h.automationHandler.CreateTemplate(w, r)
-		case http.MethodPut:
-			h.automationHandler.UpdateTemplate(w, r)
-		case http.MethodDelete:
-			h.automationHandler.DeleteTemplate(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync", h.automationHandler.SyncTemplateStatus)
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync-all", h.automationHandler.SyncAllTemplates)
-	mux.HandleFunc("/api/automation/whatsapp/templates/sync-single", h.automationHandler.SyncSingleTemplate)
-	mux.HandleFunc("/api/automation/whatsapp/templates/fetch", h.automationHandler.FetchTemplateFromMeta)
-	mux.HandleFunc("/api/automation/whatsapp/triggers", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			h.automationHandler.CreateTrigger(w, r)
-		case http.MethodPut:
-			h.automationHandler.UpdateTrigger(w, r)
-		case http.MethodDelete:
-			h.automationHandler.DeleteTrigger(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/automation/whatsapp/send-message", h.automationHandler.SendFreeTextMessage)
-	mux.HandleFunc("/api/automation/whatsapp/send-manual", h.automationHandler.SendManualMessage)
-	mux.HandleFunc("/api/automation/whatsapp/send-bulk", h.automationHandler.SendBulkMarketing)
-	mux.HandleFunc("/api/automation/whatsapp/conversations/mode", h.automationHandler.UpdateConversationMode)
-	mux.HandleFunc("/api/automation/whatsapp/events", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			h.automationHandler.CreateEvent(w, r)
-		case http.MethodDelete:
-			h.automationHandler.DeleteEvent(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/automation/whatsapp/sync-metrics", h.automationHandler.SyncAutomationMetrics)
-
-	// Marketing reviews
-	mux.HandleFunc("/api/marketing/judgeme/generate", h.judgeMeHandler.GenerateReviews)
-	mux.HandleFunc("/api/marketing/judgeme/submit", h.judgeMeHandler.SubmitReviews)
-
-	// Feedback
-	mux.HandleFunc("/api/feedback/bulk-send", h.feedbackHandler.BulkSendFeedbackRequests)
-	mux.HandleFunc("/api/orders/feedback/comment", h.feedbackHandler.UpdateFeedbackAdminComment)
-	mux.HandleFunc("/api/orders/feedback/post-judgeme", h.feedbackHandler.PostJudgeMeReview)
-	mux.HandleFunc("/api/orders/feedback/request-google-review", h.feedbackHandler.RequestGoogleReview)
-}
+			http.Error(w, "Method not allowed

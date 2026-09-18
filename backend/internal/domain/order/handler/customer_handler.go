@@ -68,6 +68,43 @@ func (h *CustomerHandler) ListCustomers(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// GetCustomer handles GET /api/customers/{id}.
+// @Summary Get customer
+// @Description Retrieve a complete current customer profile by id.
+// @Tags customers
+// @Security Bearer
+// @Produce json
+// @Param id path int true "Customer ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]string
+// @Router /customers/{id} [get]
+func (h *CustomerHandler) GetCustomer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/customers/")
+	idStr = strings.TrimSuffix(idStr, "/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
+
+	customer, err := h.service.GetCustomer(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Customer not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"customer": customer,
+	})
+}
+
 // ImportCSV handles POST /api/customers/import.
 // @Summary Import customers CSV
 // @Description Upload a CSV file and import customer data.

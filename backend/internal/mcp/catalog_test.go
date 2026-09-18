@@ -130,6 +130,16 @@ func TestWriteToolContracts(t *testing.T) {
 	} else if len(markDelivered.Args) != 1 || markDelivered.Args[0].Name != "id" {
 		t.Errorf("orders_mark_delivered args = %#v, want only id", markDelivered.Args)
 	}
+	if customerGet, ok := DefaultCatalog.Lookup("customers_get"); !ok {
+		t.Fatal("customers_get missing from catalog")
+	} else {
+		if len(customerGet.Args) != 1 || customerGet.Args[0].Name != "id" || !customerGet.Args[0].Required {
+			t.Errorf("customers_get args = %#v, want one required id arg", customerGet.Args)
+		}
+		if len(customerGet.PathArgs) != 1 || customerGet.PathArgs[0] != "id" {
+			t.Errorf("customers_get path args = %#v, want [id]", customerGet.PathArgs)
+		}
+	}
 
 	if adjustStock, ok := DefaultCatalog.Lookup("inventory_adjust_stock"); !ok {
 		t.Fatal("inventory_adjust_stock missing from catalog")

@@ -9,6 +9,7 @@ Manage customer profiles, imports, and CRM data.
 | `/api/customers` | `GET` | ✅ | List customers with advanced filtering and pagination. |
 | `/api/customers` | `POST` | 🛡️ Admin | Create a new customer profile. |
 | `/api/customers` | `DELETE` | 🛡️ Admin | Delete all customers from the database. |
+| `/api/customers/{id}`| `GET` | ✅ | Retrieve one complete customer profile. |
 | `/api/customers/{id}`| `PUT` | 🛡️ Admin | Update an existing customer profile. |
 | `/api/customers/{id}`| `DELETE` | 🛡️ Admin | Delete a specific customer. |
 | `/api/customers/import`| `POST` | 🛡️ Admin | Import customers from a CSV file. |
@@ -48,7 +49,7 @@ Expects `multipart/form-data`.
 - `first_name`, `last_name`, `email`, `phone`, `city`, `state`, `zip`, `total_spent`, `total_orders`.
 
 ### Create/Update Customer
-`POST/PUT /api/customers`
+`POST /api/customers` or `PUT /api/customers/{id}`
 
 **Request Body:**
 ```json
@@ -62,6 +63,12 @@ Expects `multipart/form-data`.
   "sync_to_shopify": false
 }
 ```
+
+### Get Customer
+`GET /api/customers/{id}`
+
+Returns the complete current profile, including contact details, address,
+source, external id, order count, lifetime spend, and timestamps.
 
 ### Bulk Delete
 `POST /api/customers/bulk-delete`

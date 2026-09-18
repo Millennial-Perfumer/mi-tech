@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, CircleAlert, Search, SlidersHorizontal } from 'lucide-react'
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, CircleAlert, Clock3, Mail, MapPin, Pencil, Phone, Save, Search, SlidersHorizontal, UserRound, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
+import { apiJson, apiRequest } from '../../lib/http'
 
 type CustomersPageProps = {
   token: string
@@ -17,8 +18,36 @@ type Customer = {
   state?: string
   total_orders?: number
   total_spent?: number
+  address1?: string
+  address2?: string
+  country?: string
+  zip_code?: string
+  external_id?: string
+  created_at?: string
   updated_at?: string
   source_id?: string
+}
+
+type CustomerForm = {
+  first_name: string
+  last_name: string
+  phone_number: string
+  email: string
+  address1: string
+  address2: string
+  city: string
+  state: string
+  country: string
+  zip_code: string
+}
+
+type CustomerEvent = {
+  id: number
+  event_type: string
+  source?: string
+  actor_type?: string
+  occurred_at?: string
+  diff_data?: Record<string, unknown> | null
 }
 
 type CustomerSortField = 'first_name' | 'phone_number' | 'city' | 'total_orders' | 'total_spent' | 'updated_at' | 'source_id'
@@ -47,6 +76,33 @@ function sortIndicator(field: CustomerSortField, sortField: CustomerSortField, s
   return sortOrder === 'ASC' ? '↑' : '↓'
 }
 
+function customerFormFrom(customer: Customer): CustomerForm {
+  return {
+    first_name: customer.first_name || '',
+    last_name: customer.last_name || '',
+    phone_number: customer.phone_number || '',
+    email: customer.email || '',
+    address1: customer.address1 || '',
+    address2: customer.address2 || '',
+    city: customer.city || '',
+    state: customer.state || '',
+    country: customer.country || '',
+    zip_code: customer.zip_code || '',
+  }
+}
+
+function eventLabel(eventType: string) {
+  return eventType
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function eventChangedFields(event: CustomerEvent) {
+  if (!event.diff_data || typeof event.diff_data !== 'object') return ''
+  const fields = Object.keys(event.diff_data).filter((field) => field !== 'updated_at')
+  return fields.length ? `Changed ${fields.join(', ')}` : ''
+}
+
 export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [search, setSearch] = useState('')
@@ -61,6 +117,16 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
   const [error, setError] = useState('')
   const [sortField, setSortField] = useState<CustomerSortField>('updated_at')
   const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [customerForm, setCustomerForm] = useState<CustomerForm | null>(null)
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false)
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false)
+  const [customerError, setCustomerError] = useState('')
+  const [customerNotice, setCustomerNotice] = useState('')
+  const [customerHistory, setCustomerHistory] = useState<CustomerEvent[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [isLoadingCustomer, setIsLoadingCustomer] = useState(false)
+  const customerRequestRef = useRef(0)
 
   const handleSort = (field: CustomerSortField) => {
     setPage(1)
@@ -123,6 +189,29 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
     void fetchCustomers()
   }, [fetchCustomers])
 
+  useEffect(() => {
+    if (!selectedCustomer) return
+
+    let isCurrent = true
+    setIsLoadingHistory(true)
+    setCustomerHistory([])
+
+    void apiJson<{ customer_events?: CustomerEvent[] }>(token, onUnauthorized, `/api/customers/history?id=${selectedCustomer.id}&limit=8`)
+      .then((data) => {
+        if (isCurrent) setCustomerHistory(data.customer_events || [])
+      })
+      .catch(() => {
+        if (isCurrent) setCustomerHistory([])
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingHistory(false)
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [onUnauthorized, selectedCustomer, token])
+
   const totalPages = Math.max(Math.ceil(total / pageSize), 1)
 
   const clearFilters = () => {
@@ -131,6 +220,75 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
     setMinSpent('')
     setMinOrders('')
     setLocation('')
+  }
+
+  const openCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setCustomerForm(customerFormFrom(customer))
+    setIsEditingCustomer(false)
+    setCustomerError('')
+    setCustomerNotice('')
+    setIsLoadingCustomer(true)
+    const requestId = customerRequestRef.current + 1
+    customerRequestRef.current = requestId
+
+    void apiJson<{ customer?: Customer }>(token, onUnauthorized, `/api/customers/${customer.id}`)
+      .then((data) => {
+        const detailedCustomer = data.customer
+        if (!detailedCustomer || customerRequestRef.current !== requestId) return
+        setSelectedCustomer(detailedCustomer)
+        setCustomerForm(customerFormFrom(detailedCustomer))
+      })
+      .catch((caughtError) => {
+        if (customerRequestRef.current === requestId) setCustomerError(caughtError instanceof Error ? caughtError.message : 'Unable to load the latest customer details')
+      })
+      .finally(() => {
+        if (customerRequestRef.current === requestId) setIsLoadingCustomer(false)
+      })
+  }
+
+  const closeCustomer = () => {
+    if (isSavingCustomer) return
+    customerRequestRef.current += 1
+    setSelectedCustomer(null)
+    setCustomerForm(null)
+    setIsEditingCustomer(false)
+    setCustomerError('')
+    setCustomerNotice('')
+    setCustomerHistory([])
+  }
+
+  const updateCustomerField = (field: keyof CustomerForm, value: string) => {
+    setCustomerForm((current) => current ? { ...current, [field]: value } : current)
+  }
+
+  const saveCustomer = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedCustomer || !customerForm) return
+
+    setIsSavingCustomer(true)
+    setCustomerError('')
+    setCustomerNotice('')
+
+    try {
+      await apiRequest(token, onUnauthorized, `/api/customers/${selectedCustomer.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customerForm),
+      })
+
+      const updatedCustomer = { ...selectedCustomer, ...customerForm, updated_at: new Date().toISOString() }
+      setSelectedCustomer(updatedCustomer)
+      setCustomerForm(customerFormFrom(updatedCustomer))
+      setCustomers((current) => current.map((customer) => customer.id === updatedCustomer.id ? updatedCustomer : customer))
+      setIsEditingCustomer(false)
+      setCustomerNotice('Customer details saved')
+      void fetchCustomers()
+    } catch (caughtError) {
+      setCustomerError(caughtError instanceof Error ? caughtError.message : 'Unable to save customer details')
+    } finally {
+      setIsSavingCustomer(false)
+    }
   }
 
   return (
@@ -178,70 +336,4 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
       {error && (
         <div className="dashboard-error" role="alert">
           <CircleAlert size={18} aria-hidden="true" />
-          <span>{error}</span>
-          <button type="button" onClick={() => void fetchCustomers()}>Try again</button>
-        </div>
-      )}
-
-      <div className="customers-card">
-        <div className="orders-card-heading">
-          <div>
-            <p className="eyebrow">Customer directory</p>
-            <h3>{isLoading ? 'Loading customers…' : `${total.toLocaleString('en-IN')} customers found`}</h3>
-          </div>
-          <span className="orders-card-meta">{sortField === 'updated_at' && sortOrder === 'DESC' ? 'Recently active first' : 'Click a column to sort'}</span>
-        </div>
-
-        <div className="orders-table-wrap">
-          <table className="orders-table customers-table">
-            <thead>
-              <tr>
-                {([
-                  ['Customer', 'first_name'],
-                  ['Contact', 'phone_number'],
-                  ['Location', 'city'],
-                  ['Orders', 'total_orders'],
-                  ['Lifetime spend', 'total_spent'],
-                  ['Last activity', 'updated_at'],
-                  ['Source', 'source_id'],
-                ] as [string, CustomerSortField][]).map(([label, field]) => (
-                  <th key={field} aria-sort={sortField === field ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
-                    <button className="sortable-table-button" type="button" onClick={() => handleSort(field)} aria-label={`Sort by ${label}`}>
-                      <span>{label}</span><span className="sortable-table-indicator" aria-hidden="true">{sortIndicator(field, sortField, sortOrder)}</span>
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={7} className="table-state">Loading customers…</td></tr>
-              ) : customers.length === 0 ? (
-                <tr><td colSpan={7} className="table-state">No customers match these filters.</td></tr>
-              ) : customers.map((customer) => (
-                <tr key={customer.id}>
-                  <td><strong>{displayName(customer)}</strong></td>
-                  <td><span className="customer-contact">{customer.phone_number}<small>{customer.email || 'No email'}</small></span></td>
-                  <td>{customer.city || customer.state ? `${customer.city || ''}${customer.city && customer.state ? ', ' : ''}${customer.state || ''}` : '—'}</td>
-                  <td>{(customer.total_orders || 0).toLocaleString('en-IN')}</td>
-                  <td><strong>{formatMoney(customer.total_spent)}</strong></td>
-                  <td className="table-muted">{formatDate(customer.updated_at)}</td>
-                  <td><span className="channel-label">{customer.source_id || 'manual'}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <footer className="orders-pagination">
-          <span>{total ? `${((page - 1) * pageSize) + 1}–${Math.min(page * pageSize, total)} of ${total.toLocaleString('en-IN')}` : '0 customers'}</span>
-          <div>
-            <button type="button" aria-label="Previous page" disabled={page <= 1 || isLoading} onClick={() => setPage((current) => Math.max(current - 1, 1))}><ChevronLeft size={16} aria-hidden="true" /></button>
-            <span>Page {page} of {totalPages}</span>
-            <button type="button" aria-label="Next page" disabled={page >= totalPages || isLoading} onClick={() => setPage((current) => Math.min(current + 1, totalPages))}><ChevronRight size={16} aria-hidden="true" /></button>
-          </div>
-        </footer>
-      </div>
-    </section>
-  )
-}
+  

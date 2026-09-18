@@ -18,6 +18,7 @@ var routeMap = map[string]RouteBinding{
 	"orders_sources": {Path: "/api/sources", Method: "GET"},
 	// Customers
 	"customers_list":    {Path: "/api/customers", Method: "GET"},
+	"customers_get":     {Path: "/api/customers/", Method: "GET"},
 	"customers_history": {Path: "/api/customers/history", Method: "GET"},
 	// Dashboard metrics
 	"dashboard_metrics":          {Path: "/api/dashboard/metrics", Method: "GET"},
@@ -171,58 +172,4 @@ var routeMap = map[string]RouteBinding{
 	"whatsapp_template_create":          {Path: "/api/automation/whatsapp/templates", Method: "POST"},
 	"whatsapp_template_update":          {Path: "/api/automation/whatsapp/templates", Method: "PUT"},
 	"whatsapp_template_delete":          {Path: "/api/automation/whatsapp/templates", Method: "DELETE"},
-	"whatsapp_templates_sync_status":    {Path: "/api/automation/whatsapp/templates/sync", Method: "POST"},
-	"whatsapp_templates_sync_all":       {Path: "/api/automation/whatsapp/templates/sync-all", Method: "POST"},
-	"whatsapp_template_sync_single":     {Path: "/api/automation/whatsapp/templates/sync-single", Method: "POST"},
-	"whatsapp_template_fetch":           {Path: "/api/automation/whatsapp/templates/fetch", Method: "POST"},
-	"whatsapp_trigger_create":           {Path: "/api/automation/whatsapp/triggers", Method: "POST"},
-	"whatsapp_trigger_update":           {Path: "/api/automation/whatsapp/triggers", Method: "PUT"},
-	"whatsapp_trigger_delete":           {Path: "/api/automation/whatsapp/triggers", Method: "DELETE"},
-	"whatsapp_send_message":             {Path: "/api/automation/whatsapp/send-message", Method: "POST"},
-	"whatsapp_send_manual":              {Path: "/api/automation/whatsapp/send-manual", Method: "POST"},
-	"whatsapp_send_bulk":                {Path: "/api/automation/whatsapp/send-bulk", Method: "POST"},
-	"whatsapp_conversation_mode_update": {Path: "/api/automation/whatsapp/conversations/mode", Method: "PUT"},
-	"whatsapp_event_create":             {Path: "/api/automation/whatsapp/events", Method: "POST"},
-	"whatsapp_event_delete":             {Path: "/api/automation/whatsapp/events", Method: "DELETE"},
-	"whatsapp_metrics_sync":             {Path: "/api/automation/whatsapp/sync-metrics", Method: "POST"},
-	// Judge.me (write)
-	"judgeme_generate_reviews": {Path: "/api/marketing/judgeme/generate", Method: "POST"},
-	"judgeme_submit_reviews":   {Path: "/api/marketing/judgeme/submit", Method: "POST"},
-	// Feedback (write)
-	"feedback_bulk_send":             {Path: "/api/feedback/bulk-send", Method: "POST"},
-	"feedback_update_comment":        {Path: "/api/orders/feedback/comment", Method: "PUT"},
-	"feedback_post_judgeme":          {Path: "/api/orders/feedback/post-judgeme", Method: "POST"},
-	"feedback_request_google_review": {Path: "/api/orders/feedback/request-google-review", Method: "POST"},
-}
-
-// RouteFor returns the binding for a tool name and whether it exists.
-func RouteFor(name string) (RouteBinding, bool) {
-	b, ok := routeMap[name]
-	return b, ok
-}
-
-// Routes returns the full route map (copy).
-func Routes() map[string]RouteBinding {
-	out := make(map[string]RouteBinding, len(routeMap))
-	for k, v := range routeMap {
-		out[k] = v
-	}
-	return out
-}
-
-// ReadOnlyPaths returns the distinct set of internal paths served by the MCP mux.
-func ReadOnlyPaths() []string {
-	seen := make(map[string]struct{})
-	var out []string
-	for name, b := range routeMap {
-		if spec, ok := DefaultCatalog.Lookup(name); ok && spec.Write {
-			continue
-		}
-		if _, ok := seen[b.Path]; ok {
-			continue
-		}
-		seen[b.Path] = struct{}{}
-		out = append(out, b.Path)
-	}
-	return out
-}
+	"whatsapp_temp
