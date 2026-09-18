@@ -193,4 +193,183 @@ function MachineKeysPanel({ token, onUnauthorized }: Props) {
     if (role === 'full_access') setScopes(allScopeIds)
     if (role === 'read_only') setScopes(readOnlyScopeIds)
   }
-  const toggleScope = (scope: st
+  const toggleScope = (scope: string) => {
+    setPermissionRole('custom')
+    setShowScopeDetails(true)
+    setScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])
+  }
+  const scopeSummary = permissionRole === 'full_access'
+    ? 'All current scopes'
+    : permissionRole === 'read_only'
+      ? `${readOnlyScopeIds.length} read scopes`
+      : `${scopes.length} custom scopes`
+  const createKey = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!name.trim() || scopes.length === 0) {
+      setError('Enter a name and choose at least one scope')
+      return
+    }
+    setIsWorking(true)
+    setError('')
+    try {
+      const data = await apiJson<Row>(token, onUnauthorized, '/api/mcp/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          permission_role: permissionRole,
+          scopes,
+          rate_limit_per_min: Math.max(1, numberValue(rateLimit) || 60),
+          ...(expiresAt ? { expires_at: `${expiresAt}T23:59:59Z` } : {}),
+        }),
+      })
+      setNewPlaintext(stringValue(data.plaintext))
+      setNotice('Machine key created. Save the plaintext now; it cannot be recovered later.')
+      setName('')
+      selectPermissionRole('read_only')
+      setRateLimit('60')
+      setExpiresAt('')
+      await loadKeys()
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to create machine key')
+    } finally {
+      setIsWorking(false)
+    }
+  }
+  const revokeKey = async (key: MachineKey) => { if (!window.confirm(`Revoke ${textValue(key.name, 'this machine key')}? Connected clients stop working immediately.`)) return; setIsWorking(true); try { await apiRequest(token, onUnauthorized, `/api/mcp/keys/${key.id}`, { method: 'DELETE' }); setNotice('Machine key revoked'); await loadKeys() } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to revoke machine key') } finally { setIsWorking(false) } }
+  const rotateKey = async (key: MachineKey) => { if (!window.confirm(`Rotate ${textValue(key.name, 'this machine key')}? The old key stops working immediately.`)) return; setIsWorking(true); try { const data = await apiJson<Row>(token, onUnauthorized, `/api/mcp/keys/${key.id}/rotate`, { method: 'POST' }); setNewPlaintext(stringValue(data.plaintext)); setNotice('Machine key rotated. Save the new plaintext now.'); await loadKeys() } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to rotate machine key') } finally { setIsWorking(false) } }
+  const copyKey = async () => { if (!newPlaintext) return; try { await navigator.clipboard.writeText(newPlaintext); setNotice('Machine key copied') } catch { setError('Copy failed. Select the key manually.') } }
+
+  return <section className="settings-card machine-keys-card">
+    <div className="settings-card-heading">
+      <div>
+        <p className="eyebrow">Developer access</p>
+        <h3><ShieldCheck size={17} aria-hidden="true" /> MCP machine keys</h3>
+        <p>Issue role-based keys for Codex or other MCP clients. Plaintext is shown once.</p>
+      </div>
+      <button className="icon-button" type="button" aria-label="Refresh machine keys" onClick={() => void loadKeys()} disabled={isLoading}>
+        <RefreshCw size={16} className={isLoading ? 'spin' : undefined} aria-hidden="true" />
+      </button>
+    </div>
+    {error && <div className="settings-inline-error" role="alert">{error}</div>}
+    {notice && <div className="settings-inline-notice" role="status">{notice}</div>}
+    {newPlaintext && <div className="machine-key-secret"><strong>Save this key now</strong><code>{newPlaintext}</code><div className="table-action-group"><button className="secondary-button" type="button" onClick={() => void copyKey()}><Copy size={14} aria-hidden="true" /> Copy</button><button className="table-link-button" type="button" onClick={() => setNewPlaintext('')}>Dismiss</button></div></div>}
+    <form className="machine-key-form" onSubmit={createKey}>
+      <div className="form-grid-three">
+        <label className="form-field"><span>Key name</span><input required value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. reporting client" /></label>
+        <label className="form-field"><span>Rate limit / min</span><input type="number" min="1" value={rateLimit} onChange={(event) => setRateLimit(event.target.value)} /></label>
+        <label className="form-field"><span>Expires on <small>(optional)</small></span><input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
+      </div>
+
+      <div className="machine-permission-picker">
+        <div className="b2b-form-section-heading">
+          <div><p className="eyebrow">Permission role</p><h4>{permissionRoleMeta[permissionRole].label}</h4></div>
+          <span className="settings-muted">{scopeSummary}</span>
+        </div>
+        <p className="machine-scope-help">Choose a reusable access profile, or use Custom to grant only the scopes this client needs.</p>
+        <div className="permission-role-grid" role="radiogroup" aria-label="Permission role">
+          {(Object.keys(permissionRoleMeta) as PermissionRole[]).map((role) => (
+            <button className={`permission-role-option ${permissionRole === role ? 'permission-role-option-active' : ''} ${role === 'full_access' ? 'permission-role-option-full' : ''}`} type="button" key={role} role="radio" aria-checked={permissionRole === role} onClick={() => selectPermissionRole(role)}>
+              <strong>{permissionRoleMeta[role].label}</strong>
+              <small>{permissionRoleMeta[role].description}</small>
+              <span>{role === 'full_access' ? 'All current scopes' : role === 'read_only' ? `${readOnlyScopeIds.length} read scopes` : 'Choose as needed'}</span>
+            </button>
+          ))}
+        </div>
+        {permissionRole === 'full_access' && <div className="machine-role-warning" role="status">Full access includes write and destructive actions. Use it only for trusted MCP clients.</div>}
+        {permissionRole !== 'custom' && <button className="machine-scope-disclosure" type="button" aria-expanded={showScopeDetails} aria-controls="mcp-scope-editor" onClick={() => setShowScopeDetails((current) => !current)}>
+          {showScopeDetails ? 'Hide included scopes' : 'View included scopes'} <ChevronDown size={14} className={showScopeDetails ? 'settings-chevron-open' : undefined} aria-hidden="true" />
+        </button>}
+      </div>
+
+      {(permissionRole === 'custom' || showScopeDetails) && <div className="machine-scope-picker" id="mcp-scope-editor">
+        <div className="b2b-form-section-heading">
+          <div><p className="eyebrow">Permissions</p><h4>{permissionRole === 'custom' ? `${scopes.length} scopes selected` : 'Included scopes'}</h4></div>
+          <div className="machine-scope-actions">
+            {permissionRole === 'custom' && <>
+              <button className="table-link-button" type="button" onClick={() => selectPermissionRole('full_access')}>Select all current scopes</button>
+              <button className="table-link-button" type="button" onClick={() => selectPermissionRole('read_only')}>Reset to read only</button>
+            </>}
+            {permissionRole !== 'custom' && <button className="table-link-button" type="button" onClick={() => setShowScopeDetails(false)}>Hide scopes</button>}
+          </div>
+        </div>
+        <p className="machine-scope-help">{permissionRole === 'full_access' ? 'Every current MCP scope is included. Editing one scope changes this key to Custom; future scopes are included automatically.' : permissionRole === 'read_only' ? 'Read only includes every current read scope. Editing one scope changes this key to Custom.' : 'Custom lets you mix read, write, and destructive scopes.'}</p>
+        <div className="machine-scope-groups">
+          {machineScopeGroups.map((group) => <section className="machine-scope-group" key={group.id}>
+            <div className="machine-scope-group-heading"><strong>{group.label}</strong><small>{group.description}</small></div>
+            <div className="machine-scope-list">{group.scopes.map(([scope, label]) => <label className="toggle-control" key={scope}><input type="checkbox" checked={scopes.includes(scope)} onChange={() => toggleScope(scope)} /><span>{label}</span><small>{scope}</small></label>)}</div>
+          </section>)}
+        </div>
+      </div>}
+      <button className="primary-button" type="submit" disabled={isWorking}>{isWorking ? 'Creating…' : 'Generate machine key'}</button>
+    </form>
+
+    <div className="machine-key-list">
+      <div className="b2b-form-section-heading"><div><p className="eyebrow">Issued keys</p><h4>{keys.length} keys</h4></div></div>
+      {isLoading ? <p className="table-state">Loading machine keys…</p> : keys.length === 0 ? <p className="settings-muted">No machine keys have been issued.</p> : keys.map((key) => {
+        const keyRole = permissionRoleForKey(key)
+        const keyScopes = Array.isArray(key.scopes) ? key.scopes : []
+        const scopeCount = keyRole === 'full_access' ? allScopeIds.length : keyRole === 'read_only' ? readOnlyScopeIds.length : keyScopes.length
+        return <div className="machine-key-row" key={String(key.id)}>
+          <div>
+            <div className="machine-key-name"><strong>{textValue(key.name, 'Unnamed key')}</strong><span className={`permission-role-badge permission-role-badge-${keyRole}`}>{permissionRoleMeta[keyRole].label}</span></div>
+            <small>{scopeCount} scopes · {textValue(key.revoked_at, '') ? 'Revoked' : textValue(key.expires_at, '') ? `Expires ${formatDate(key.expires_at)}` : 'No expiry'}</small>
+          </div>
+          <div className="table-action-group"><button className="table-link-button" type="button" onClick={() => void rotateKey(key)} disabled={isWorking}>Rotate</button>{!textValue(key.revoked_at, '') && <button className="table-link-button danger-link" type="button" onClick={() => void revokeKey(key)} disabled={isWorking}>Revoke</button>}</div>
+        </div>
+      })}
+    </div>
+  </section>
+}
+
+export function SettingsPage({ token, onUnauthorized }: Props) {
+  const [settings, setSettings] = useState<Row>({})
+  const [configs, setConfigs] = useState<AppConfig[]>([])
+  const [dateRange, setDateRange] = useState({ start_date: '', end_date: '' })
+  const [activeTab, setActiveTab] = useState<'workspace' | 'services' | 'access'>('workspace')
+  const [selectedService, setSelectedService] = useState<string | null>(null)
+  const [serviceSearch, setServiceSearch] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isWorking, setIsWorking] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [revealPassword, setRevealPassword] = useState('')
+  const [isRevealed, setIsRevealed] = useState(false)
+
+  const load = useCallback(async () => {
+    setIsLoading(true)
+    setError('')
+    try {
+      const [settingsData, configsData, rangeData] = await Promise.all([apiJson<Row>(token, onUnauthorized, '/api/settings'), apiJson<unknown>(token, onUnauthorized, '/api/configs'), apiJson<Row>(token, onUnauthorized, '/api/settings/date-range')])
+      setSettings((settingsData.settings || {}) as Row)
+      setConfigs(arrayFrom(configsData, 'configs') as AppConfig[])
+      setDateRange({ start_date: stringValue(rangeData.start_date), end_date: stringValue(rangeData.end_date) })
+      setIsRevealed(false)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to load settings')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [onUnauthorized, token])
+
+  useEffect(() => { void load() }, [load])
+
+  const saveSetting = async (event: FormEvent, key: string) => { event.preventDefault(); setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value: stringValue(settings[key]) }) }); setNotice('Workspace setting saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save setting') } finally { setIsWorking(false) } }
+  const saveConfig = async (key: string, value: string) => { setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/configs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }); setNotice('Service setting saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save service setting') } finally { setIsWorking(false) } }
+  const saveRange = async (event: FormEvent) => { event.preventDefault(); setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/settings/date-range', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dateRange) }); setNotice('Default date range saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save date range') } finally { setIsWorking(false) } }
+  const reveal = async (event: FormEvent) => { event.preventDefault(); setIsWorking(true); setError(''); try { const data = await apiJson<unknown>(token, onUnauthorized, '/api/configs/reveal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: revealPassword }) }); setConfigs(arrayFrom(data, 'configs') as AppConfig[]); setIsRevealed(true); setNotice('Secret values revealed for this session') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to reveal integration settings') } finally { setIsWorking(false) } }
+
+  const serviceGroups = useMemo(() => serviceDefinitions.map((definition) => ({ definition, fields: configs.filter((config) => definition.categories.includes(stringValue(config.category))) })), [configs])
+  const groupedKeys = useMemo(() => new Set(serviceGroups.flatMap(({ fields }) => fields.map((field, index) => configKey(field, index)))), [serviceGroups])
+  const advancedFields = useMemo(() => configs.filter((config, index) => !groupedKeys.has(configKey(config, index))), [configs, groupedKeys])
+  const searchTerm = serviceSearch.trim().toLowerCase()
+  const matchesSearch = (definition: ServiceDefinition, fields: AppConfig[]) => !searchTerm || `${definition.title} ${definition.description} ${fields.map((field, index) => `${configLabel(field, index)} ${configKey(field, index)}`).join(' ')}`.toLowerCase().includes(searchTerm)
+  const visibleServiceGroups = serviceGroups.filter(({ definition, fields }) => fields.length > 0 && matchesSearch(definition, fields))
+  const showAdvanced = advancedFields.length > 0 && matchesSearch(advancedDefinition, advancedFields)
+  const settingEntries = Object.entries(settings)
+
+  const changeConfig = (key: string, value: string) => setConfigs((current) => current.map((config, index) => configKey(config, index) === key ? { ...config, value } : config))
+  const requestReveal = () => { setActiveTab('access'); setNotice('Enter your password to reveal service secrets for this session.') }
+
+  return <section className="workspace-page settings-page" aria-labelledby="settings-heading"><header className="workspace-page-header"><div><p className="eyebrow">Workspace / Settings</p><h2 id="settings-heading">Settings</h2><p>Manage workspace defaults, connected services, and access.</p></div><button className="secondary-button" type="button" onClick={() => void load()} disabled={isLoading}><RefreshCw size={15} className={isLoading ? 'spin' : undefined} aria-hidden="true" /> Refresh</button></header>{error && <div className="dashboard-error" role="alert"><CircleAlert size={18} aria-hidden="true" /><span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div>}{notice && <div className="inventory-notice" role="status">{notice}</div>}<div className="settings-tabs" role="tablist" aria-label="Settings sections"><button className={`filter-chip ${activeTab === 'workspace' ? 'filter-chip-active' : ''}`} type="button" role="tab" aria-selected={activeTab === 'workspace'} onClick={() => setActiveTab('workspace')}><Settings2 size={14} aria-hidden="true" /> Workspace defaults</button><button className={`filter-chip ${activeTab === 'services' ? 'filter-chip-active' : ''}`} type="button" role="tab" aria-selected={activeTab === 'services'} onClick={() => setActiveTab('services')}><Store size={14} aria-hidden="true" /> Connected services</button><button className={`filter-chip ${activeTab === 'access' ? 'filter-chip-active' : ''}`} type="button" role="tab" aria-selected={activeTab === 'access'} onClick={() => setActiveTab('access')}><KeyRound size={14} aria-hidden="true" /> Access &amp; security</button></div>{activeTab === 'workspace' ? <div className="settings-grid settings-workspace-grid"><section className="settings-card"><div className="settings-card-heading"><div><p className="eyebrow">Saved preferences</p><h3>Workspace defaults</h3><p>Defaults used across reports and operational screens.</p></div></div>{isLoading ? <p className="table-state">Loading settings…</p> : settingEntries.length === 0 ? <p className="settings-muted">No editable settings returned by the API.</p> : settingEntries.map(([key, rawValue]) => <form className="settings-row" key={key} onSubmit={(event) => void saveSetting(event, key)}><label className="form-field"><span>{key.replace(/_/g, ' ')}</span><input value={stringValue(settings[key], stringValue(rawValue))} onChange={(event) => setSettings({ ...settings, [key]: event.target.value })} /></label><button className="icon-button" type="submit" aria-label={`Save ${key}`} disabled={isWorking}><Save size={16} aria-hidden="true" /></button></form>)}</section><section className="settings-card"><div className="settings-card-heading"><div><p className="eyebrow">Reporting</p><h3>Default reporting period</h3><p>Set the period used when a screen has no local date selection.</p></div></div><form onSubmit={saveRange}><div className="form-grid-two"><label className="form-field"><span>Start date</span><input required type="date" value={dateRange.start_date} onChange={(event) => setDateRange({ ...dateRange, start_date: event.target.value })} /></label><label className="form-field"><span>End date</span><input required type="date" value={dateRange.end_date} onChange={(event) => setDateRange({ ...dateRange, end_date: event.target.value })} /></label></div><button className="primary-button" type="submit" disabled={isWorking}><Save size={14} aria-hidden="true" /> Save date range</button></form></section></div> : activeTab === 'services' ? <section className="settings-services-view"><div className="settings-services-toolbar"><div><p className="eyebrow">Connections</p><h3>Connected services</h3><p>Configure external systems without browsing raw configuration keys.</p></div><label className="orders-search settings-service-search"><span className="sr-only">Search services</span><input value={serviceSearch} onChange={(event) => setServiceSearch(event.target.value)} placeholder="Search services or settings" /></label></div>{visibleServiceGroups.length === 0 && !showAdvanced ? <div className="empty-panel"><Wrench size={20} aria-hidden="true" /><div><h2>No services found</h2><p>Try a different service or setting name.</p></div></div> : <div className="settings-services-grid">{visibleServiceGroups.map(({ definition, fields }) => <ServiceCard key={definition.id} definition={definition} fields={fields} expanded={selectedService === definition.id} isRevealed={isRevealed} isWorking={isWorking} onToggle={() => setSelectedService(selectedService === definition.id ? null : definition.id)} onChange={changeConfig} onSave={(key, value) => void saveConfig(key, value)} onRequestReveal={requestReveal} />)}{showAdvanced && <ServiceCard definition={advancedDefinition} fields={advancedFields} expanded={selectedService === advancedDefinition.id} isRevealed={isRevealed} isWorking={isWorking} onToggle={() => setSelectedService(selectedService === advancedDefinition.id ? null : advancedDefinition.id)} onChange={changeConfig} onSave={(key, value) => void saveConfig(key, value)} onRequestReveal={requestReveal} />}</div>}</section> : <><div className="settings-grid settings-access-grid"><section className="settings-card"><div className="settings-card-heading"><div><p className="eyebrow">Protected values</p><h3>Reveal service secrets</h3><p>Reveal values only when you need to verify or update a connection.</p></div></div><form onSubmit={reveal} className="reveal-form"><label className="form-field"><span>Admin password</span><div className="password-field"><input required type="password" value={revealPassword} onChange={(event) => setRevealPassword(event.target.value)} /><button className="icon-button" type="submit" aria-label="Reveal service secrets" disabled={isWorking}>{isRevealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}</button></div></label><button className="secondary-button" type="submit" disabled={isWorking}><Eye size={14} aria-hidden="true" /> {isRevealed ? 'Refresh revealed values' : 'Reveal for this session'}</button></form></section><section className="settings-card settings-security-card"><div className="settings-card-heading"><div><p className="eyebrow">Security policy</p><h3>Keep credentials protected</h3></div></div><ul className="settings-policy-list"><li>Secret values remain masked until explicitly revealed.</li><li>Revealed values are available only in this session.</li><li>Machine keys should use the smallest required scope.</li></ul></section></div><MachineKeysPanel token={token} onUnauthorized={onUnauthorized} /></>}</section>
+}

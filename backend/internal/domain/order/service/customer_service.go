@@ -460,4 +460,458 @@ func (s *CustomerService) ListCustomers(ctx context.Context, f CustomerFilter) (
 		if parsed.FirstNameEmpty {
 			f.FirstNameEmpty = true
 		}
-		if parsed.Las
+		if parsed.LastNameEmpty {
+			f.LastNameEmpty = true
+		}
+		if parsed.EmailEmpty {
+			f.EmailEmpty = true
+		}
+		f.Search = parsed.Search
+	}
+
+	dbSortBy := "updated_at"
+	switch f.SortBy {
+	case "name":
+		dbSortBy = "first_name"
+	case "phone":
+		dbSortBy = "phone_number"
+	case "email":
+		dbSortBy = "email"
+	case "orders":
+		dbSortBy = "total_orders"
+	case "spent":
+		dbSortBy = "total_spent"
+	case "activity":
+		dbSortBy = "updated_at"
+	}
+
+	return s.repo.List(ctx, f.Search, dbSortBy, f.SortOrder, f.SourceID, f.MinSpent, f.MaxSpent, f.MinOrders, f.City, f.State, f.FirstName, f.LastName, f.Email, f.FirstNameEmpty, f.LastNameEmpty, f.EmailEmpty, offset, f.PageSize)
+}
+
+func (s *CustomerService) parseSearchQuery(search string) CustomerFilter {
+	f := CustomerFilter{}
+
+	// Support "field = ''" or "field = \"\""
+	// Performance: Use pre-compiled regex to avoid redundant allocations per request
+	matches := customerSearchEmptyRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		switch field {
+		case "first_name":
+			f.FirstNameEmpty = true
+		case "last_name":
+			f.LastNameEmpty = true
+		case "email":
+			f.EmailEmpty = true
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	// Support "field > 1000" or "field < 5000"
+	// Performance: Use pre-compiled regex to avoid redundant allocations per request
+	matches = customerSearchRangeRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		op := m[2]
+		val, _ := strconv.ParseFloat(m[3], 64)
+		switch field {
+		case "spent":
+			if op == ">" {
+				f.MinSpent = val
+			} else {
+				f.MaxSpent = val
+			}
+		case "orders":
+			if op == ">" {
+				f.MinOrders = int(val)
+			}
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	// Support "field:value" or "field=value"
+	// Performance: Use pre-compiled regex to avoid redundant allocations per request
+	matches = customerSearchKVRegex.FindAllStringSubmatch(search, -1)
+	for _, m := range matches {
+		field := strings.ToLower(m[1])
+		val := strings.Trim(m[2], `"'`)
+		switch field {
+		case "city":
+			f.City = val
+		case "state":
+			f.State = val
+		case "first_name":
+			f.FirstName = val
+		case "last_name":
+			f.LastName = val
+		case "email":
+			f.Email = val
+		case "source":
+			f.SourceID = val
+		}
+		search = strings.Replace(search, m[0], "", 1)
+	}
+
+	f.Search = strings.TrimSpace(search)
+	return f
+}
+
+func (s *CustomerService) DeleteAllCustomers(ctx context.Context) error {
+	return s.repo.DeleteAll(ctx)
+}
+
+func (s *CustomerService) toTitleCase(str string) string {
+	if str == "" {
+		return ""
+	}
+	words := strings.Fields(strings.ToLower(str))
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+func (s *CustomerService) GetCustomersByIDs(ctx context.Context, ids []uint) ([]entity.Customer, error) {
+	return s.repo.GetByIDs(ctx, ids)
+}
+
+func (s *CustomerService) CreateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
+	cust.PhoneNumber = util.NormalizePhone(cust.PhoneNumber)
+	cust.FirstName = util.StrPtr(s.toTitleCase(util.DerefStr(cust.FirstName)))
+	cust.LastName = util.StrPtr(s.toTitleCase(util.DerefStr(cust.LastName)))
+	// Ensure DeletedAt is reset to reactive the customer if it was previously soft-deleted
+	cust.DeletedAt = gorm.DeletedAt{}
+
+	// 1. Use UpsertByPhone to handle reactive and conflict
+	err := s.repo.UpsertByPhone(ctx, cust)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync to Shopify if requested
+	if syncToShopify && s.shopifyClient != nil {
+		sc := shopify.ShopifyRestCustomer{
+			FirstName: util.DerefStr(cust.FirstName),
+			LastName:  util.DerefStr(cust.LastName),
+			Email:     util.DerefStr(cust.Email),
+			Phone:     cust.PhoneNumber,
+			Addresses: []shopify.ShopifyRestAddress{
+				{
+					Address1: util.DerefStr(cust.Address1),
+					Address2: util.DerefStr(cust.Address2),
+					City:     util.DerefStr(cust.City),
+					Province: util.DerefStr(cust.State),
+					Country: func() string {
+						c := util.DerefStr(cust.Country)
+						if c == "" {
+							return "India"
+						}
+						return c
+					}(),
+					Zip: util.DerefStr(cust.ZipCode),
+				},
+			},
+		}
+
+		resp, err := s.shopifyClient.CreateCustomer(sc)
+		if err == nil && resp != nil {
+			// Update local customer with shopify ID
+			extID := strconv.FormatInt(resp.ID, 10)
+			cust.ExternalID = &extID
+			cust.SourceID = "shopify"
+			s.repo.Update(ctx, cust)
+		} else if err != nil {
+			log.Printf("Failed to sync new customer to Shopify: %v", err)
+			// We continue because local creation succeeded
+		}
+	}
+
+	return nil
+}
+
+func (s *CustomerService) UpdateCustomer(ctx context.Context, cust *entity.Customer, syncToShopify bool) error {
+	// 1. Fetch existing customer to preserve statistics and metadata
+	existing, err := s.repo.GetByID(ctx, cust.ID)
+	if err != nil {
+		return fmt.Errorf("customer not found: %w", err)
+	}
+
+	// 2. Patch only provided fields (preventing data loss of stats/metadata)
+	if cust.PhoneNumber != "" {
+		existing.PhoneNumber = util.NormalizePhone(cust.PhoneNumber)
+	}
+	if cust.FirstName != nil {
+		existing.FirstName = util.StrPtr(s.toTitleCase(util.DerefStr(cust.FirstName)))
+	}
+	if cust.LastName != nil {
+		existing.LastName = util.StrPtr(s.toTitleCase(util.DerefStr(cust.LastName)))
+	}
+	if cust.Email != nil {
+		existing.Email = cust.Email
+	}
+	if cust.Address1 != nil {
+		existing.Address1 = cust.Address1
+	}
+	if cust.Address2 != nil {
+		existing.Address2 = cust.Address2
+	}
+	if cust.City != nil {
+		existing.City = cust.City
+	}
+	if cust.State != nil {
+		existing.State = cust.State
+	}
+	if cust.Country != nil {
+		existing.Country = cust.Country
+	}
+	if cust.ZipCode != nil {
+		existing.ZipCode = cust.ZipCode
+	}
+
+	existing.UpdatedAt = time.Now()
+
+	// 3. Update locally first
+	err = s.repo.Update(ctx, existing)
+	if err != nil {
+		return err
+	}
+
+	// 4. Sync to Shopify if requested
+	if syncToShopify && s.shopifyClient != nil {
+		sc := shopify.ShopifyRestCustomer{
+			FirstName: util.DerefStr(existing.FirstName),
+			LastName:  util.DerefStr(existing.LastName),
+			Email:     util.DerefStr(existing.Email),
+			Phone:     existing.PhoneNumber,
+		}
+
+		if existing.ExternalID != nil && *existing.ExternalID != "" {
+			// SYNC: Update existing Shopify customer
+			extID, _ := strconv.ParseInt(*existing.ExternalID, 10, 64)
+			if extID > 0 {
+				// Try to find address ID to update existing address instead of creating new one
+				var addressID int64
+				remoteCust, err := s.shopifyClient.GetCustomer(extID)
+				if err == nil && remoteCust != nil {
+					for _, addr := range remoteCust.Addresses {
+						if addr.Default {
+							addressID = addr.ID
+							break
+						}
+					}
+					if addressID == 0 && len(remoteCust.Addresses) > 0 {
+						addressID = remoteCust.Addresses[0].ID
+					}
+				}
+
+				if existing.Address1 != nil {
+					sc.Addresses = []shopify.ShopifyRestAddress{
+						{
+							ID:       addressID,
+							Address1: util.DerefStr(existing.Address1),
+							Address2: util.DerefStr(existing.Address2),
+							City:     util.DerefStr(existing.City),
+							Province: util.DerefStr(existing.State),
+							Country: func() string {
+								c := util.DerefStr(existing.Country)
+								if c == "" {
+									return "India"
+								}
+								return c
+							}(),
+							Zip:     util.DerefStr(existing.ZipCode),
+							Default: true,
+						},
+					}
+				}
+				_, err = s.shopifyClient.UpdateCustomer(extID, sc)
+				if err != nil {
+					log.Printf("Failed to sync customer update to Shopify: %v", err)
+				}
+			}
+		} else {
+			// LINK: Create customer on Shopify if it doesn't exist yet
+			if existing.Address1 != nil {
+				sc.Addresses = []shopify.ShopifyRestAddress{
+					{
+						Address1: util.DerefStr(existing.Address1),
+						Address2: util.DerefStr(existing.Address2),
+						City:     util.DerefStr(existing.City),
+						Province: util.DerefStr(existing.State),
+						Country: func() string {
+							c := util.DerefStr(existing.Country)
+							if c == "" {
+								return "India"
+							}
+							return c
+						}(),
+						Zip:     util.DerefStr(existing.ZipCode),
+						Default: true,
+					},
+				}
+			}
+			resp, err := s.shopifyClient.CreateCustomer(sc)
+			if err == nil && resp != nil {
+				extID := strconv.FormatInt(resp.ID, 10)
+				existing.ExternalID = &extID
+				existing.SourceID = "shopify"
+				s.repo.Update(ctx, existing)
+			} else if err != nil {
+				log.Printf("Failed to create new customer on Shopify during update: %v", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *CustomerService) GetCustomerByID(ctx context.Context, id int64) (*entity.Customer, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *CustomerService) GetCustomer(ctx context.Context, id int64) (*entity.Customer, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *CustomerService) DeleteCustomer(ctx context.Context, id int64) error {
+	// 1. Get customer to check for Shopify ID
+	cust, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync deletion to Shopify if linked
+	if s.shopifyClient != nil && cust.ExternalID != nil && *cust.ExternalID != "" {
+		extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+		if extID > 0 {
+			err := s.shopifyClient.DeleteCustomer(extID)
+			if err != nil {
+				log.Printf("Failed to sync customer deletion to Shopify: %v", err)
+				// We still delete locally
+			}
+		}
+	}
+
+	// 3. Delete locally (Soft delete)
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *CustomerService) DeleteByExternalID(ctx context.Context, externalID string) error {
+	cust, err := s.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, cust.ID)
+}
+
+func (s *CustomerService) BulkDeleteCustomers(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	// 1. Fetch all customers in one batch to get their Shopify IDs
+	uintIDs := make([]uint, len(ids))
+	for i, id := range ids {
+		uintIDs[i] = uint(id)
+	}
+
+	customers, err := s.repo.GetByIDs(ctx, uintIDs)
+	if err != nil {
+		return fmt.Errorf("failed to fetch customers for bulk delete: %w", err)
+	}
+
+	// 2. Parallelize external API calls to Shopify
+	if s.shopifyClient != nil {
+		g, _ := errgroup.WithContext(ctx)
+		g.SetLimit(5) // Limit concurrency to avoid rate limits
+
+		for _, cust := range customers {
+			if cust.ExternalID != nil && *cust.ExternalID != "" {
+				extID, _ := strconv.ParseInt(*cust.ExternalID, 10, 64)
+				if extID > 0 {
+					g.Go(func() error {
+						err := s.shopifyClient.DeleteCustomer(extID)
+						if err != nil {
+							log.Printf("Failed to sync customer deletion to Shopify for %d: %v", extID, err)
+						}
+						return nil // We still want to proceed with local deletion even if Shopify fails
+					})
+				}
+			}
+		}
+		// Wait for all Shopify deletions to finish
+		_ = g.Wait()
+	}
+
+	// 3. Perform a single batch database delete
+	return s.repo.BulkDelete(ctx, ids)
+}
+
+func (s *CustomerService) ExportMetaCSV(ctx context.Context, boughtOnly bool) ([]byte, error) {
+	minOrders := 0
+	if boughtOnly {
+		minOrders = 1
+	}
+
+	// Fetch all matching customers (limit -1 or large number)
+	customers, _, err := s.repo.List(ctx, "", "updated_at", "DESC", "", 0, 0, minOrders, "", "", "", "", "", false, false, false, 0, 1000000)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch customers: %w", err)
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// Meta-recognized headers: phone, email, fn, ln
+	if err := writer.Write([]string{"phone", "email", "fn", "ln"}); err != nil {
+		return nil, err
+	}
+
+	seenPhones := make(map[string]bool)
+
+	for _, c := range customers {
+		phone := s.cleanMetaPhone(c.PhoneNumber)
+		// Deduplicate by phone
+		if phone == "" || seenPhones[phone] {
+			continue
+		}
+		seenPhones[phone] = true
+
+		email := ""
+		if c.Email != nil {
+			email = strings.ToLower(strings.TrimSpace(*c.Email))
+		}
+
+		fn := ""
+		if c.FirstName != nil {
+			fn = strings.TrimSpace(*c.FirstName)
+		}
+
+		ln := ""
+		if c.LastName != nil {
+			ln = strings.TrimSpace(*c.LastName)
+		}
+
+		if err := writer.Write([]string{phone, email, fn, ln}); err != nil {
+			return nil, err
+		}
+	}
+
+	writer.Flush()
+	return buf.Bytes(), nil
+}
+
+func (s *CustomerService) cleanMetaPhone(phone string) string {
+	// Replicate Python: re.sub(r"\D", "", phone)
+	cleaned := nonDigitRegex.ReplaceAllString(phone, "")
+
+	if len(cleaned) == 10 {
+		return "91" + cleaned
+	}
+	if len(cleaned) == 12 && strings.HasPrefix(cleaned, "91") {
+		return cleaned
+	}
+	return ""
+}

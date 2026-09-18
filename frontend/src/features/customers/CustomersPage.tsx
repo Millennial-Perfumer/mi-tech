@@ -16,14 +16,14 @@ type Customer = {
   email?: string
   city?: string
   state?: string
-  total_orders?: number
-  total_spent?: number
   address1?: string
   address2?: string
   country?: string
   zip_code?: string
   external_id?: string
   created_at?: string
+  total_orders?: number
+  total_spent?: number
   updated_at?: string
   source_id?: string
 }
@@ -45,7 +45,6 @@ type CustomerEvent = {
   id: number
   event_type: string
   source?: string
-  actor_type?: string
   occurred_at?: string
   diff_data?: Record<string, unknown> | null
 }
@@ -78,27 +77,17 @@ function sortIndicator(field: CustomerSortField, sortField: CustomerSortField, s
 
 function customerFormFrom(customer: Customer): CustomerForm {
   return {
-    first_name: customer.first_name || '',
-    last_name: customer.last_name || '',
-    phone_number: customer.phone_number || '',
-    email: customer.email || '',
-    address1: customer.address1 || '',
-    address2: customer.address2 || '',
-    city: customer.city || '',
-    state: customer.state || '',
-    country: customer.country || '',
-    zip_code: customer.zip_code || '',
+    first_name: customer.first_name || '', last_name: customer.last_name || '', phone_number: customer.phone_number || '', email: customer.email || '',
+    address1: customer.address1 || '', address2: customer.address2 || '', city: customer.city || '', state: customer.state || '', country: customer.country || '', zip_code: customer.zip_code || '',
   }
 }
 
-function eventLabel(eventType: string) {
-  return eventType
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+function eventLabel(value: string) {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function eventChangedFields(event: CustomerEvent) {
-  if (!event.diff_data || typeof event.diff_data !== 'object') return ''
+  if (!event.diff_data) return ''
   const fields = Object.keys(event.diff_data).filter((field) => field !== 'updated_at')
   return fields.length ? `Changed ${fields.join(', ')}` : ''
 }
@@ -191,25 +180,13 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
 
   useEffect(() => {
     if (!selectedCustomer) return
-
-    let isCurrent = true
+    let active = true
     setIsLoadingHistory(true)
-    setCustomerHistory([])
-
     void apiJson<{ customer_events?: CustomerEvent[] }>(token, onUnauthorized, `/api/customers/history?id=${selectedCustomer.id}&limit=8`)
-      .then((data) => {
-        if (isCurrent) setCustomerHistory(data.customer_events || [])
-      })
-      .catch(() => {
-        if (isCurrent) setCustomerHistory([])
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingHistory(false)
-      })
-
-    return () => {
-      isCurrent = false
-    }
+      .then((data) => { if (active) setCustomerHistory(data.customer_events || []) })
+      .catch(() => { if (active) setCustomerHistory([]) })
+      .finally(() => { if (active) setIsLoadingHistory(false) })
+    return () => { active = false }
   }, [onUnauthorized, selectedCustomer, token])
 
   const totalPages = Math.max(Math.ceil(total / pageSize), 1)
@@ -231,20 +208,15 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
     setIsLoadingCustomer(true)
     const requestId = customerRequestRef.current + 1
     customerRequestRef.current = requestId
-
     void apiJson<{ customer?: Customer }>(token, onUnauthorized, `/api/customers/${customer.id}`)
       .then((data) => {
-        const detailedCustomer = data.customer
-        if (!detailedCustomer || customerRequestRef.current !== requestId) return
-        setSelectedCustomer(detailedCustomer)
-        setCustomerForm(customerFormFrom(detailedCustomer))
+        if (data.customer && customerRequestRef.current === requestId) {
+          setSelectedCustomer(data.customer)
+          setCustomerForm(customerFormFrom(data.customer))
+        }
       })
-      .catch((caughtError) => {
-        if (customerRequestRef.current === requestId) setCustomerError(caughtError instanceof Error ? caughtError.message : 'Unable to load the latest customer details')
-      })
-      .finally(() => {
-        if (customerRequestRef.current === requestId) setIsLoadingCustomer(false)
-      })
+      .catch((caughtError) => { if (customerRequestRef.current === requestId) setCustomerError(caughtError instanceof Error ? caughtError.message : 'Unable to load the latest customer details') })
+      .finally(() => { if (customerRequestRef.current === requestId) setIsLoadingCustomer(false) })
   }
 
   const closeCustomer = () => {
@@ -258,25 +230,16 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
     setCustomerHistory([])
   }
 
-  const updateCustomerField = (field: keyof CustomerForm, value: string) => {
-    setCustomerForm((current) => current ? { ...current, [field]: value } : current)
-  }
+  const updateCustomerField = (field: keyof CustomerForm, value: string) => setCustomerForm((current) => current ? { ...current, [field]: value } : current)
 
   const saveCustomer = async (event: FormEvent) => {
     event.preventDefault()
     if (!selectedCustomer || !customerForm) return
-
     setIsSavingCustomer(true)
     setCustomerError('')
     setCustomerNotice('')
-
     try {
-      await apiRequest(token, onUnauthorized, `/api/customers/${selectedCustomer.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(customerForm),
-      })
-
+      await apiRequest(token, onUnauthorized, `/api/customers/${selectedCustomer.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customerForm) })
       const updatedCustomer = { ...selectedCustomer, ...customerForm, updated_at: new Date().toISOString() }
       setSelectedCustomer(updatedCustomer)
       setCustomerForm(customerFormFrom(updatedCustomer))
@@ -336,4 +299,90 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
       {error && (
         <div className="dashboard-error" role="alert">
           <CircleAlert size={18} aria-hidden="true" />
-  
+          <span>{error}</span>
+          <button type="button" onClick={() => void fetchCustomers()}>Try again</button>
+        </div>
+      )}
+
+      <div className="customers-card">
+        <div className="orders-card-heading">
+          <div>
+            <p className="eyebrow">Customer directory</p>
+            <h3>{isLoading ? 'Loading customers…' : `${total.toLocaleString('en-IN')} customers found`}</h3>
+          </div>
+          <span className="orders-card-meta">{sortField === 'updated_at' && sortOrder === 'DESC' ? 'Recently active first' : 'Click a column to sort'}</span>
+        </div>
+
+        <div className="orders-table-wrap">
+          <table className="orders-table customers-table">
+            <thead>
+              <tr>
+                {([
+                  ['Customer', 'first_name'],
+                  ['Contact', 'phone_number'],
+                  ['Location', 'city'],
+                  ['Orders', 'total_orders'],
+                  ['Lifetime spend', 'total_spent'],
+                  ['Last activity', 'updated_at'],
+                  ['Source', 'source_id'],
+                ] as [string, CustomerSortField][]).map(([label, field]) => (
+                  <th key={field} aria-sort={sortField === field ? (sortOrder === 'ASC' ? 'ascending' : 'descending') : 'none'}>
+                    <button className="sortable-table-button" type="button" onClick={() => handleSort(field)} aria-label={`Sort by ${label}`}>
+                      <span>{label}</span><span className="sortable-table-indicator" aria-hidden="true">{sortIndicator(field, sortField, sortOrder)}</span>
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={7} className="table-state">Loading customers…</td></tr>
+              ) : customers.length === 0 ? (
+                <tr><td colSpan={7} className="table-state">No customers match these filters.</td></tr>
+              ) : customers.map((customer) => (
+                <tr key={customer.id} className="customer-row" tabIndex={0} role="button" aria-label={`Open ${displayName(customer)} customer profile`} onClick={() => openCustomer(customer)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openCustomer(customer) } }}>
+                  <td><button className="customer-name-button" type="button" onClick={(event) => { event.stopPropagation(); openCustomer(customer) }}>{displayName(customer)}</button></td>
+                  <td><span className="customer-contact">{customer.phone_number}<small>{customer.email || 'No email'}</small></span></td>
+                  <td>{customer.city || customer.state ? `${customer.city || ''}${customer.city && customer.state ? ', ' : ''}${customer.state || ''}` : '—'}</td>
+                  <td>{(customer.total_orders || 0).toLocaleString('en-IN')}</td>
+                  <td><strong>{formatMoney(customer.total_spent)}</strong></td>
+                  <td className="table-muted">{formatDate(customer.updated_at)}</td>
+                  <td><span className="channel-label">{customer.source_id || 'manual'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <footer className="orders-pagination">
+          <span>{total ? `${((page - 1) * pageSize) + 1}–${Math.min(page * pageSize, total)} of ${total.toLocaleString('en-IN')}` : '0 customers'}</span>
+          <div>
+            <button type="button" aria-label="Previous page" disabled={page <= 1 || isLoading} onClick={() => setPage((current) => Math.max(current - 1, 1))}><ChevronLeft size={16} aria-hidden="true" /></button>
+            <span>Page {page} of {totalPages}</span>
+            <button type="button" aria-label="Next page" disabled={page >= totalPages || isLoading} onClick={() => setPage((current) => Math.min(current + 1, totalPages))}><ChevronRight size={16} aria-hidden="true" /></button>
+          </div>
+        </footer>
+      </div>
+
+      {selectedCustomer && customerForm && <div className="modal-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCustomer() }}>
+        <div className="modal-card customer-detail-modal" role="dialog" aria-modal="true" aria-labelledby="customer-detail-heading">
+          <div className="customer-detail-heading"><div className="modal-heading-copy"><p className="eyebrow">Customer profile</p><h2 id="customer-detail-heading">{displayName(selectedCustomer)}</h2><p className="customer-detail-subtitle">{selectedCustomer.phone_number || 'No phone number'} · {selectedCustomer.source_id || 'manual'}</p></div><div className="customer-detail-header-actions">{!isEditingCustomer && <button className="secondary-button" type="button" disabled={isLoadingCustomer} onClick={() => { setIsEditingCustomer(true); setCustomerNotice(''); setCustomerError('') }}><Pencil size={14} aria-hidden="true" /> Edit details</button>}<button className="icon-button" type="button" aria-label="Close customer profile" onClick={closeCustomer}><X size={19} aria-hidden="true" /></button></div></div>
+          {customerError && <div className="dashboard-error" role="alert"><CircleAlert size={16} aria-hidden="true" /><span>{customerError}</span></div>}
+          {customerNotice && <div className="customer-detail-notice" role="status">{customerNotice}</div>}
+          {isLoadingCustomer && <p className="customer-detail-loading" role="status">Loading the latest customer details…</p>}
+          {isEditingCustomer ? <form className="customer-detail-form" onSubmit={saveCustomer}>
+            <div className="customer-detail-section-heading"><div><p className="eyebrow">Editable details</p><h3>Keep this profile up to date</h3></div><span>Changes are saved to the customer record.</span></div>
+            <div className="form-grid-two"><label className="form-field"><span>First name</span><input value={customerForm.first_name} onChange={(event) => updateCustomerField('first_name', event.target.value)} /></label><label className="form-field"><span>Last name</span><input value={customerForm.last_name} onChange={(event) => updateCustomerField('last_name', event.target.value)} /></label><label className="form-field"><span>Phone number</span><input required inputMode="tel" value={customerForm.phone_number} onChange={(event) => updateCustomerField('phone_number', event.target.value)} /></label><label className="form-field"><span>Email</span><input type="email" value={customerForm.email} onChange={(event) => updateCustomerField('email', event.target.value)} /></label><label className="form-field"><span>City</span><input value={customerForm.city} onChange={(event) => updateCustomerField('city', event.target.value)} /></label><label className="form-field"><span>State</span><input value={customerForm.state} onChange={(event) => updateCustomerField('state', event.target.value)} /></label><label className="form-field"><span>Country</span><input value={customerForm.country} onChange={(event) => updateCustomerField('country', event.target.value)} /></label><label className="form-field"><span>PIN code</span><input inputMode="numeric" value={customerForm.zip_code} onChange={(event) => updateCustomerField('zip_code', event.target.value)} /></label></div>
+            <label className="form-field"><span>Address line 1</span><input value={customerForm.address1} onChange={(event) => updateCustomerField('address1', event.target.value)} /></label><label className="form-field"><span>Address line 2</span><input value={customerForm.address2} onChange={(event) => updateCustomerField('address2', event.target.value)} /></label>
+            <div className="modal-actions"><button className="secondary-button" type="button" onClick={() => { setCustomerForm(customerFormFrom(selectedCustomer)); setIsEditingCustomer(false); setCustomerError('') }} disabled={isSavingCustomer}>Cancel</button><button className="primary-button" type="submit" disabled={isSavingCustomer}><Save size={14} aria-hidden="true" /> {isSavingCustomer ? 'Saving…' : 'Save details'}</button></div>
+          </form> : <>
+            <div className="customer-detail-summary"><div><span className="metric-label">Orders</span><strong>{(selectedCustomer.total_orders || 0).toLocaleString('en-IN')}</strong><small>Lifetime orders</small></div><div><span className="metric-label">Lifetime spend</span><strong>{formatMoney(selectedCustomer.total_spent)}</strong><small>Total value</small></div><div><span className="metric-label">Source</span><strong>{selectedCustomer.source_id || 'Manual'}</strong><small>Customer record</small></div></div>
+            <div className="customer-detail-columns"><section className="customer-detail-section"><div className="customer-detail-section-heading"><div><p className="eyebrow">Contact</p><h3>How to reach them</h3></div><Phone size={18} aria-hidden="true" /></div><div className="customer-detail-fields"><div><span><UserRound size={14} aria-hidden="true" /> Name</span><strong>{displayName(selectedCustomer)}</strong></div><div><span><Phone size={14} aria-hidden="true" /> Phone</span><strong>{selectedCustomer.phone_number || 'Not provided'}</strong></div><div><span><Mail size={14} aria-hidden="true" /> Email</span><strong>{selectedCustomer.email || 'Not provided'}</strong></div></div></section><section className="customer-detail-section"><div className="customer-detail-section-heading"><div><p className="eyebrow">Address</p><h3>Delivery details</h3></div><MapPin size={18} aria-hidden="true" /></div><div className="customer-detail-fields"><div><span>Address</span><strong>{[selectedCustomer.address1, selectedCustomer.address2].filter(Boolean).join(', ') || 'Not provided'}</strong></div><div><span>Location</span><strong>{[selectedCustomer.city, selectedCustomer.state].filter(Boolean).join(', ') || 'Not provided'}</strong></div><div><span>Country / PIN</span><strong>{[selectedCustomer.country, selectedCustomer.zip_code].filter(Boolean).join(' · ') || 'Not provided'}</strong></div></div></section></div>
+            <section className="customer-detail-section customer-detail-record-section"><div className="customer-detail-section-heading"><div><p className="eyebrow">Record details</p><h3>Customer metadata</h3></div></div><div className="customer-detail-fields customer-detail-fields-inline"><div><span>Customer ID</span><strong>#{selectedCustomer.id}</strong></div><div><span>Added</span><strong>{formatDate(selectedCustomer.created_at)}</strong></div><div><span>Last activity</span><strong>{formatDate(selectedCustomer.updated_at)}</strong></div><div><span>External ID</span><strong>{selectedCustomer.external_id || 'Not linked'}</strong></div></div></section>
+            <section className="customer-detail-section customer-detail-history"><div className="customer-detail-section-heading"><div><p className="eyebrow">Activity</p><h3>Recent customer history</h3></div><Clock3 size={18} aria-hidden="true" /></div>{isLoadingHistory ? <p className="customer-detail-empty">Loading activity…</p> : customerHistory.length === 0 ? <p className="customer-detail-empty">No recorded activity for this customer yet.</p> : <div className="customer-history-list">{customerHistory.map((event) => <div className="customer-history-item" key={event.id}><span className="customer-history-dot" aria-hidden="true" /><div><strong>{eventLabel(event.event_type)}</strong><p>{eventChangedFields(event) || `${event.source || 'System'} update`}</p></div><time dateTime={event.occurred_at}>{formatDate(event.occurred_at)}</time></div>)}</div>}</section>
+          </>}
+        </div>
+      </div>}
+    </section>
+  )
+}
