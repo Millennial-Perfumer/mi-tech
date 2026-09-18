@@ -52,10 +52,9 @@ func (r *ticketRepository) Delete(id uint) error {
 }
 
 func (r *ticketRepository) GetNextTicketNumber() (string, error) {
-	var count int64
-	err := r.db.Model(&entity.SupportTicket{}).Count(&count).Error
-	if err != nil {
-		return "", err
+	var nextNumber int64
+	if err := r.db.Raw("SELECT nextval('support_ticket_number_seq')").Scan(&nextNumber).Error; err != nil {
+		return "", fmt.Errorf("get next support ticket number: %w", err)
 	}
-	return fmt.Sprintf("TIC-%d", 1001+count), nil
+	return fmt.Sprintf("TIC-%d", nextNumber), nil
 }

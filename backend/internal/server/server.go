@@ -279,6 +279,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		automationHandler: automationHandler,
 		judgeMeHandler:    judgeMeHandler,
 		feedbackHandler:   feedbackHandler,
+		ticketHandler:     ticketHandler,
 	})
 	mcpWriteHandler := http.Handler(mcpWriteMux)
 	mcpExecutor := mcpServicePkg.NewMuxExecutorWithWriteHandler(readOnlyMux, mcpWriteHandler)
