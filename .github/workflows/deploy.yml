@@ -119,11 +119,14 @@ jobs:
             # Fast targeted pull of custom app images
             docker compose -f docker-compose.prod.yml pull backend frontend frontend-feedback github-mcp-server
 
-            # Recreate containers with zero unnecessary downtime
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans --no-deps backend frontend frontend-feedback github-mcp-server nginx
+            # Recreate application containers with zero unnecessary downtime.
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans --no-deps backend frontend frontend-feedback github-mcp-server
 
-            # Reload Nginx configuration
-            docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload 2>/dev/null || true
+            # Nginx mounts its configuration as a read-only bind mount. Force
+            # recreation so the copied configuration is definitely mounted,
+            # then fail the deployment if Nginx cannot parse it.
+            docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps nginx
+            docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
 
             # Remove only dangling (untagged) images without wiping layer cache
             docker image prune -f
