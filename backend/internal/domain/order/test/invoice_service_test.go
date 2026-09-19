@@ -49,3 +49,18 @@ func TestInvoiceService_GeneratePDF(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, buf.Len() > 0)
 }
+
+func TestInvoiceService_CalculateInvoiceTotalsIncludesAllDiscounts(t *testing.T) {
+	service := &orderService.InvoiceService{}
+	items := []orderEntity.LineItem{
+		{Quantity: 2, Price: 100, Discount: 10, OrderDiscount: 5},
+	}
+
+	totals := service.CalculateInvoiceTotals(items)
+
+	assert.InDelta(t, 200.0, totals.GrossSubtotal, 0.0001)
+	assert.InDelta(t, 15.0, totals.OrderDiscount, 0.0001)
+	assert.InDelta(t, 185.0/1.18, totals.TaxableValue, 0.0001)
+	assert.InDelta(t, 185.0-185.0/1.18, totals.TotalTax, 0.0001)
+	assert.InDelta(t, 185.0, totals.GrandTotal, 0.0001)
+}

@@ -7000,10 +7000,11 @@ a:focus-visible,
 }
 
 .b2b-items-table-row strong {
-  overflow: hidden;
+  min-width: 0;
   font-size: 0.76rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .b2b-items-table-row small {

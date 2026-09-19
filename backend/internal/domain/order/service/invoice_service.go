@@ -36,11 +36,12 @@ func (s *InvoiceService) CalculateInvoiceTotals(items []entity.LineItem) Invoice
 	var t InvoiceTotals
 	for _, item := range items {
 		qty := float64(item.Quantity)
-		lineGross := (item.Price * qty) - item.Discount
+		lineGross := item.Price * qty
 		t.GrossSubtotal += lineGross
-		t.OrderDiscount += item.OrderDiscount
+		lineDiscount := item.Discount + item.OrderDiscount
+		t.OrderDiscount += lineDiscount
 
-		lineNet := lineGross - item.OrderDiscount
+		lineNet := lineGross - lineDiscount
 		if lineNet < 0 {
 			lineNet = 0
 		}
@@ -254,10 +255,6 @@ func (s *InvoiceService) GeneratePDF(order entity.Order, items []entity.LineItem
 }
 
 func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineItem, hasMontserrat bool) {
-	pdf.SetFillColor(241, 245, 249) // slate-100 table header bg
-	s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
-	pdf.SetTextColor(71, 85, 105) // slate-600
-
 	wName := 76.2
 	wSKU := 14.5
 	wHSN := 16.3
@@ -269,16 +266,24 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 	wGSTAmt := 16.3
 
 	hHeader := 9.0
-	pdf.CellFormat(wName, hHeader, "Product Name", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wSKU, hHeader, "SKU", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wHSN, hHeader, "HSN", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wQty, hHeader, "Qty", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wPrice, hHeader, "Price", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wDiscount, hHeader, "Disc", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wTaxable, hHeader, "Taxable", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wGSTPct, hHeader, "GST %", "1", 0, "C", true, 0, "")
-	pdf.CellFormat(wGSTAmt, hHeader, "GST Amt", "1", 1, "C", true, 0, "")
+	renderHeader := func() {
+		pdf.SetFillColor(241, 245, 249) // slate-100 table header bg
+		s.safeSetFont(pdf, "Montserrat", "B", 7.5, hasMontserrat)
+		pdf.SetTextColor(71, 85, 105) // slate-600
+		pdf.CellFormat(wName, hHeader, "Product Name", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wSKU, hHeader, "SKU", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wHSN, hHeader, "HSN", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wQty, hHeader, "Qty", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wPrice, hHeader, "Price", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wDiscount, hHeader, "Disc", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wTaxable, hHeader, "Taxable", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wGSTPct, hHeader, "GST %", "1", 0, "C", true, 0, "")
+		pdf.CellFormat(wGSTAmt, hHeader, "GST Amt", "1", 1, "C", true, 0, "")
+	}
+	renderHeader()
 
+	// Keep all item rows consistent across pages with a lighter regular weight.
+	// The table header remains bold for hierarchy without making the invoice feel heavy.
 	s.safeSetFont(pdf, "Montserrat", "", 6.75, hasMontserrat)
 	pdf.SetTextColor(30, 41, 59) // slate-800
 
@@ -325,6 +330,22 @@ func (s *InvoiceService) renderItemsTable(pdf *gofpdf.Fpdf, items []entity.LineI
 		h := (numLines * 4.5) + 3.0
 		if h < 9.5 {
 			h = 9.5
+		}
+
+		// Keep the complete row together. If CellFormat is allowed to trigger
+		// an automatic page break after curY is captured, the numeric cells can
+		// land on one page while the product MultiCell lands on the next page.
+		// Start a fresh page before drawing the row and repeat the table header.
+		_, pageHeight := pdf.GetPageSize()
+		_, _, _, bottomMargin := pdf.GetMargins()
+		if curY+h > pageHeight-bottomMargin {
+			pdf.AddPage()
+			renderHeader()
+			// Restore the regular row style after drawing the repeated header.
+			s.safeSetFont(pdf, "Montserrat", "", 6.75, hasMontserrat)
+			pdf.SetTextColor(30, 41, 59) // slate-800
+			curX = pdf.GetX()
+			curY = pdf.GetY()
 		}
 
 		// Zebra striping background
