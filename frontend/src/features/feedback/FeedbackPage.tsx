@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { Check, Clipboard, CircleAlert, ExternalLink, MessageSquare, RefreshCw, Save, Search, Send, Star, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 
@@ -75,6 +76,7 @@ export function FeedbackPage({ token, onUnauthorized }: FeedbackPageProps) {
   }, [request])
 
   useEffect(() => { void loadFeedback() }, [loadFeedback])
+  useRealtimeRefresh(['feedback.changed', 'orders.changed'], () => void loadFeedback())
 
   const filteredFeedback = useMemo(() => {
     const query = search.trim().toLowerCase()

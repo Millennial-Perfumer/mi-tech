@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { ChevronLeft, ChevronRight, CircleAlert, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { API_BASE, dateToBoundary } from '../../lib/api'
 import { usePeriodFilter } from '../../lib/usePeriodFilter'
@@ -135,6 +136,7 @@ export function OrdersPage({ token, onUnauthorized }: OrdersPageProps) {
   useEffect(() => {
     void fetchOrders()
   }, [fetchOrders])
+  useRealtimeRefresh(['orders.changed', 'customers.changed'], () => void fetchOrders())
 
   const totalPages = Math.max(Math.ceil(totalCount / pageSize), 1)
 

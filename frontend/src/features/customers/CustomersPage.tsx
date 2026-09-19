@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { ChevronLeft, ChevronRight, CircleAlert, Clock3, Mail, MapPin, Pencil, Phone, Save, Search, SlidersHorizontal, UserRound, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 import { apiJson, apiRequest } from '../../lib/http'
@@ -177,6 +178,20 @@ export function CustomersPage({ token, onUnauthorized }: CustomersPageProps) {
   useEffect(() => {
     void fetchCustomers()
   }, [fetchCustomers])
+  useRealtimeRefresh(['customers.changed', 'orders.changed'], () => {
+    void fetchCustomers()
+    if (selectedCustomer && !isEditingCustomer && !isSavingCustomer) {
+      const customerId = selectedCustomer.id
+      void apiJson<{ customer?: Customer }>(token, onUnauthorized, `/api/customers/${customerId}`)
+        .then((data) => {
+          if (data.customer) {
+            setSelectedCustomer((current) => current?.id === customerId ? data.customer! : current)
+            setCustomerForm((current) => current ? customerFormFrom(data.customer!) : current)
+          }
+        })
+        .catch(() => {})
+    }
+  })
 
   useEffect(() => {
     if (!selectedCustomer) return

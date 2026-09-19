@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { ArrowDownRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, Edit3, History, Package, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 import { apiJson, apiRequest, arrayFrom } from '../../lib/http'
@@ -293,6 +294,7 @@ export function InventoryPage({ token, onUnauthorized, embedded = false }: Inven
   useEffect(() => {
     void fetchInventory()
   }, [fetchInventory])
+  useRealtimeRefresh(['inventory.changed', 'orders.changed', 'b2b.changed'], () => void fetchInventory())
 
   useEffect(() => {
     void fetchSyncConfig()

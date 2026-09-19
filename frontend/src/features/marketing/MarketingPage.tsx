@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { ArrowLeft, ChevronRight, CircleAlert, ExternalLink, RefreshCw, Target, TrendingUp } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 import { usePeriodFilter } from '../../lib/usePeriodFilter'
@@ -71,6 +72,7 @@ export function MarketingPage({ token, onUnauthorized }: MarketingPageProps) {
   }, [endDate, requestJson, startDate])
 
   useEffect(() => { void loadOverview() }, [loadOverview])
+  useRealtimeRefresh(['marketing.changed'], () => void loadOverview())
 
   const loadAdsets = async (campaign: RecordValue) => {
     const id = textValue(campaign.id, '')

@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { ChevronDown, CircleAlert, Edit3, FlaskConical, PackagePlus, Plus, RefreshCw, Trash2, Truck, X } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, formatMoney, numberValue, textValue } from '../../lib/http'
 
@@ -125,6 +126,7 @@ export function InventoryOperations({ token, onUnauthorized, section }: Props) {
   useEffect(() => {
     void load()
   }, [load])
+  useRealtimeRefresh(['inventory.changed', 'orders.changed', 'b2b.changed'], () => void load())
 
   const title = section === 'oils' ? 'Oil inventory' : section === 'suppliers' ? 'Suppliers' : section === 'purchase-orders' ? 'Purchase orders' : 'Manufacturing'
   const icon = section === 'oils' ? <FlaskConical size={18} aria-hidden="true" /> : section === 'suppliers' ? <Truck size={18} aria-hidden="true" /> : <PackagePlus size={18} aria-hidden="true" />

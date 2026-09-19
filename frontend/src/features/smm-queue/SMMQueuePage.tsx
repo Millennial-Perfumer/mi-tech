@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import type { FormEvent } from 'react'
 import { CheckCircle2, CircleAlert, Edit3, Eye, FolderOpen, Hash, ImagePlus, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
 import { apiRequest } from '../../lib/http'
@@ -84,6 +85,7 @@ export function SMMQueuePage({ token, onUnauthorized }: SMMQueuePageProps) {
   }, [requestJson])
 
   useEffect(() => { void loadQueue() }, [loadQueue])
+  useRealtimeRefresh(['smm.changed'], () => void loadQueue())
 
   const resetComposer = () => {
     setCaption('')

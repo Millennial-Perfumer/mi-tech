@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { Building2, ChevronDown, CircleAlert, CloudUpload, Copy, CreditCard, Eye, EyeOff, KeyRound, MessageCircle, Megaphone, RefreshCw, Save, Settings2, ShieldCheck, ShoppingBag, Store, Workflow, Wrench, type LucideIcon } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, numberValue, textValue } from '../../lib/http'
 
@@ -353,6 +354,9 @@ export function SettingsPage({ token, onUnauthorized }: Props) {
   }, [onUnauthorized, token])
 
   useEffect(() => { void load() }, [load])
+  useRealtimeRefresh(['settings.changed'], () => {
+    if (!isWorking && !isRevealed) void load()
+  })
 
   const saveSetting = async (event: FormEvent, key: string) => { event.preventDefault(); setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value: stringValue(settings[key]) }) }); setNotice('Workspace setting saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save setting') } finally { setIsWorking(false) } }
   const saveConfig = async (key: string, value: string) => { setIsWorking(true); try { await apiRequest(token, onUnauthorized, '/api/configs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }); setNotice('Service setting saved') } catch (caughtError) { setError(caughtError instanceof Error ? caughtError.message : 'Unable to save service setting') } finally { setIsWorking(false) } }

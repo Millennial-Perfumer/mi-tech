@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { CircleAlert, Clock3, Plus, RefreshCw, Search, Ticket as TicketIcon, X } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 
@@ -61,6 +62,7 @@ export function SupportPage({ token, onUnauthorized }: SupportPageProps) {
   }, [request])
 
   useEffect(() => { void loadTickets() }, [loadTickets])
+  useRealtimeRefresh(['support.changed'], () => void loadTickets())
 
   const filteredTickets = useMemo(() => {
     const query = search.trim().toLowerCase()

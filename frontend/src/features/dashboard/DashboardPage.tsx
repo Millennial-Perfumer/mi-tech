@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import type { ReactNode } from 'react'
 import { Check, CircleAlert, RefreshCw } from 'lucide-react'
 import { API_BASE, dateToBoundary } from '../../lib/api'
@@ -174,6 +175,7 @@ export function DashboardPage({ token, onUnauthorized }: DashboardPageProps) {
   useEffect(() => {
     void fetchDashboardData()
   }, [fetchDashboardData])
+  useRealtimeRefresh(['orders.changed', 'inventory.changed', 'b2b.changed', 'customers.changed'], () => void fetchDashboardData(true))
 
   const safeMetrics = metrics || fallbackMetrics
   const payment = safeMetrics.payment_breakdown || fallbackMetrics.payment_breakdown!

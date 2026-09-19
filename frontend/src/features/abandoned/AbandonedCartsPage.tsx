@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useRealtimeRefresh } from "../../lib/realtime";
 import {
   Area,
   AreaChart,
@@ -326,6 +327,10 @@ export function AbandonedCartsPage({
   useEffect(() => {
     if (activeTab === "analytics") void loadAnalytics();
   }, [activeTab, loadAnalytics]);
+  useRealtimeRefresh(['abandoned.changed', 'orders.changed'], () => {
+    if (activeTab === "list") void loadList();
+    else void loadAnalytics();
+  });
 
   useEffect(() => {
     setPage(1);

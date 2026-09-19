@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { CircleAlert, ExternalLink, FilePlus2, RefreshCw, Send, Star, Trash2, X } from 'lucide-react'
 import { apiJson, arrayFrom, formatDate, numberValue, textValue } from '../../lib/http'
 
@@ -57,6 +58,9 @@ export function JudgeMePage({ token, onUnauthorized }: Props) {
     void apiJson<unknown>(token, onUnauthorized, '/api/inventory?limit=100').then((data) => setProducts(arrayFrom(data, 'items'))).catch((caughtError) => setError(caughtError instanceof Error ? caughtError.message : 'Unable to load products'))
   }, [onUnauthorized, token])
   useEffect(() => { if (activeTab === 'published') void loadPublished(); else setIsLoading(false) }, [activeTab, loadPublished])
+  useRealtimeRefresh(['marketing.changed', 'inventory.changed'], () => {
+    if (activeTab === 'published') void loadPublished()
+  })
 
   const visibleDrafts = useMemo(() => { const query = search.trim().toLowerCase(); return drafts.filter((draft) => !query || [draft.product_title, draft.reviewer_name, draft.title, draft.body].join(' ').toLowerCase().includes(query)) }, [drafts, search])
   const selectedCount = selectedDraftIds.length > 0 ? selectedDraftIds.length : drafts.length

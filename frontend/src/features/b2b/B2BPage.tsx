@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { Building2, CircleAlert, FilePlus2, Pencil, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, formatMoney, numberValue, textValue } from '../../lib/http'
 import { B2BDocumentKind, B2BDocumentMode, B2BDocumentModal } from './B2BDocumentModal'
@@ -67,6 +68,7 @@ export function B2BPage({ token, onUnauthorized }: Props) {
   }, [onUnauthorized, tab, token])
 
   useEffect(() => { void load() }, [load])
+  useRealtimeRefresh(['b2b.changed', 'inventory.changed'], () => void load())
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()

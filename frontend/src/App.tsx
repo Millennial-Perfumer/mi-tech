@@ -20,6 +20,7 @@ import { SettingsPage } from './features/settings/SettingsPage'
 import { JudgeMePage } from './features/judgeme/JudgeMePage'
 import { TableSortEnhancer } from './components/TableSortEnhancer'
 import { usePeriodFilter } from './lib/usePeriodFilter'
+import { useRealtimeConnection } from './lib/realtime'
 import {
   BarChart3,
   Boxes,
@@ -150,6 +151,10 @@ function App() {
   })
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const { startDate, endDate, setDateRange } = usePeriodFilter()
+  useRealtimeConnection(token, () => {
+    localStorage.removeItem('token')
+    setToken(null)
+  })
 
   const handleLogin = (newToken: string) => {
     localStorage.setItem('token', newToken)

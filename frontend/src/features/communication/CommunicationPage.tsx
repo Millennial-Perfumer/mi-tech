@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { Bot, CircleAlert, MessageCircle, RefreshCw, Search, Send, UserRound } from 'lucide-react'
 import { API_BASE } from '../../lib/api'
 
@@ -95,7 +96,7 @@ export function CommunicationPage({ token, onUnauthorized }: CommunicationPagePr
 
   useEffect(() => {
     void loadConversations()
-    const interval = window.setInterval(() => void loadConversations(), 5000)
+    const interval = window.setInterval(() => void loadConversations(), 30000)
     return () => window.clearInterval(interval)
   }, [loadConversations])
 
@@ -105,9 +106,13 @@ export function CommunicationPage({ token, onUnauthorized }: CommunicationPagePr
       return undefined
     }
     void loadMessages(selectedId)
-    const interval = window.setInterval(() => void loadMessages(selectedId, true), 5000)
+    const interval = window.setInterval(() => void loadMessages(selectedId, true), 30000)
     return () => window.clearInterval(interval)
   }, [loadMessages, selectedId])
+  useRealtimeRefresh(['communication.changed'], () => {
+    void loadConversations()
+    if (selectedId !== null) void loadMessages(selectedId, true)
+  })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

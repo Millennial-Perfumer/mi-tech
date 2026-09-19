@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { CircleAlert, Download, MessageSquare, Pencil, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, formatMoney, numberValue, textValue } from '../../lib/http'
 
@@ -326,6 +327,9 @@ export function OrderDetailsModal({ token, onUnauthorized, orderId, onClose, onC
   }, [onUnauthorized, orderId, token])
 
   useEffect(() => { void load() }, [load])
+  useRealtimeRefresh(['orders.changed', 'customers.changed'], () => {
+    if (!isEditingCustomer) void load()
+  })
 
   const update = async (path: string, body?: unknown, label = 'Order updated') => {
     setIsWorking(true)

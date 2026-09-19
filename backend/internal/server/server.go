@@ -78,6 +78,7 @@ type Server struct {
 	checkoutScheduler *abandonedCheckoutService.AbandonedRecoveryScheduler
 	auditService      *mcpServicePkg.AuditService
 	mcpExecutor       mcpServicePkg.Executor
+	realtime          *realtimeHub
 }
 
 func New() (*Server, error) {
@@ -91,6 +92,7 @@ func New() (*Server, error) {
 
 func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 	mux := http.NewServeMux()
+	realtime := newRealtimeHub()
 
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -236,6 +238,8 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		authService,
 		smmQueueHandler,
 	)
+	mux.HandleFunc("/api/realtime/ticket", middleware.CORSMiddleware(middleware.AuthMiddleware(authService)(http.HandlerFunc(realtime.issueTicket)).ServeHTTP))
+	mux.HandleFunc("/api/realtime/ws", realtime.serveWS)
 
 	// Mount the MCP server over Streamable HTTP, behind machine-key auth.
 	// Tool registration is scoped per-session from the authenticated key's scopes.
@@ -281,7 +285,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		feedbackHandler:   feedbackHandler,
 		ticketHandler:     ticketHandler,
 	})
-	mcpWriteHandler := http.Handler(mcpWriteMux)
+	mcpWriteHandler := realtime.notifyWrites(mcpWriteMux)
 	mcpExecutor := mcpServicePkg.NewMuxExecutorWithWriteHandler(readOnlyMux, mcpWriteHandler)
 
 	mcpHandler := mcpServicePkg.HTTPHandler(func(scopes []string) *mcpSDK.Server {
@@ -305,6 +309,7 @@ func NewServer(cfg *config.Config, db *gorm.DB) *Server {
 		checkoutScheduler: checkoutScheduler,
 		auditService:      auditService,
 		mcpExecutor:       mcpExecutor,
+		realtime:          realtime,
 	}
 }
 
@@ -322,7 +327,7 @@ func (s *Server) Run() error {
 	}
 	server := &http.Server{
 		Addr:              ":" + s.port,
-		Handler:           otelhttp.NewHandler(s.mux, "mi-tech-api"),
+		Handler:           otelhttp.NewHandler(s.realtime.notifyWrites(s.mux), "mi-tech-api"),
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,

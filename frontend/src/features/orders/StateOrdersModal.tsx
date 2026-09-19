@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { ChevronLeft, ChevronRight, CircleAlert, X } from 'lucide-react'
 import { dateToBoundary } from '../../lib/api'
 import { apiJson, formatDate, formatMoney, textValue } from '../../lib/http'
@@ -91,6 +92,7 @@ export function StateOrdersModal({ state, startDate, endDate, selectedChannels, 
   useEffect(() => {
     void fetchOrders()
   }, [fetchOrders])
+  useRealtimeRefresh(['orders.changed'], () => void fetchOrders())
 
   const totalPages = Math.max(Math.ceil(totalCount / pageSize), 1)
 

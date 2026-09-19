@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { Check, CircleAlert, Download, FileJson, RefreshCw, Table2 } from 'lucide-react'
 import { API_BASE, dateToBoundary } from '../../lib/api'
 import { usePeriodFilter } from '../../lib/usePeriodFilter'
@@ -228,6 +229,7 @@ export function ReportsPage({ token, onUnauthorized }: ReportsPageProps) {
     setSortDirection('desc')
     void fetchReports()
   }, [activeTab, fetchReports])
+  useRealtimeRefresh(['orders.changed', 'b2b.changed'], () => void fetchReports(true))
 
   const toggleSource = (sourceId: string) => {
     setSelectedSources((current) => current.includes(sourceId)

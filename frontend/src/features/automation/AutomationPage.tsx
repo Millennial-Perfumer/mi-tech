@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeRefresh } from '../../lib/realtime'
 import { CircleAlert, Edit3, MessageSquare, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { apiJson, apiRequest, arrayFrom, formatDate, numberValue, textValue } from '../../lib/http'
 import { usePeriodFilter } from '../../lib/usePeriodFilter'
@@ -49,6 +50,7 @@ export function AutomationPage({ token, onUnauthorized }: Props) {
   }, [endDate, onUnauthorized, requestPath, startDate, tab, token])
 
   useEffect(() => { void load() }, [load])
+  useRealtimeRefresh(['communication.changed'], () => void load())
 
   const visibleRows = useMemo(() => {
     const query = search.trim().toLowerCase()
