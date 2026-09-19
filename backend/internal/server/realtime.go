@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -110,8 +111,20 @@ func (h *realtimeHub) serveWS(w http.ResponseWriter, r *http.Request) {
 	controller := http.NewResponseController(w)
 	_ = controller.SetReadDeadline(time.Time{})
 	_ = controller.SetWriteDeadline(time.Time{})
-	conn, err := (&websocket.Upgrader{CheckOrigin: realtimeOriginAllowed}).Upgrade(w, r, nil)
+	conn, err := (&websocket.Upgrader{
+		CheckOrigin:      realtimeOriginAllowed,
+		HandshakeTimeout: 10 * time.Second,
+	}).Upgrade(w, r, nil)
 	if err != nil {
+		log.Printf("realtime websocket upgrade failed: host=%q origin=%q connection=%q upgrade=%q version=%q key_present=%t error=%v",
+			r.Host,
+			r.Header.Get("Origin"),
+			r.Header.Get("Connection"),
+			r.Header.Get("Upgrade"),
+			r.Header.Get("Sec-WebSocket-Version"),
+			r.Header.Get("Sec-WebSocket-Key") != "",
+			err,
+		)
 		return
 	}
 	client := &realtimeClient{conn: conn, send: make(chan realtimeEvent, 32)}
